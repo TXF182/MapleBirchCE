@@ -1,0 +1,5 @@
+:: MBStageCELink [widget]
+<div class="settingsToggleItemWide">
+	<span class="gold bold">剧情条件解锁面板</span>
+	<<link "打开 / 关闭">><<run setup.mbStageCE.toggle()>><</link>>
+</div>
