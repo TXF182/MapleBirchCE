@@ -1,0 +1,36 @@
+﻿{
+  "name": "MapleBirchCE",
+  "nickName": {
+    "en": "Maplebirch CE - Auto Story Condition Unlocker",
+    "cn": "Maplebirch CE · 全局全自动剧情条件解锁"
+  },
+  "version": "1.3.2",
+  "styleFileList": [],
+  "scriptFileList_inject_early": [
+    "javascript/maplebirchce.js"
+  ],
+  "scriptFileList": [],
+  "tweeFileList": [
+    "twee/maplebirchce-widget.twee"
+  ],
+  "imgFileList": [],
+  "additionFile": [
+    "README.md"
+  ],
+  "addonPlugin": [],
+  "dependenceInfo": [
+    {
+      "modName": "ModLoader",
+      "version": ">=2.0.0"
+    },
+    {
+      "modName": "GameVersion",
+      "version": ">=0.5.12.13"
+    },
+    {
+      "modName": "maplebirch",
+      "version": ">=5.4.2"
+    }
+  ]
+}
+
