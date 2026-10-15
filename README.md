@@ -1,9 +1,54 @@
-# Maplebirch CE · 全局全自动剧情条件解锁（v1.3.2 · 安全核验版 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
+# Maplebirch CE · 全局全自动剧情条件解锁（v1.4.3 · 枯木逢春适配 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
 
-基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）。
+基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
 ## 版本说明
 
+- **v1.4.3（2026-10-16 · 枯木逢春适配）**：
+  - **背景**：用户提供 `Deadwood-Reblooms-2.2.0.zip`（枯木逢春 · Deadwood Reblooms 2.2.0，作者楓樺葉）要求适配；这是基于 maplebirch 框架的**20 模块大型内容模组**（Sydney/Robin/Whitney/Kylar/LifeSimulation/Orchard/BirdTower/Transport/StreetLife/Finance/VanillaPlus/CelestialAnomalies/MoreTransformations 等）；
+  - **探查**：解压至 `_deadwood_probe\`，通读 package.json（依赖 maplebirch≥5.4.3）、README（模块总表）、Module.ts（通用状态机制：preInit 挂 `:variable` 钩子 → `V[模块名] ??= {}` + migration fill）、main.ts（20 模块 `maplebirch.define` 注册）、各模块类 super 构造 name（逐一实证 V 键名）、constants/（robin/life-simulation/bird-tower/celestial-anomalies 默认状态）、StreetLife.ts + Races.ts（公路赛 v2.2.0）、School.ts（校园职务/竞选数值）；
+  - **状态键（已实证）**：人物模块 `V.RobinExpansion`/`V.SydneyExpansion`/`V.WhitneyExpansion`/`V.KylarExpansion`，系统模块 `V.LifeSimulation`/`V.StreetLife`/`V.BirdTower`/`V.Finance`/`V.Transport`/`V.Orchard`/`V.VanillaPlus`/`V.CelestialAnomalies`；
+  - **边界隔离（关键）**：全量 grep 实证模组**从不读写原版顶层** `V.rebellion`/`V.victories`/`V.self_rent`/`V.both_rent`/`V.rent_separated`（这些同名键只作为 `V.RobinExpansion` 内的模组自建副本）——适配器声明路径一律以模组模块根开头，绝不落到原版顶层键；测试 21.2 双断言（根键白名单 + 无原版同名根键/一级路径）；
+  - **适配器**：`CHEAT_ADAPTERS["deadwood-reblooms"]`，探测点 `maplebirch.get("DeadwoodReblooms")`（框架根模块，关闭即停用全部子模块）；
+  - **可操控项**：阶段 6（罗宾店铺开办 6 档/气球支线 4 档/收容所 3 档/医生游戏 0-2/校园职务 student-prefect-president/历史课题 4 档）+ 能力 11（反抗贝利路线/同盟/团结结局/贝利击败/店铺开张/家教开办/鲜鱼料理/便携烤架/免听凭证/贝利签署/鹰崽哺乳）+ 数值 18（摊位改造等级×2/反抗胜场/储备金/照护基金/气球胜场/家教课时/医生次数/店铺库存/雇员/街头口碑/公路赛胜场/完赛/金戒指 0-2/校园秩序/学生支持/教职支持/腐败值，均带钳制）；
+  - **验证**：282 项断言调用回归全过（新增第 21 节 21 条：探测/分组/根键隔离/字符串枚举写入与越界拒绝/跳最高回退/数字阶段/能力/数值钳制/宿主缺失防崩/留痕回退）。
+- **v1.4.2（2026-10-15 · DomRobin 适配）**：
+  - **背景**：用户提供 `DomRobin.mod.zip`（DomRobin 0.0.8-for-dol-0.5.12.13，罗宾大型增强模组：约会/战斗/特质/工作/直播/摄影/送鱼/孤院海报等）要求适配 Mod作弊；
+  - **探查**：解压至 `_domrobin_probe\`，通读 boot.json（name=DomRobin, version=0.0.8-for-dol-0.5.12.13）、robinModInject_early.js、robinModUtil.js、robinModSettings.js、robinTraitEffects.js、DomRobin_maplebirch_leaf.js/.twee、balloonStand.js、liveStream.js、widgets.twee 等，盘点全部 `V.`/`$` 状态键归属；
+  - **边界隔离（关键）**：DomRobin **大量复用 DoL 原版罗宾线变量**（robinpaid/renttime_fight/robinShouldPayBack/lemonadeUpgraded/chocolateUpgraded/robinPayBothNote/robinPaySelfNote/robinCouldPayBoth/robinCouldPaySelf/robinSoldConsole/robinfirstrentfight/robinconsole/robinconsolelost 等）——适配器**一律不声明**这些键，只暴露确凿模组自建键，杜绝把原版数据渲染到 Mod作弊 页；
+  - **适配器**：`CHEAT_ADAPTERS["dom_robin"]`，探测点 `window.modUtils.getMod("DomRobin")`（ModLoader 已加载模组注册表，模组卸载即消失）；
+  - **可操控项**：阶段 1（直播周数 `$liveStreamStage` 0–6，作者在模组言灵提示中明示可改）+ 能力 12（反抗战斗谈话/共同战斗完成/共同还债谈话/自还债谈话/花环谈话/直播同意准备/谈过一起直播/一起直播 + 4 项还钱进度：柠檬水摊/直播设备/巧克力摊升级/巧克力摊改造，均 boolean）+ 数值 3（反抗链打赢次数 0–99、直播开关 0/1、柠檬水摊新商品列表 popcorn/snack/balloon/flower）；
+  - **验证**：261 项断言调用回归全过（新增第 20 节 18 条：探测/分组/原版罗宾线隔离/数字阶段写入跳最高回退/能力布尔/数值钳制/列表追加移除（on:false）/留痕回退删除叶子/无 modUtils 不出现）。
+- **v1.4.1（2026-10-15 · 归途之书（默示录）适配）**：
+  - **背景**：用户实测 Mod作弊 时加载「默示录：归途之书 v1.3.1」modpack 未识别到内容——该 modpack 为 **dol-mod-protection-tools 加密**（auth-loader + .crypt，明文不可读）；用户随后提供源码包 `Revelation-The-Book-of-Return-1.3.1.zip`，据源码静态分析补内置适配器（不做任何解密）；
+  - **适配器**：`CHEAT_ADAPTERS["revelation-the-book-of-return"]`，探测点 `maplebirch.get('RobinTemple'/'TempleChoir')`（框架模块注册，模组卸载即消失）；状态键 `V.RobinTemple`（罗宾神殿路线）、`V.TempleChoir`（唱诗班），均由 Module.preInit 的 `:variable` 钩子写入默认状态（已实证源码）；
+  - **可操控项**：阶段 5 项（路线 stage 七档字符串枚举：未开始/受邀/已预约/失败/成员/已批准/已承诺；秘密誓言调查阶段；亵渎仪式 0–7 数字阶段；守夜结果；信仰带）+ 能力 6 项（唱诗入团/领唱资格/挂坠/第二份誓约/评估通过/圣带装备）+ 剧情 1 项（祷告事件：跳过=resolved / 强制完成=done / 重置进度）+ 数值 8 项（歌唱熟练度 0–1000、弥撒/练习次数、待领津贴、服务贡献、恩典 0–100、守贞计时 0–30、评估加分 0–15，均带钳制）；
+  - **执行器扩展（v1.4.1）**：`setCheatStage` 支持**字符串枚举阶段**（levels 元素为字符串时写枚举值，越界拒绝保持幂等），数字阶段行为不变；渲染层下拉已通用无需改动；
+  - **隔离**：适配器只声明模组自建键（`RobinTemple.*`/`TempleChoir.*`），绝不暴露原版神殿变量 `temple_rank`/`templePromised`/`temple_chastity_timer` 等；
+  - 243 项断言调用回归全过（新增第 19 节 21 条：探测/分组/原版隔离/字符串枚举写入与越界拒绝/跳最高回退初始/数字阶段/能力/数值钳制/祷告剧情三动作/宿主缺失防崩/留痕回退）。
+- **v1.4.0（2026-10-15 · 新增第 6 主页面「Mod作弊」）**：
+  - **定位**：顶部导航新增与「角色/阶段/剧情/场景/全局」平级的第 6 个入口「Mod作弊」，专控**第三方模组新增内容**；DoL 原版全部内容依旧走原有五大面板，本模块**完全不处理原版变量**（内置原版一级键过滤清单，命中即拒）；
+  - **页面结构**：主容器页只展示已识别模组列表（`▶ 模组名`），点击进入该模组独立子页面；子页面标题标注来源模组名，四分组控件——① 模组新增任务（跳过/直接完成）② 模组新增阶段&能力（阶段等级下拉/跳最高/回初始、能力勾选启停）③ 模组自定义剧情（跳过/强制完成/重置进度）④ 自定义数值修改（变量名+输入框+应用，含类型校验与越界钳制）；无可用模组时兜底提示「⚠ 暂未识别到可控制的第三方模组拓展内容，请加载对应模组后重试。」；
+  - **动态发现三通道**：注册制 `setup.mbCE_modCheats = [...]`（外部模组按约定格式自注册可操控项）→ 内置适配器 `CHEAT_ADAPTERS`（内建 detect 探测）→ 被动探测 `CHEAT_PASSIVE_PROBES`；每次渲染面板/切换时重扫，新增模组自动出现，无需硬编码；
+  - **防崩与幂等**：写入前校验父级对象链（缺失即拒，绝不写 undefined）；数字校验 isFinite + min/max 钳制、布尔归一化、字符串数组列表型（list）追加/移除；原版变量/未声明项一律拒绝并页面提示；
+  - **操作留痕**：所有修改记入 `V.mbCE_wrote`（key=`cheat:模组ID:操作:条目`，含 modId/op/path/before/after/t），每项控件带「回退」按钮，还原首次面板写入前状态，二次回退拒绝；
+  - **内置适配器（首版）**：More Love Interests Mod 0.1.7.0——探测键 `setup.foodPreference`（模组无条件注入，卸载即消失），可操控项：扩容恋人列表 `$loveInterestList`（11 槽，勾选候选 NPC 加入/移出，模组自身的条件剔除逻辑如 Remy/Black Wolf/Avery 由模组 widget 照常执行）；`$loveInterest.primary..undecimal` 由模组 widget 从列表自动重建，面板不直接写；
+  - 222 项断言调用回归全过（新增第 18 节 35 条：动态扫描/标准化/子页面隔离/父级缺失防崩/原版过滤/数值钳制/布尔归一/留痕结构/回退/任务跳过完成/阶段钳制跳级回退/能力启停/剧情三动作/列表追加移除回退/适配器探测与写入/重扫）。
+- **v1.3.5（2026-10-15 · 格威岚场景直达崩溃闭环）**：
+  - **现象**：新存档（只装框架 + 本 MOD）在场景直达页点「格威岚 · 花园与森林商店」直达后，多瑙河街/花园段落报 `<<if>>: bad conditional expression ... reading 'includesAny'`（`<<if _gwylanStatus.includesAny("wounded", "scarred")>>`）与 `reading 'tail'`（`<<if ... _gwylanTF.tail isnot "revealed">>`）；
+  - **根因（已实证本体源码）**：`Gwylan Ritual Start Garden` 等格威岚段落开头靠 `<<run statusCheck("Gwylan")>>` 初始化临时变量 `T.gwylanStatus`/`T.gwylanTF`（即 Twee 里的 `_gwylanStatus`/`_gwylanTF`）；但本体 `statusCheck` 仅在 `C.npc.Gwylan.init === 1` 时才调用 `gwylanStatusCheck()`——新存档未见过格威岚时 init 为 0 → 两个临时变量**完全不初始化**；且 `gwylanStatusCheck()` 在 `V.gwylanTalked/V.gwylanSeen/V.gwylan` 缺失时早退，**只设 `T.gwylanStatus=[]`、不设 `T.gwylanTF`** → 段落无条件读 `_gwylanStatus.includesAny(...)` / `_gwylanTF.tail` 即崩；
+  - **修复**：新增 `ensureGwylanSceneState()` 幂等兜底——`T.gwylanStatus` 缺失时用本体公式刷新（本体 `gwylanStatusCheck` 优先，缺失时内置公式副本兜底），`T.gwylanTF` 缺失时补默认隐藏态四字段（`ears/tail/fangs/known`），**已有值绝不覆盖**；挂在 `:passageinit` 全局钩子（`mbCEOnPassageInit`）上，任意段落进入时先行补齐，覆盖场景直达/固定触发/场景查看器等全部入口（含框架改段落名、宿主段落内嵌格威岚内容的渲染路径）；导出 `api.ensureGwylanSceneState` / `api.isGwylanGardenPassage`；
+  - 新增断言：新存档兜底补 status 数组 + TF 默认四字段、已有值不覆盖幂等、模拟段落 `includesAny`/`tail` 读取不再崩、任意段落（Danube Street）经 passageinit 兜底、场景查看器段落逻辑不回归。
+- **v1.3.4（2026-10-14 · 睡觉 farm_stock 结算崩溃闭环）**：
+  - **现象**：孤儿院（Deadwood Reblooms）等场景睡觉时报 `<<farm_stock>>: errors within widget code (<<set>>: bad evaluation: TypeError: Cannot read properties of undefined (reading 'truffles'))`，报错链 `<<sleep>> → <<sleephour>> → <<pass>> → <<farm_stock>>`；
+  - **根因（已实证本体源码）**：`$farm.stock`（truffles/eggs/milk/cream 四字段）**仅由本体 `<<farm_stock_init>>` 在"共享农场"剧情节点（Farm Fight End Accept/Refuse）初始化**；一键解锁恋爱阶段把 `$farm_stage` 直接置高后 `$farm` 未走本体农场线初始化，v1.3.1 起的 `ensureFarmState()` 空壳覆盖了 beasts/wage/clearing/milking/build_finished，**漏了 `stock`** → 睡觉跨午夜本体 `dailyFarmEvents` 等路径调 `<<farm_stock>>`（`$farm.stock[_args[0]] += n`）读 undefined → 崩；报错 `reading 'truffles'` 而非 `'stock'` 印证 `$farm` 存在但缺 `stock`；
+  - **修复**：`ensureFarmState()` 空壳与残缺分支同步补齐 `stock: { truffles: 0, eggs: 0, milk: 0, cream: 0 }`（对齐本体 `farm_stock_init` 结构，已有值绝不覆盖）；写入 farm_stage / globalRomance / 启动兜底等全部 5 个调用点自动生效；
+  - 179 项断言调用回归全过（新增：空壳含 stock 四字段、缺 stock 补全且不覆盖已有值、模拟 `<<farm_stock>>` 累加路径不抛错）。
+- **v1.3.3（2026-10-14 · 艾弗里庄园聊天崩溃闭环）**：
+  - **现象**：场景直达解锁艾弗里庄园后，与艾弗里聊天（`Mansion Talk`）崩：`<<avery_daily_talk>>` 报 `reading 'chat'`、`reading 'ignore'`，连锁「The passage Mansion Talk has no usable links」；
+  - **根因（已实证本体源码）**：本体 0.5.5.5 后 `$daily.avery` 由艾弗里线入口建为 `{}`，`talk`/`ask` 子对象在**使用点**才初始化（`avery_daily_talk` 只检查 `$daily.avery.talk.chat is undefined`——`talk` 整体缺失时访问 `talk.chat` 即崩，`Mansion Talk` 读 `$daily.avery.talk.ignore` 同理）；MOD 直达前空壳仅覆盖「`daily.avery` 整体缺失」，**未补 `talk` 子对象残缺** → 直达/世界入口进庄园即崩；
+  - **修复**：`ensureAveryMansion()` 改为**逐层补齐**——`daily.avery` 缺失时建完整结构，已存在但 `talk`/`ask`/`housekeeping_events` 缺失时逐个补齐（含 ignore/limit/flirt/seduce/annoyed/chat/chat_limit 完整字段），绝不覆盖已有值；`init()` 启动兜底新增 `ensureAveryMansion()`（世界入口进庄园、不经过直达/触发的路径也覆盖）；导出 `api.ensureAveryMansion`；
+  - 176 项断言调用回归全过（新增：`daily.avery` 存在但 `talk` 缺失 → 补全 talk、talk/ask 已有值不覆盖幂等断言）。
 - **v1.3.2（2026-10-13 · 社交崩溃根因闭环）**：
   - **根因实证**：社交界面崩溃（孤儿院/多瑙河街 `reading 'beasts'/'aggro'/'states'`）的直接触发路径确认为**「全局页（或角色页）一键解锁恋爱阶段」**——MOD 按 Maplebirch 注册的条件源码解析并写入变量，亚历克斯（Alex）的农场阶段条件会把 `$farm_stage` 直接置高（绕过本体农场线入口初始化），但 `$farm` 对象不会随之建立 → 之后进任何含 `<<social>>` 的段落即崩；
   - **修复**：`applyRomanceFix` 在写入 `farm_stage` 的瞬间立即调用 `ensureFarmState()` 补 `$farm` 空壳（同会话内点按钮后不再崩）；`globalRomance` 一键完成后再次兜底（双保险）；
