@@ -20,6 +20,40 @@
  *  - 新增「固定触发」：剧情页把任一剧情（含 MOD 注册场景，如罗宾神殿剧情）
  *    固定为下次推进剧情（遇见角色）即自动重放；「回退」恢复原版随机触发。
  *    复用原版 $replayScene 重放通道 + freezePlayerStats，零副作用。
+ * v1.3.5（2026-10-15）：格威岚场景直达崩溃闭环——ensureGwylanSceneState()
+ *  幂等补齐 T.gwylanStatus/T.gwylanTF（statusCheck 仅 init===1 才初始化），
+ *  挂 :passageinit 全局钩子（mbCEOnPassageInit），任意入口先行补齐。
+ * v1.4.0（2026-10-15）：新增第 6 主页面「Mod作弊」——第三方模组扩展内容
+ *  作弊控制（主容器页展示模组列表 + 每模组独立子页面，四分组：模组新增任务/
+ *  阶段&能力/自定义剧情/自定义数值修改）；注册制 setup.mbCE_modCheats +
+ *  内置适配器 CHEAT_ADAPTERS + 被动探测 CHEAT_PASSIVE_PROBES 三通道动态发现；
+ *  CHEAT_VANILLA_ROOTS 原版一级键过滤（loveInterest 拒、loveInterestList 可）；
+ *  写入前父级链校验防 undefined、number isFinite+min/max 钳制、boolean 归一、
+ *  list 型数组追加/移除（More Love Interests Mod 0.1.7.0 内置适配器）；
+ *  全部修改留痕 V.mbCE_wrote（key=cheat:modId:op:item，含 before/after），
+ *  每控件带「回退」按钮还原首次写入前状态。
+ * v1.4.1（2026-10-15）：归途之书（默示录）适配——CHEAT_ADAPTERS
+ *  ["revelation-the-book-of-return"] 探测 maplebirch.get('RobinTemple'/'TempleChoir')，
+ *  状态键 V.RobinTemple（罗宾神殿路线）/V.TempleChoir（唱诗班），
+ *  阶段 5（含字符串枚举：stage 七档/vigil_result/faith_band，setCheatStage 越界拒绝）、
+ *  能力 6、剧情 1（祷告事件）、数值 8（0-1000 熟练度等钳制）；
+ *  不暴露原版神殿变量 temple_rank/templePromised/temple_chastity_timer。
+ * v1.4.2（2026-10-15）：DomRobin 适配——CHEAT_ADAPTERS["dom_robin"] 探测
+ *  window.modUtils.getMod("DomRobin")（ModLoader 注册表，boot name=DomRobin）；
+ *  边界隔离：DomRobin 大量复用原版罗宾线变量（robinpaid/renttime_fight/
+ *  robinShouldPayBack/lemonadeUpgraded/robinPayBothNote/robinCouldPayBoth/
+ *  robinSoldConsole 等一律不声明），只暴露模组自建键——
+ *  阶段 1（直播周数 liveStreamStage 0-6，作者言灵明示可改）、能力 12
+ *  （反抗战斗谈话/共同战斗/还债谈话/花环/直播准备/一起直播/4 项还钱进度）、
+ *  数值 3（反抗链打赢次数 0-99、直播开关 0/1、柠檬水摊新商品列表）。
+ * v1.4.3（2026-10-16）：枯木逢春适配——CHEAT_ADAPTERS["deadwood-reblooms"]
+ *  探测 maplebirch.get("DeadwoodReblooms")（框架根模块，main.ts 注册）；
+ *  状态键 V.RobinExpansion/V.LifeSimulation/V.StreetLife/V.BirdTower 等
+ *  （Module.ts :variable 钩子 + super 构造 name 逐一实证）；
+ *  阶段 6（店铺开办/气球支线/收容所/医生游戏/校园职务/历史课题，含字符串枚举）、
+ *  能力 11、数值 18（摊位改造/反抗胜场/储备金/街头口碑/公路赛/金戒指/校园竞选值）；
+ *  全量 grep 实证模组不读写原版顶层 rebellion/victories/self_rent 等，
+ *  声明路径一律以模组模块根开头，绝不落到原版顶层键。
  * ============================================================
  */
 (function () {
@@ -697,6 +731,29 @@
 		} catch (e) {}
 		return false;
 	}
+	/* 防崩：格威岚场景临时变量兜底（v1.3.5）
+	   本体 Gwylan Ritual Start Garden 等段落开头靠 <<run statusCheck("Gwylan")>> 初始化
+	   T.gwylanStatus / T.gwylanTF；但 statusCheck 仅在 C.npc.Gwylan.init === 1 时才调用
+	   gwylanStatusCheck()——新存档未见过格威岚时 init 为 0，两个临时变量完全不初始化；
+	   且 gwylanStatusCheck() 在 V.gwylanTalked/V.gwylanSeen/V.gwylan 缺失时早退，只设
+	   T.gwylanStatus=[]、不设 T.gwylanTF → 段落读 _gwylanTF.tail 直接崩。
+	   兜底：T.gwylanStatus 缺失时用本体公式刷新（本体 gwylanStatusCheck 或内置公式副本），
+	   T.gwylanTF 缺失时补默认隐藏态四字段（ears/tail/fangs/known）；已有值绝不覆盖。 */
+	function ensureGwylanSceneState() {
+		try {
+			var t = (typeof State !== "undefined" && State && State.temporary) ? State.temporary : null;
+			if (!t) { return; }
+			if (!Array.isArray(t.gwylanStatus)) { refreshVanillaStatus(); }
+			if (!t.gwylanTF || typeof t.gwylanTF !== "object") {
+				t.gwylanTF = { ears: "hidden", tail: "hidden", fangs: "hidden", known: false };
+			}
+		} catch (e) {}
+	}
+	/* 格威岚花园/森林商店段落判定（与场景直达组 gwylan_garden 同口径） */
+	function isGwylanGardenPassage(name) {
+		var n = String(name || "");
+		return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0;
+	}
 	var VANILLA_STAGES = [
 		{ key: "ritual_sex", label: "仪式之约", desc: "完成一次仪式性爱", seen: true },
 		{ key: "yearning", label: "渴望（Yearning）", desc: "爱意 ≥65% + 支配 ≥20 + 情欲 ≥40（非警戒）→ 收信", seen: true },
@@ -873,6 +930,653 @@
 		}
 	}
 
+	/* ============ v1.4.0 Mod作弊：第三方模组扩展内容操控（第 6 主页面）
+	       边界：完全不处理 DoL 原版变量（过滤清单 CHEAT_VANILLA_ROOTS）；
+	       只操作注册表 / 内置适配器 / 被动探测声明出的模组专属变量。
+	       机制：① setup.mbCE_modCheats 注册制（外部模组按约定声明，动态识别）
+	             ② CHEAT_ADAPTERS 内置适配器数据（已装内容模组，探测命中即合并）
+	             ③ CHEAT_PASSIVE_PROBES 被动识别占位（识别到模组但未声明可操控项）
+	       留痕：V.mbCE_wrote 扩展 {type:"cheat", modId, op, path, before, after, t}，
+	             key="cheat:"+modId+":"+itemKey；回退还原 before（首次面板写入前状态）。 ============ */
+	var CHEAT_VANILLA_ROOTS = [
+		"farm", "farm_stage", "gwylan", "gwylanSeen", "gwylanTalked",
+		"robinromance", "whitneyromance", "kylarenglish", "avery_mansion", "avery_tower",
+		"daily", "settings", "scenes", "NPCName", "characters", "npc",
+		"weekly", "specialClothes", "loveInterest", "replayScene", "sceneViewSwitch",
+		"mbCE_queue", "mbCE_wrote", "mbCE_replayOnce", "mbCE_replayPending", "mbCE_unlockedPlaces"
+	];
+	var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
+	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
+	var curCheatModId = "";
+
+	/* 内置适配器：默示录：归途之书 v1.3.1（用户 2026-10-15 提供源码 Revelation-The-Book-of-Return-1.3.1.zip，探查实证）
+	   探测点：maplebirch 框架模块注册（Module.preInit 挂 :variable → V[模块名]）；
+	   状态键：V.RobinTemple（罗宾神殿路线，RobinTemple.ts constants/robin-temple.ts）、V.TempleChoir（唱诗班，constants/temple-choir.ts）。
+	   只声明模组自建键，不碰原版 V.temple_rank / V.templePromised / V.temple_chastity_timer 等。 */
+	CHEAT_ADAPTERS["revelation-the-book-of-return"] = {
+		detect: function () {
+			try {
+				if (typeof window === "undefined" || !window.maplebirch || typeof window.maplebirch.get !== "function") { return false; }
+				return !!(window.maplebirch.get("RobinTemple") || window.maplebirch.get("TempleChoir"));
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "revelation-the-book-of-return",
+			modName: "默示录：归途之书 v1.3.1",
+			tasks: [],
+			stages: [
+				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
+				  levels: ["none", "invited", "scheduled", "failed", "member", "approved", "promised"],
+				  labels: ["未开始", "受邀", "已预约", "失败", "成员", "已批准", "已承诺"] },
+				{ key: "rt_secret_stage", name: "秘密誓言 · 调查阶段", varPath: "RobinTemple.secret.stage",
+				  levels: ["none", "research", "travelling", "decision", "ritual", "complete"],
+				  labels: ["未开始", "调查", "旅行", "抉择", "仪式", "完成"] },
+				{ key: "rt_rite_stage", name: "秘密誓言 · 亵渎仪式阶段", varPath: "RobinTemple.secret.rite_stage",
+				  levels: [0, 1, 2, 3, 4, 5, 6, 7],
+				  labels: ["未开始", "下沉", "触手", "致幻", "同席", "再下潜", "合唱", "收束"] },
+				{ key: "rt_vigil", name: "罗宾神殿 · 守夜结果", varPath: "RobinTemple.vigil_result",
+				  levels: ["", "passed", "failed"],
+				  labels: ["未守夜", "通过", "失败"] },
+				{ key: "rt_faith_band", name: "罗宾神殿 · 信仰带", varPath: "RobinTemple.faith_band",
+				  levels: ["steady", "belief", "doubt"],
+				  labels: ["平稳", "信靠", "动摇"] }
+			],
+			abilities: [
+				{ key: "tc_joined", name: "唱诗班 · 已入团", varPath: "TempleChoir.joined", type: "boolean" },
+				{ key: "tc_lead", name: "唱诗班 · 领唱资格", varPath: "TempleChoir.lead", type: "boolean" },
+				{ key: "rt_pendant", name: "罗宾神殿 · 携带挂坠", varPath: "RobinTemple.pendant", type: "boolean" },
+				{ key: "rt_dual", name: "罗宾神殿 · 第二份誓约", varPath: "RobinTemple.dual_promise", type: "boolean" },
+				{ key: "rt_assess", name: "罗宾神殿 · 评估通过", varPath: "RobinTemple.assessment_passed", type: "boolean" },
+				{ key: "rt_clasp", name: "罗宾神殿 · 圣带装备", varPath: "RobinTemple.clasp_equipped", type: "boolean" }
+			],
+			scenes: [
+				{ key: "rt_prayer", name: "罗宾神殿 · 祷告事件", skipVar: "RobinTemple.prayer_event_resolved", completeVar: "RobinTemple.prayer_event_done", progressVar: "RobinTemple.prayer_event", resetValue: 0 }
+			],
+			values: [
+				{ key: "tc_singing", name: "唱诗班 · 歌唱熟练度", varPath: "TempleChoir.singing", type: "number", min: 0, max: 1000 },
+				{ key: "tc_services", name: "唱诗班 · 出席弥撒次数", varPath: "TempleChoir.services", type: "number", min: 0, max: 999 },
+				{ key: "tc_practices", name: "唱诗班 · 练习次数", varPath: "TempleChoir.practices", type: "number", min: 0, max: 999 },
+				{ key: "tc_bonus", name: "唱诗班 · 待领津贴(便士)", varPath: "TempleChoir.bonus", type: "number", min: 0, max: 100000 },
+				{ key: "rt_service", name: "罗宾神殿 · 服务贡献", varPath: "RobinTemple.service", type: "number", min: 0, max: 100 },
+				{ key: "rt_grace", name: "罗宾神殿 · 恩典", varPath: "RobinTemple.grace", type: "number", min: 0, max: 100 },
+				{ key: "rt_chastity", name: "罗宾神殿 · 守贞计时", varPath: "RobinTemple.chastity_timer", type: "number", min: 0, max: 30 },
+				{ key: "rt_assess_bonus", name: "罗宾神殿 · 评估加分", varPath: "RobinTemple.assessment_bonus", type: "number", min: 0, max: 15 }
+			]
+		}
+	};
+
+	/* 内置适配器：More Love Interests Mod 0.1.7.0（用户已装 mli_mod_patched.zip，2026-10-15 探查实证）
+	   探测键：setup.foodPreference（模组 foodPreference.js 无条件注入的 setup 键，模组卸载即消失）。
+	   可操控面（已实证模组源码）：$loveInterestList = 扩容恋人列表（字符串数组，模组主交互对象，
+	   moreLoveInterestConfirm 会按模组条件自动剔除 Remy/Black Wolf/Avery）；
+	   $loveInterest.primary..undecimal 由模组 widget 从列表自动重建，面板不直接写（避免被重建覆盖）。 */
+	CHEAT_ADAPTERS["more_love_interests"] = {
+		detect: function () {
+			return !!(setup && setup.foodPreference && typeof setup.foodPreference === "object");
+		},
+		entry: {
+			modId: "more_love_interests",
+			modName: "More Love Interests Mod 0.1.7.0",
+			tasks: [],
+			stages: [],
+			abilities: [],
+			scenes: [],
+			values: [
+				{
+					key: "loveInterestList",
+					name: "恋人列表（模组扩容版）",
+					varPath: "loveInterestList",
+					type: "list",
+					options: ["Robin", "Whitney", "Kylar", "Eden", "Avery", "Sydney", "Alex", "Black Wolf", "Great Hawk", "Gwylan", "Remy"]
+				}
+			]
+		}
+	};
+
+	/* 内置适配器：DomRobin 0.0.8-for-dol-0.5.12.13（罗宾大型增强模组，2026-10-15 解压探查实证）
+	   探测键：window.modUtils.getMod("DomRobin")（ModLoader 已加载模组注册表，boot.json name=DomRobin）。
+	   边界隔离：DomRobin 大量复用 DoL 原版罗宾线变量（robinpaid/renttime_fight/robinShouldPayBack/
+	   lemonadeUpgraded/chocolateUpgraded/robinPayBothNote/robinCouldPayBoth/robinSoldConsole 等），
+	   适配器一律不声明；只暴露模组自建键（均见源码赋值/初始化）：
+	   $liveStreamStage 直播周数 0-6（作者在言灵提示中明示可改）、$robinFightChain 反抗链打赢次数
+	   （≥3 解锁共同战斗）、$liveStream 直播开关 0/1、$lemonadeNewGoodsList 柠檬水摊新商品列表
+	   （popcorn/snack/balloon/flower，gameStartOnly.txt 初始化 []），
+	   以及一批 boolean 进度标记（战斗谈话/共同战斗/还债谈话/花环/直播准备/一起直播/4 项还钱进度）。 */
+	CHEAT_ADAPTERS["dom_robin"] = {
+		detect: function () {
+			try {
+				if (typeof window === "undefined" || !window.modUtils || typeof window.modUtils.getMod !== "function") { return false; }
+				return !!window.modUtils.getMod("DomRobin");
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "dom_robin",
+			modName: "DomRobin 0.0.8（罗宾大型增强）",
+			tasks: [],
+			stages: [
+				{ key: "ls_stage", name: "直播 · 周数阶段", varPath: "liveStreamStage",
+				  levels: [0, 1, 2, 3, 4, 5, 6],
+				  labels: ["初始", "第 1 周", "第 2 周", "第 3 周", "第 4 周", "第 5 周", "第 6 周（最高）"] }
+			],
+			abilities: [
+				{ key: "rf_talked", name: "反抗战斗 · 已谈话", varPath: "robinFightTalked", type: "boolean" },
+				{ key: "rf_together", name: "反抗战斗 · 共同战斗完成", varPath: "robinFightTogether", type: "boolean" },
+				{ key: "rp_both", name: "还债线 · 共同还债谈话", varPath: "robinPayBothTalked", type: "boolean" },
+				{ key: "rp_self", name: "还债线 · 自还债谈话", varPath: "robinPaySelfTalked", type: "boolean" },
+				{ key: "fc_talked", name: "柠檬摊 · 花环谈话", varPath: "flowerCrownTalked", type: "boolean" },
+				{ key: "ls_agree", name: "直播 · 同意准备直播", varPath: "liveStreamAgreePrepare", type: "boolean" },
+				{ key: "ls_talked", name: "直播 · 谈过一起直播", varPath: "liveStreamTogetherTalked", type: "boolean" },
+				{ key: "ls_together", name: "直播 · 一起直播", varPath: "liveStreamTogether", type: "boolean" },
+				{ key: "pb_lemon", name: "还钱进度 · 柠檬水摊", varPath: "lemonadeShouldPayBack", type: "boolean" },
+				{ key: "pb_live", name: "还钱进度 · 直播设备", varPath: "liveStreamShouldPayBack", type: "boolean" },
+				{ key: "pb_choc", name: "还钱进度 · 巧克力摊升级", varPath: "chocolateUpgradeShouldPayBack", type: "boolean" },
+				{ key: "pb_choc2", name: "还钱进度 · 巧克力摊改造", varPath: "chocolateReformShouldPayBack", type: "boolean" }
+			],
+			scenes: [],
+			values: [
+				{ key: "rf_chain", name: "反抗链 · 打赢次数（≥3 解锁共同战斗）", varPath: "robinFightChain", type: "number", min: 0, max: 99 },
+				{ key: "ls_on", name: "直播 · 开启（0 关 / 1 开）", varPath: "liveStream", type: "number", min: 0, max: 1 },
+				{ key: "goods_list", name: "柠檬水摊 · 新商品", varPath: "lemonadeNewGoodsList", type: "list", options: ["popcorn", "snack", "balloon", "flower"] }
+			]
+		}
+	};
+
+	/* 内置适配器：枯木逢春 · Deadwood Reblooms 2.2.0（2026-10-16 源码探查实证，作者楓樺葉）
+	   探测键：window.maplebirch.get("DeadwoodReblooms")（框架根模块，main.ts 注册，关闭即停用全部子模块）。
+	   状态键（Module.ts 通用机制：preInit 挂 :variable 钩子 → V[模块名] ??= {} + migration fill 默认值）：
+	   人物模块 V.RobinExpansion / V.SydneyExpansion / V.WhitneyExpansion / V.KylarExpansion，
+	   系统模块 V.LifeSimulation / V.StreetLife / V.BirdTower / V.Finance / V.Transport / V.Orchard /
+	   V.VanillaPlus / V.CelestialAnomalies（各模块类 super 构造 name 逐一实证）。
+	   边界隔离：模组从不读写原版顶层 V.rebellion/V.victories/V.self_rent/V.both_rent/V.rent_separated
+	   （全量 grep 实证），适配器也不声明原版复用键；只暴露模组自建字段。 */
+	CHEAT_ADAPTERS["deadwood-reblooms"] = {
+		detect: function () {
+			try {
+				if (typeof window === "undefined" || !window.maplebirch || typeof window.maplebirch.get !== "function") { return false; }
+				return !!window.maplebirch.get("DeadwoodReblooms");
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "deadwood-reblooms",
+			modName: "枯木逢春 · Deadwood Reblooms 2.2.0",
+			tasks: [],
+			stages: [
+				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
+				  levels: ["none", "planning", "applied", "site", "inspected", "permitted"],
+				  labels: ["未开始", "筹备", "已申请", "选址", "已验收", "已许可"] },
+				{ key: "r_balloon", name: "罗宾 · 气球支线走向", varPath: "RobinExpansion.balloon",
+				  levels: ["none", "cooperate", "compete", "resolved"],
+				  labels: ["未开始", "合作", "竞争", "已收束"] },
+				{ key: "r_asylum", name: "罗宾 · 收容所状态", varPath: "RobinExpansion.asylum.status",
+				  levels: ["home", "admitted", "recovering"],
+				  labels: ["在家", "已入院", "康复中"] },
+				{ key: "r_doctor", name: "罗宾 · 医生游戏进度", varPath: "RobinExpansion.doctor.stage",
+				  levels: [0, 1, 2],
+				  labels: ["未入门", "已玩过", "罗宾会主动提出"] },
+				{ key: "ls_role", name: "校园 · 职务", varPath: "LifeSimulation.school.role",
+				  levels: ["student", "prefect", "president"],
+				  labels: ["学生", "风纪委员", "学生会长"] },
+				{ key: "ls_history", name: "校园 · 历史课题", varPath: "LifeSimulation.historyProject.status",
+				  levels: ["none", "ongoing", "done", "won"],
+				  labels: ["未开始", "进行中", "已完成", "已获奖"] }
+			],
+			abilities: [
+				{ key: "r_rebellion", name: "罗宾 · 反抗贝利路线", varPath: "RobinExpansion.rebellion", type: "boolean" },
+				{ key: "r_allies", name: "罗宾 · 已结成同盟", varPath: "RobinExpansion.allies", type: "boolean" },
+				{ key: "r_solidarity", name: "罗宾 · 团结结局线", varPath: "RobinExpansion.solidarity", type: "boolean" },
+				{ key: "r_bailey", name: "罗宾 · 贝利已击败", varPath: "RobinExpansion.bailey_defeated", type: "boolean" },
+				{ key: "r_shop", name: "罗宾 · 店铺已开张", varPath: "RobinExpansion.shop", type: "boolean" },
+				{ key: "r_tutor", name: "罗宾 · 家教业务开办", varPath: "RobinExpansion.tutor", type: "boolean" },
+				{ key: "r_fish_cooked", name: "罗宾 · 鲜鱼料理试做", varPath: "RobinExpansion.fish_cooked", type: "boolean" },
+				{ key: "r_fish_grill", name: "罗宾 · 便携烤架", varPath: "RobinExpansion.fish_grill", type: "boolean" },
+				{ key: "ls_exempt", name: "校园 · 免听凭证", varPath: "LifeSimulation.school.attendanceExempt", type: "boolean" },
+				{ key: "ls_bailey", name: "校园 · 贝利已签署（会长线）", varPath: "LifeSimulation.school.baileySigned", type: "boolean" },
+				{ key: "bt_milk", name: "鹰塔 · 哺乳事件已触发", varPath: "BirdTower.seen.milk", type: "boolean" }
+			],
+			scenes: [],
+			values: [
+				{ key: "r_lemonade", name: "罗宾 · 柠檬水摊改造等级", varPath: "RobinExpansion.lemonade", type: "number", min: 0, max: 99 },
+				{ key: "r_chocolate", name: "罗宾 · 巧克力摊改造等级", varPath: "RobinExpansion.chocolate", type: "number", min: 0, max: 99 },
+				{ key: "r_victories", name: "罗宾 · 反抗路线胜场", varPath: "RobinExpansion.victories", type: "number", min: 0, max: 999 },
+				{ key: "r_reserve", name: "罗宾 · 储备金（英镑）", varPath: "RobinExpansion.reserve", type: "number", min: 0, max: 1000000 },
+				{ key: "r_care", name: "罗宾 · 照护基金（英镑）", varPath: "RobinExpansion.care_fund", type: "number", min: 0, max: 1000000 },
+				{ key: "r_balloon_wins", name: "罗宾 · 气球小游戏胜场", varPath: "RobinExpansion.balloon_wins", type: "number", min: 0, max: 999 },
+				{ key: "r_tutor_lessons", name: "罗宾 · 家教累计课时", varPath: "RobinExpansion.tutor_lessons", type: "number", min: 0, max: 999 },
+				{ key: "r_doctor_count", name: "罗宾 · 医生游戏次数", varPath: "RobinExpansion.doctor.count", type: "number", min: 0, max: 99 },
+				{ key: "r_shop_stock", name: "罗宾 · 店铺库存", varPath: "RobinExpansion.shop_stock", type: "number", min: 0, max: 99999 },
+				{ key: "r_shop_staff", name: "罗宾 · 店铺雇员", varPath: "RobinExpansion.shop_staff", type: "number", min: 0, max: 99 },
+				{ key: "sl_reputation", name: "街头 · 口碑", varPath: "StreetLife.reputation", type: "number", min: 0, max: 100 },
+				{ key: "sl_race_wins", name: "街头 · 公路赛胜场", varPath: "StreetLife.races.wins", type: "number", min: 0, max: 999 },
+				{ key: "sl_race_done", name: "街头 · 公路赛完赛次数", varPath: "StreetLife.races.completed", type: "number", min: 0, max: 999 },
+				{ key: "bt_ring", name: "鹰塔 · 金戒指类型（0 无/1 普通/2 镶宝石）", varPath: "BirdTower.ring.kept", type: "number", min: 0, max: 2 },
+				{ key: "ls_order", name: "校园 · 秩序值", varPath: "LifeSimulation.school.order", type: "number", min: 0, max: 100 },
+				{ key: "ls_student", name: "校园 · 学生支持", varPath: "LifeSimulation.school.studentSupport", type: "number", min: 0, max: 100 },
+				{ key: "ls_staff", name: "校园 · 教职支持", varPath: "LifeSimulation.school.staffSupport", type: "number", min: 0, max: 100 },
+				{ key: "ls_corruption", name: "校园 · 腐败值", varPath: "LifeSimulation.school.corruption", type: "number", min: 0, max: 100 }
+			]
+		}
+	};
+
+	function cheatIsVanillaRoot(root) {
+		var i;
+		for (i = 0; i < CHEAT_VANILLA_ROOTS.length; i++) {
+			if (CHEAT_VANILLA_ROOTS[i] === root) { return true; }
+		}
+		return false;
+	}
+	/* varPath 解析：父级对象链必须存在（禁止写入 undefined 对象）；叶子允许缺失（正常初始化）。 */
+	function cheatResolvePath(path) {
+		var V = getV();
+		if (!V) { return { ok: false, reason: "存档变量不可用" }; }
+		var parts = String(path || "").split(".");
+		if (!parts.length || !parts[0]) { return { ok: false, reason: "空路径" }; }
+		if (cheatIsVanillaRoot(parts[0])) { return { ok: false, reason: "vanilla", root: parts[0] }; }
+		var cur = V, i;
+		for (i = 0; i < parts.length - 1; i++) {
+			if (cur[parts[i]] === null || typeof cur[parts[i]] !== "object") {
+				return { ok: false, reason: "parent", path: parts.slice(0, i + 1).join(".") };
+			}
+			cur = cur[parts[i]];
+		}
+		return { ok: true, parent: cur, leaf: parts[parts.length - 1], exists: cur[parts[parts.length - 1]] !== undefined };
+	}
+	/* 通用写入执行器（幂等防崩）：类型校验 + 越界钳制 + 留痕（保留首次 before，回退可还原）。 */
+	function cheatWriteValue(modId, itemKey, op, path, raw, type, min, max) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			var r = cheatResolvePath(path);
+			if (!r.ok) {
+				if (r.reason === "vanilla") {
+					return { ok: false, message: "目标「" + r.root + "」为 DoL 原版变量，拒绝操作（原版内容请使用对应五大面板）" };
+				}
+				if (r.reason === "parent") {
+					return { ok: false, message: "目标变量宿主不存在（" + r.path + "），拒绝写入 undefined 对象；请先推进模组剧情初始化" };
+				}
+				return { ok: false, message: "目标变量路径无效（" + path + "）" };
+			}
+			var val = raw;
+			if (type === "number") {
+				if (typeof val !== "number") { val = Number(val); }
+				if (!isFinite(val)) { return { ok: false, message: "数值无效（需为数字）" }; }
+				if (typeof min === "number" && val < min) { val = min; }
+				if (typeof max === "number" && val > max) { val = max; }
+			} else if (type === "boolean") {
+				val = (val === true || val === 1 || val === "1" || val === "true" || val === "on");
+			} else {
+				val = String(val);
+			}
+			var before = r.parent[r.leaf];
+			var prev = V.mbCE_wrote && V.mbCE_wrote["cheat:" + modId + ":" + itemKey];
+			if (prev && prev.before !== undefined) { before = prev.before; } /* 保留首次面板写入前状态 */
+			r.parent[r.leaf] = val;
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: val, t: Date.now() };
+			return { ok: true, message: "已写入 " + path + " = " + JSON.stringify(val), before: before, after: val };
+		} catch (e) {
+			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };
+		}
+	}
+	/* 列表型写入（v1.4.0 扩展）：varPath 指向字符串数组，on=true 追加 / on=false 移除；
+	   留痕 before/after 为数组快照（before 保留首次面板写入前状态）。 */
+	function cheatWriteListValue(modId, itemKey, op, path, value, on) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			var r = cheatResolvePath(path);
+			if (!r.ok) {
+				if (r.reason === "vanilla") {
+					return { ok: false, message: "目标「" + r.root + "」为 DoL 原版变量，拒绝操作（原版内容请使用对应五大面板）" };
+				}
+				if (r.reason === "parent") {
+					return { ok: false, message: "目标变量宿主不存在（" + r.path + "），拒绝写入 undefined 对象；请先推进模组剧情初始化" };
+				}
+				return { ok: false, message: "目标变量路径无效（" + path + "）" };
+			}
+			var cur = r.parent[r.leaf];
+			var arr = Array.isArray(cur) ? cur.slice() : [];
+			var idx = arr.indexOf(value);
+			if (on && idx === -1) { arr.push(value); }
+			if (!on && idx !== -1) { arr.splice(idx, 1); }
+			var before = Array.isArray(cur) ? cur.slice() : undefined;
+			var prev = V.mbCE_wrote && V.mbCE_wrote["cheat:" + modId + ":" + itemKey];
+			if (prev && prev.before !== undefined) { before = prev.before; }
+			r.parent[r.leaf] = arr;
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: arr.slice(), t: Date.now() };
+			return { ok: true, message: "已更新 " + path + (on ? " ＋ " : " － ") + value, after: arr.slice() };
+		} catch (e) {
+			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };
+		}
+	}
+	/* 回退：还原 before（首次面板写入前状态）；无痕迹 / 结构已变化 → 拒绝。 */
+	function undoCheatModValue(modId, itemKey) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { return { ok: false, message: "无面板写入痕迹" }; }
+			var key = "cheat:" + modId + ":" + itemKey;
+			var rec = V.mbCE_wrote[key];
+			if (!rec || rec.type !== "cheat") { return { ok: false, message: "该操作非面板写入（或已回退），无可撤销痕迹" }; }
+			var r = cheatResolvePath(rec.path);
+			if (!r.ok) { return { ok: false, message: "目标变量结构已变化，拒绝回退（" + rec.path + "）" }; }
+			if (rec.before === undefined) {
+				try { delete r.parent[r.leaf]; } catch (e) { r.parent[r.leaf] = undefined; }
+			} else {
+				r.parent[r.leaf] = rec.before;
+			}
+			try { delete V.mbCE_wrote[key]; } catch (e) { V.mbCE_wrote[key] = undefined; }
+			return { ok: true, message: "已回退（还原为面板写入前状态）" };
+		} catch (e) {
+			return { ok: false, message: "回退异常：" + (e && e.message ? e.message : e) };
+		}
+	}
+	function normalizeCheatMod(m) {
+		return {
+			modId: m.modId, modName: m.modName, declared: true,
+			tasks: Array.isArray(m.tasks) ? m.tasks : [],
+			stages: Array.isArray(m.stages) ? m.stages : [],
+			abilities: Array.isArray(m.abilities) ? m.abilities : [],
+			scenes: Array.isArray(m.scenes) ? m.scenes : [],
+			values: Array.isArray(m.values) ? m.values : []
+		};
+	}
+	/* 动态发现：注册制 + 内置适配器（探测命中即合并）+ 被动识别占位；每次调用重扫。 */
+	function getCheatMods() {
+		try {
+			var out = [], seen = {}, i;
+			var regs = (setup && Array.isArray(setup.mbCE_modCheats)) ? setup.mbCE_modCheats : [];
+			for (i = 0; i < regs.length; i++) {
+				var m = regs[i];
+				if (!m || !m.modId || !m.modName) { continue; }
+				seen[m.modId] = true;
+				out.push(normalizeCheatMod(m));
+			}
+			var adIds = Object.keys(CHEAT_ADAPTERS);
+			for (i = 0; i < adIds.length; i++) {
+				var ad = CHEAT_ADAPTERS[adIds[i]];
+				if (!ad || seen[adIds[i]]) { continue; }
+				try { if (typeof ad.detect !== "function" || !ad.detect()) { continue; } } catch (e) { continue; }
+				seen[adIds[i]] = true;
+				out.push(normalizeCheatMod(ad.entry));
+			}
+			for (i = 0; i < CHEAT_PASSIVE_PROBES.length; i++) {
+				var p = CHEAT_PASSIVE_PROBES[i];
+				if (!p || !p.modId || seen[p.modId]) { continue; }
+				try { if (typeof p.detect !== "function" || !p.detect()) { continue; } } catch (e) { continue; }
+				seen[p.modId] = true;
+				out.push({ modId: p.modId, modName: p.modName, declared: false, tasks: [], stages: [], abilities: [], scenes: [], values: [] });
+			}
+			return out;
+		} catch (e) { return []; }
+	}
+	function findCheatMod(modId) {
+		var mods = getCheatMods(), i;
+		for (i = 0; i < mods.length; i++) { if (mods[i].modId === modId) { return mods[i]; } }
+		return null;
+	}
+	function findCheatItem(list, key) {
+		var i;
+		for (i = 0; i < list.length; i++) { if (list[i] && list[i].key === key) { return list[i]; } }
+		return null;
+	}
+	/* ---- 四分组动作（统一走通用执行器，不写模组专属逻辑） ---- */
+	function skipCheatTask(modId, key) {
+		var m = findCheatMod(modId), t = m && findCheatItem(m.tasks, key);
+		if (!t) { return { ok: false, message: "任务不存在或该模组未注册" }; }
+		if (!t.skipVar) { return { ok: false, message: "「" + t.name + "」未声明跳过标记变量（skipVar），无法跳过" }; }
+		return cheatWriteValue(modId, "task_skip:" + key, "task_skip", t.skipVar, true, "boolean");
+	}
+	function completeCheatTask(modId, key) {
+		var m = findCheatMod(modId), t = m && findCheatItem(m.tasks, key);
+		if (!t) { return { ok: false, message: "任务不存在或该模组未注册" }; }
+		if (!t.completeVar) { return { ok: false, message: "「" + t.name + "」未声明完成标记变量（completeVar），无法直接完成" }; }
+		return cheatWriteValue(modId, "task_complete:" + key, "task_complete", t.completeVar, true, "boolean");
+	}
+	function setCheatStage(modId, key, level) {
+		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
+		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
+		if (!s.varPath) { return { ok: false, message: "「" + s.name + "」未声明阶段变量（varPath），无法修改" }; }
+		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
+		if (typeof levels[0] === "string") {
+			/* 字符串枚举阶段（v1.4.1）：目标值必须在 levels 内，越界拒绝，保持幂等 */
+			var idxStr = levels.indexOf(String(level));
+			if (idxStr === -1) { return { ok: false, message: "阶段值「" + level + "」不在枚举范围内（" + levels.join(" / ") + "）" }; }
+			return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, levels[idxStr], "string", 0, levels.length - 1);
+		}
+		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, Number(level), "number", levels[0], levels[levels.length - 1]);
+	}
+	function jumpCheatStageMax(modId, key) {
+		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
+		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
+		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
+		return setCheatStage(modId, key, levels[levels.length - 1]);
+	}
+	function resetCheatStage(modId, key) {
+		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
+		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
+		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
+		return setCheatStage(modId, key, levels[0]);
+	}
+	function toggleCheatAbility(modId, key, enabled) {
+		var m = findCheatMod(modId), a = m && findCheatItem(m.abilities, key);
+		if (!a) { return { ok: false, message: "能力不存在或该模组未注册" }; }
+		if (!a.varPath) { return { ok: false, message: "「" + a.name + "」未声明能力变量（varPath），无法切换" }; }
+		return cheatWriteValue(modId, "ability_set:" + key, "ability_set", a.varPath, !!enabled, "boolean");
+	}
+	function cheatSceneAction(modId, key, op) {
+		var m = findCheatMod(modId), s = m && findCheatItem(m.scenes, key);
+		if (!s) { return { ok: false, message: "剧情不存在或该模组未注册" }; }
+		if (op === "scene_skip") {
+			if (!s.skipVar) { return { ok: false, message: "「" + s.name + "」未声明跳过标记变量（skipVar）" }; }
+			return cheatWriteValue(modId, "scene_skip:" + key, "scene_skip", s.skipVar, true, "boolean");
+		}
+		if (op === "scene_force") {
+			if (!s.completeVar) { return { ok: false, message: "「" + s.name + "」未声明完成标记变量（completeVar）" }; }
+			return cheatWriteValue(modId, "scene_force:" + key, "scene_force", s.completeVar, true, "boolean");
+		}
+		if (op === "scene_reset") {
+			if (!s.progressVar) { return { ok: false, message: "「" + s.name + "」未声明进度变量（progressVar），无法重置" }; }
+			var rv = (typeof s.resetValue === "number") ? s.resetValue : 0;
+			return cheatWriteValue(modId, "scene_reset:" + key, "scene_reset", s.progressVar, rv, "number");
+		}
+		return { ok: false, message: "未知剧情操作" };
+	}
+	function applyCheatModValue(modId, key, raw) {
+		var m = findCheatMod(modId), it = m && findCheatItem(m.values, key);
+		if (!it) { return { ok: false, message: "数值项不存在或该模组未注册" }; }
+		if (!it.varPath) { return { ok: false, message: "「" + it.name + "」未声明变量（varPath）" }; }
+		if (it.type === "list") {
+			var v = raw && typeof raw === "object" ? raw : { value: String(raw), on: true };
+			return cheatWriteListValue(modId, "value_set:" + key + ":" + v.value, "value_set", it.varPath, v.value, !!v.on);
+		}
+		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, it.type === "boolean" ? "boolean" : "number", it.min, it.max);
+	}
+	function cheatReadSafe(modId, path) {
+		try {
+			var r = cheatResolvePath(path);
+			return r.ok ? r.parent[r.leaf] : undefined;
+		} catch (e) { return undefined; }
+	}
+	/* ---- 渲染：主容器页（模组列表，本身不展示修改控件） ---- */
+	function renderModCheats() {
+		var pane = root.querySelector('[data-pane="mods"]');
+		if (!pane) { return; }
+		pane.textContent = "";
+		pane.appendChild(el("div", "mce-hint", "本页面用于操控其他第三方模组新增的拓展内容，不修改游戏原版数据。下方为已识别到支持作弊控制的模组，点击模组名称进入对应控制子页面。"));
+		var mods = getCheatMods();
+		if (!mods.length) {
+			pane.appendChild(el("div", "mce-err", "⚠ 暂未识别到可控制的第三方模组拓展内容，请加载对应模组后重试。"));
+			return;
+		}
+		var list = el("div", "mce-cards");
+		mods.forEach(function (m) {
+			var row = el("div", "mce-card" + (m.modId === curCheatModId ? " mce-sel" : ""));
+			var top = el("div", "mce-card-top");
+			top.appendChild(el("span", "mce-card-name", "▶ " + m.modName));
+			top.appendChild(el("span", "mce-badge " + (m.declared ? "mce-on" : "mce-off"), m.declared ? "可操控" : "未声明"));
+			row.appendChild(top);
+			if (!m.declared) {
+				row.appendChild(el("div", "mce-hint", "该模组未按注册协议声明可操控项，仅识别展示（不提供操控）。"));
+			} else {
+				row.addEventListener("click", (function (mod) {
+					return function () { curCheatModId = mod.modId; renderModCheatDetail(mod.modId); };
+				})(m));
+			}
+			list.appendChild(row);
+		});
+		pane.appendChild(list);
+	}
+	/* ---- 渲染：模组子页面（四分组通用控件，严格隔离：只渲染归属模组的项） ---- */
+	function renderModCheatDetail(modId) {
+		var pane = root.querySelector('[data-pane="mods"]');
+		if (!pane) { return; }
+		var m = findCheatMod(modId);
+		pane.textContent = "";
+		if (!m) {
+			pane.appendChild(el("div", "mce-err", "模组未识别（可能已卸载），请返回列表。"));
+			return;
+		}
+		var back = el("button", "", "← 返回模组列表");
+		back.type = "button";
+		back.addEventListener("click", function () { curCheatModId = ""; renderModCheats(); });
+		pane.appendChild(back);
+		pane.appendChild(el("div", "mce-hint", "【" + m.modName + "】作弊控制"));
+		pane.appendChild(el("div", "mce-hint", "所有操作仅作用于 " + m.modName + " 的新增内容，不会改动游戏本体与其他模组数据。"));
+		var any = false;
+		if (m.tasks.length) { any = true; renderCheatTasks(pane, m); }
+		if (m.stages.length || m.abilities.length) { any = true; renderCheatStages(pane, m); }
+		if (m.scenes.length) { any = true; renderCheatScenes(pane, m); }
+		if (m.values.length) { any = true; renderCheatValues(pane, m); }
+		if (!any) {
+			pane.appendChild(el("div", "mce-hint", "该模组已识别但未声明可操控项（任务/阶段/剧情/数值均为空）。"));
+		}
+	}
+	function renderCheatTasks(pane, m) {
+		var g = el("div", "mce-grp");
+		g.appendChild(el("div", "mce-grp-t", "1. 模组新增任务"));
+		m.tasks.forEach(function (t) {
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-lbl", t.name || t.key));
+			var b1 = el("button", "", "跳过任务"); b1.type = "button";
+			b1.addEventListener("click", function () { actCheat(skipCheatTask(m.modId, t.key), m.modId); });
+			var b2 = el("button", "", "直接完成任务"); b2.type = "button";
+			b2.addEventListener("click", function () { actCheat(completeCheatTask(m.modId, t.key), m.modId); });
+			row.appendChild(b1); row.appendChild(b2);
+			g.appendChild(row);
+		});
+		pane.appendChild(g);
+	}
+	function renderCheatStages(pane, m) {
+		var g = el("div", "mce-grp");
+		g.appendChild(el("div", "mce-grp-t", "2. 模组新增阶段 & 能力"));
+		m.stages.forEach(function (s) {
+			var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
+			var labels = Array.isArray(s.labels) && s.labels.length ? s.labels : levels.map(function (lv) { return String(lv); });
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-lbl", "阶段 · " + (s.name || s.key)));
+			var sel = el("select", "mce-sel");
+			levels.forEach(function (lv, i) {
+				var opt = el("option", "", labels[i] !== undefined ? labels[i] : String(lv));
+				opt.value = String(lv);
+				sel.appendChild(opt);
+			});
+			var bSet = el("button", "", "应用"); bSet.type = "button";
+			bSet.addEventListener("click", function () { actCheat(setCheatStage(m.modId, s.key, sel.value), m.modId); });
+			var bMax = el("button", "", "跳至最高"); bMax.type = "button";
+			bMax.addEventListener("click", function () { actCheat(jumpCheatStageMax(m.modId, s.key), m.modId); });
+			var bMin = el("button", "", "回退初始"); bMin.type = "button";
+			bMin.addEventListener("click", function () { actCheat(resetCheatStage(m.modId, s.key), m.modId); });
+			row.appendChild(sel); row.appendChild(bSet); row.appendChild(bMax); row.appendChild(bMin);
+			g.appendChild(row);
+		});
+		m.abilities.forEach(function (a) {
+			var row = el("div", "mce-row");
+			var box = el("input", "");
+			box.type = "checkbox";
+			box.checked = !!cheatReadSafe(m.modId, a.varPath);
+			box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId); });
+			row.appendChild(box);
+			row.appendChild(el("span", "mce-row-lbl", "能力 · " + (a.name || a.key) + (a.varPath ? "（" + a.varPath + "）" : "")));
+			g.appendChild(row);
+		});
+		pane.appendChild(g);
+	}
+	function renderCheatScenes(pane, m) {
+		var g = el("div", "mce-grp");
+		g.appendChild(el("div", "mce-grp-t", "3. 模组自定义剧情"));
+		m.scenes.forEach(function (s) {
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-lbl", s.name || s.key));
+			var b1 = el("button", "", "跳过此段剧情"); b1.type = "button";
+			b1.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_skip"), m.modId); });
+			var b2 = el("button", "", "强制完成剧情"); b2.type = "button";
+			b2.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_force"), m.modId); });
+			var b3 = el("button", "", "重置剧情进度"); b3.type = "button";
+			b3.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_reset"), m.modId); });
+			row.appendChild(b1); row.appendChild(b2); row.appendChild(b3);
+			g.appendChild(row);
+		});
+		pane.appendChild(g);
+	}
+	function renderCheatValues(pane, m) {
+		var g = el("div", "mce-grp");
+		g.appendChild(el("div", "mce-grp-t", "4. 自定义数值修改"));
+		m.values.forEach(function (it) {
+			if (it.type === "list") {
+				var opts = Array.isArray(it.options) ? it.options : [];
+				var curArr = cheatReadSafe(m.modId, it.varPath);
+				var arr = Array.isArray(curArr) ? curArr : [];
+				if (!opts.length) {
+					g.appendChild(el("div", "mce-hint", (it.name || it.key) + "：未声明候选值（options 为空）。"));
+				}
+				opts.forEach(function (opt) {
+					var brow = el("div", "mce-row");
+					var box = el("input", "");
+					box.type = "checkbox";
+					box.checked = arr.indexOf(opt) !== -1;
+					box.addEventListener("change", function () {
+						actCheat(applyCheatModValue(m.modId, it.key, { value: opt, on: box.checked }), m.modId);
+					});
+					brow.appendChild(box);
+					brow.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt + "（" + it.varPath + "）"));
+					var und = el("button", "", "回退"); und.type = "button";
+					und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key + ":" + opt), m.modId); });
+					brow.appendChild(und);
+					g.appendChild(brow);
+				});
+				return;
+			}
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + "（" + it.varPath + "）"));
+			var inp = el("input", "mce-inp");
+			inp.type = it.type === "boolean" ? "checkbox" : "number";
+			if (it.type !== "boolean") {
+				if (typeof it.min === "number") { inp.min = String(it.min); }
+				if (typeof it.max === "number") { inp.max = String(it.max); }
+				inp.step = "1";
+			}
+			var cur = cheatReadSafe(m.modId, it.varPath);
+			if (it.type === "boolean") { inp.checked = !!cur; }
+			else if (cur !== undefined && cur !== null) { inp.value = String(cur); }
+			var b = el("button", "", "应用修改"); b.type = "button";
+			b.addEventListener("click", function () {
+				var raw = it.type === "boolean" ? inp.checked : inp.value;
+				actCheat(applyCheatModValue(m.modId, it.key, raw), m.modId);
+			});
+			row.appendChild(inp); row.appendChild(b);
+			var und = el("button", "", "回退"); und.type = "button";
+			und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key), m.modId); });
+			row.appendChild(und);
+			g.appendChild(row);
+		});
+		pane.appendChild(g);
+	}
+	function actCheat(res, modId) {
+		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
+		if (modId) { renderModCheatDetail(modId); }
+	}
+
 	/* ============ UI：右侧常驻黑色悬浮侧边面板（CE 样式，双层标签） ============ */
 	var root = null;
 	var toggleBtn = null;
@@ -955,7 +1659,16 @@
 		".mce-ok{color:#7ed89a;font-size:13px}" +
 		".mce-status{min-height:18px;padding:6px 10px;border-top:1px solid #3c3c3c;background:#0d0d0d;color:#9c9c9c;font-size:12px}" +
 		".mce-type{display:inline-block;background:#1a1a1a;color:#ccc;border:1px solid #3c3c3c;border-radius:2px;padding:2px 8px;font-size:11px;margin:2px}" +
-		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:4px 0}";
+		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:4px 0}" +
+		/* v1.4.0 Mod作弊页面 */
+		".mce-grp{border:1px solid #2a2a2a;border-radius:3px;margin:8px 0;padding:8px;background:#0f0f0f}" +
+		".mce-grp-t{color:#d4a73c;font-weight:700;font-size:13px;margin-bottom:6px}" +
+		".mce-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:1px solid #1f1f1f;font-size:12px}" +
+		".mce-row-lbl{color:#e6e6e6;flex:1;min-width:120px;word-break:break-all}" +
+		".mce-row button{background:#181818;color:#ccc;border:1px solid #3a3a3a;border-radius:2px;padding:3px 8px;cursor:pointer;font-size:12px;font-family:inherit}" +
+		".mce-row button:hover{border-color:#d4a73c;color:#d4a73c}" +
+		".mce-inp{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 6px;font-size:12px;width:90px;font-family:Consolas,Menlo,monospace}" +
+		".mce-sel{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 4px;font-size:12px;font-family:inherit}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }
@@ -987,6 +1700,7 @@
 		if (name === "scenes") { renderScenes(); }
 		if (name === "places") { renderPlaces(); }
 		if (name === "global") { renderGlobal(); }
+		if (name === "mods") { renderModCheats(); }
 	}
 
 	/* ---- 角色一览卡片 ---- */
@@ -1623,6 +2337,9 @@
 	/* 农场状态兜底（v1.3.1）：本体社交页在 $farm_stage gte 2 时无条件读 $farm.beasts（马/猪/牛/狗敬重值）与 $farm.aggro，
 	   若存档里 farm_stage 已推进但 $farm 整体缺失（早期版本触发农场剧情置高 farm_stage 但未走本体农场线初始化），
 	   孤儿院/多瑙河街等含 <<social>> 的段落直接崩（reading 'beasts'/'aggro'）。
+	   v1.3.4：睡眠/跨午夜结算（本体 dailyFarmEvents 与农场库存显示）读 $farm.stock.truffles/eggs/milk/cream，
+	   该结构仅由本体 <<farm_stock_init>> 在"共享农场"剧情节点初始化——一键置高 farm_stage 后同样缺失 → 睡觉崩（reading 'truffles'），
+	   故空壳与残缺分支同步补齐 stock 四字段。
 	   按本体农场线初始化结构补空壳：仅当 farm_stage >= 1 且 $farm 缺失/结构残缺时补，绝不覆盖已有进度。 */
 	function ensureFarmState() {
 		try {
@@ -1636,7 +2353,8 @@
 					wage: 15,
 					clearing: 100,
 					milking: { caught: false, alexNightEvent: false, catchChance: 0, dayMilking: false },
-					build_finished: []
+					build_finished: [],
+					stock: { truffles: 0, eggs: 0, milk: 0, cream: 0 }
 				};
 				return;
 			}
@@ -1652,6 +2370,15 @@
 			if (typeof V.farm.milking !== "object" || V.farm.milking === null) { V.farm.milking = { caught: false, alexNightEvent: false, catchChance: 0, dayMilking: false }; }
 			if (typeof V.farm.milking.catchChance !== "number" || V.farm.milking.catchChance !== V.farm.milking.catchChance) { V.farm.milking.catchChance = 0; }
 			if (V.farm.build_finished === undefined || V.farm.build_finished === 0 || V.farm.build_finished === null) { V.farm.build_finished = []; }
+			/* v1.3.4：farm_stock 结算防崩——本体只由 <<farm_stock_init>> 建 stock 四字段，缺失时读/累加即崩 */
+			if (typeof V.farm.stock !== "object" || V.farm.stock === null) {
+				V.farm.stock = { truffles: 0, eggs: 0, milk: 0, cream: 0 };
+			}
+			var st = V.farm.stock;
+			if (typeof st.truffles !== "number") { st.truffles = 0; }
+			if (typeof st.eggs !== "number") { st.eggs = 0; }
+			if (typeof st.milk !== "number") { st.milk = 0; }
+			if (typeof st.cream !== "number") { st.cream = 0; }
 		} catch (e) {}
 	}
 	function ensureAveryMansion() {
@@ -1682,12 +2409,28 @@
 			if (typeof V.avery_tower !== "object" || V.avery_tower === null) {
 				V.avery_tower = { progress: 0, effects: [], stage: 0, intro: 0 };
 			}
-			if (V.daily && typeof V.daily === "object" && typeof V.daily.avery !== "object") {
-				V.daily.avery = {
-					talk: { ignore: false, limit: false, flirt: false, seduce: false, annoyed: 0, chat: 0, chat_limit: 3 },
-					ask: { science: false, maths: false, play: false },
-					housekeeping_events: {}
-				};
+			/* daily.avery 结构兜底（v1.3.3）：本体 0.5.5.5 后 $daily.avery 由艾弗里线入口建为 {}，talk/ask 子对象在使用时才建；
+			   若 avery 已存在但 talk 缺失（直达/世界入口进庄园时常见），avery_daily_talk 读 $daily.avery.talk.chat、
+			   Mansion Talk 读 $daily.avery.talk.ignore 会崩 → 逐层补齐，绝不覆盖已有值 */
+			if (V.daily && typeof V.daily === "object") {
+				if (typeof V.daily.avery !== "object" || V.daily.avery === null) {
+					V.daily.avery = {
+						talk: { ignore: false, limit: false, flirt: false, seduce: false, annoyed: 0, chat: 0, chat_limit: 3 },
+						ask: { science: false, maths: false, play: false },
+						housekeeping_events: {}
+					};
+				} else {
+					var dav = V.daily.avery;
+					if (typeof dav.talk !== "object" || dav.talk === null) {
+						dav.talk = { ignore: false, limit: false, flirt: false, seduce: false, annoyed: 0, chat: 0, chat_limit: 3 };
+					}
+					if (typeof dav.ask !== "object" || dav.ask === null) {
+						dav.ask = { science: false, maths: false, play: false };
+					}
+					if (typeof dav.housekeeping_events !== "object" || dav.housekeeping_events === null) {
+						dav.housekeeping_events = {};
+					}
+				}
 			}
 		} catch (e) {}
 	}
@@ -1981,6 +2724,16 @@
 	   sceneViewSwitch 为无效值 → switch 走 default → 原版给出 Back 链接返回原位，不再重播。 */
 	function mbCEOnPassageInit(title) {
 		try {
+			/* v1.3.5：格威岚场景临时变量全局兜底——每次进入任意段落都先确保
+			   T.gwylanStatus / T.gwylanTF 已初始化（缺失才补，已有绝不覆盖）。
+			   本体 Gwylan Ritual Start Garden 等段落靠 <<run statusCheck("Gwylan")>>
+			   初始化这两个临时变量，但 statusCheck 仅在 C.npc.Gwylan.init === 1 时才调用
+			   gwylanStatusCheck()（新存档未见过格威岚即不调用）；且 gwylanStatusCheck()
+			   在 V.gwylanTalked/V.gwylanSeen/V.gwylan 缺失时早退，只设 T.gwylanStatus=[]、
+			   不设 T.gwylanTF。新存档场景直达/固定触发格威岚段落 → 读 _gwylanStatus/
+			   _gwylanTF 即崩（reading 'includesAny' / 'tail'）。全局兜底可覆盖任何段落名
+			   （含框架改段落名/宿主段落内嵌格威岚内容的渲染路径）。 */
+			ensureGwylanSceneState();
 			if (title !== "Scene Viewer passages") { return; }
 			var V = getV();
 			if (!V) { return; }
@@ -2455,6 +3208,7 @@
 		else if (activeTab === "scenes") { renderScenes(); }
 		else if (activeTab === "places") { renderPlaces(); }
 		else if (activeTab === "global") { renderGlobal(); }
+		else if (activeTab === "mods") { renderModCheats(); }
 		setStatus("就绪：" + chars.length + " 个角色", "mce-ok");
 	}
 
@@ -2497,7 +3251,7 @@
 		header.appendChild(closeBtn);
 
 		var tabs = el("div", "mce-tabs");
-		var names = [["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"]];
+		var names = [["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"]];
 		names.forEach(function (pair) {
 			var b = el("button", pair[0] === "char" ? "mce-active" : "", pair[1]);
 			b.type = "button";
@@ -2511,11 +3265,13 @@
 		var p3 = el("div", "mce-pane"); p3.setAttribute("data-pane", "scenes");
 		var p4 = el("div", "mce-pane"); p4.setAttribute("data-pane", "places");
 		var p5 = el("div", "mce-pane"); p5.setAttribute("data-pane", "global");
+		var p6 = el("div", "mce-pane"); p6.setAttribute("data-pane", "mods");
 		body.appendChild(p1);
 		body.appendChild(p2);
 		body.appendChild(p3);
 		body.appendChild(p4);
 		body.appendChild(p5);
+		body.appendChild(p6);
 
 		var status = el("div", "mce-status", "就绪");
 
@@ -2556,6 +3312,7 @@
 		hookPassageOverride();
 		hookPassageInit();
 		ensureFarmState(); /* 启动兜底：存档 farm_stage 已推进但 $farm 缺失 → 补空壳，社交页不再崩 */
+		ensureAveryMansion(); /* 启动兜底：$avery_mansion / $avery_tower / daily.avery.talk 缺失或残缺 → 补空壳（Mansion 段落防崩） */
 		if (document.body) {
 			ensureDom();
 			hookRefresh();
@@ -2617,6 +3374,23 @@
 				applyWorldUnlock: applyWorldUnlock,
 				applyWorldUnlockForScene: applyWorldUnlockForScene,
 				ensureFarmState: ensureFarmState,
+				ensureAveryMansion: ensureAveryMansion,
+				ensureGwylanSceneState: ensureGwylanSceneState,
+				isGwylanGardenPassage: isGwylanGardenPassage,
+				/* v1.4.0 Mod作弊 */
+				getCheatMods: getCheatMods,
+				renderModCheats: renderModCheats,
+				renderModCheatDetail: renderModCheatDetail,
+				applyCheatModValue: applyCheatModValue,
+				undoCheatModValue: undoCheatModValue,
+				skipCheatTask: skipCheatTask,
+				completeCheatTask: completeCheatTask,
+				setCheatStage: setCheatStage,
+				jumpCheatStageMax: jumpCheatStageMax,
+				resetCheatStage: resetCheatStage,
+				toggleCheatAbility: toggleCheatAbility,
+				cheatSceneAction: cheatSceneAction,
+				cheatWriteValue: cheatWriteValue,
 				mbCEOnPassageInit: mbCEOnPassageInit,
 				undoRomanceStage: undoRomanceStage,
 				undoVanillaStage: undoVanillaStage,
