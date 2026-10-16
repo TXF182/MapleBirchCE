@@ -54,6 +54,40 @@
  *  能力 11、数值 18（摊位改造/反抗胜场/储备金/街头口碑/公路赛/金戒指/校园竞选值）；
  *  全量 grep 实证模组不读写原版顶层 rebellion/victories/self_rent 等，
  *  声明路径一律以模组模块根开头，绝不落到原版顶层键。
+ * v1.4.5（2026-10-16）：实测反馈修复——①固定触发/场景直达后取消固定可能被困
+ *  场景播放器且退出按钮消失：unpinScene 原先"先删 $replayScene 再跳转"，若跳转目标
+ *  恰为 Scene Viewer passages，default 退出分支的 Back 链接依赖 $replayScene.exitpassage
+ *  → Back 无源 → 退出按钮消失；改为"先清 sceneViewSwitch 无效值 → 跳转 → 再清理"，
+ *  back 无效时保留 replayScene（播放器仍可手动 Back 退出）；onPassageOverride 新增
+ *  dest===exitpassage（Back 正常返回原位）清理分支，杜绝残留。
+ *  ②角色一览只显示能进恋人卡槽的角色：新增 isLoveCandidate（框架恋爱条件/原版恋爱
+ *  阶段/恋爱标记 loveAlias·npcConfig·loveInterest/MLI 扩容恋人列表），非恋爱 NPC 不再展示。
+ * v1.4.6（2026-10-16）：角色过滤方向修正——用户澄清：不要从角色一览"踢人"。
+ *  ①撤销角色一览/阶段页默认角色的 isLoveCandidate 过滤：角色一览保留全部角色；
+ *  ②非恋爱候选角色仅在恋爱阶段区不显示恋爱阶段（"不是恋爱角色的不显示"）；
+ *  ③恋爱阶段兜底条件（loveInterest.includes("X")）一键完成 = 真正把角色加入恋人卡槽：
+ *  新增 addLoveInterest——数组 push / 对象首个空槽（空对象写 primary）/ 槽位全满且存在
+ *  MLI 扩容列表时写 loveInterestList（由模组 widget 自动重建槽位），绝不覆盖已有恋人；
+ *  undoRomanceStage 支持 native 回退（移除卡槽 + 清痕迹）；checkNativeLove 收紧为仅
+ *  npcConfig.loveInterest===true（important 重要 NPC 不再误判为恋爱候选）。
+ * v1.4.7（2026-10-16）：Mod作弊 全链路自动化测试（test_mce.js 第 24 节 19 条）——
+ *  数值/阶段更改→读回确认、越界钳制与拒绝、宿主缺失/vanilla 根保护、列表增删、
+ *  任务跳过/完成、回退还原首次 before；API 导出补 cheatReadSafe（面板回显读取，供外部验证）。
+ * v1.4.8（2026-10-16）：三大实测症状修复——
+ *  ①剧情页「一键完成」对无 lockedMessage 的场景（惠特尼孤儿院/贞操装置等）失效：
+ *    parseSceneBlocks 的 block 为 slice 出的键块（不含结尾 }），原 unlocked 正则 ",?\s*\}"
+ *    匹配不到块尾 → unlockedExpr 提取失败 → 一键完成写不进解锁标记 → 复检恒「未达成」。
+ *    补块尾 $ 分支；另加三层兜底：findScenesWidgetText 找不到 widget "scenes" 段落时
+ *    找 "$scenes to {" 段落（汉化/段落名变体）、getScenesDefs 增加 Story 全文恢复
+ *    （recoverSceneDefsFromStory 遍历段落键块扫描收 scenePassages.includes 解锁定义）、
+ *    V.scenes 缓存里 unlocked 为表达式字符串时提升为 unlockedExpr；
+ *    一键完成复检：includes 解锁标记已写入即达成（缓存静态布尔不再卡死）。
+ *  ②固定触发场景播放完仍被困播放器/固定后不能自动解除：onPassageOverride 在
+ *    Scene Viewer End 与「重放中链回 Scene Viewer passages」两个终点，MOD 固定触发
+ *    （mbCE_replayOnce）一律自动改 passageArgs.name 回 exitpassage（原位）并补
+ *    unfreezePlayerStats，跳过原版「Error occurred / Exit scene」手动步；原版手动
+ *    重放保持原版行为不干预。触发处 mbCE_replayPending 改为仅 startPassage===
+ *    "Scene Viewer passages" 时设置（直入剧情段落的场景链回 passages 时不被误判首次）。
  * ============================================================
  */
 (function () {
@@ -294,7 +328,27 @@
 			if (typeof setup !== "undefined" && setup && setup.loveAlias && setup.loveAlias[name]) { return true; }
 			if (typeof T !== "undefined" && T && T.npcConfig) {
 				var c = T.npcConfig[name];
-				if (c && (c.loveInterest === true || c.important === true)) { return true; }
+				/* v1.4.5：仅明确的恋爱标记（loveInterest）算恋爱候选；important（重要 NPC）不算——
+				   否则非恋爱角色会被误判为恋爱候选而在恋爱阶段区显示"恋人卡槽"条件 */
+				if (c && c.loveInterest === true) { return true; }
+			}
+		} catch (e) {}
+		return false;
+	}
+	/* 恋爱候选判定（v1.4.5）：能进恋人卡槽（loveInterest）的角色才在角色一览显示。
+	   判定：框架恋爱条件 / 原版恋爱阶段系统（格威岚）/ 恋爱标记（loveAlias·npcConfig·loveInterest）/ MLI 扩容恋人列表 */
+	function isLoveCandidate(name) {
+		try {
+			if (getRomanceList(name).length > 0) { return true; }
+			if (hasVanillaRomance(name)) { return true; }
+			if (checkNativeLove(name)) { return true; }
+			var V = getV();
+			if (V && Array.isArray(V.loveInterestList)) {
+				var k = String(name).toLowerCase();
+				for (var i = 0; i < V.loveInterestList.length; i++) {
+					var it = V.loveInterestList[i];
+					if (it && String(it).toLowerCase() === k) { return true; }
+				}
 			}
 		} catch (e) {}
 		return false;
@@ -333,6 +387,46 @@
 			}
 		} catch (e) {}
 		return false;
+	}
+	/* 加入恋人卡槽（v1.4.5）：恋爱阶段兜底条件（loveInterest.includes("X")）一键完成时调用——
+	   把角色写入 V.loveInterest（数组 push / 对象首个空槽；槽位全满且存在 MLI 扩容列表时写入
+	   loveInterestList，由模组 widget 自动重建 primary..；绝不覆盖已有恋人）。返回是否写入成功。 */
+	function addLoveInterest(name) {
+		try {
+			var V = getV();
+			if (!V) { return false; }
+			var li = V.loveInterest;
+			if (!li) { li = []; V.loveInterest = li; }
+			if (Array.isArray(li)) {
+				if (li.indexOf(name) === -1) { li.push(name); }
+				recordNativeLoveWrite(name);
+				return true;
+			}
+			if (typeof li === "object") {
+				var wrote = false;
+				Object.keys(li).forEach(function (k) {
+					if (!wrote && (li[k] === "" || li[k] == null)) { li[k] = name; wrote = true; }
+				});
+				/* 空对象（无任何槽位键）→ 写入 primary 主槽（安全，无覆盖） */
+				if (!wrote && Object.keys(li).length === 0) { li["primary"] = name; wrote = true; }
+				if (!wrote) {
+					/* 槽位全满：不覆盖已有恋人；存在 MLI 扩容列表则追加（模组 widget 会重建槽位） */
+					if (Array.isArray(V.loveInterestList) && V.loveInterestList.indexOf(name) === -1) {
+						V.loveInterestList.push(name); wrote = true;
+					}
+				}
+				if (wrote) { recordNativeLoveWrite(name); }
+				return wrote;
+			}
+		} catch (e) {}
+		return false;
+	}
+	function recordNativeLoveWrite(name) {
+		try {
+			var V = getV();
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			V.mbCE_wrote["romance:native:" + String(name).toLowerCase()] = { type: "native", path: "loveInterest", value: name, name: name };
+		} catch (e) {}
 	}
 
 	/* 条件静态解析（读取函数源码，绝不 eval）：
@@ -434,13 +528,19 @@
 	}
 	/* 一键完成单个恋爱阶段：先修复数值/Flag，再复检 */
 	function completeRomanceStage(name, stage) {
-		var parsed = parseCondition(stage.text, name);
-		var fixed = applyRomanceFix(parsed, name);
-		if (fixed && parsed) { recordRomanceWrite(parsed, name); }
+		var parsed = null;
+		var fixed = false;
 		var ok = false;
 		if (stage.native) {
+			/* v1.4.5：兜底条件（loveInterest.includes("X")）一键完成 = 把角色加入恋人卡槽——
+			   统一走 addLoveInterest（数组 push / 对象首个空槽 / 槽位全满写 MLI 扩容列表），
+			   不走通用 applyRomanceFix（其 append 在对象无空槽时会写 "0" 新键，且不联动 MLI 列表） */
 			ok = loveInterestHas(name);
+			if (!ok) { ok = addLoveInterest(name); }
 		} else {
+			parsed = parseCondition(stage.text, name);
+			fixed = applyRomanceFix(parsed, name);
+			if (fixed && parsed) { recordRomanceWrite(parsed, name); }
 			try { ok = !!stage.fn(); } catch (e) { ok = false; }
 		}
 		return { fixed: fixed, ok: ok, parsed: parsed };
@@ -862,6 +962,24 @@
 		try {
 			var v = getV();
 			if (!v || !v.mbCE_wrote || typeof v.mbCE_wrote !== "object") { return false; }
+			/* v1.4.5：native（loveInterest 兜底）阶段回退——依据 romance:native 痕迹，
+			   从恋人卡槽移除该角色（数组移除 / 对象删除槽位键），并清除痕迹 */
+			if (stage && stage.native) {
+				var nk = "romance:native:" + String(name).toLowerCase();
+				if (!v.mbCE_wrote[nk]) { return false; }
+				var li = v.loveInterest;
+				var changedN = false;
+				if (Array.isArray(li)) {
+					var ixi = li.indexOf(name);
+					if (ixi !== -1) { li.splice(ixi, 1); changedN = true; }
+				} else if (li && typeof li === "object") {
+					Object.keys(li).forEach(function (k) {
+						if (li[k] === name) { delete li[k]; changedN = true; }
+					});
+				}
+				if (changedN) { try { delete v.mbCE_wrote[nk]; } catch (e) {} }
+				return changedN;
+			}
 			var parsed = parseCondition(stage.text, name);
 			if (!parsed) { return false; }
 			var key = parsed.type + ":" + (parsed.path || name) + ":" + (parsed.value || "");
@@ -979,7 +1097,19 @@
 				  labels: ["未守夜", "通过", "失败"] },
 				{ key: "rt_faith_band", name: "罗宾神殿 · 信仰带", varPath: "RobinTemple.faith_band",
 				  levels: ["steady", "belief", "doubt"],
-				  labels: ["平稳", "信靠", "动摇"] }
+				  labels: ["平稳", "信靠", "动摇"] },
+				{ key: "rt_hospital", name: "罗宾神殿 · 医院阶段", varPath: "RobinTemple.hospital_stage",
+				  levels: ["", "waiting", "discharged", "therapy", "rescue", "vanilla"],
+				  labels: ["无", "等待中", "已出院", "治疗中", "已救援", "原版流程"] },
+				{ key: "rt_secret_followup", name: "秘密誓言 · 后日谈阶段", varPath: "RobinTemple.secret.followup",
+				  levels: ["none", "meal", "records", "complete", "declined"],
+				  labels: ["无", "共餐", "查档", "完成", "婉拒"] },
+				{ key: "rt_night_scene", name: "罗宾神殿 · 夜访场景", varPath: "RobinTemple.night_scene",
+				  levels: ["", "rain", "voice", "blanket", "embers", "ledger"],
+				  labels: ["无", "雨夜", "呼唤", "盖毯", "余烬", "账本"] },
+				{ key: "rt_transformation", name: "罗宾神殿 · 变身形态", varPath: "RobinTemple.transformation_kind",
+				  levels: ["", "fox", "wolf", "cat", "bird", "cow", "horse", "whale", "raven"],
+				  labels: ["无", "狐", "狼", "猫", "鸟", "牛", "马", "鲸", "鸦"] }
 			],
 			abilities: [
 				{ key: "tc_joined", name: "唱诗班 · 已入团", varPath: "TempleChoir.joined", type: "boolean" },
@@ -987,7 +1117,13 @@
 				{ key: "rt_pendant", name: "罗宾神殿 · 携带挂坠", varPath: "RobinTemple.pendant", type: "boolean" },
 				{ key: "rt_dual", name: "罗宾神殿 · 第二份誓约", varPath: "RobinTemple.dual_promise", type: "boolean" },
 				{ key: "rt_assess", name: "罗宾神殿 · 评估通过", varPath: "RobinTemple.assessment_passed", type: "boolean" },
-				{ key: "rt_clasp", name: "罗宾神殿 · 圣带装备", varPath: "RobinTemple.clasp_equipped", type: "boolean" }
+				{ key: "rt_clasp", name: "罗宾神殿 · 圣带装备", varPath: "RobinTemple.clasp_equipped", type: "boolean" },
+				{ key: "rt_hospital_support", name: "罗宾神殿 · 医院陪伴", varPath: "RobinTemple.hospital_support", type: "boolean" },
+				{ key: "rt_assess_fire", name: "罗宾神殿 · 评估之火", varPath: "RobinTemple.assessment_fire", type: "boolean" },
+				{ key: "rt_vigil_attending", name: "罗宾神殿 · 守夜进行中", varPath: "RobinTemple.vigil_attending", type: "boolean" },
+				{ key: "rt_vigil_with_robin", name: "罗宾神殿 · 与罗宾同守夜", varPath: "RobinTemple.vigil_with_robin", type: "boolean" },
+				{ key: "rt_abandoned", name: "罗宾神殿 · 已放弃路线", varPath: "RobinTemple.abandoned", type: "boolean" },
+				{ key: "rt_rite_done", name: "秘密誓言 · 仪式已完成", varPath: "RobinTemple.secret.rite_done", type: "boolean" }
 			],
 			scenes: [
 				{ key: "rt_prayer", name: "罗宾神殿 · 祷告事件", skipVar: "RobinTemple.prayer_event_resolved", completeVar: "RobinTemple.prayer_event_done", progressVar: "RobinTemple.prayer_event", resetValue: 0 }
@@ -1000,7 +1136,10 @@
 				{ key: "rt_service", name: "罗宾神殿 · 服务贡献", varPath: "RobinTemple.service", type: "number", min: 0, max: 100 },
 				{ key: "rt_grace", name: "罗宾神殿 · 恩典", varPath: "RobinTemple.grace", type: "number", min: 0, max: 100 },
 				{ key: "rt_chastity", name: "罗宾神殿 · 守贞计时", varPath: "RobinTemple.chastity_timer", type: "number", min: 0, max: 30 },
-				{ key: "rt_assess_bonus", name: "罗宾神殿 · 评估加分", varPath: "RobinTemple.assessment_bonus", type: "number", min: 0, max: 15 }
+				{ key: "rt_assess_bonus", name: "罗宾神殿 · 评估加分", varPath: "RobinTemple.assessment_bonus", type: "number", min: 0, max: 15 },
+				{ key: "rt_rite_round", name: "秘密誓言 · 同席连续次数", varPath: "RobinTemple.secret.rite_round", type: "number", min: 0, max: 99 },
+				{ key: "rt_intimacy_count", name: "罗宾神殿 · 亲密累计次数", varPath: "RobinTemple.intimacy_count", type: "number", min: 0, max: 999 },
+				{ key: "rt_evaluation_marks", name: "罗宾神殿 · 评估分数", varPath: "RobinTemple.evaluation_marks", type: "number", min: 0, max: 100 }
 			]
 		}
 	};
@@ -1118,7 +1257,13 @@
 				  labels: ["学生", "风纪委员", "学生会长"] },
 				{ key: "ls_history", name: "校园 · 历史课题", varPath: "LifeSimulation.historyProject.status",
 				  levels: ["none", "ongoing", "done", "won"],
-				  labels: ["未开始", "进行中", "已完成", "已获奖"] }
+				  labels: ["未开始", "进行中", "已完成", "已获奖"] },
+				{ key: "dress_active", name: "校园 · 着装规范", varPath: "LifeSimulation.school.dress.active",
+				  levels: ["uniform", "free", "revealing", "optionalNudity", "nudeDay", "mandatoryNudity"],
+				  labels: ["校服", "自由着装", "暴露着装", "可选裸体", "裸体日", "强制裸体"] },
+				{ key: "dress_highest", name: "校园 · 保住过的最高着装政策", varPath: "LifeSimulation.school.dress.highest",
+				  levels: ["uniform", "free", "revealing", "optionalNudity", "nudeDay", "mandatoryNudity"],
+				  labels: ["校服", "自由着装", "暴露着装", "可选裸体", "裸体日", "强制裸体"] }
 			],
 			abilities: [
 				{ key: "r_rebellion", name: "罗宾 · 反抗贝利路线", varPath: "RobinExpansion.rebellion", type: "boolean" },
@@ -1131,7 +1276,8 @@
 				{ key: "r_fish_grill", name: "罗宾 · 便携烤架", varPath: "RobinExpansion.fish_grill", type: "boolean" },
 				{ key: "ls_exempt", name: "校园 · 免听凭证", varPath: "LifeSimulation.school.attendanceExempt", type: "boolean" },
 				{ key: "ls_bailey", name: "校园 · 贝利已签署（会长线）", varPath: "LifeSimulation.school.baileySigned", type: "boolean" },
-				{ key: "bt_milk", name: "鹰塔 · 哺乳事件已触发", varPath: "BirdTower.seen.milk", type: "boolean" }
+				{ key: "bt_milk", name: "鹰塔 · 哺乳事件已触发", varPath: "BirdTower.seen.milk", type: "boolean" },
+				{ key: "clothes_stored", name: "校园 · 校服已存放", varPath: "LifeSimulation.school.clothesStored", type: "boolean" }
 			],
 			scenes: [],
 			values: [
@@ -1152,7 +1298,10 @@
 				{ key: "ls_order", name: "校园 · 秩序值", varPath: "LifeSimulation.school.order", type: "number", min: 0, max: 100 },
 				{ key: "ls_student", name: "校园 · 学生支持", varPath: "LifeSimulation.school.studentSupport", type: "number", min: 0, max: 100 },
 				{ key: "ls_staff", name: "校园 · 教职支持", varPath: "LifeSimulation.school.staffSupport", type: "number", min: 0, max: 100 },
-				{ key: "ls_corruption", name: "校园 · 腐败值", varPath: "LifeSimulation.school.corruption", type: "number", min: 0, max: 100 }
+				{ key: "ls_corruption", name: "校园 · 腐败值", varPath: "LifeSimulation.school.corruption", type: "number", min: 0, max: 100 },
+				{ key: "duties_completed", name: "校园 · 已完成值勤次数", varPath: "LifeSimulation.school.duties.completed", type: "number", min: 0, max: 999 },
+				{ key: "pc_loan", name: "罗宾 · 尚欠你的借款（英镑）", varPath: "RobinExpansion.pc_loan", type: "number", min: 0, max: 1000000 },
+				{ key: "weekly_income", name: "罗宾 · 上周结算收入（英镑）", varPath: "RobinExpansion.weekly_income", type: "number", min: 0, max: 1000000 }
 			]
 		}
 	};
@@ -1481,6 +1630,14 @@
 				opt.value = String(lv);
 				sel.appendChild(opt);
 			});
+			/* v1.4.4：回显当前阶段值（字符串枚举/数字枚举均按值匹配），应用后重渲染立即可见生效 */
+			var curStage = cheatReadSafe(m.modId, s.varPath);
+			if (curStage !== undefined && curStage !== null) {
+				var curStr = String(curStage);
+				for (var si = 0; si < levels.length; si++) {
+					if (String(levels[si]) === curStr) { sel.selectedIndex = si; break; }
+				}
+			}
 			var bSet = el("button", "", "应用"); bSet.type = "button";
 			bSet.addEventListener("click", function () { actCheat(setCheatStage(m.modId, s.key, sel.value), m.modId); });
 			var bMax = el("button", "", "跳至最高"); bMax.type = "button";
@@ -2108,6 +2265,11 @@
 				var t = unescapeTweeEntities(ps[i].text);
 				if (t.indexOf('<<widget "scenes">>') !== -1) { return t; }
 			}
+			/* v1.4.8 兜底：汉化/段落名变体时 widget 段落定位不到 → 找含场景对象字面量开头的段落 */
+			for (var j = 0; j < ps.length; j++) {
+				var t2 = unescapeTweeEntities(ps[j].text);
+				if (t2.indexOf("<<set $scenes to {") !== -1 || t2.indexOf("$scenes to {") !== -1) { return t2; }
+			}
 		} catch (e) {}
 		return "";
 	}
@@ -2125,32 +2287,23 @@
 		var s = String(expr || "").trim();
 		if (!s) { return true; }
 		var code = tweeToJS(s);
-		return new Function("V", "return (" + code + ");")(getV());
+		var V = getV();
+		if (!V) { return undefined; }
+		/* v1.4.4：原版 scenes 的 unlocked 全部依赖 $scenePassages.includes(...)（已看段落表），
+		   该 story 变量在部分存档/流程下缺失 → 兜底初始化为空数组，避免 undefined.includes 崩溃导致状态未知 */
+		if (!Array.isArray(V.scenePassages)) { V.scenePassages = V.scenePassages || []; }
+		return new Function("V", "return (" + code + ");")(V);
 	}
-	/* 从 widget 文本解析 scenes 注册表（字符串感知，不 eval 整个对象） */
-	function parseScenesFromText(text) {
-		var m = text.match(/<<set\s+\$scenes\s+to\s+\{/);
-		if (!m) { return null; }
-		var start = m.index + m[0].length - 1;
-		var depth = 0, i = start, end = -1, inStr = false;
-		for (; i < text.length; i++) {
-			var c = text.charAt(i);
-			if (inStr) {
-				if (c === "\\") { i++; }
-				else if (c === '"') { inStr = false; }
-			} else if (c === '"') { inStr = true; }
-			else if (c === "{") { depth++; }
-			else if (c === "}") { depth--; if (depth === 0) { end = i; break; } }
-		}
-		if (end < 0) { return null; }
-		var body = text.slice(start + 1, end);
+	/* 键块扫描：从任意文本提取 "Key": { ... } 场景对象块（不依赖 <<set $scenes to { 前缀，
+	   供 widget 段落解析与 Story 全文恢复共用） */
+	function parseSceneBlocks(text) {
 		var defs = {};
 		var reKey = /"([^"]+)"\s*:\s*\{/g, km;
-		while ((km = reKey.exec(body)) !== null) {
+		while ((km = reKey.exec(text)) !== null) {
 			var kstart = km.index + km[0].length - 1;
 			var kd = 0, ki = kstart, kend = -1, ks = false;
-			for (; ki < body.length; ki++) {
-				var cc = body.charAt(ki);
+			for (; ki < text.length; ki++) {
+				var cc = text.charAt(ki);
 				if (ks) {
 					if (cc === "\\") { ki++; }
 					else if (cc === '"') { ks = false; }
@@ -2159,7 +2312,7 @@
 				else if (cc === "}") { kd--; if (kd === 0) { kend = ki; break; } }
 			}
 			if (kend < 0) { continue; }
-			var block = body.slice(kstart + 1, kend);
+			var block = text.slice(kstart + 1, kend);
 			var o = {};
 			var mn = block.match(/name\s*:\s*"((?:[^"\\]|\\.)*)"/);
 			if (mn) { o.name = mn[1]; }
@@ -2174,7 +2327,9 @@
 			}
 			var mm = block.match(/manualVariableChanges\s*:\s*"((?:[^"\\]|\\.)*)"/);
 			if (mm) { o.manualVariableChanges = mm[1]; }
-			var mu = block.match(/unlocked\s*:\s*(.*?)(?:,\s*lockedMessage|,?\s*\})/);
+			/* v1.4.8：block 为 slice 出的键块（不含结尾 }）——unlocked 后可能是 ", lockedMessage"、
+			   ", }" 或直接块尾（无 lockedMessage 的原版场景如 Whitney 孤儿院/贞操装置）→ 补 $ 分支 */
+			var mu = block.match(/unlocked\s*:\s*(.*?)(?:,\s*lockedMessage|,?\s*\}|,?\s*$)/);
 			if (mu) { o.unlockedExpr = mu[1].trim(); }
 			var ml = block.match(/lockedMessage\s*:\s*((?:"(?:[^"\\]|\\.)*"|[^,}]*))/);
 			if (ml) { o.lockedExpr = ml[1].trim(); }
@@ -2182,11 +2337,58 @@
 		}
 		return Object.keys(defs).length ? defs : null;
 	}
-	/* 场景注册表：优先解析 Story 原文（实时求值 unlocked），失败回退 V.scenes 缓存 */
+	/* 从 widget 文本解析 scenes 注册表（字符串感知，不 eval 整个对象） */
+	function parseScenesFromText(text) {
+		var m = text.match(/<<set\s+\$scenes\s+to\s+\{/);
+		if (!m) { m = text.match(/\$scenes\s+to\s+\{/); }
+		if (!m) { return null; }
+		var start = m.index + m[0].length - 1;
+		var depth = 0, i = start, end = -1, inStr = false;
+		for (; i < text.length; i++) {
+			var c = text.charAt(i);
+			if (inStr) {
+				if (c === "\\") { i++; }
+				else if (c === '"') { inStr = false; }
+			} else if (c === '"') { inStr = true; }
+			else if (c === "{") { depth++; }
+			else if (c === "}") { depth--; if (depth === 0) { end = i; break; } }
+		}
+		if (end < 0) { return null; }
+		var body = text.slice(start + 1, end);
+		return parseSceneBlocks(body);
+	}
+	/* v1.4.8：Story 全文恢复——widget "scenes" 段落定位失败（汉化/变体/结构改动）时，
+	   遍历全部段落，用键块扫描提取含 scenePassages.includes 解锁表达式的场景定义 */
+	function recoverSceneDefsFromStory() {
+		try {
+			var ps = listAllPassages();
+			var collected = {};
+			for (var i = 0; i < ps.length; i++) {
+				var t = unescapeTweeEntities(ps[i].text);
+				if (!t || t.indexOf("unlocked") === -1 || t.indexOf("scenePassages") === -1) { continue; }
+				var defs = parseSceneBlocks(t);
+				if (defs) {
+					var ks = Object.keys(defs);
+					for (var j = 0; j < ks.length; j++) {
+						var d = defs[ks[j]];
+						if (d.unlockedExpr && d.unlockedExpr.indexOf("scenePassages") !== -1) {
+							collected[ks[j]] = d; /* 只收 scenePassages 解锁的（原版/模组场景定义特征） */
+						}
+					}
+				}
+			}
+			return Object.keys(collected).length ? collected : null;
+		} catch (e) { return null; }
+	}
+	/* 场景注册表：优先解析 Story 原文（实时求值 unlocked）→ Story 全文恢复 → V.scenes 缓存 */
 	function getScenesDefs() {
 		var parsed = null;
 		try { parsed = parseScenesFromText(findScenesWidgetText()); } catch (e) { parsed = null; }
 		if (parsed) { return { defs: parsed, live: true }; }
+		/* v1.4.8：widget 段落定位失败 → Story 全文恢复（汉化/段落名变体兜底） */
+		var recovered = null;
+		try { recovered = recoverSceneDefsFromStory(); } catch (e) { recovered = null; }
+		if (recovered) { return { defs: recovered, live: true }; }
 		var V = getV();
 		var sc = V && V.scenes;
 		if (sc && typeof sc === "object") {
@@ -2197,7 +2399,9 @@
 				out[k] = {
 					name: s.name, startPassage: s.startPassage, passages: Array.isArray(s.passages) ? s.passages.slice() : [],
 					manualVariableChanges: s.manualVariableChanges,
-					unlockedExpr: "", lockedExpr: "",
+					/* v1.4.8：缓存里 unlocked 若为表达式字符串（原版 scenes 对象字面量形态）→ 可提取解锁标记一键完成 */
+					unlockedExpr: typeof s.unlocked === "string" ? s.unlocked : "",
+					lockedExpr: typeof s.lockedMessage === "string" ? s.lockedMessage : "",
 					lockedCache: s.lockedMessage, unlockedCache: s.unlocked
 				};
 			});
@@ -2212,15 +2416,13 @@
 			else { raw = def.unlockedCache; }
 		} catch (e) { raw = undefined; }
 		if (raw === true) { return { state: "pass", raw: raw, note: "已达成" }; }
-		if (raw === false) {
-			var lm = "";
-			try {
-				if (def.lockedExpr) { lm = String(evalSceneExpr(def.lockedExpr) || ""); }
-				else { lm = String(def.lockedCache || ""); }
-			} catch (e2) { lm = ""; }
-			return { state: "fail", raw: raw, note: lm || "未达成（条件未满足）" };
-		}
-		return { state: "note", raw: raw, note: String(raw == null ? "未知" : raw) };
+		/* v1.4.4：unlocked 语义恒为布尔；false / 0 / undefined / 求值异常一律归为未达成，不再出现「状态：未知」 */
+		var lm = "";
+		try {
+			if (def.lockedExpr) { lm = String(evalSceneExpr(def.lockedExpr) || ""); }
+			else { lm = String(def.lockedCache || ""); }
+		} catch (e2) { lm = ""; }
+		return { state: "fail", raw: raw, note: lm || "未达成（条件未满足）" };
 	}
 	/* 一键完成：把 unlocked 表达式引用的 scenePassages 字面量 + 场景全部段落写入经历表，再复检 */
 	function sceneUnlockValues(def) {
@@ -2237,11 +2439,17 @@
 		function push(v) {
 			if (typeof v === "string" && v && arr.indexOf(v) === -1) { arr.push(v); }
 		}
-		sceneUnlockValues(def).forEach(push);
+		var vals = sceneUnlockValues(def);
+		vals.forEach(push);
 		if (def.startPassage) { push(def.startPassage); }
 		(def.passages || []).forEach(push);
 		var st = sceneStatus(def);
-		return { ok: st.state === "pass", state: st.state, note: st.note };
+		var ok = st.state === "pass";
+		/* v1.4.8：unlocked 解锁标记（scenePassages.includes 字面量）已写入即达成——
+		   复检若仍 fail（如 V.scenes 缓存里 unlocked 为静态布尔、表达式求值滞后），
+		   以"解锁标记已写入"为准判定通过，避免一键完成永远显示未达成 */
+		if (!ok && vals.length) { ok = true; st = { state: "pass", raw: true, note: "已达成（解锁标记已写入）" }; }
+		return { ok: ok, state: st.state, note: st.note };
 	}
 	/* 按场景键数字后缀自动聚类成剧情线（RobinCrossdressing1-6 → 一条线 6 阶段） */
 	function listSceneLines(defs) {
@@ -2521,17 +2729,24 @@
 				changed = true;
 				back = V.replayScene.exitpassage || currentPassageName();
 				try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
-				try { delete V.replayScene; } catch (e) { V.replayScene = undefined; }
-				/* 防被困播放器：取消固定时清 sceneViewSwitch（Scene Viewer passages 的 switch 无条件播放 case，
-				   不清会再次命中 → 剧情循环/无法退出）；返回原位前清空 MOD 重放标记 */
+				/* v1.4.5 防被困播放器（顺序不可反）：
+				   1) 先清 sceneViewSwitch 为无效值 → Scene Viewer passages 的 switch 走 default；
+				   2) 再跳转——原版 default 退出分支的 Back 链接依赖 $replayScene.exitpassage，
+				      若先删 replayScene 再跳（且目标恰为 Scene Viewer passages）→ Back 无源 →
+				      退出按钮消失 → 被困场景播放器；
+				   3) 跳转完成（同步渲染）后再清理 replayScene / 重放标记。
+				   back 为空时：不跳转也不删 replayScene——保留 default 的 Back 链接，玩家可手动点 Back 退出。 */
 				V.sceneViewSwitch = "MB_CE_END";
-				try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+				if (back) {
+					var ep = getEnginePlayFn();
+					if (ep) { try { ep.play.call(ep.e, back, true); } catch (e) {} }
+					/* 跳转成功（拿到有效 back）后才清理 replayScene/标记；back 为空时保留
+					   replayScene —— 播放器 default 分支的 Back 链接仍可用，玩家可手动退出 */
+					try { delete V.replayScene; } catch (e) { V.replayScene = undefined; }
+					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+				}
 			}
 		} catch (e) {}
-		if (back) {
-			var ep = getEnginePlayFn();
-			if (ep) { try { ep.play.call(ep.e, back, true); } catch (e) {} }
-		}
 		return changed;
 	}
 	/* 剧情入口段落/剧情名 → 匹配的场景组 id（联动解锁用）；
@@ -2626,6 +2841,25 @@
 		try { var V2 = getV(); if (V2 && typeof V2.passage === "string" && V2.passage) { return V2.passage; } } catch (e) {}
 		return "";
 	}
+	/* v1.4.8：清理队列中已触发（used）的固定项并联动解锁（三个重放终点共用） */
+	function cleanupUsedPins() {
+		try {
+			var Vq = getV();
+			if (!Vq) { return; }
+			var qc = Vq.mbCE_queue;
+			if (Array.isArray(qc)) {
+				for (var i2 = 0; i2 < qc.length; i2++) {
+					if (qc[i2] && qc[i2].used) {
+						unlockPlaceForScene(qc[i2]);
+						applyWorldUnlockForScene(qc[i2]);
+					}
+				}
+				for (var i3 = qc.length - 1; i3 >= 0; i3--) {
+					if (qc[i3] && qc[i3].used) { qc.splice(i3, 1); }
+				}
+			}
+		} catch (e) {}
+	}
 	/* :passageoverride 钩子：固定触发判定（在 SugarCube 原版 redirect 之前改 passageArgs.name） */
 	function onPassageOverride(passageArgs) {
 		try {
@@ -2634,24 +2868,54 @@
 			var dest = passageArgs && passageArgs.name;
 			/* 原版重放结束（Scene Viewer End 且正处于重放）→ 记录场景解锁 + 清理已触发项 */
 			if (dest === "Scene Viewer End" && V.replayScene) {
-				var q0 = V.mbCE_queue;
-				if (Array.isArray(q0)) {
-					for (var i0 = 0; i0 < q0.length; i0++) {
-						if (q0[i0] && q0[i0].used) {
-							unlockPlaceForScene(q0[i0]);
-							applyWorldUnlockForScene(q0[i0]);
-						}
-					}
-					for (var i1 = q0.length - 1; i1 >= 0; i1--) {
-						if (q0[i1] && q0[i1].used) { q0.splice(i1, 1); }
-					}
-				}
+				cleanupUsedPins();
+				/* v1.4.8：MOD 固定触发的重放播放完（到 Scene Viewer End）→ 自动返回原位（exitpassage）
+				   并解除固定；跳过 End 段落（原版 End 显示 "Exit scene" 需手动点、且回的是场景查看器列表）。
+				   原版手动重放保持原版行为：End → Exit scene 回场景查看器。 */
+				var wasMod = !!V.mbCE_replayOnce;
+				var backTo = (V.replayScene && V.replayScene.exitpassage) ? V.replayScene.exitpassage : "";
+				try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
 				try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+				if (wasMod) {
+					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
+					if (backTo && passageArgs) { passageArgs.name = backTo; }
+				}
 				return;
 			}
 			if (V.replayScene) {
 				/* 原版手动重放（非 MOD 固定触发）→ 交给原版处理，不干预 */
 				if (!V.mbCE_replayOnce) { return; }
+				/* v1.4.8：MOD 固定触发的 case 场景播放完链回 Scene Viewer passages（非首次进入）→
+				   自动返回原位并解除固定（跳过原版 default 的 "Error occurred" + 手动 Back 步） */
+				if (dest === "Scene Viewer passages" && !V.mbCE_replayPending) {
+					cleanupUsedPins();
+					var backS = (V.replayScene && V.replayScene.exitpassage) ? V.replayScene.exitpassage : "";
+					try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
+					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
+					if (backS && passageArgs) { passageArgs.name = backS; }
+					return;
+				}
+				/* v1.4.5：原版重放经 Back 正常返回原位（exitpassage）→ 清理残留（replayScene/标记/已用队列项），
+				   避免残留导致后续取消固定误判"正在重放"、以及再次重放时被残留干扰 */
+				if (dest === (V.replayScene.exitpassage || "")) {
+					try {
+						var qe = V.mbCE_queue;
+						if (Array.isArray(qe)) {
+							for (var ie = qe.length - 1; ie >= 0; ie--) {
+								if (qe[ie] && qe[ie].used) {
+									unlockPlaceForScene(qe[ie]);
+									applyWorldUnlockForScene(qe[ie]);
+									qe.splice(ie, 1);
+								}
+							}
+						}
+					} catch (e) {}
+					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
+					try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
+					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+					return;
+				}
 				/* MOD 固定触发的重放：仅已知确定性逃逸终点到达时清理残留（农场剧情结束直接去 Farm Work 而非回 Scene Viewer），
 				   否则一律视为仍在重放（含剧情中间段落不在注册表列表的情况）→ 不干预、不触发 */
 				if (dest === "Farm Work") {
@@ -2700,7 +2964,10 @@
 				exitpassage: currentPassageName()
 			};
 			V.mbCE_replayOnce = true;  /* 本重放由 MOD 固定触发启动：Scene Viewer passages 结束后走 default 退出，不再重播 */
-			V.mbCE_replayPending = true; /* 首次进入 Scene Viewer passages 时保留 sceneViewSwitch（case 正常播放） */
+			/* v1.4.8：仅当场景入口是 Scene Viewer passages 才需"首次保留 sceneViewSwitch"；
+			   直入剧情段落的场景（如孤儿院 SV Street Bully Orphanage Go）不设 pending，
+			   避免链回 Scene Viewer passages 时被误判为首次 → 无法自动回原位 */
+			V.mbCE_replayPending = (P.startPassage === "Scene Viewer passages");
 			passageArgs.name = P.startPassage;
 			P.used = true; /* 一次性：触发后不再重复触发 */
 			unlockPlaceForScene(P); /* 联动解锁：触发即解锁所在场景组（如凯拉尔剧情 → 庄园可直达） */
@@ -2754,6 +3021,12 @@
 	}
 
 	function renderRomanceStages(pane) {
+		/* v1.4.5：非恋爱候选角色不显示恋爱阶段（角色本身保留在角色一览）——
+		   只有能进恋人卡槽的角色才展示恋爱阶段与"恋人卡槽"条件 */
+		if (!isLoveCandidate(curName)) {
+			pane.appendChild(el("div", "mce-hint", "「" + displayName(curName) + "」不是可确立恋人关系的角色，无可解锁的恋爱阶段。"));
+			return;
+		}
 		var stages = getRomanceStages(curName);
 		if (stages.length) {
 			var box = el("div", "mce-stages");
@@ -3138,6 +3411,80 @@
 	}
 
 	/* ---- 全局页 ---- */
+	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
+	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
+	var NPC_TRAITS = [
+		{ key: "robin_protector", name: "同舟共济—罗宾", en: "Robin's Protector", desc: "罗宾依赖着你，你需要变强。增加每日创伤恢复。",
+			owned: function () { return getV().robinpaid >= 1; },
+			grant: function () { getV().robinpaid = 1; return { ok: true, message: "已满足「同舟共济—罗宾」条件（robinpaid = 1）" }; } },
+		{ key: "stockholm_eden", name: "斯德哥尔摩综合征：伊甸", en: "Stockholm Syndrome: Eden", desc: "孤身一人住在树林里的滋味一定不好受。",
+			owned: function () { return getV().syndromeeden >= 1; },
+			grant: function () { getV().syndromeeden = 1; return { ok: true, message: "已满足「斯德哥尔摩综合征：伊甸」条件（syndromeeden = 1）" }; } },
+		{ key: "stockholm_kylar", name: "斯德哥尔摩综合征：凯拉尔", en: "Stockholm Syndrome: Kylar", desc: "每个人都需要一个朋友。",
+			owned: function () { return getV().syndromekylar >= 1; },
+			grant: function () {
+				getV().syndromekylar = 1;
+				var extra = "";
+				try {
+					if (typeof C !== "undefined" && C && C.npc && C.npc.Kylar && C.npc.Kylar.state === "prison" && getV().location !== "prison") {
+						extra = "（凯拉尔当前在监狱，特质页暂不显示——NPC 状态不改）";
+					}
+				} catch (e) {}
+				return { ok: true, message: "已满足「斯德哥尔摩综合征：凯拉尔」条件（syndromekylar = 1）" + extra };
+			} },
+		{ key: "stockholm_wolves", name: "斯德哥尔摩综合征：狼群", en: "Stockholm Syndrome: Wolves", desc: "它们只是可爱的动物（或怪物）。",
+			owned: function () { return getV().syndromewolves >= 1; },
+			grant: function () { getV().syndromewolves = 1; return { ok: true, message: "已满足「斯德哥尔摩综合征：狼群」条件（syndromewolves = 1）" }; } },
+		{ key: "stockholm_hawk", name: "斯德哥尔摩综合征：巨鹰", en: "Stockholm Syndrome: Great Hawk", desc: "它只是想要一个伴侣。",
+			owned: function () { return getV().syndromebird >= 1; },
+			grant: function () { getV().syndromebird = 1; return { ok: true, message: "已满足「斯德哥尔摩综合征：巨鹰」条件（syndromebird = 1）" }; } },
+		{ key: "avery_saviour", name: "艾弗里的救星", en: "Avery's Saviour", desc: "你救了艾弗里的命。愤怒每日衰减。",
+			owned: function () { return getV().avery_fate === "saved"; },
+			grant: function () { getV().avery_fate = "saved"; return { ok: true, message: "已满足「艾弗里的救星」条件（avery_fate = saved）" }; } }
+	];
+	// 神殿誓言状态（原版 Traits widget 一般特质分组：Chastity Vow / Broken Vow / Rite of Promise / Broken Promise）
+	function getVowStatus() {
+		var v = getV();
+		var temple = (v.player && v.player.virginity) ? v.player.virginity.temple : undefined;
+		return {
+			temple: temple,
+			templePromised: v.templePromised || "",
+			templeRank: v.temple_rank,
+			templeBurden: v.temple_burden || 0,
+			brokenVowCount: (v.brokenVowCount && typeof v.brokenVowCount === "object") ? v.brokenVowCount : {}
+		};
+	}
+	// 一键修复誓言：恢复 player.virginity.temple=true（原版破坏点写 NPC 名/false），清空各角色破誓计数；承诺对象保留（恢复后显示 Rite of Promise）
+	function fixVows() {
+		var v = getV();
+		var before = getVowStatus();
+		if (!v.player) { v.player = {}; }
+		if (!v.player.virginity) { v.player.virginity = {}; }
+		v.player.virginity.temple = true;
+		var bvc = v.brokenVowCount;
+		if (bvc && typeof bvc === "object") {
+			Object.keys(bvc).forEach(function (k) { bvc[k] = 0; });
+		}
+		var after = getVowStatus();
+		return {
+			ok: true, before: before, after: after,
+			message: "誓言已修复：Temple Vow = 未破" + (before.templePromised ? "（承诺对象「" + before.templePromised + "」保留，显示为 Rite of Promise）" : "；破誓计数已清零")
+		};
+	}
+	// 特质列表（渲染用：含是否已拥有）
+	function listNpcTraits() {
+		return NPC_TRAITS.map(function (t) {
+			return { key: t.key, name: t.name, en: t.en, desc: t.desc, owned: !!t.owned() };
+		});
+	}
+	// 获取指定 NPC 特质：条件不满足时直接把条件变量改为满足
+	function grantNpcTrait(key) {
+		var t = null, i;
+		for (i = 0; i < NPC_TRAITS.length; i++) { if (NPC_TRAITS[i].key === key) { t = NPC_TRAITS[i]; break; } }
+		if (!t) { return { ok: false, message: "未知特质 " + key }; }
+		return t.grant();
+	}
+
 	function renderGlobal() {
 		var pane = root.querySelector('[data-pane="global"]');
 		pane.textContent = "";
@@ -3178,6 +3525,42 @@
 		actions.appendChild(b3);
 		actions.appendChild(b4);
 		pane.appendChild(actions);
+		/* v1.5.0：誓言修复 + NPC 特质获取（游戏「特质」页对应分组） */
+		var vsec = el("div", "mce-section", "誓言修复 · NPC 特质（对应游戏「特质」页）");
+		pane.appendChild(vsec);
+		var vst = getVowStatus();
+		var vowTxt = "神殿誓言（Temple Vow）：" + (vst.temple === true ? "未破" : "已破（" + (vst.temple === false ? "未知" : String(vst.temple)) + "）");
+		if (vst.templePromised) { vowTxt += "；承诺对象：" + vst.templePromised; }
+		if (vst.templeRank) { vowTxt += "；神殿等级：" + vst.templeRank; }
+		var vrow = el("div", "mce-row");
+		vrow.appendChild(el("span", "mce-row-lbl", vowTxt));
+		var vbtn = el("button", "mce-btn mce-gold", "一键修复誓言");
+		vbtn.type = "button";
+		vbtn.addEventListener("click", function () {
+			var r = fixVows();
+			setStatus(r.message, "mce-ok");
+			renderGlobal();
+		});
+		vrow.appendChild(vbtn);
+		pane.appendChild(vrow);
+		var traits = listNpcTraits();
+		pane.appendChild(el("div", "mce-hint", "NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。"));
+		var tbox = el("div", "");
+		traits.forEach(function (t) {
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc));
+			var btn = el("button", "mce-btn" + (t.owned ? "" : " mce-gold"), t.owned ? "已拥有" : "获取");
+			btn.type = "button";
+			btn.disabled = t.owned;
+			btn.addEventListener("click", function () {
+				var r = grantNpcTrait(t.key);
+				setStatus(r.ok ? r.message : r.message, r.ok ? "mce-ok" : "mce-err");
+				renderGlobal();
+			});
+			row.appendChild(btn);
+			tbox.appendChild(row);
+		});
+		pane.appendChild(tbox);
 	}
 
 	function render() {
@@ -3382,6 +3765,7 @@
 				renderModCheats: renderModCheats,
 				renderModCheatDetail: renderModCheatDetail,
 				applyCheatModValue: applyCheatModValue,
+				cheatReadSafe: cheatReadSafe,
 				undoCheatModValue: undoCheatModValue,
 				skipCheatTask: skipCheatTask,
 				completeCheatTask: completeCheatTask,
@@ -3398,7 +3782,15 @@
 				fillStats: fillStats,
 				globalFill: globalFill,
 				globalRomance: globalRomance,
-				globalTransform: globalTransform
+				globalTransform: globalTransform,
+				/* v1.4.5 角色一览恋爱候选过滤 */
+				isLoveCandidate: isLoveCandidate,
+				addLoveInterest: addLoveInterest,
+				/* v1.5.0 誓言修复 + NPC 特质获取 */
+				getVowStatus: getVowStatus,
+				fixVows: fixVows,
+				listNpcTraits: listNpcTraits,
+				grantNpcTrait: grantNpcTrait
 			};
 		} catch (e) {}
 	}

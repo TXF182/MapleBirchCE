@@ -1,9 +1,47 @@
-# Maplebirch CE · 全局全自动剧情条件解锁（v1.4.3 · 枯木逢春适配 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
+# Maplebirch CE · 全局全自动剧情条件解锁（v1.5.0 · 全局页新增誓言修复 + NPC 特质获取 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
 ## 版本说明
 
+- **v1.5.0（2026-10-16 · 全局页新增「誓言修复 + NPC 特质获取」）**：
+  - **背景**：用户要求在全局页面添加：①一键修复誓言；②继续获得 NPC 特质（可指定获取哪一项），获取时不满足的条件直接改为满足；
+  - **誓言修复**：对照游戏 0.5.12.13 原版 Traits widget「一般特质」分组的誓言相关特质逐项落实——`player.virginity.temple`（Temple Vow 未破=true / 被破=破坏者名或 false）、`templePromised`（承诺对象，保留不覆盖）、`temple_rank`（神殿等级）、`temple_burden`（神殿之担）、`brokenVowCount`（各角色破誓计数）。「一键修复誓言」：`temple` 恢复 true（Chastity Vow 恢复、Broken Vow / Broken Promise 特质自动消失）+ 破誓计数清零 + 承诺对象保留（恢复显示 Rite of Promise）；全局页实时显示当前誓言状态（未破/被谁破/承诺对象/神殿等级）；
+  - **NPC 特质获取**：对照原版「NPC Traits」分组 6 项逐项收录（条件照抄源码 has 表达式）：同舟共济—罗宾（`robinpaid>=1`）、斯德哥尔摩综合征：伊甸（`syndromeeden>=1`）、凯拉尔（`syndromekylar>=1`，凯拉尔在监狱且玩家不在监狱时提示暂不显示——NPC 状态不改）、狼群（`syndromewolves>=1`）、巨鹰（`syndromebird>=1`）、艾弗里的救星（`avery_fate="saved"`）。每项显示中文名+原文名+效果+当前状态，点「获取」直接把条件变量改为满足值，游戏「特质」页立即显示；已拥有项置灰；
+  - **验证**：全量断言 407 项全过（新增第 27 节 16 条：誓言状态读取 / 修复后 temple=true+计数清零+承诺保留 / 特质 6 项与汉化名 / 初始未拥有 / 逐项获取后 owned=true / 凯拉尔监狱提示不改 NPC 状态 / 未知特质拒绝）。
+- **v1.4.9（2026-10-16 · Mod作弊 适配器重校验补录：枯木逢春值勤/着装规范 + 归途之书医院阶段等）**：
+  - **背景**：用户实测发现"有些 mod 的阶段没收录进去"（枯木逢春学生会面板截图佐证：已完成值勤 29 / 着装规范·自由着装），要求重新校验已适配的四个内容模组。用户上传三份可读源码：Deadwood-Reblooms-2.2.0.zip / DomRobin.mod.zip / Revelation-The-Book-of-Return-1.3.1.zip，逐一解包与适配器声明比对；
+  - **核对结论**：①MLI（more_love_interests）：11 个候选角色与 `loveInterestList` 重建机制全匹配，**无缺口**；②DomRobin：21 项声明（直播周数/反抗链/共同战斗/还债/直播/新商品）全部源码实证，**无缺口**；③枯木逢春：对照 `School.ts` 的 `SchoolState` 接口实证缺 **`duties.completed`（已完成值勤次数，截图"已完成值勤：29"）** 与 **`dress.active`（着装规范，截图"自由着装"）**；④归途之书：对照 `constants/robin-temple.ts` 实证缺医院阶段等一批字段；
+  - **枯木逢春补录**：stages +2（`dress.active` 着装规范 6 档 uniform→mandatoryNudity / `dress.highest` 保住过的最高政策）；values +3（`duties.completed` 值勤次数 0-999 / `pc_loan` 罗宾欠款 / `weekly_income` 上周收入）；abilities +1（`clothesStored` 校服已存放）；
+  - **归途之书补录**：stages +4（`hospital_stage` 医院阶段 6 档 / `secret.followup` 后日谈 / `night_scene` 夜访场景 / `transformation_kind` 变身形态 8 种）；abilities +6（医院陪伴 / 评估之火 / 守夜进行中 / 与罗宾同守夜 / 已放弃路线 / 仪式已完成）；values +3（同席连续次数 / 亲密累计次数 / 评估分数）；
+  - **验证**：全量断言全过（新增 19.11 归途之书 15 条 + 21.9 枯木逢春 8 条：新字段写入读回/越界拒绝/能力勾选/数值钳制）。
+- **v1.4.8（2026-10-16 · 一键完成兜底 + 固定触发播放完自动回原位）**：
+  - **背景**：用户实测仍报三大症状——①剧情页惠特尼等场景「一键完成」仍显示「未达成（条件未满足）」；②固定触发场景播放完仍被困场景播放器；③固定触发后不能自动解除。
+  - **① 一键完成根因与修复**：原版场景定义里无 `lockedMessage` 的场景（惠特尼孤儿院 `includes("Street Bully Orphanage Go")`、贞操装置/泳装复用裙子标记 `includes("WhitneySchoolBullySkirt")` 等）在键块解析时 `unlocked` 表达式提取失败（解析块为 slice 出的键块、不含结尾 `}`，原正则匹配不到块尾）→ 一键完成写不进解锁标记 → 复检恒「未达成」。修复：`unlocked` 正则补块尾分支；并加三层兜底——`findScenesWidgetText` 定位不到 widget 段落时改找 `$scenes to {` 段落（汉化/段落名变体）、`getScenesDefs` 新增 Story 全文恢复（遍历段落键块扫描、只收 `scenePassages.includes` 解锁定义）、`V.scenes` 缓存里 `unlocked` 为表达式字符串时提升为 `unlockedExpr`；一键完成复检改为「includes 解锁标记已写入即达成」（缓存静态布尔不再卡死）。
+  - **②③ 播放器/自动解除根因与修复**：固定触发的重放结束时（Scene Viewer End，或 case 场景播放完链回 Scene Viewer passages）此前只能停在原版「Exit scene / Error occurred + Back」手动步 → 表现为被困播放器、固定不自动解除。修复：`onPassageOverride` 在两个重放终点对 MOD 固定触发（`mbCE_replayOnce`）一律自动改 `passageArgs.name` 回原位（exitpassage）并补 `unfreezePlayerStats`，跳过手动步；原版手动重放保持原版行为不干预。触发处 `mbCE_replayPending` 改为仅入口为 `Scene Viewer passages` 时设置（直入剧情段落的场景如孤儿院链回 passages 不会被误判首次而拦不下）。
+  - **验证**：338 项断言全过（新增第 25 节 16 条：全文恢复解析惠特尼场景 / 孤儿院·贞操装置一键完成 / 缓存 unlocked 字符串一键完成 / Scene Viewer End 自动回原位 / 原版手动重放不干预 / 链回 passages 自动回原位 / 首次不拦截 / 触发 pending 条件化）。
+- **v1.4.7（2026-10-16 · Mod作弊 数值/阶段全链路自动化测试）**：
+  - **背景**：用户要求"对 mod作弊 中的数值阶段进行更改，并查看是否更改完成、能否正常运行，在代码中进行测试"——在 `test_mce.js` 新增第 24 节 19 条自动化测试，注册测试模组（任务/字符串阶段/数字阶段/能力/自定义场景/数值/布尔/列表）跑全链路；
+  - **覆盖**：24.1 模组注册识别；24.2 数值更改写入 + `cheatReadSafe` 读回确认（面板回显依据）；24.3 越界钳制（999→max 100）；24.4 布尔写入；24.5/24.6 列表追加与移除；24.7 字符串枚举阶段写入 + 读回确认（下拉回显依据）；24.8 阶段越界拒绝且原值不变；24.9 数字阶段写入；24.10 跳至最高；24.11 回退初始；24.12 能力勾选；24.13 父级缺失拒绝（不写 undefined 对象）；24.14 vanilla 根拒绝（loveInterest）；24.15/24.16 任务跳过/完成标记；24.17-24.19 再次更改 → 回退还原首次 before（数值 5 / 阶段 started）；
+  - **API 增强**：`cheatReadSafe` 加入 api 导出（面板回显读取逻辑，供外部验证"更改是否完成"）；
+  - **验证**：323 项断言全过（304 + 第 24 节 19 条）。
+- **v1.4.6（2026-10-16 · 角色过滤方向修正：不踢角色，恋爱阶段区过滤 + 一键完成入卡槽）**：
+  - **背景**：v1.4.5 的角色过滤实现被否决——用户明确"不是让你直接把他在角色里面踢出去"：角色一览**必须保留全部角色**；只有"不能成为恋人"的 PC 才**不显示其恋爱阶段/恋爱条件**；能进恋人卡槽的角色显示恋爱条件，且该条件一键完成后**真正把角色加入恋人卡槽**；
+  - **修复 1（撤销踢人）**：角色一览卡片与阶段页默认角色恢复全量 `listCharacters()`，不再按恋爱候选过滤——所有角色都保留在一览；
+  - **修复 2（恋爱阶段区过滤）**：`renderRomanceStages` 对非恋爱候选角色显示提示「不是可确立恋人关系的角色，无可解锁的恋爱阶段」；`checkNativeLove` 收紧为仅 `npcConfig.loveInterest === true`（`important` 重要 NPC 不再误判为恋爱候选，避免非恋爱角色在恋爱区出现）；
+  - **修复 3（一键完成 = 加入恋人卡槽）**：新增 `addLoveInterest`——恋爱阶段兜底条件 `loveInterest.includes("X")` 的一键完成现在真正把角色写入 `V.loveInterest`（数组 push / 对象首个空槽 / 空对象写 primary 主槽 / 槽位全满且存在 MLI 扩容列表时写 `loveInterestList` 由模组 widget 自动重建槽位），**绝不覆盖已有恋人**；`undoRomanceStage` 支持 native 回退（移除卡槽 + 清痕迹）；
+  - **验证**：304 项断言全过（23.11-23.16：兜底条件一键完成入数组卡槽/对象空槽/MLI 列表留痕/非恋爱候选恋爱区排除；12.3 原生恋爱一键完成+回退同步更新为新语义）。
+- **v1.4.5（2026-10-16 · 场景播放器退出修复）**：
+  - **背景**：用户实测反馈 ①固定触发/场景直达后"取消固定队列退出场景"会被困在场景播放器中、退出按钮消失（**该修复在 v1.4.6 保持有效**）；②角色一览里不能成为恋人的 NPC 不应显示（**该方向在 v1.4.6 已按用户澄清修正，见上**）；
+  - **根因 1（被困播放器）**：`unpinScene` 原先"先删 `$replayScene` 再跳转返回原位"——原版 Scene Viewer passages 的 default 退出分支（Back 链接）依赖 `$replayScene.exitpassage`；若跳转目标恰为 Scene Viewer passages（或返回后再次命中播放器），replayScene 已删 → Back 链接无源 → 退出按钮消失 → 被困；
+  - **修复 1**：`unpinScene` 改为"先清 sceneViewSwitch 无效值 → 跳转（此时 replayScene 仍在，default 分支能渲染 Back）→ 跳转完成后再清理 replayScene/标记"；back 无效（exitpassage 空且当前段落读不到）时不删 replayScene——播放器 default 的 Back 链接保留，玩家可手动退出。另新增 `onPassageOverride` 的 `dest === exitpassage`（Back 正常返回原位）清理分支：原版重放经 Back 退出时清掉 replayScene/重放标记/已用队列项，杜绝残留干扰后续重放与取消固定；
+  - **验证**：298 项断言回归全过（新增第 23 节 10 条：unpinScene 先跳后清 / back 无效保留 replayScene / Back 正常退出清理 / 恋爱候选判定四路命中与路人排除）。
+- **v1.4.4（2026-10-16 · 场景状态与阶段回显修复）**：
+  - **背景**：用户实测反馈「Mod作弊 阶段应用看着没效果（数值/勾选正常）」「剧情页大量剧情显示 状态：未知，一键完成后仍显示 未解锁：未知」；
+  - **根因 1（阶段不回显）**：Mod作弊 子页面阶段下拉创建时未按当前存档值回显，应用成功后写入有效（留痕提示正常）但下拉仍显示第一项 → 用户误以为没生效；
+  - **根因 2（剧情未知）**：DoL 原版 `$scenes` 全部场景的 `unlocked` 均为 `$scenePassages.includes("段落")`（已看段落表），部分存档/流程下 `V.scenePassages` 从未初始化 → `undefined.includes` 抛异常被 catch → 状态解析为 undefined → 全部显示「状态：未知」；一键完成虽已初始化 scenePassages，但渲染层复检同样被同一问题吞掉；
+  - **修复**：① `evalSceneExpr` 求值前若 `V.scenePassages` 非数组则兜底初始化为 `[]`（与 DoL 自身初始化一致，无害）；② `sceneStatus` 语义收紧为「非 true 一律未达成」（false/0/undefined/求值异常 → 未达成 + 锁定原因，不再出现「未知」）；③ `renderCheatStages` 阶段下拉按当前存档值回显（字符串/数字枚举均按值匹配）；
+  - **验证**：288 项断言回归全过（新增第 22 节 6 条：scenePassages 缺失兜底 / 未达成而非未知 / 段落写入后达成 / 一键完成复检 / 0 与 false 归未达成）。
 - **v1.4.3（2026-10-16 · 枯木逢春适配）**：
   - **背景**：用户提供 `Deadwood-Reblooms-2.2.0.zip`（枯木逢春 · Deadwood Reblooms 2.2.0，作者楓樺葉）要求适配；这是基于 maplebirch 框架的**20 模块大型内容模组**（Sydney/Robin/Whitney/Kylar/LifeSimulation/Orchard/BirdTower/Transport/StreetLife/Finance/VanillaPlus/CelestialAnomalies/MoreTransformations 等）；
   - **探查**：解压至 `_deadwood_probe\`，通读 package.json（依赖 maplebirch≥5.4.3）、README（模块总表）、Module.ts（通用状态机制：preInit 挂 `:variable` 钩子 → `V[模块名] ??= {}` + migration fill）、main.ts（20 模块 `maplebirch.define` 注册）、各模块类 super 构造 name（逐一实证 V 键名）、constants/（robin/life-simulation/bird-tower/celestial-anomalies 默认状态）、StreetLife.ts + Races.ts（公路赛 v2.2.0）、School.ts（校园职务/竞选数值）；
