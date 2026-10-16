@@ -1812,6 +1812,8 @@
 		".mce-stage-txt{color:#b9b9b9;font-size:11px;margin-top:4px;word-break:break-all;font-family:Consolas,Menlo,monospace}" +
 		".mce-stage-note{color:#8a6d3b;font-size:11px;margin-top:3px}" +
 		".mce-hint{color:#8a8a8a;font-size:12px;margin:4px 0}" +
+		/* v1.5.2 使用提示（剧情页页首警示框） */
+		".mce-warn{background:#2a2208;border:1px solid #d4a73c;color:#f0d98c;font-size:12px;margin:4px 0;padding:8px 10px;border-radius:3px;line-height:1.6}" +
 		".mce-err{color:#ff6b6b;font-size:13px}" +
 		".mce-ok{color:#7ed89a;font-size:13px}" +
 		".mce-status{min-height:18px;padding:6px 10px;border-top:1px solid #3c3c3c;background:#0d0d0d;color:#9c9c9c;font-size:12px}" +
@@ -2617,27 +2619,51 @@
 			if (typeof V.avery_tower !== "object" || V.avery_tower === null) {
 				V.avery_tower = { progress: 0, effects: [], stage: 0, intro: 0 };
 			}
-			/* daily.avery 结构兜底（v1.3.3）：本体 0.5.5.5 后 $daily.avery 由艾弗里线入口建为 {}，talk/ask 子对象在使用时才建；
-			   若 avery 已存在但 talk 缺失（直达/世界入口进庄园时常见），avery_daily_talk 读 $daily.avery.talk.chat、
-			   Mansion Talk 读 $daily.avery.talk.ignore 会崩 → 逐层补齐，绝不覆盖已有值 */
-			if (V.daily && typeof V.daily === "object") {
-				if (typeof V.daily.avery !== "object" || V.daily.avery === null) {
-					V.daily.avery = {
-						talk: { ignore: false, limit: false, flirt: false, seduce: false, annoyed: 0, chat: 0, chat_limit: 3 },
-						ask: { science: false, maths: false, play: false },
-						housekeeping_events: {}
-					};
+			/* daily.avery 结构兜底（v1.3.3 → v1.5.1 强化）：本体 0.5.5.5 后 $daily.avery 由艾弗里线入口建为 {}，
+			   talk/ask 子对象仅在 avery_mansion_init / 0.5.7.1 版本迁移时创建；直达、重放、固定触发或新档未开
+			   艾弗里线时进入 Mansion 系段落（Mansion Talk 调 avery_daily_talk 读 $daily.avery.talk.chat、
+			   正文读 .ignore/.limit）会因 $daily.avery.talk 缺失而崩（TypeError reading 'chat'/'ignore'）
+			   → 逐层补齐 + 逐字段补齐，绝不覆盖已有值 */
+			if (typeof V.daily !== "object" || V.daily === null) {
+				/* 防御：$daily 缺失（理论上游戏启动即有）时建最小壳，避免后续读崩 */
+				V.daily = {};
+			}
+			if (typeof V.daily.avery !== "object" || V.daily.avery === null) {
+				V.daily.avery = {
+					talk: { ignore: false, limit: false, flirt: false, seduce: false, annoyed: 0, chat: 0, chat_limit: 3 },
+					ask: { science: false, maths: false, play: false },
+					housekeeping_events: {}
+				};
+			} else {
+				var dav = V.daily.avery;
+				if (typeof dav.talk !== "object" || dav.talk === null) {
+					dav.talk = { ignore: false, limit: false, flirt: false, seduce: false, annoyed: 0, chat: 0, chat_limit: 3 };
 				} else {
-					var dav = V.daily.avery;
-					if (typeof dav.talk !== "object" || dav.talk === null) {
-						dav.talk = { ignore: false, limit: false, flirt: false, seduce: false, annoyed: 0, chat: 0, chat_limit: 3 };
+					/* 对象已存在但个别字段缺失（旧档/异常路径）：逐字段补默认，绝不覆盖已有值 */
+					if (typeof dav.talk.ignore !== "boolean") { dav.talk.ignore = false; }
+					if (typeof dav.talk.limit !== "boolean") { dav.talk.limit = false; }
+					if (typeof dav.talk.flirt !== "boolean") { dav.talk.flirt = false; }
+					if (typeof dav.talk.seduce !== "boolean") { dav.talk.seduce = false; }
+					if (typeof dav.talk.annoyed !== "number") { dav.talk.annoyed = 0; }
+					if (typeof dav.talk.chat !== "number") { dav.talk.chat = 0; }
+					if (typeof dav.talk.chat_limit !== "number") {
+						var wd = 0;
+						try {
+							var t = (typeof Time !== "undefined" && Time && typeof Time.weekDay === "number") ? Time.weekDay : 0;
+							wd = t;
+						} catch (e2) {}
+						dav.talk.chat_limit = (wd === 1 || wd === 7) ? 6 : 3;
 					}
-					if (typeof dav.ask !== "object" || dav.ask === null) {
-						dav.ask = { science: false, maths: false, play: false };
-					}
-					if (typeof dav.housekeeping_events !== "object" || dav.housekeeping_events === null) {
-						dav.housekeeping_events = {};
-					}
+				}
+				if (typeof dav.ask !== "object" || dav.ask === null) {
+					dav.ask = { science: false, maths: false, play: false };
+				} else {
+					if (typeof dav.ask.science !== "boolean") { dav.ask.science = false; }
+					if (typeof dav.ask.maths !== "boolean") { dav.ask.maths = false; }
+					if (typeof dav.ask.play !== "boolean") { dav.ask.play = false; }
+				}
+				if (typeof dav.housekeeping_events !== "object" || dav.housekeeping_events === null) {
+					dav.housekeeping_events = {};
 				}
 			}
 		} catch (e) {}
@@ -2866,6 +2892,13 @@
 			var V = getV();
 			if (!V) { return; }
 			var dest = passageArgs && passageArgs.name;
+			/* v1.5.1：Mansion 系段落兜底——无论以何种方式进入艾弗里庄园段落（场景直达、场景查看器重放、
+			   固定触发、第二天正常日常），只要 $daily.avery.talk 缺失，avery_daily_talk / Mansion Talk 正文
+			   都会 TypeError（reading 'chat'/'ignore'）；在固定触发判定前无条件兜底（缺失才建，不覆盖进度） */
+			if (typeof dest === "string" && dest.length > 0 &&
+				(dest.indexOf("Mansion") === 0 || dest.indexOf("Avery") === 0 || dest.indexOf("Avery's") === 0)) {
+				ensureAveryMansion();
+			}
 			/* 原版重放结束（Scene Viewer End 且正处于重放）→ 记录场景解锁 + 清理已触发项 */
 			if (dest === "Scene Viewer End" && V.replayScene) {
 				cleanupUsedPins();
@@ -3220,6 +3253,8 @@
 	function renderScenes() {
 		var pane = root.querySelector('[data-pane="scenes"]');
 		pane.textContent = "";
+		/* 使用提示（v1.5.2）：固定触发注意事项，页首常驻 */
+		pane.appendChild(el("div", "mce-warn", "使用提示：当你使用固定触发后，会一直循环。当出现退出场景时，回到此页面取消队列。之后你会被困在场景播放器中，请使用场景直达退出去。"));
 		/* 固定触发状态横幅（v1.2：队列，显示全部未触发项） */
 		var pinnedBanner = getPinnedScene();
 		if (pinnedBanner && pinnedBanner.length) {

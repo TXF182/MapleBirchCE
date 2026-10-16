@@ -1,8 +1,18 @@
-# Maplebirch CE · 全局全自动剧情条件解锁（v1.5.0 · 全局页新增誓言修复 + NPC 特质获取 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
+# Maplebirch CE · 全局全自动剧情条件解锁（v1.5.2 · 剧情页页首固定触发使用提示 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
 ## 版本说明
+
+- **v1.5.2（2026-10-16 · 剧情页页首新增固定触发使用提示）**：
+  - 按用户给定文案在「剧情」页（Mod作弊 · 剧情页）**最上边**常驻一条黄色警示提示：「当你使用固定触发后，会一直循环。当出现退出场景时，回到此页面取消队列。之后你会被困在场景播放器中，请使用场景直达退出去。」；
+  - 位置在固定触发状态横幅之前，任何状态下都可见；新增 `mce-warn` 警示框样式（黄底金边）；
+  - **验证**：432 项断言全过（新增第 30 节 3 条：用户文案全文已写入 / 提示位于 renderScenes 页首、固定触发横幅之前 / mce-warn 样式已注入）。
+- **v1.5.1（2026-10-16 · 修复「直达艾弗里庄园后早上餐厅对话崩溃」）**：
+  - **现象**：用户通过面板「场景直达」解锁艾弗里庄园后，早上在餐厅与艾弗里对话（Mansion Talk）报错三连——`<<avery_daily_talk>>` bad conditional expression（`TypeError: Cannot read properties of undefined (reading 'chat')`）、第二处同形（`reading 'ignore'`）、连锁「The passage Mansion Talk has no usable links」；
+  - **根因（已实证本体 0.5.12.13 源码）**：`$daily.avery.talk` / `$daily.avery.ask` 对象**只在两个路径创建**——①`avery_mansion_init`（首次进入庄园的 Mansion Intro）；②0.5.7.1 版本迁移（`avery_mansion.version is 3`）。`$daily.avery` 本体在新档初始化时仅为 `{}`（183255 行）。而 `avery_daily_talk` widget 的"兜底"（`<<if $daily.avery.talk.chat is undefined>>`）在 `$daily.avery.talk` **整体缺失**时访问 `talk.chat` 直接抛 TypeError（SugarCube 逐层属性访问无空检查），Mansion Talk 正文读 `$daily.avery.talk.ignore/.limit` 同理——任何未经 Mansion Intro 初始化就进入 Mansion 系段落的路径（场景直达、场景查看器重放、固定触发、未开艾弗里线新档）都会崩；
+  - **修复**：①`ensureAveryMansion()` 兜底强化为**逐层 + 逐字段补齐**——`$daily` 整体缺失时防御建最小壳；`talk`/`ask` 对象缺失时建完整默认结构（ignore/limit/flirt/seduce/annoyed/chat/chat_limit + science/maths/play）；对象已存在但个别字段缺失时逐字段补默认；**已有值绝不覆盖**（chat=2、ignore=true 等保留）；②`onPassageOverride`（`:passageoverride` 全局跳转钩子）在固定触发判定**之前**对 Mansion/Avery 开头段落无条件兜底——无论以何种方式进入（场景直达、重放、固定触发、第二天正常日常）都先确保 `$daily.avery.talk` 存在；
+  - **验证**：429 项断言全过（新增第 29 节 9 条：talk 缺失补齐 / $daily 缺失防御建壳 / 已有值不覆盖 + 缺失字段补齐 / onPassageOverride 对 Mansion Talk 跳转前兜底 / 非庄园段落不触发 / Mansion Intro 与 Avery's Mansion 变体全覆盖）。
 
 - **v1.5.0（2026-10-16 · 全局页新增「誓言修复 + NPC 特质获取」）**：
   - **背景**：用户要求在全局页面添加：①一键修复誓言；②继续获得 NPC 特质（可指定获取哪一项），获取时不满足的条件直接改为满足；
