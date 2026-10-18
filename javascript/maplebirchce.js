@@ -88,6 +88,25 @@
  *    unfreezePlayerStats，跳过原版「Error occurred / Exit scene」手动步；原版手动
  *    重放保持原版行为不干预。触发处 mbCE_replayPending 改为仅 startPassage===
  *    "Scene Viewer passages" 时设置（直入剧情段落的场景链回 passages 时不被误判首次）。
+ * v1.6.0（2026-10-18）：模组更新适配 + 新模组兼容（6 包源码实证）——
+ *  ①归途之书 1.3.4 补录两大模块（1.3.1 起已注册但此前漏适配，用户反馈"阶段没收录"根因）：
+ *   LostLamb（迷途羔羊·悉尼童年梦境线，V.LostLamb：talkVow 誓约 5 档 / ending 结局 4 档 /
+ *   疑虑·恐惧·觉察 0-100 / recalled·active·known 秘密 3 项）与
+ *   TempleDuties（神殿值勤系统，V.TempleDuties：oath 誓约 3 档 / bishop 主教进展 5 档 /
+ *   manor 庄园线 5 档 / declaration 宣言 2 档 / watch.phase 守夜 7 档 / case.stage 案件 3 档 /
+ *   duties 值勤 0-999 / archive 归档 3 值 / enrolled·review·候选同意 3 项）；
+ *   RobinTemple/TempleChoir 常量 1.3.1→1.3.4 无变化，旧声明全部保留。
+ *  ②枯木逢春 2.2.7 核对：20 模块 define 全同、V 键名不变（super name 逐一实证），
+ *   仅 vanilla-plus 结构迁移（beauty 清空、新增 attitudes 特质）——原声明不受影响，
+ *   新增能力 2 项：铁意志 ironWill / 受虐狂 sadomasochist（VanillaPlus.attitudes.*）。
+ *  ③新增 SmartPhone Alpha 0.3.91 适配（万能的智能手机，V.Phone 实证 48 键）：
+ *   stages 1（老冯线 FengLine 0/1/2）、values 7（摄影 photography 0-1000 /
+ *   危险任务模式 TaskDanger 0/1 / 初遇老冯 FengMeeet / 放弃老冯线 MetFengGiveup /
+ *   发现二手店 SecondShopKnown / 暴露场景计数 FengAcceptExposed 0-99 /
+ *   悉尼直播陪伴 SydneySexLiveCompanion）；模组键全部为 0/1 数字语义（===1 判断），
+ *   故一律走 number 型 values（checkbox 布尔会写 true 破坏 ===1 判断）。
+ * ④框架 maplebirch 5.4.12 满足两内容模组新依赖（≥5.4.9 / ≥5.4.10）；SoftWet GameUI 2.7.0
+ *  与 ModHub 1.7.6 为纯 UI/管理工具（无状态键），确认不冲突、无需适配。
  * ============================================================
  */
 (function () {
@@ -1063,13 +1082,119 @@
 		"weekly", "specialClothes", "loveInterest", "replayScene", "sceneViewSwitch",
 		"mbCE_queue", "mbCE_wrote", "mbCE_replayOnce", "mbCE_replayPending", "mbCE_unlockedPlaces"
 	];
+	/* v1.7.0：DoL 原版 V 顶层键清单（从本体 0.5.12.13 HTML 宏上下文实证提取，183 键）。
+	   用途：玩家属性编辑页「模组属性」区 = 运行时 V 顶层键 - 本清单（只添加原版没有的，原版键不重复添加）。
+	   来源：twine 宏内 $xxx（含对象型）全部出现 + 手工补充运行时实证的原版顶层对象键（scenes/compound/money 等）。 */
+	var ORIGINAL_V_ROOT_KEYS = [
+		"NPCList", "alarm", "allure", "alluretest", "analchastityparasite", "analskill",
+		"angelbuild", "arousalmax", "askedtochoke", "asylummedicated", "avery_mansion",
+		"averydate", "averyragerevealed", "awareness", "baileydefeatedchain", "ballssize",
+		"beastrapestat", "beauty", "bestialitytrait", "bottomskill", "brothelshowdata",
+		"bullytimer", "bullytimeroutside", "bus", "cat", "catbuild", "cave", "chestskill",
+		"choketrait", "compound", "consensual", "container", "control", "cool", "cowbuild",
+		"daily", "dancelocation", "danceskill", "dancing", "debugLines",
+		"debugWeatherBandBounds", "delinquency", "demonbuild", "detention", "deviancy",
+		"drugged", "edengarden", "edenshrooms", "edenspring", "ejacstat", "ejactrait",
+		"enemyanger", "enemyarousal", "enemyhealth", "enemyno", "enemytrust", "english",
+		"english_exam", "englishtrait", "eventskip", "exhibitionism", "farm", "farm_stage",
+		"feats", "feetskill", "feetuse", "fingersInVagina", "finish", "forest", "fox",
+		"foxbuild", "fringelength", "gwylan", "gwylanSeen", "gwylanTalked", "hairlength",
+		"hallucinogen", "handskill", "harper_appointments", "history", "history_exam",
+		"historytrait", "id", "lakeRuin", "leftarm", "location", "loveInterest",
+		"lowerschoolswimsuitno", "maths", "maths_exam", "mathstrait", "medicated", "minute",
+		"molestationstart", "moleststat", "molesttrait", "money", "moonstate", "moor",
+		"moor_hunt", "museumAntiques", "neckuse", "oralskill", "orgasmstat", "orgasmtrait",
+		"outside", "overlowerwet", "overupperwet", "oxygen", "pain", "penileskill",
+		"penistarget", "phase", "physique", "player", "possessed", "pregnancyStats",
+		"prevPassage", "promiscuity", "prostitutionstat", "pubwhore", "purity", "rapestat",
+		"rapetrait", "renttime", "rightarm", "rng", "robinPillory", "robindebt",
+		"robinmissing", "robinnote", "robinpaid", "robinromance", "scenePassages", "scenes",
+		"school", "schoolswimshortsno", "science", "science_exam", "scienceprogression",
+		"sciencetrait", "sea", "seductionskill", "selectedToy", "settings", "sexStats",
+		"sexstart", "skulduggery", "smuggler_location", "specialClothes", "spraymax",
+		"stat_police", "stress", "struggle_start", "submissive", "suffocating",
+		"swallowedstat", "swimmingskill", "syndromeeden", "tentaclerapestat", "tentacletrait",
+		"testvar", "thighskill", "timeDistortion", "timer", "tiredness", "trauma",
+		"undertemp", "upperschoolswimsuitno", "uppertemp", "vaginalskill", "venuemod",
+		"vorestage", "wardrobes", "water", "whitney_home_timer", "whitneyromance",
+		"willpower", "wolfbuild", "wolfgirl", "wolfpacktrust", "worn", "wraithPrison"
+	];
+	/* 玩家属性/模组键 中英映射（仅用于面板显示，写入路径始终用原键名，绝不影响数据层） */
+	var ZH_KEYS = {
+		/* 玩家基础 */
+		"player": "玩家", "money": "金钱", "name": "姓名", "age": "年龄", "height": "身高", "gender": "性别",
+		"sex": "生理性别", "appearance": "外貌", "pronoun": "代词", "pronouns": "代词（复数）", "he": "他", "his": "他的",
+		"gender_body": "身体性别", "gender_appearance": "外观性别", "gender_posture": "姿态性别",
+		"gender_appearance_factors": "外观性别影响因素", "gender_appearance_without_overwear": "外观性别（无外套）",
+		"gender_appearance_without_overwear_factors": "外观性别因素（无外套）", "femininity": "女性气质",
+		"femininity_without_overwear": "女性气质（无外套）",
+		/* 身体 */
+		"penis": "阴茎", "penisExist": "有无阴茎", "penissize": "阴茎尺寸", "vagina": "阴道",
+		"vaginaExist": "有无阴道", "vaginaExists": "有无阴道", "VaginaExist": "有无阴道", "ballsExist": "有无睾丸",
+		"ballssize": "睾丸尺寸", "hymenExist": "有无处女膜", "titsExist": "有无乳房", "breastsize": "胸围",
+		"bottomsize": "臀围", "perceived_breastsize": "感知胸围", "perceived_bottomsize": "感知臀围",
+		"condom": "避孕套", "bodyshape": "体型", "bodyTemperature": "体温", "bodyliquid": "体液",
+		"bodywriting": "身体涂鸦", "types": "类型", "freckles": "雀斑", "skin": "皮肤", "color": "肤色",
+		"layers": "衣物层", "sunscreen": "防晒霜", "usesLeft": "剩余次数", "hair": "头发", "length": "长度",
+		"colour": "颜色", "crop": "发型", "wings": "翅膀", "scars": "疤痕", "tattoos": "纹身",
+		"earPiercings": "耳洞", "nipplePiercings": "乳环", "labiaPiercings": "阴唇环",
+		"temple_virginity": "神殿童贞", "virginity": "童贞", "virginityDetails": "童贞详情",
+		"hymen": "处女膜", "temple": "神殿", "anal": "肛", "oral": "口", "penile": "阴茎的",
+		"vaginal": "阴道的", "handholding": "牵手", "kiss": "亲吻", "virgin": "处子", "chastity": "贞操",
+		/* 属性数值 */
+		"love": "爱意", "lust": "欲望", "stress": "压力", "trauma": "创伤", "awareness": "意识",
+		"arousal": "兴奋", "pain": "疼痛", "control": "控制", "deviancy": "堕落", "promiscuity": "滥交",
+		"fame": "名声", "reputation": "声誉", "dominance": "支配欲", "confidence": "自信", "sanity": "理智",
+		"health": "健康", "willpower": "意志", "swim": "游泳", "tenderness": "温柔", "sensitivity": "敏感",
+		"familiarity": "熟悉度", "pheromones": "信息素", "sass": "傲慢", "beauty": "美貌",
+		"paraphilia": "性癖", "weirdness": "怪诞", "addiction": "上瘾", "corruption": "腐化",
+		"whoring": "卖淫", "exhibitionism": "裸露癖", "submissive": "顺从", "submissiveness": "顺从度",
+		"tolerances": "耐受", "tolerance": "耐受", "spunk": "精液", "life": "生命", "dead": "死亡",
+		"physique": "体格", "purity": "纯洁", "drugged": "药物影响", "tiredness": "疲劳",
+		"history": "经历", "inventory": "物品栏", "map": "地图", "position": "姿势", "target": "目标",
+		"state": "状态", "seen": "已被看见", "action": "动作", "hide": "隐藏", "beastRut": "兽性发情",
+		"reputation_fame": "声名", "reputation_rep": "声誉值",
+		/* 技能（常见派生键） */
+		"skulduggery": "开锁技巧", "english": "英语", "maths": "数学", "science": "科学",
+		"historytrait": "历史才能", "english_exam": "英语考试", "maths_exam": "数学考试",
+		"science_exam": "科学考试", "history_exam": "历史考试",
+		"handskill": "手部技巧", "oralskill": "口部技巧", "penileskill": "阴茎技巧",
+		"vaginalskill": "阴道技巧", "analSkill": "肛部技巧", "analskill": "肛部技巧",
+		"thighskill": "腿部技巧", "feetskill": "足部技巧", "chestskill": "胸部技巧",
+		"bottomskill": "臀部技巧", "swimmingskill": "游泳技巧", "seductionskill": "诱惑技巧",
+		"danceskill": "舞蹈技巧", "feetuse": "足交使用", "neckuse": "颈部使用",
+		/* 模组键 */
+		"RobinTemple": "罗宾神殿", "TempleChoir": "神殿唱诗班", "LostLamb": "迷途羔羊",
+		"TempleDuties": "神殿职责", "DeadwoodReblooms": "枯木逢春", "DeadwoodRebloomsAttitudes": "枯木逢春·态度",
+		"Phone": "智能手机", "VPhone": "智能手机", "SmartPhone": "智能手机", "GameUI": "游戏界面",
+		"SoftWet": "SoftWet 湿润系统", "ModHub": "模组中心", "DomRobin": "DomRobin", "MLI": "MLI 恋爱扩展",
+		"stage": "阶段", "secret": "秘密", "rite_stage": "仪式阶段", "followup": "后续", "allowed": "允许",
+		"discovered": "已发现",
+		/* 游戏属性面板（颜色分级）快捷编辑 */
+		"purity": "纯洁", "beauty": "容貌", "physique": "体能", "awareness": "意识",
+		"promiscuity": "淫乱", "exhibitionism": "暴露癖", "deviancy": "异种癖",
+		"skulduggery": "诡术", "danceskill": "舞蹈", "swimmingskill": "游泳", "athletics": "运动",
+		"tending": "护理", "housekeeping": "家务",
+		"seductionskill": "魅惑", "chestskill": "胸部", "handskill": "手部", "bottomskill": "臀部",
+		"penileskill": "阴茎", "vaginalskill": "小穴", "analskill": "后庭", "thighskill": "大腿",
+		"feetskill": "足部", "science": "科学", "maths": "数学", "history": "历史",
+		"spray": "防狼喷雾", "baton": "短棍", "whip": "鞭子", "net": "网", "pickaxe": "镐", "prof": "武器技能"
+	};
+	var ZH_TYPES = { "number": "数值", "boolean": "布尔", "string": "文本", "object": "对象", "function": "函数", "undefined": "未定义", "null": "空" };
+	function zhKey(k) { return ZH_KEYS[k] || String(k); }
+	function zhPath(p) { return String(p).split(".").map(zhKey).join("."); }
+	function zhType(t) { return ZH_TYPES[t] || t; }
 	var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
 	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
 	var curCheatModId = "";
 
-	/* 内置适配器：默示录：归途之书 v1.3.1（用户 2026-10-15 提供源码 Revelation-The-Book-of-Return-1.3.1.zip，探查实证）
+	/* 内置适配器：默示录：归途之书 v1.3.4（用户 2026-10-18 提供源码 Revelation-The-Book-of-Return-1.3.4.zip，
+	   与 1.3.1 逐文件哈希对比实证：RobinTemple/TempleChoir 常量无变化；LostLamb/TempleDuties 两模块
+	   1.3.1 起已注册但此前漏适配，1.3.4 又实质更新其实现——本次补录）
 	   探测点：maplebirch 框架模块注册（Module.preInit 挂 :variable → V[模块名]）；
-	   状态键：V.RobinTemple（罗宾神殿路线，RobinTemple.ts constants/robin-temple.ts）、V.TempleChoir（唱诗班，constants/temple-choir.ts）。
+	   状态键：V.RobinTemple（罗宾神殿路线，constants/robin-temple.ts）、V.TempleChoir（唱诗班，
+	   constants/temple-choir.ts）、V.LostLamb（迷途羔羊，constants/lost-lamb*.ts 共 5 文件）、
+	   V.TempleDuties（神殿值勤，constants/temple-duties.ts）。
 	   只声明模组自建键，不碰原版 V.temple_rank / V.templePromised / V.temple_chastity_timer 等。 */
 	CHEAT_ADAPTERS["revelation-the-book-of-return"] = {
 		detect: function () {
@@ -1080,7 +1205,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.3.1",
+			modName: "默示录：归途之书 v1.3.4",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -1109,7 +1234,31 @@
 				  labels: ["无", "雨夜", "呼唤", "盖毯", "余烬", "账本"] },
 				{ key: "rt_transformation", name: "罗宾神殿 · 变身形态", varPath: "RobinTemple.transformation_kind",
 				  levels: ["", "fox", "wolf", "cat", "bird", "cow", "horse", "whale", "raven"],
-				  labels: ["无", "狐", "狼", "猫", "鸟", "牛", "马", "鲸", "鸦"] }
+				  labels: ["无", "狐", "狼", "猫", "鸟", "牛", "马", "鲸", "鸦"] },
+				{ key: "ll_vow", name: "迷途羔羊 · 誓约状态", varPath: "LostLamb.talkVow",
+				  levels: ["", "offered", "refused", "sealed", "broken"],
+				  labels: ["无", "已提出", "已拒绝", "已封印", "已破碎"] },
+				{ key: "ll_ending", name: "迷途羔羊 · 梦境结局", varPath: "LostLamb.ending",
+				  levels: ["", "main", "stay", "verdict"],
+				  labels: ["无", "主线结局", "留守结局", "审判结局"] },
+				{ key: "td_oath", name: "神殿值勤 · 誓言", varPath: "TempleDuties.oath",
+				  levels: ["", "care", "obedience"],
+				  labels: ["无誓言", "照护誓言", "服从誓言"] },
+				{ key: "td_bishop", name: "神殿值勤 · 主教进展", varPath: "TempleDuties.bishop",
+				  levels: ["none", "invited", "accepted", "refused", "reported"],
+				  labels: ["无", "已邀请", "已接受", "已拒绝", "已上报"] },
+				{ key: "td_manor", name: "神殿值勤 · 庄园线", varPath: "TempleDuties.manor",
+				  levels: ["none", "accepted", "declined", "copied", "complete"],
+				  labels: ["无", "已接受", "已婉拒", "已抄录", "已完成"] },
+				{ key: "td_declaration", name: "神殿值勤 · 宣言方式", varPath: "TempleDuties.declaration",
+				  levels: ["private", "scar"],
+				  labels: ["私下", "伤疤"] },
+				{ key: "td_watch", name: "神殿值勤 · 守夜阶段", varPath: "TempleDuties.watch.phase",
+				  levels: ["threshold", "roots", "voices", "shadow", "seal", "passed", "failed"],
+				  labels: ["门槛", "根源", "声音", "阴影", "封印", "已通过", "已失败"] },
+				{ key: "td_case", name: "神殿值勤 · 案件阶段", varPath: "TempleDuties.case.stage",
+				  levels: ["field", "combat", "report"],
+				  labels: ["现场", "战斗", "汇报"] }
 			],
 			abilities: [
 				{ key: "tc_joined", name: "唱诗班 · 已入团", varPath: "TempleChoir.joined", type: "boolean" },
@@ -1123,7 +1272,16 @@
 				{ key: "rt_vigil_attending", name: "罗宾神殿 · 守夜进行中", varPath: "RobinTemple.vigil_attending", type: "boolean" },
 				{ key: "rt_vigil_with_robin", name: "罗宾神殿 · 与罗宾同守夜", varPath: "RobinTemple.vigil_with_robin", type: "boolean" },
 				{ key: "rt_abandoned", name: "罗宾神殿 · 已放弃路线", varPath: "RobinTemple.abandoned", type: "boolean" },
-				{ key: "rt_rite_done", name: "秘密誓言 · 仪式已完成", varPath: "RobinTemple.secret.rite_done", type: "boolean" }
+				{ key: "rt_rite_done", name: "秘密誓言 · 仪式已完成", varPath: "RobinTemple.secret.rite_done", type: "boolean" },
+				{ key: "ll_recalled", name: "迷途羔羊 · 已回想起童年", varPath: "LostLamb.recalled", type: "boolean" },
+				{ key: "ll_active", name: "迷途羔羊 · 梦境进行中", varPath: "LostLamb.active", type: "boolean" },
+				{ key: "ll_known_bishop", name: "迷途羔羊 · 已知主教秘密", varPath: "LostLamb.known.bishop", type: "boolean" },
+				{ key: "ll_known_gwylan", name: "迷途羔羊 · 已知格威岚秘密", varPath: "LostLamb.known.gwylan", type: "boolean" },
+				{ key: "ll_known_auriga", name: "迷途羔羊 · 已知御夫座秘密", varPath: "LostLamb.known.auriga", type: "boolean" },
+				{ key: "td_enrolled", name: "神殿值勤 · 已加入值勤", varPath: "TempleDuties.enrolled", type: "boolean" },
+				{ key: "td_review", name: "神殿值勤 · 待审查", varPath: "TempleDuties.review", type: "boolean" },
+				{ key: "td_robin_agree", name: "神殿值勤 · 罗宾候选同意", varPath: "TempleDuties.candidates.Robin.agreed", type: "boolean" },
+				{ key: "td_sydney_agree", name: "神殿值勤 · 悉尼候选同意", varPath: "TempleDuties.candidates.Sydney.agreed", type: "boolean" }
 			],
 			scenes: [
 				{ key: "rt_prayer", name: "罗宾神殿 · 祷告事件", skipVar: "RobinTemple.prayer_event_resolved", completeVar: "RobinTemple.prayer_event_done", progressVar: "RobinTemple.prayer_event", resetValue: 0 }
@@ -1139,7 +1297,14 @@
 				{ key: "rt_assess_bonus", name: "罗宾神殿 · 评估加分", varPath: "RobinTemple.assessment_bonus", type: "number", min: 0, max: 15 },
 				{ key: "rt_rite_round", name: "秘密誓言 · 同席连续次数", varPath: "RobinTemple.secret.rite_round", type: "number", min: 0, max: 99 },
 				{ key: "rt_intimacy_count", name: "罗宾神殿 · 亲密累计次数", varPath: "RobinTemple.intimacy_count", type: "number", min: 0, max: 999 },
-				{ key: "rt_evaluation_marks", name: "罗宾神殿 · 评估分数", varPath: "RobinTemple.evaluation_marks", type: "number", min: 0, max: 100 }
+				{ key: "rt_evaluation_marks", name: "罗宾神殿 · 评估分数", varPath: "RobinTemple.evaluation_marks", type: "number", min: 0, max: 100 },
+				{ key: "ll_doubt", name: "迷途羔羊 · 疑虑", varPath: "LostLamb.doubt", type: "number", min: 0, max: 100 },
+				{ key: "ll_fear", name: "迷途羔羊 · 恐惧", varPath: "LostLamb.fear", type: "number", min: 0, max: 100 },
+				{ key: "ll_notice", name: "迷途羔羊 · 觉察", varPath: "LostLamb.notice", type: "number", min: 0, max: 100 },
+				{ key: "td_duties", name: "神殿值勤 · 值勤次数", varPath: "TempleDuties.duties", type: "number", min: 0, max: 999 },
+				{ key: "td_roof", name: "神殿值勤 · 屋顶修复进度", varPath: "TempleDuties.archive.roof", type: "number", min: -1, max: 99 },
+				{ key: "td_shelves", name: "神殿值勤 · 书架整理进度", varPath: "TempleDuties.archive.shelves", type: "number", min: -1, max: 99 },
+				{ key: "td_sorted", name: "神殿值勤 · 归档次数", varPath: "TempleDuties.archive.sorted", type: "number", min: 0, max: 999 }
 			]
 		}
 	};
@@ -1220,8 +1385,12 @@
 		}
 	};
 
-	/* 内置适配器：枯木逢春 · Deadwood Reblooms 2.2.0（2026-10-16 源码探查实证，作者楓樺葉）
+	/* 内置适配器：枯木逢春 · Deadwood Reblooms 2.2.7（2026-10-18 与 2.2.0 逐文件对比实证，作者楓樺葉）
 	   探测键：window.maplebirch.get("DeadwoodReblooms")（框架根模块，main.ts 注册，关闭即停用全部子模块）。
+	   2.2.0→2.2.7 差异实证：20 模块 define 全同、V 键名不变（各模块类 super 构造 name 逐一实证）；
+	   constants 仅 bird-tower.ts 注释一字之差（无实质）、vanilla-plus.ts 结构迁移
+	   （beauty:{alluring} 清空为 {}、新增 attitudes:{ironWill,sadomasochist} 特质）——
+	   原声明路径全部仍有效，新增能力 2 项 attitudes.*。
 	   状态键（Module.ts 通用机制：preInit 挂 :variable 钩子 → V[模块名] ??= {} + migration fill 默认值）：
 	   人物模块 V.RobinExpansion / V.SydneyExpansion / V.WhitneyExpansion / V.KylarExpansion，
 	   系统模块 V.LifeSimulation / V.StreetLife / V.BirdTower / V.Finance / V.Transport / V.Orchard /
@@ -1237,7 +1406,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.2.0",
+			modName: "枯木逢春 · Deadwood Reblooms 2.2.7",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -1277,7 +1446,9 @@
 				{ key: "ls_exempt", name: "校园 · 免听凭证", varPath: "LifeSimulation.school.attendanceExempt", type: "boolean" },
 				{ key: "ls_bailey", name: "校园 · 贝利已签署（会长线）", varPath: "LifeSimulation.school.baileySigned", type: "boolean" },
 				{ key: "bt_milk", name: "鹰塔 · 哺乳事件已触发", varPath: "BirdTower.seen.milk", type: "boolean" },
-				{ key: "clothes_stored", name: "校园 · 校服已存放", varPath: "LifeSimulation.school.clothesStored", type: "boolean" }
+				{ key: "clothes_stored", name: "校园 · 校服已存放", varPath: "LifeSimulation.school.clothesStored", type: "boolean" },
+				{ key: "vp_ironwill", name: "原版增强 · 铁意志特质", varPath: "VanillaPlus.attitudes.ironWill", type: "boolean" },
+				{ key: "vp_sadomaso", name: "原版增强 · 受虐狂特质", varPath: "VanillaPlus.attitudes.sadomasochist", type: "boolean" }
 			],
 			scenes: [],
 			values: [
@@ -1302,6 +1473,47 @@
 				{ key: "duties_completed", name: "校园 · 已完成值勤次数", varPath: "LifeSimulation.school.duties.completed", type: "number", min: 0, max: 999 },
 				{ key: "pc_loan", name: "罗宾 · 尚欠你的借款（英镑）", varPath: "RobinExpansion.pc_loan", type: "number", min: 0, max: 1000000 },
 				{ key: "weekly_income", name: "罗宾 · 上周结算收入（英镑）", varPath: "RobinExpansion.weekly_income", type: "number", min: 0, max: 1000000 }
+			]
+		}
+	};
+
+	/* 内置适配器：SmartPhone Alpha 0.3.91（万能的智能手机，2026-10-18 解压探查实证，作者自述尝鲜版）
+	   探测键：V.Phone（模组核心状态对象，scripts/smartphone-patch.js 初始化；模组卸载即消失）。
+	   状态键实证：48 个 $Phone 键——Owned 手机对象数组 / photography 摄影 0-1000 /
+	   TaskDanger 危险任务模式（模组判断 ===1）/ Using·ReturnPassage 使用状态 /
+	   FengMeeet·MetFengGiveup·SecondShopKnown·FengAcceptExposed·FengLine 老冯线 /
+	   SydneySexLiveCompanion 悉尼直播陪伴 / Alarms·Memos·Yenotes·Photos 应用数据等。
+	   边界隔离：模组键全部为 0/1 数字语义（<<if $Phone.X>> 与 ===1 混用，写 boolean true 会
+	   破坏 ===1 判断），故一律走 number 型 values（min 0 max 1），绝不使用 boolean 型；
+	   应用数据类（闹钟/备忘录/相册）为内容对象（结构复杂、改坏易崩），不做数值作弊。
+	   只声明 V.Phone 自建键，不碰原版任何键。 */
+	CHEAT_ADAPTERS["smartphone"] = {
+		detect: function () {
+			try {
+				if (typeof window === "undefined") { return false; }
+				var V = getV();
+				return !!(V && V.Phone && typeof V.Phone === "object" && (V.Phone.photography !== undefined || V.Phone.Owned !== undefined));
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "smartphone",
+			modName: "SmartPhone Alpha 0.3.91（万能智能手机）",
+			tasks: [],
+			stages: [
+				{ key: "sp_feng_line", name: "老冯线 · 阶段", varPath: "Phone.FengLine",
+				  levels: [0, 1, 2],
+				  labels: ["初始", "进货", "更深"] }
+			],
+			abilities: [],
+			scenes: [],
+			values: [
+				{ key: "sp_photography", name: "摄影技能", varPath: "Phone.photography", type: "number", min: 0, max: 1000 },
+				{ key: "sp_task_danger", name: "危险任务模式（0 关 / 1 开）", varPath: "Phone.TaskDanger", type: "number", min: 0, max: 1 },
+				{ key: "sp_feng_meet", name: "已初遇老冯（0/1）", varPath: "Phone.FengMeeet", type: "number", min: 0, max: 1 },
+				{ key: "sp_feng_giveup", name: "已放弃老冯线（0/1）", varPath: "Phone.MetFengGiveup", type: "number", min: 0, max: 1 },
+				{ key: "sp_second_known", name: "已发现老冯二手店（0/1）", varPath: "Phone.SecondShopKnown", type: "number", min: 0, max: 1 },
+				{ key: "sp_feng_exposed", name: "暴露场景计数", varPath: "Phone.FengAcceptExposed", type: "number", min: 0, max: 99 },
+				{ key: "sp_sydney_live", name: "悉尼直播陪伴（0/1）", varPath: "Phone.SydneySexLiveCompanion", type: "number", min: 0, max: 1 }
 			]
 		}
 	};
@@ -1553,6 +1765,15 @@
 		if (!pane) { return; }
 		pane.textContent = "";
 		pane.appendChild(el("div", "mce-hint", "本页面用于操控其他第三方模组新增的拓展内容，不修改游戏原版数据。下方为已识别到支持作弊控制的模组，点击模组名称进入对应控制子页面。"));
+		/* v1.7.0：玩家自己编辑入口（玩家所有属性 + 模组加入属性，全量，数值与阶段可改） */
+		var pcard = el("div", "mce-card mce-sel");
+		var ptop = el("div", "mce-card-top");
+		ptop.appendChild(el("span", "mce-card-name", "▶ 玩家自己 · 属性与特质"));
+		ptop.appendChild(el("span", "mce-badge mce-on", "面板数值/特质可改"));
+		pcard.appendChild(ptop);
+		pcard.appendChild(el("div", "mce-hint", "游戏属性面板数值快捷编辑 + 全部特质管理（含其他模组注入的特质，自动发现；获取时条件不满足自动改为满足）。"));
+		pcard.addEventListener("click", function () { renderPlayerEdit(); });
+		pane.appendChild(pcard);
 		var mods = getCheatMods();
 		if (!mods.length) {
 			pane.appendChild(el("div", "mce-err", "⚠ 暂未识别到可控制的第三方模组拓展内容，请加载对应模组后重试。"));
@@ -1734,6 +1955,700 @@
 		if (modId) { renderModCheatDetail(modId); }
 	}
 
+	/* ============ v1.7.0 玩家属性全量编辑（Mod作弊 主容器页「玩家自己」入口）
+	       数据源：① V.player 全量（递归限深 3，循环引用防崩）；② 模组属性 = 运行时 V 顶层键
+	       - ORIGINAL_V_ROOT_KEYS - CHEAT_VANILLA_ROOTS - mbCE_*（与原版比对，只添加没有的）。
+	       可改：number（数字输入）/ boolean（勾选）/ 短字符串阶段（≤24 字符且无空白 → 文本输入）；
+	       只读：长字符串 / 函数 / undefined / null / 深度超限 / 循环引用。
+	       写入：复用 cheatWriteValue（modId="player-self"，root=player 或模组键不在原版黑名单），
+	       mbCE_wrote 留痕 + 每项回退按钮。 ============ */
+	var curPlayerFilter = "";
+	var curPlayerSection = "player";
+	function actPlayer(res) {
+		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
+		renderPlayerEdit();
+	}
+	/* v1.7.2：游戏属性面板（颜色分级）快捷编辑——直接改游戏面板显示的原版数值键
+	   （purity/physique 等顶层键 + prof.* 武器键；实证自本体 currentSkillValue 体系与 $prof 对象；
+	     歌唱/驾驶无原版变量（GameUI 自定义/未解锁），不收录；不安感无数值显示，不收录）。 */
+	var PANEL_QUICK_GROUPS = [
+		{ title: "核心属性", items: [["purity", "纯洁"], ["beauty", "容貌"], ["physique", "体能"], ["willpower", "意志"], ["awareness", "意识"], ["promiscuity", "淫乱"], ["exhibitionism", "暴露癖"], ["deviancy", "异种癖"]] },
+		{ title: "基础技能", items: [["skulduggery", "诡术"], ["danceskill", "舞蹈"], ["swimmingskill", "游泳"], ["athletics", "运动"], ["tending", "护理"], ["housekeeping", "家务"]] },
+		{ title: "性技能", items: [["seductionskill", "魅惑"], ["oralskill", "口部"], ["chestskill", "胸部"], ["handskill", "手部"], ["bottomskill", "臀部"], ["penileskill", "阴茎"], ["vaginalskill", "小穴"], ["analskill", "后庭"], ["thighskill", "大腿"], ["feetskill", "足部"]] },
+		{ title: "学校成绩", items: [["science", "科学"], ["maths", "数学"], ["english", "语文"], ["history", "历史"]] },
+		{ title: "武器技能", items: [["prof.spray", "防狼喷雾"], ["prof.baton", "短棍"], ["prof.whip", "鞭子"], ["prof.net", "网"], ["prof.pickaxe", "镐"]] }
+	];
+	function quickReadValue(path) {
+		try {
+			var V2 = getV();
+			if (!V2) { return null; }
+			if (String(path).indexOf("prof.") === 0) {
+				var leaf = String(path).split(".")[1];
+				return (V2.prof && typeof V2.prof === "object") ? V2.prof[leaf] : undefined;
+			}
+			return V2[path];
+		} catch (e) { return null; }
+	}
+	/* 武器父级兜底：$prof 缺失时补空壳（只建不覆盖），使 prof.* 可安全写入 */
+	function ensureProfShell() {
+		try {
+			var V2 = getV();
+			if (!V2) { return { ok: false, message: "存档变量不可用" }; }
+			if (!V2.prof || typeof V2.prof !== "object") {
+				V2.prof = { spray: 0, baton: 0, whip: 0, net: 0, pickaxe: 0 };
+				return { ok: true, created: true };
+			}
+			return { ok: true, created: false };
+		} catch (e) { return { ok: false, message: "武器数据初始化失败" }; }
+	}
+	function quickWrite(path, raw) {
+		if (String(path).indexOf("prof.") === 0) {
+			var es = ensureProfShell();
+			if (!es.ok) { return es; }
+		}
+		return cheatWriteValue("player-self", "p:" + path, "value_set", path, raw, "number");
+	}
+	function renderQuickRow(pane, path, label) {
+		var cur = quickReadValue(path);
+		var row = el("div", "mce-row");
+		row.appendChild(el("span", "mce-row-lbl", label + "（当前 " + (typeof cur === "number" ? cur : "—") + "）"));
+		var inp = el("input", "mce-inp");
+		inp.type = "number"; inp.step = "1"; inp.value = (typeof cur === "number") ? String(cur) : "0";
+		var b = el("button", "", "应用"); b.type = "button";
+		b.addEventListener("click", function () { actPlayer(quickWrite(path, inp.value)); });
+		var und = el("button", "", "回退"); und.type = "button";
+		und.addEventListener("click", function () { actPlayer(undoCheatModValue("player-self", "p:" + path)); });
+		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
+		pane.appendChild(row);
+	}
+	function renderQuickPanel(pane) {
+		PANEL_QUICK_GROUPS.forEach(function (g) {
+			var box = el("div", "mce-grp");
+			box.appendChild(el("div", "mce-grp-t", g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）"));
+			g.items.forEach(function (it) { renderQuickRow(box, it[0], it[1]); });
+			pane.appendChild(box);
+		});
+	}
+	/* 原版特质静态表（v1.8.0 自本体 traits widget 提取） */
+var VANILLA_TRAITS_RAW = [
+    {"cat":"General Traits","name":"Virgin","has":"$player.virginity.vaginal is true and $player.virginity.penile is true","text":"Your purity recovers faster. Your virginity might be worth something."},
+  {"cat":"General Traits","name":"Chastity Vow","has":"$player.virginity.temple is true","text":"Lost when your penis/vagina is penetrated. The temple will know."},
+  {"cat":"General Traits","name":"Broken Vow","has":"$player.virginity.temple isnot true and $temple_rank isnot \"prospective\" and $temple_rank isnot undefined","text":"The temple will know."},
+  {"cat":"General Traits","name":"Rite of Promise: $templePromised","has":"$templePromised isnot \"\" and $player.virginity.temple is true","text":"You've been bound to another member of the temple."},
+  {"cat":"General Traits","name":"Broken Promise: $templePromised","has":"$templePromised isnot \"\" and $player.virginity.temple isnot true","text":"The temple will know."},
+  {"cat":"General Traits","name":"Temple Burden: $temple_burden%","has":"$temple_burden gte 1","text":"You are carrying part of the world's corruption within yourself."},
+  {"cat":"General Traits","name":"Purity Boost","has":"$featsPurityBoost gt 0","text":"You are gaining purity daily."},
+  {"cat":"General Traits","name":"Impurity Boost","has":"$featsPurityBoost lt 0","text":"You are losing purity daily."},
+  {"cat":"General Traits","name":"Crossdresser","has":"$backgroundTraits.includes(\"crossdresser\")","text":"Stress decays faster when you look like the opposite gender."},
+  {"cat":"General Traits","name":"Lustful","has":"$backgroundTraits.includes(\"lustful\")","text":"Arousal increases over time and needs to be managed."},
+  {"cat":"General Traits","name":"Green Thumb","has":"$backgroundTraits.includes(\"greenthumb\")","text":"More bountiful crops and no decay when using fertiliser."},
+  {"cat":"General Traits","name":"Dendrophile／Plant Lover","has":"$backgroundTraits.includes(\"plantlover\")","text":"Plants are everything to you."},
+  {"cat":"General Traits","name":"Nectar Addict","has":"$backgroundTraits.includes(\"plantlover\")","text":"You're more vulnerable to aphrodisiacs and alcohol."},
+  {"cat":"General Traits","name":"Ear slime focus: $earSlime.focus","has":"$earSlime.focus and $earSlime.focus isnot \"none\"","text":"You chose a path for the ear slime."},
+  {"cat":"General Traits","name":"Pregnant","has":"playerIsPregnant() and playerAwareTheyArePregnant()","text":"You are with child."},
+  {"cat":"General Traits","name":"First Time Mother","has":"playerNormalPregnancyTotal() is 1","text":"You have given birth to your first child."},
+  {"cat":"General Traits","name":"Second Time Mother","has":"playerNormalPregnancyTotal() is 2","text":"You have given birth to children two times now."},
+  {"cat":"General Traits","name":"Mother","has":"between(playerNormalPregnancyTotal(), 3, 7)","text":"You have some good experiences of being a mother."},
+  {"cat":"General Traits","name":"Broodmother","has":"between(playerNormalPregnancyTotal(), 8, 19)","text":"You have given birth to many, many children."},
+  {"cat":"General Traits","name":"Gaia","has":"playerNormalPregnancyTotal() gte 20","text":"You have given birth to a veritable dynasty of children."},
+  {"cat":"General Traits","name":"Parasite Broodmother","has":"$sexStats.anus.pregnancy.motherStatus is 2 or $sexStats.vagina.pregnancy.motherStatus is 2","text":"You've become host to an endless number of little critters."},
+  {"cat":"General Traits","name":"Parasite Mother","has":"($sexStats.anus.pregnancy.motherStatus is 1 or $sexStats.vagina.pregnancy.motherStatus is 1) and !($sexStats.anus.pregnancy.motherStatus is 2 or $sexStats.vagina.pregnancy.motherStatus is 2)","text":"You have given birth to little critters."},
+  {"cat":"General Traits","name":"Lactating","has":"$lactating gte 1 and $settings.breastFeedingEnabled","text":"Your breasts are ready to be milked."},
+  {"cat":"General Traits","name":"Milk Factory","has":"$lactating gte 1 and $settings.breastFeedingEnabled and $milk_volume gte 1000","text":"Your breasts are able to hold a tremendous amount of milk."},
+  {"cat":"General Traits","name":"Sperm Bank","has":"$semen_volume gte 1000 and $player.penisExist","text":"You carry a tremendous amount of semen."},
+  {"cat":"General Traits","name":"Possessed","has":"$possessed","text":"Your body is not your own."},
+  {"cat":"General Traits","name":"Wolf","has":"$wolfgirl gte 6","text":"The spirit of the wild lives within you."},
+  {"cat":"General Traits","name":"Cat","has":"$cat gte 6","text":"You have an urge to lap up cream."},
+  {"cat":"General Traits","name":"Bull／Cow","has":"$cow gte 6","text":"You yearn to be milked."},
+  {"cat":"General Traits","name":"Harpy／Bird","has":"$harpy gte 6","text":"The skies call."},
+  {"cat":"General Traits","name":"Fox／Vixen","has":"$fox gte 6","text":"You have the urge to keep what's not yours."},
+  {"cat":"General Traits","name":"Fangs","has":"![\"disabled\", \"hidden\"].includes($transformationParts.traits.fangs)","text":"Biting is twice as effective."},
+  {"cat":"General Traits","name":"Sharp Eyes","has":"![\"disabled\", \"hidden\"].includes($transformationParts.traits.sharpEyes)","text":"Little escapes your notice. +5% skulduggery."},
+  {"cat":"General Traits","name":"Heterochromia","has":"$heterochromia is 1","text":"Your eyes are two different colours."},
+  {"cat":"General Traits","name":"Sturdy Horns","has":"$cow gte 2 and $demon lt 2","text":"Headbutts no longer hurt you."},
+  {"cat":"General Traits","name":"Mate For Life","has":"![\"disabled\", \"hidden\"].includes($transformationParts.traits.mateForLife)","text":"Gain bonuses when sleeping or copulating with your Love Interest."},
+  {"cat":"General Traits","name":"Thrill of the Chase","has":"![\"disabled\", \"hidden\"].includes($transformationParts.traits.chase)","text":"Gain a bonus to athletics and unlocks the ambush action."},
+  {"cat":"General Traits","name":"Fallen Angel","has":"$fallenangel gte 4","text":"The world is so cruel. Unlocks the disparage action."},
+  {"cat":"General Traits","name":"Iron Will","has":"$fallenangel is 4","text":"Willpower no longer decays."},
+  {"cat":"General Traits","name":"Angel","has":"$angel gte 6","text":"You radiate purity. Unlocks the forgive action."},
+  {"cat":"General Traits","name":"Incubus／Succubus","has":"$demon gte 6","text":"You're devoid of purity."},
+  {"cat":"General Traits","name":"Radiant","has":"$angel gte 4","text":"You are pure. Unlocks the banish action."},
+  {"cat":"General Traits","name":"Dark Horns","has":"$cow lt 2 and $demon gte 2","text":"Headbutts deal twice as much damage."},
+  {"cat":"General Traits","name":"Compound Horns","has":"$cow gte 2 and $demon gte 2","text":"Your headbutts are vicious."},
+  {"cat":"General Traits","name":"Strong Wings／Thoroughly Preened Wings","has":"$harpy gte 6 and $birdFly gte 1","text":"Can glide from high locations. Can fly where the wind is willing."},
+  {"cat":"General Traits","name":"Wings","has":"!($harpy gte 6 and $birdFly gte 1) and ($angel gte 6 or $fallenangel gte 2 or $demon gte 6 or $harpy gte 6)","text":"Can glide from high locations."},
+  {"cat":"General Traits","name":"Meek","has":"$submissive gte 1150 and $submissive lt 1500","text":"Unlocks the Moan action."},
+  {"cat":"General Traits","name":"Submissive","has":"$submissive gte 1500","text":"Unlocks the Moan action."},
+  {"cat":"General Traits","name":"Bratty","has":"$submissive lte 850 and $submissive gt 500","text":"Unlocks the Demand action."},
+  {"cat":"General Traits","name":"Defiant","has":"$submissive lte 500","text":"Unlocks the Demand action."},
+  {"cat":"General Traits","name":"Innocent","has":"$innocencestate is 1","text":"You're flattered that so many people want to spend time with you."},
+  {"cat":"General Traits","name":"Guilty Masochist","has":"$masochism_level is 1","text":"Provides a small resistance to most sources of pain."},
+  {"cat":"General Traits","name":"Masochist","has":"$masochism_level is 2","text":"Provides resistance to most sources of pain."},
+  {"cat":"General Traits","name":"Hardened Masochist","has":"$masochism_level is 3","text":"Provides strong resistance to most sources of pain."},
+  {"cat":"General Traits","name":"Drooling Masochist","has":"$masochism_level is 4","text":"Provides incredible resistance to most sources of pain."},
+  {"cat":"General Traits","name":"Guilty Sadist","has":"$sadism_level is 1","text":"Your defiant acts inflict a little more pain."},
+  {"cat":"General Traits","name":"Sadist","has":"$sadism_level is 2","text":"Your defiant acts inflict more pain."},
+  {"cat":"General Traits","name":"Hardened Sadist","has":"$sadism_level is 3","text":"Your defiant acts inflict much more pain."},
+  {"cat":"General Traits","name":"Vengeful Sadist","has":"$sadism_level is 4","text":"Your defiant acts are far more dangerous."},
+  {"cat":"General Traits","name":"Farmer","has":"$farm_stage gte 6","text":"You know your way around a barn."},
+  {"cat":"General Traits","name":"Knowledge: Islander language","has":"$islander_language gte 100","text":"You can understand and speak the tongue of the islanders."},
+  {"cat":"General Traits","name":"Knowledge: Quicksand","has":"$quicksand gte 5","text":"You know how to react when stuck in the stuff."},
+  {"cat":"General Traits","name":"Ancient Arts","has":"$hc?.wraith","text":"You've learned techniques lost to the past."},
+  {"cat":"General Traits","name":"Mirror Madness","has":"$asylum_mirror gte 5","text":"Looking in a mirror lowers awareness and trauma once a day."},
+  {"cat":"General Traits","name":"Eyes in the Night","has":"$asylum_tunnels gte 6","text":"Lower allure in the forest at night."},
+  {"cat":"Medicinal Traits","name":"Hair Growth Formula","has":"_pills and _pills[\"Hair Growth Formula\"] and _pills[\"Hair Growth Formula\"].doseTaken","text":"() =&gt; {\n\t\t\t\t\t\treturn `A hair growth formula has been applied, to encourage faster hair growth. ${_pills[\"Hair Growth Formula\"].doseTaken} day${_pills[\"Hair Growth Formula\"].dose"},
+  {"cat":"Medicinal Traits","name":"Anti-Parasite Cream","has":"_pills and _pills[\"Anti-Parasite Cream\"] and _pills[\"Anti-Parasite Cream\"].doseTaken","text":"() =&gt; {\n\t\t\t\t\t\treturn `A parasite-repelling cream, preventing further internal parasite impregnation. ${_pills[\"Anti-Parasite Cream\"].doseTaken} day${_pills[\"Anti-Parasite Cream\""},
+  {"cat":"Medicinal Traits","name":"Fertility booster","has":"_pills and _pills[\"fertility booster\"] and _pills[\"fertility booster\"].doseTaken","text":"() =&gt; {\n\t\t\t\t\t\tlet result = `You have ${_pills[\"fertility booster\"].doseTaken gte 2 ? \"overdosed on pills\" : \"taken a pill\"} that `;\n\t\t\t\t\t\tlet multiple = false;\n\t\t\t\t\t\tlet hasEffe"},
+  {"cat":"Medicinal Traits","name":"Contraceptive","has":"_pills and _pills[\"contraceptive\"] and _pills[\"contraceptive\"].doseTaken","text":"() =&gt; {\n\t\t\t\t\t\tlet result = `You have ${_pills[\"contraceptive\"].doseTaken gte 2 ? \"overdosed on pills\" : \"taken a pill\"} that `;\n\t\t\t\t\t\tlet multiple = false;\n\t\t\t\t\t\tlet hasEffect ="},
+  {"cat":"Medicinal Traits","name":"Penis blocker pills","has":"_pills and _pills[\"penis blocker\"] and _pills[\"penis blocker\"].doseTaken","text":"() =&gt; {\n\t\t\t\t\t\tlet result = `You have taken a pill that`;\n\t\t\t\t\t\tif ($player.penisExist) {\n\t\t\t\t\t\t\tresult += \" prevents the re-sizing of your penis.\";\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tresult "},
+  {"cat":"Medicinal Traits","name":"Penis growth pills","has":"_pills and _pills[\"penis growth\"] and _pills[\"penis growth\"].doseTaken","text":"() =&gt; {\n\t\t\t\t\t\tlet result = `You have ${_pills[\"penis growth\"].doseTaken gte 2 ? \"overdosed on\" : \"taken\"} pills that `;\n\t\t\t\t\t\tif ($player.penisExist) {\n\t\t\t\t\t\t\tresult += \" encour"},
+  {"cat":"Medicinal Traits","name":"Penis reduction pills","has":"_pills and _pills[\"penis reduction\"] and _pills[\"penis reduction\"].doseTaken","text":"() =&gt; {\n\t\t\t\t\t\tlet result = `You have ${_pills[\"penis reduction\"].doseTaken gte 2 ? \"overdosed on\" : \"taken\"} pills that `;\n\t\t\t\t\t\tif ($player.penisExist) {\n\t\t\t\t\t\t\tresult += \" enc"},
+  {"cat":"Medicinal Traits","name":"Breast blocker pills","has":"_pills and _pills[\"breast blocker\"] and _pills[\"breast blocker\"].doseTaken","text":"\"You have taken a pill that prevents the re-sizing of your breasts.\""},
+  {"cat":"Medicinal Traits","name":"Breast growth pills","has":"_pills and _pills[\"breast growth\"] and _pills[\"breast growth\"].doseTaken","text":"`You have ${_pills and _pills[\"breast growth\"].doseTaken gte 2 ? \"overdosed on\" : \"taken\"} a pill that encourages the growth of your breasts.`"},
+  {"cat":"Medicinal Traits","name":"Breast reduction pills","has":"_pills and _pills[\"breast reduction\"] and _pills[\"breast reduction\"].doseTaken","text":"`You have ${_pills and _pills[\"breast reduction\"].doseTaken gte 2 ? \"overdosed on\" : \"taken\"} a pill that encourages the shrinking of your breasts.`"},
+  {"cat":"Medicinal Traits","name":"Bottom blocker pills","has":"_pills and _pills[\"bottom blocker\"] and _pills[\"bottom blocker\"].doseTaken","text":"\"You have taken a pill that prevents the re-sizing of your bottom.\""},
+  {"cat":"Medicinal Traits","name":"Bottom growth pills","has":"_pills and _pills[\"bottom growth\"] and _pills[\"bottom growth\"].doseTaken","text":"`You have ${_pills and _pills[\"bottom growth\"].doseTaken gte 2 ? \"overdosed on\" : \"taken\"} a pill that encourages the growth of your bottom.`"},
+  {"cat":"Medicinal Traits","name":"Bottom reduction pills","has":"_pills and _pills[\"bottom reduction\"] and _pills[\"bottom reduction\"].doseTaken","text":"`You have ${_pills and _pills[\"bottom reduction\"].doseTaken gte 2 ? \"overdosed on\" : \"taken\"} a pill that encourages the shrinking of your bottom.`"},
+  {"cat":"Special Traits","name":"Hedonist／Orgasm Addict","has":"$orgasmtrait gte 1","text":"\"The number of orgasms you have had has left a lasting physiological effect. Climaxing is more difficult but pleasurable orgasms relieve more stress and painful orgasms no longer i"},
+  {"cat":"Special Traits","name":"Asphyxiophilia","has":"$choketrait gte 1","text":"\"You've come to love the feeling of lack of oxygen. Getting choked makes sex more pleasurable.\""},
+  {"cat":"Special Traits","name":"Cumoisseur／Cum Dump","has":"$ejactrait gte 1","text":"\"You've become accustomed to the scent of ejaculate and can take advantage of its calming effect. Your stress is reduced hourly depending on how much slime and semen covers you.\""},
+  {"cat":"Special Traits","name":"Graceful／Plaything","has":"$molesttrait gte 1","text":"\"You've learned to better cope with psychological trauma. Being molested no longer removes your sense of control (rape still does).\""},
+  {"cat":"Special Traits","name":"Survivor／Fucktoy","has":"$rapetrait gte 1","text":"\"You've been raped so much that you've learned how to cope. Trauma increases more slowly.\""},
+  {"cat":"Special Traits","name":"Tamer／Bitch","has":"$bestialitytrait gte 1","text":"\"Animals have tried to &lt;&lt;if $settings.pregnancySpeechEnabled&gt;&gt;breed&lt;&lt;else&gt;&gt;mate&lt;&lt;/if&gt;&gt; with you so often that you're used to it. Trauma increase"},
+  {"cat":"Special Traits","name":"Witch／Prey","has":"$tentacletrait gte 1","text":"\"Many tentacles have had their way with your body. Trauma increases more slowly when attacked by tentacles.\""},
+  {"cat":"Special Traits","name":"Daredevil／Tasty","has":"$voretrait gte 1","text":"\"You've found your way into the belly of many a creature. They'll have a harder time swallowing you as they savour your taste.\""},
+  {"cat":"Special Traits","name":"Milk Enthusiast／Milk Addict","has":"$milkdranktrait gte 1","text":"\"You take full advantage of the nutrition in fresh breast milk. Drinking it invigorates your body, improving physique.\""},
+  {"cat":"School Traits","name":"Passable Science","has":"$sciencetrait is 1","text":"\"Pain is slightly easier to cope with.\""},
+  {"cat":"School Traits","name":"Decent Science","has":"$sciencetrait is 2","text":"\"Pain is moderately easier to cope with.\""},
+  {"cat":"School Traits","name":"Good Science","has":"$sciencetrait is 3","text":"\"Pain is easier to cope with.\""},
+  {"cat":"School Traits","name":"Excellent Science","has":"$sciencetrait is 4","text":"\"Pain is much easier to cope with.\""},
+  {"cat":"School Traits","name":"Passable Maths","has":"$mathstrait is 1","text":"\"You make 25% more from tips and negotiated fees.\""},
+  {"cat":"School Traits","name":"Decent Maths","has":"$mathstrait is 2","text":"\"You make 50% more from tips and negotiated fees.\""},
+  {"cat":"School Traits","name":"Good Maths","has":"$mathstrait is 3","text":"\"You make 75% more from tips and negotiated fees.\""},
+  {"cat":"School Traits","name":"Excellent Maths","has":"$mathstrait is 4","text":"\"You make 100% more from tips and negotiated fees.\""},
+  {"cat":"School Traits","name":"Passable English","has":"$englishtrait is 1","text":"\"Speech actions (plead, moan, demand, apologise, mock, tease, ask to be more rough) are twice as effective.\""},
+  {"cat":"School Traits","name":"Decent English","has":"$englishtrait is 2","text":"\"Speech actions (plead, moan, demand, apologise, mock, tease, ask to be more rough) are three times as effective.\""},
+  {"cat":"School Traits","name":"Good English","has":"$englishtrait is 3","text":"\"Speech actions (plead, moan, demand, apologise, mock, tease, ask to be more rough) are four times as effective.\""},
+  {"cat":"School Traits","name":"Excellent English","has":"$englishtrait is 4","text":"\"Speech actions (plead, moan, demand, apologise, mock, tease, ask to be more rough) are five times as effective.\""},
+  {"cat":"School Traits","name":"Passable History","has":"$historytrait is 1","text":"\"You know there are secret paths around town.\""},
+  {"cat":"School Traits","name":"Decent History","has":"$historytrait is 2","text":"\"You know of a few secret paths around town.\""},
+  {"cat":"School Traits","name":"Good History","has":"$historytrait is 3","text":"\"You know of several secret paths around town.\""},
+  {"cat":"School Traits","name":"Excellent History","has":"$historytrait is 4","text":"\"You know of many secret paths around town.\""},
+  {"cat":"School Traits","name":"Okay at school","has":"$schooltrait is 1","text":"\"Your performance at school has improved your self-esteem, slightly increasing your daily trauma decay.\""},
+  {"cat":"School Traits","name":"Decent at school","has":"$schooltrait is 2","text":"\"Your performance at school has improved your self-esteem, moderately increasing your daily trauma decay.\""},
+  {"cat":"School Traits","name":"Good at school","has":"$schooltrait is 3","text":"\"Your performance at school has improved your self-esteem, increasing your daily trauma decay.\""},
+  {"cat":"School Traits","name":"Excellent at school","has":"$schooltrait is 4","text":"\"Your performance at school has improved your self-esteem, greatly increasing your daily trauma decay.\""},
+  {"cat":"School Traits","name":"Science Fair Winner","has":"$scienceprojectwon is 1","text":"\"You have been publicly recognised for your detailed and informative science project.\""},
+  {"cat":"School Traits","name":"Maths Competition Winner","has":"$mathsprojectwon is 1","text":"\"You have been publicly recognised for your insightful solution to such a challenging mathematics problem.\""},
+  {"cat":"School Traits","name":"Stage Play Performer","has":"$englishPlayWell is 1","text":"\"Your star performance during the student stage play elevated the production to great heights and much acclaim.\""},
+  {"cat":"Trauma Traits","name":"Suppressed Insomnia／Insomnia／Controlled Insomnia","has":"$sleeptrouble gte 1","text":"\"Sleep less effective.\""},
+  {"cat":"Trauma Traits","name":"Nightmares／Controlled Nightmares","has":"$nightmares gte 1","text":"\"Sleep is stressful.\""},
+  {"cat":"Trauma Traits","name":"Anxiety Disorder／Controlled Anxiety Disorder","has":"$anxiety gte 1","text":"\"Stress won't automatically decrease over time.\""},
+  {"cat":"Trauma Traits","name":"Severe Anxiety Disorder／Controlled Severe Anxiety Disorder","has":"$anxiety gte 2","text":"\"Stress increases over time.\""},
+  {"cat":"Trauma Traits","name":"Flashbacks／Controlled Flashbacks","has":"$flashbacks gte 1","text":"\"May relive nasty experiences.\""},
+  {"cat":"Trauma Traits","name":"Panic Attacks／Controlled Panic Attacks","has":"$panicattacks gte 1","text":"\"Chance of paralysis.\""},
+  {"cat":"Trauma Traits","name":"Severe Panic Attacks／Controlled Severe Panic Attacks","has":"$panicattacks gte 2","text":"\"Chance of uncontrollable violent outbursts.\""},
+  {"cat":"Trauma Traits","name":"Hallucinations／Controlled Hallucinations","has":"$hallucinations gte 1","text":"\"More dangers during encounters.\""},
+  {"cat":"Trauma Traits","name":"Severe Hallucinations／Controlled Severe Hallucinations","has":"$hallucinations gte 2","text":"\"More dangerous world.\""},
+  {"cat":"Trauma Traits","name":"Visibly Disturbed","has":"$dissociation gte 1","text":"\"There's something wrong with you, and people can tell.\""},
+  {"cat":"Trauma Traits","name":"Dissociation／Controlled Dissociation","has":"$dissociation gte 2","text":"\"Nothing feels real.\""},
+  {"cat":"NPC Traits","name":"Robin's Protector","has":"$robinpaid gte 1","text":"\"Robin is dependent on you. You need to be strong. Increases daily trauma decay.\""},
+  {"cat":"NPC Traits","name":"Stockholm Syndrome: Eden","has":"$syndromeeden gte 1","text":"\"It must be lonely living on your own in the woods.\""},
+  {"cat":"NPC Traits","name":"Stockholm Syndrome: Kylar","has":"$syndromekylar gte 1 and (C.npc.Kylar.state isnot \"prison\" or $location is \"prison\")","text":"\"Everyone deserves a friend.\""},
+  {"cat":"NPC Traits","name":"Stockholm Syndrome: Wolves／Stockholm Syndrome: Wolf People","has":"$syndromewolves gte 1","text":"() =&gt; V.settings.bestialityEnabled ? \"They're just cute animals.\" : \"They're just cute monsters.\""},
+  {"cat":"NPC Traits","name":"Stockholm Syndrome: Great Hawk","has":"$syndromebird gte 1","text":"() =&gt; V.greathawkmonster === 2 || !V.settings.bestialityEnabled ? \"&lt;&lt;nnpc_He 'Great Hawk'&gt;&gt; only wants a mate.\" : \"It only wants a mate.\""},
+  {"cat":"NPC Traits","name":"Avery's Saviour","has":"$avery_fate is \"saved\"","text":"\"You saved Avery's life. Rage decreases daily.\""},
+  {"cat":"Hypnosis Traits","name":"Hypnotic Suggestion","has":"$hypnosis_traits.suggestion is 1","text":"\"Doctor Harper told you to do something, but it's a bit hazy.\""},
+  {"cat":"Hypnosis Traits","name":"Bewitched Suggestion","has":"$hypnosis_traits.suggestion is 2","text":"\"Doctor Harper told you to do something, but you have trouble remembering what.\""},
+  {"cat":"Hypnosis Traits","name":"Beguiled Suggestion","has":"$hypnosis_traits.suggestion is 3","text":"\"Doctor Harper told you to do something, but you can't remember what.\""},
+  {"cat":"Hypnosis Traits","name":"Mesmeric Suggestion","has":"$hypnosis_traits.suggestion is 4","text":"\"Doctor Harper told you to do something, but your mind is blank.\""},
+  {"cat":"Hypnosis Traits","name":"Sublime Suggestion","has":"$hypnosis_traits.suggestion is 5","text":"\"Doctor Harper told you to do something, but you can't remember anything at all.\""},
+  {"cat":"Hypnosis Traits","name":"Hypnotic Yearning","has":"$hypnosis_traits.scream is 1","text":"\"May beg for rougher treatment instead of screaming.\""},
+  {"cat":"Hypnosis Traits","name":"Bewitched Yearning","has":"$hypnosis_traits.scream is 2","text":"\"Will sometimes beg for rougher treatment instead of screaming.\""},
+  {"cat":"Hypnosis Traits","name":"Beguiled Yearning","has":"$hypnosis_traits.scream is 3","text":"\"Will usually beg for rougher treatment instead of screaming.\""},
+  {"cat":"Hypnosis Traits","name":"Mesmeric Yearning","has":"$hypnosis_traits.scream is 4","text":"\"Will often beg for rougher treatment instead of screaming.\""},
+  {"cat":"Hypnosis Traits","name":"Sublime Yearning","has":"$hypnosis_traits.scream is 5","text":"\"Will beg for rougher treatment instead of screaming.\""},
+  {"cat":"Hypnosis Traits","name":"Hypnotic Flaunting","has":"$hypnosis_traits.cover is 1","text":"\"May flaunt your body parts instead of covering them.\""},
+  {"cat":"Hypnosis Traits","name":"Bewitched Flaunting","has":"$hypnosis_traits.cover is 2","text":"\"Will sometimes flaunt your body parts instead of covering them.\""},
+  {"cat":"Hypnosis Traits","name":"Beguiled Flaunting","has":"$hypnosis_traits.cover is 3","text":"\"Will usually flaunt your body parts instead of covering them.\""},
+  {"cat":"Hypnosis Traits","name":"Mesmeric Flaunting","has":"$hypnosis_traits.cover is 4","text":"\"Will often flaunt your body parts instead of covering them.\""},
+  {"cat":"Hypnosis Traits","name":"Sublime Flaunting","has":"$hypnosis_traits.cover is 5","text":"\"Will flaunt your body parts instead of covering them.\""},
+  {"cat":"Hypnosis Traits","name":"Hypnotic Deviancy","has":"$hypnosis_traits.deviancy is 1","text":"\"May provoke beasts at the start of encounters.\""},
+  {"cat":"Hypnosis Traits","name":"Bewitched Deviancy","has":"$hypnosis_traits.deviancy is 2","text":"\"Will sometimes provoke beasts at the start of encounters.\""},
+  {"cat":"Hypnosis Traits","name":"Beguiled Deviancy","has":"$hypnosis_traits.deviancy is 3","text":"\"Will usually provoke beasts at the start of encounters.\""},
+  {"cat":"Hypnosis Traits","name":"Mesmeric Deviancy","has":"$hypnosis_traits.deviancy is 4","text":"\"Will often provoke beasts at the start of encounters.\""},
+  {"cat":"Hypnosis Traits","name":"Sublime Deviancy","has":"$hypnosis_traits.deviancy is 5","text":"\"Will provoke beasts at the start of encounters.\""},
+  {"cat":"Hypnosis Traits","name":"Bewitched","has":"$hc?.bewitched","text":"\"Your Angel.\""},
+  {"cat":"Hypnosis Traits","name":"familiar collar／Hypnotic Devotion／Hypnotic Curiosity","has":"V.hypnosis_traits.devotion === 1","text":"\"You find your mind wandering to the forest every now and then. Gwylan's requests feel strangely compelling.\""},
+  {"cat":"Hypnosis Traits","name":"familiar collar／Bewitched Devotion／Bewitched Curiosity","has":"V.hypnosis_traits.devotion === 2","text":"\"Gwylan's presence makes you feel safe. &lt;&lt;nnpc_His 'Gwylan'&gt;&gt; requests are hard to resist. Beneficial hypnosis traits last longer.\""},
+  {"cat":"Hypnosis Traits","name":"familiar collar／Beguiled Devotion／Beguiled Curiosity","has":"V.hypnosis_traits.devotion === 3","text":"\"Gwylan's presence is comforting. &lt;&lt;nnpc_His 'Gwylan'&gt;&gt; requests are harder to resist. Beneficial hypnosis traits last longer. School grades do not decay.\""},
+  {"cat":"Hypnosis Traits","name":"familiar collar／Mesmeric Devotion／Mesmeric Curiosity","has":"V.hypnosis_traits.devotion === 4","text":"\"Gwylan's presence makes you feel warm. &lt;&lt;nnpc_His 'Gwylan'&gt;&gt; requests are even harder to resist. Anyone else's attempts to hypnotise you might fail. Beneficial hypnosi"},
+  {"cat":"Hypnosis Traits","name":"familiar collar／Sublime Devotion／Sublime Curiosity","has":"V.hypnosis_traits.devotion === 5","text":"\"Gwylan makes you feel whole. &lt;&lt;nnpc_His 'Gwylan'&gt;&gt; requests are &lt;span class='red'&gt;impossible&lt;/span&gt; to resist. Anyone else's attempts to hypnotise you will"},
+  {"cat":"Hypnosis Traits","name":"familiar collar／Frenzied Devotion／Frenzied Curiosity","has":"V.hypnosis_traits.devotion &gt;= 6","text":"\"???\""},
+  {"cat":"Hypnosis Traits","name":"Hypnotic Peace","has":"V.hypnosis_traits.peace gte 1","text":"\"You are at peace with your inner self. Hiding transformation parts no longer inflicts trauma.\""},
+  {"cat":"Hypnosis Traits","name":"Hypnotic Silence","has":"V.hypnosis_traits.silence gte 1","text":"\"Your thoughts are solitary and tranquil. Ear slimes are temporarily silenced.\""},
+  {"cat":"Hypnosis Traits","name":"Hypnotic Slumber","has":"V.hypnosis_traits.slumber gte 1","text":"\"Sleep is more restful when traumatised, and the 'insomnia' trait is suppressed, if present.\""},
+  {"cat":"Hypnosis Traits","name":"Hypnotic Ignorance／Hypnotic Insight","has":"V.hypnosis_traits.insight gte 1","text":"\"High awareness no longer causes hallucinations. Low awareness causes hallucinations instead.\""},
+  {"cat":"Acceptance Traits","name":"() =&gt; {\n\t\t\t\t\t\tconst penisSize = setup.penisSizes[$player.penissize].toUpperFirst();\n\t\t\t\t\t\treturn `Acceptance: ${penisSize} Penis`;\n\t\t\t\t\t}","has":"$acceptance_penis_small gte 1000 and $player.penissize lte 3","text":"\"You're proud of your small penis.\""},
+  {"cat":"Acceptance Traits","name":"Acceptance: Tomgirl","has":"$acceptance_tomgirl gte 100 and $acceptance_penis_small gte 1000 and $player.penissize lte 2","text":"\"You're proud of becoming a tomgirl.\""},
+  {"cat":"Acceptance Traits","name":"() =&gt; {\n\t\t\t\t\t\tconst penisSize = setup.penisSizes[$player.penissize].toUpperFirst();\n\t\t\t\t\t\treturn `Acceptance: ${penisSize} Penis`;\n\t\t\t\t\t}","has":"$acceptance_penis_big gte 1000 and $player.penissize gte 6","text":"\"You're proud of your enormous penis.\""},
+  {"cat":"Acceptance Traits","name":"Acceptance: Flat Chest","has":"$acceptance_breasts_tiny gte 1000 and $player.breastsize lte 0 and $player.sex is \"f\"","text":"\"You're proud of your flat chest.\""},
+  {"cat":"Acceptance Traits","name":" Breasts／Flat Chest","has":"$acceptance_breasts_small gte 1000 and between($player.breastsize","text":"\"You're proud of your small breasts.\""},
+  {"cat":"Acceptance Traits","name":"() =&gt; {\n\t\t\t\t\t\tconst breastSize = setup.breastsizes[$player.breastsize].toUpperFirst();\n\t\t\t\t\t\treturn `Acceptance: ${breastSize} Breasts`;\n\t\t\t\t\t}","has":"$acceptance_breasts_big gte 1000 and $player.breastsize gte 8","text":"\"You're proud of your huge breasts.\""},
+  {"cat":"Acceptance Traits","name":"Acceptance: Pregnant Belly／Acceptance: Pregnant Looking Belly","has":"$acceptance_pregnancy gte 1000 and playerBellySize() gte 8","text":"() =&gt; playerAwareTheyArePregnant() ? \"You're proud of your lifebearing belly.\" : \"You're proud of your large belly.\""},
+  {"cat":"???","name":"Elk-scarred","has":"$auriga_scar is 1","text":"\"An invisible wound hangs over your heart. Trauma and awareness increase over time. Purity decreases over time.\""},
+  {"cat":"???","name":"Elk-marked","has":"$auriga_scar is 2","text":"\"A crackling wound surrounds your heart. You're harder to notice, and to recognise as human.\""},
+  {"cat":"???","name":"Elk-bitten","has":"$auriga_scar is 3","text":"\"A hole threatens to swallow your black heart. Something seeks to escape.\""},
+  {"cat":"???","name":"Elk-ruptured","has":"$auriga_scar is 4","text":"\"A rupture severs your black, unbeating heart. Damnation is imminent.\""},
+  {"cat":"???","name":"Elk-spawned","has":"$auriga_scar gte 5","text":"\"Damnation.\""},
+];
+
+/* ============ v1.8.0 特质管理（替代 v1.7.0 玩家属性/模组属性区）
+   数据源：① VANILLA_TRAITS_RAW（本体 traits widget 提取：cat/name/has）
+          ② discoverModTraits()（maplebirch.temporary.traitLists 运行时注入的模组特质，装了显示、没装隐藏）
+   能力：拥有判定（has 表达式求值）／ 获取+移除（has 全部条件变量写满足，主变量写回不满足）／ 数值可改（数值比较变量）
+   ============ */
+var curPlayerFilter = "";
+var TRAIT_ZH_CAT = {
+	"General Traits": "一般特质", "Medicinal Traits": "药物特质", "Special Traits": "特殊特质",
+	"School Traits": "学校特质", "Trauma Traits": "创伤特质", "NPC Traits": "NPC特质",
+	"Hypnosis Traits": "催眠特质", "Acceptance Traits": "接纳特质", "???": "麋鹿印记"
+};
+var TRAIT_ZH = {
+	"Virgin": "童贞", "Chastity Vow": "贞洁誓言", "Broken Vow": "破誓",
+	"Rite of Promise": "承诺仪式", "Broken Promise": "破碎的承诺", "Temple Burden": "神殿之担",
+	"Purity Boost": "纯洁增幅", "Impurity Boost": "污秽增幅", "Crossdresser": "异装癖",
+	"Lustful": "色情脑", "Green Thumb": "园艺大师", "Dendrophile": "植物恋人",
+	"Plant Lover": "植物爱好者", "Nectar Addict": "花蜜上瘾", "Hair Growth Formula": "生发配方",
+	"Anti-Parasite Cream": "抗寄生虫霜", "Fertility booster": "生育促进剂", "Contraceptive": "避孕药",
+	"Penis blocker pills": "阴茎阻断药", "Penis growth pills": "阴茎增大药", "Penis reduction pills": "阴茎缩小药",
+	"Breast blocker pills": "胸部阻断药", "Breast growth pills": "胸部增大药", "Breast reduction pills": "胸部缩小药",
+	"Bottom blocker pills": "臀部阻断药", "Bottom growth pills": "臀部增大药", "Bottom reduction pills": "臀部缩小药",
+	"Hedonist": "享乐主义者", "Orgasm Addict": "高潮成瘾", "Asphyxiophilia": "窒息癖",
+	"Cumoisseur": "精液鉴赏家", "Cum Dump": "精液容器", "Graceful": "优雅", "Plaything": "玩物",
+	"Survivor": "幸存者", "Fucktoy": "性玩具", "Tamer": "驯兽师", "Bitch": "母狗",
+	"Witch": "女巫", "Prey": "猎物", "Daredevil": "胆大妄为", "Tasty": "美味",
+	"Milk Enthusiast": "乳汁爱好者", "Milk Addict": "乳汁成瘾",
+	"Passable Science": "及格的科学成绩", "Decent Science": "尚可的科学成绩", "Good Science": "良好的科学成绩", "Excellent Science": "优异的科学成绩",
+	"Passable Maths": "及格的数学成绩", "Decent Maths": "尚可的数学成绩", "Good Maths": "良好的数学成绩", "Excellent Maths": "优异的数学成绩",
+	"Passable English": "及格的语文成绩", "Decent English": "尚可的语文成绩", "Good English": "良好的语文成绩", "Excellent English": "优异的语文成绩",
+	"Passable History": "及格的历史成绩", "Decent History": "尚可的历史成绩", "Good History": "良好的历史成绩", "Excellent History": "优异的历史成绩",
+	"Okay at school": "在校表现尚可", "Decent at school": "在校表现不错", "Good at school": "在校表现良好", "Excellent at school": "在校表现优秀",
+	"Science Fair Winner": "科学博览会冠军", "Maths Competition Winner": "数学竞赛冠军", "Stage Play Performer": "舞台剧演员",
+	"Suppressed Insomnia": "被压制的失眠", "Nightmares": "噩梦", "Controlled Nightmares": "受控的噩梦",
+	"Anxiety Disorder": "焦虑症", "Controlled Anxiety": "受控的焦虑", "Controlled Anxiety Disorder": "受控的焦虑症",
+	"Severe Anxiety Disorder": "严重焦虑症", "Controlled Severe Anxiety Disorder": "受控的严重焦虑症",
+	"Controlled Severe Anxiety": "受控的严重焦虑", "Flashbacks": "闪回", "Controlled Flashbacks": "受控的闪回",
+	"Panic Attacks": "惊恐发作", "Controlled Panic Attacks": "受控的惊恐发作", "Severe Panic Attacks": "严重惊恐发作",
+	"Controlled Severe Panic": "受控的严重惊恐", "Controlled Severe Panic Attacks": "受控的严重惊恐发作",
+	"Hallucinations": "幻觉", "Controlled Hallucinations": "受控的幻觉",
+	"Severe Hallucinations": "严重幻觉", "Controlled Severe Hallucinations": "受控的严重幻觉",
+	"Visibly Disturbed": "明显不安", "Dissociation": "解离", "Controlled Dissociation": "受控的解离",
+	"Robin's Protector": "同舟共济：罗宾", "Stockholm Syndrome: Eden": "斯德哥尔摩综合征：伊甸",
+	"Stockholm Syndrome: Kylar": "斯德哥尔摩综合征：凯拉尔", "Stockholm Syndrome: Wolves": "斯德哥尔摩综合征：狼群",
+	"Stockholm Syndrome: Wolf People": "斯德哥尔摩综合征：狼人", "Stockholm Syndrome: Great Hawk": "斯德哥尔摩综合征：大鹰",
+	"Avery's Saviour": "艾弗利的救星",
+	"Hypnotic Suggestion": "催眠暗示", "Bewitched Suggestion": "蛊惑暗示", "Beguiled Suggestion": "迷惑暗示",
+	"Mesmeric Suggestion": "催眠师暗示", "Sublime Suggestion": "崇高暗示",
+	"Hypnotic Yearning": "催眠渴望", "Bewitched Yearning": "蛊惑渴望", "Beguiled Yearning": "迷惑渴望",
+	"Mesmeric Yearning": "催眠师渴望", "Sublime Yearning": "崇高渴望",
+	"Hypnotic Flaunting": "催眠炫耀", "Bewitched Flaunting": "蛊惑炫耀", "Beguiled Flaunting": "迷惑炫耀",
+	"Mesmeric Flaunting": "催眠师炫耀", "Sublime Flaunting": "崇高炫耀",
+	"Hypnotic Deviancy": "催眠异变", "Bewitched Deviancy": "蛊惑异变", "Beguiled Deviancy": "迷惑异变",
+	"Mesmeric Deviancy": "催眠师异变", "Sublime Deviancy": "崇高异变",
+	"Bewitched": "被蛊惑", "Hypnotic Peace": "催眠平静", "Hypnotic Silence": "催眠沉默",
+	"Hypnotic Slumber": "催眠沉睡", "Hypnotic Ignorance": "催眠无知", "Hypnotic Insight": "催眠洞察",
+	"Hypnotic Devotion": "催眠虔信", "Bewitched Devotion": "蛊惑虔信", "Beguiled Devotion": "迷惑虔信",
+	"Mesmeric Devotion": "催眠师虔信", "Sublime Devotion": "崇高虔信", "Frenzied Devotion": "狂乱虔信",
+	"Hypnotic Curiosity": "催眠好奇", "Bewitched Curiosity": "蛊惑好奇", "Beguiled Curiosity": "迷惑好奇",
+	"Mesmeric Curiosity": "催眠师好奇", "Sublime Curiosity": "崇高好奇", "Frenzied Curiosity": "狂乱好奇",
+	"familiar collar": "催眠项圈",
+	"Acceptance: Tomgirl": "接纳：假小子", "Acceptance: Flat Chest": "接纳：平胸", "Acceptance: Pregnant": "接纳：怀孕",
+	"Breasts": "胸部", "Flat Chest": "平胸", "Penis": "阴茎", "Pregnant Belly": "怀孕的肚子", "Pregnant Looking Belly": "看起来怀孕的肚子",
+	"Acceptance: Pregnant Belly": "接纳：怀孕的肚子", "Acceptance: Pregnant Looking Belly": "接纳：看起来怀孕的肚子",
+	"Elk-scarred": "麋鹿伤痕", "Elk-marked": "麋鹿印记", "Elk-bitten": "麋鹿撕咬", "Elk-ruptured": "麋鹿撕裂", "Elk-spawned": "麋鹿之嗣",
+	"Wolf": "狼", "Cat": "猫", "Cow": "牛", "Harpy": "鸟妖", "Bird": "鸟", "Fox": "狐",
+	"Fangs": "獠牙", "Sharp Eyes": "锐利双眼", "Heterochromia": "异色瞳", "Sturdy Horns": "坚固之角",
+	"Mate For Life": "终身伴侣", "Pregnant": "怀孕", "First Time Mother": "初为人母", "Second Time Mother": "再次为人母",
+	"Mother": "母亲", "Broodmother": "多产母亲", "Gaia": "盖亚", "Parasite Broodmother": "寄生多产母亲",
+	"Parasite Mother": "寄生母亲", "Lactating": "哺乳期", "Milk Factory": "乳液狂飙", "Sperm Bank": "精子银行",
+	"Possessed": "附身", "Insomnia": "失眠", "Controlled Insomnia": "受控的失眠",
+	"Ear slime focus": "耳粘液专注", "Bull": "公牛", "Vixen": "狐女", "Incubus": "梦魔", "Succubus": "魅魔",
+	"Strong Wings": "强健之翼", "Thoroughly Preened Wings": "焕然新羽",
+	"Thrill of the Chase": "追逐的快感", "Fallen Angel": "堕落天使", "Iron Will": "铁意志",
+	"Angel": "天使", "Radiant": "圣光璀璨", "Dark Horns": "暗黑之角", "Compound Horns": "复合之角", "Wings": "翅膀",
+	"Meek": "温顺", "Submissive": "顺从", "Bratty": "叛逆", "Defiant": "反抗", "Innocent": "天真无邪",
+	"Masochist": "受虐狂", "Guilty Masochist": "愧疚的受虐狂", "Hardened Masochist": "坚硬的受虐狂", "Drooling Masochist": "流口水的受虐狂",
+	"Sadist": "施虐狂", "Guilty Sadist": "愧疚的施虐狂", "Hardened Sadist": "坚硬的施虐狂", "Vengeful Sadist": "复仇的施虐狂",
+	"Farmer": "农夫",
+	"Knowledge: Islander language": "知识：海岛语言", "Knowledge: Quicksand": "知识：流沙",
+	"Ancient Arts": "上古技艺", "Mirror Madness": "镜中疯狂", "Eyes in the Night": "夜之眼"
+};
+/* 本体特质 has 表达式编译缓存（懒编译：判定函数 + 条件变量清单 + 可写数值清单） */
+var VANILLA_TRAITS_CACHE = null;
+function safeGetObj(root, path) {
+	var cur = root, parts = String(path).split(".");
+	for (var i = 0; i < parts.length; i++) {
+		if (cur === null || cur === undefined) { return undefined; }
+		cur = cur[parts[i]];
+	}
+	return cur;
+}
+function traitEval(V, C, expr) {
+	try {
+		if (!expr) { return false; }
+		var js = String(expr)
+			.replace(/\bisnot\b/g, "!==").replace(/\bis\b/g, "===")
+			.replace(/\bgte\b/g, ">=").replace(/\bgt\b/g, ">")
+			.replace(/\blte\b/g, "<=").replace(/\blt\b/g, "<")
+			.replace(/\band\b/g, "&&").replace(/\bor\b/g, "||");
+		/* $a.b.c → V.a.b.c（带可选链 ?. 的原样保留） */
+		js = js.replace(/\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(\?\.)/g, 'safeGet(V,"$1")$2');
+		js = js.replace(/\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)/g, 'safeGet(V,"$1")');
+		/* _pills 局部变量 = sexStats.pills.pills */
+		js = js.replace(/_pills/g, 'safeGet(V,"sexStats.pills.pills")');
+		/* C.npc.X.y */
+		js = js.replace(/\bC\.npc\.([A-Za-z_]\w*)\.([A-Za-z_]\w*)/g, 'safeGet(C,"npc.$1.$2")');
+		/* 函数调用（playerIsPregnant() 等全局函数）→ globalThis 兜底；排除已生成的 safeGet/globalThis */
+		js = js.replace(/([A-Za-z_]\w*)\s*\(/g, function (m0, name) {
+			if (name === "safeGet" || name === "globalThis") { return m0; }
+			return 'globalThis["' + name + '"](';
+		});
+		var fn = new Function("V", "C", "safeGet", "return (" + js + ");");
+		return !!fn(V, C, safeGetObj);
+	} catch (e) { return false; }
+}
+/* 解析 has 表达式：找出所有 "$var op value" 比较段与 includes 段 */
+function parseTraitHas(expr) {
+	var out = { vars: [], includes: null, complex: false };
+	if (!expr) { return out; }
+	var re = /\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s+(gte|gt|lte|lt|is|isnot)\s+(true|false|undefined|"[^"]*"|'[^']*'|\d+)/g;
+	var m;
+	while ((m = re.exec(expr)) !== null) {
+		out.vars.push({ path: m[1], op: m[2], val: m[3] });
+	}
+	var mi = expr.match(/includes\(\s*"([^"]+)"\s*\)/);
+	if (mi) { out.includes = mi[1]; }
+	if (/playerIsPregnant|playerAwareTheyArePregnant|playerNormalPregnancyTotal|playerBellySize|between\(|toUpperFirst/.test(expr)) {
+		out.complex = true;
+	}
+	return out;
+}
+function zhTraitName(en) {
+	if (TRAIT_ZH[en]) { return TRAIT_ZH[en]; }
+	var s = String(en);
+	/* 函数源码型 name（traits widget 里 name 为函数文本）：提取 return 模板再映射 */
+	if (/^\s*\(\s*\)\s*=>/.test(s) || /^\s*function\b/.test(s)) {
+		var m = s.match(/return\s*`([^`]*)`/);
+		if (m) { s = m[1]; } else { return "（函数型特质）"; }
+	}
+	/* 模板插值关键词：Acceptance 系列函数名 "${penisSize}/${breastSize}"（不依赖前缀键） */
+	if (/\$\{penisSize\}/.test(s)) { return "接纳：阴茎"; }
+	if (/\$\{breastSize\}/.test(s)) { return "接纳：胸部"; }
+	/* A/B 多段（全角／与半角/ 分隔，同格并存的两个特质名）逐段映射 */
+	var parts = s.split(/[／\/]/);
+	if (parts.length > 1) {
+		var zh = [];
+		parts.forEach(function (p) {
+			var t = String(p).trim();
+			if (t) { zh.push(zhTraitName(t)); }
+		});
+		return zh.join(" / ");
+	}
+	/* ":" 前缀 + 插值名："Temple Burden: $temple_burden%" / "Rite of Promise: ..." */
+	var i = s.indexOf(":");
+	if (i > 0) {
+		var head = s.slice(0, i).trim();
+		var tail = s.slice(i + 1).trim();
+		if (TRAIT_ZH[head]) {
+			return TRAIT_ZH[head] + (tail ? "：" + zhTraitName(tail) : "");
+		}
+	}
+	if (TRAIT_ZH[s]) { return TRAIT_ZH[s]; }
+	return s;
+}
+/* 动态显示名：name 字符串内 $var 替换为当前值；函数表达式取候选英文名转中文 */
+function traitDisplayName(t, V) {
+	var nm = t.name;
+	if (typeof nm === "function") {
+		try { nm = nm(); } catch (e) { nm = String(t.name); }
+	}
+	nm = String(nm);
+	nm = nm.replace(/\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)/g, function (_, p) {
+		var v = safeGetObj(V, p);
+		return (v === undefined || v === null) ? "?" : String(v);
+	});
+	/* 拆出候选英文名做中文映射：形如 "A/B" 或 "A - B" 的取两端 */
+	var out = zhTraitName(nm);
+	return out;
+}
+function traitOwned(t, V, C) {
+	if (t.hasFn) { try { return !!t.hasFn(); } catch (e) { return false; } }
+	return traitEval(V, C, t.has);
+}
+/* 获取特质：has 全部比较变量写满足值；includes 目标 push 进数组 */
+function grantTrait(t, V, C) {
+	var info = parseTraitHas(t.has);
+	var wrote = [];
+	if (info.includes) {
+		var arr = safeGetObj(V, "backgroundTraits");
+		if (!Array.isArray(arr)) {
+			try { V.backgroundTraits = []; arr = V.backgroundTraits; } catch (e) { arr = null; }
+		}
+		if (arr && arr.indexOf(info.includes) === -1) { arr.push(info.includes); wrote.push("backgroundTraits+" + info.includes); }
+	}
+	info.vars.forEach(function (v) {
+		var vv = String(v.val).replace(/["']/g, "");
+		/* isnot + 非布尔/数字字符串值（如 "none"/"prospective"）：无法推断满足值，跳过不写（防写坏） */
+		if (v.op === "isnot" && vv !== "true" && vv !== "false" && vv !== "undefined" && isNaN(parseFloat(vv))) { return; }
+		var w = traitWriteSatisfy(V, v.path, v.op, v.val);
+		if (w) { wrote.push(w); }
+	});
+	return wrote;
+}
+/* 移除特质：主变量（第一个比较变量）写回不满足值 */
+function revokeTrait(t, V, C) {
+	var info = parseTraitHas(t.has);
+	var wrote = [];
+	if (info.includes) {
+		var arr = safeGetObj(V, "backgroundTraits");
+		if (Array.isArray(arr)) {
+			var idx = arr.indexOf(info.includes);
+			if (idx !== -1) { arr.splice(idx, 1); wrote.push("backgroundTraits-" + info.includes); }
+		}
+	}
+	if (info.vars.length) {
+		var v0 = info.vars[0];
+		var w = traitWriteUnsatisfy(V, v0.path, v0.op, v0.val);
+		if (w) { wrote.push(w); }
+	}
+	return wrote;
+}
+function traitWriteSatisfy(V, path, op, valRaw) {
+	var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
+	if (String(valRaw) === "true") { setPathVal(V, path, true); return path + "=true"; }
+	if (String(valRaw) === "false") { setPathVal(V, path, false); return path + "=false"; }
+	if (String(valRaw) === "undefined") { return null; }
+	if (isNaN(num)) { setPathVal(V, path, String(valRaw).replace(/["']/g, "")); return path + "=" + String(valRaw).replace(/["']/g, ""); }
+	if (op === "lte") { setPathVal(V, path, num); return path + "=" + num; }
+	if (op === "lt") { setPathVal(V, path, num - 1); return path + "=" + (num - 1); }
+	setPathVal(V, path, num); return path + "=" + num;
+}
+function traitWriteUnsatisfy(V, path, op, valRaw) {
+	var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
+	if (String(valRaw) === "true") { setPathVal(V, path, false); return path + "=false"; }
+	if (String(valRaw) === "false") { setPathVal(V, path, true); return path + "=true"; }
+	if (isNaN(num)) { setPathVal(V, path, ""); return path + '=""'; }
+	if (op === "lte") { setPathVal(V, path, num + 1); return path + "=" + (num + 1); }
+	if (op === "lt") { setPathVal(V, path, num); return path + "=" + num; }
+	setPathVal(V, path, 0); return path + "=0";
+}
+function setPathVal(V, path, val) {
+	var parts = String(path).split(".");
+	var cur = V;
+	for (var i = 0; i < parts.length - 1; i++) {
+		if (cur[parts[i]] === undefined || cur[parts[i]] === null || typeof cur[parts[i]] !== "object") { cur[parts[i]] = {}; }
+		cur = cur[parts[i]];
+	}
+	cur[parts[parts.length - 1]] = val;
+}
+/* 编译本体特质表（懒执行） */
+function compileVanillaTraits() {
+	if (VANILLA_TRAITS_CACHE) { return VANILLA_TRAITS_CACHE; }
+	var out = [];
+	VANILLA_TRAITS_RAW.forEach(function (t) {
+		var info = parseTraitHas(t.has);
+		var nm = String(t.name || "").replace(/^"|"$/g, "");
+		/* 数值可改清单：数字比较变量（如 temple_burden / sciencetrait） */
+		var values = [];
+		info.vars.forEach(function (v) {
+			var num = parseFloat(String(v.val).replace(/["']/g, ""));
+			if (!isNaN(num) && (v.op === "gte" || v.op === "is" || v.op === "gt")) {
+				values.push({ path: v.path, op: v.op, val: num });
+			}
+		});
+		out.push({ cat: t.cat, name: nm, has: t.has, parsed: info, values: values });
+	});
+	VANILLA_TRAITS_CACHE = out;
+	return out;
+}
+/* 运行时发现模组特质：maplebirch.temporary.traitLists（MLI traits.inject 解析后的注入表） */
+function discoverModTraits() {
+	var out = [];
+	try {
+		var mb = resolveMB();
+		var lists = mb && mb.temporary && mb.temporary.traitLists;
+		if (!Array.isArray(lists)) { return out; }
+		lists.forEach(function (cat) {
+			if (!cat || !Array.isArray(cat.traits)) { return; }
+			cat.traits.forEach(function (t) {
+				if (!t || !t.name) { return; }
+				out.push({
+					cat: String(cat.title || "模组特质"),
+					name: (typeof t.name === "function") ? t.name() : String(t.name),
+					text: (typeof t.text === "function") ? String(t.text()) : String(t.text || ""),
+					hasFn: (typeof t.has === "function") ? t.has : null,
+					mod: true
+				});
+			});
+		});
+	} catch (e) {}
+	return out;
+}
+/* 特质管理区渲染：原版分类（静态表）+ 模组特质分类（运行时发现） */
+function renderTraitsSection(pane, V, C) {
+	var wrap = el("div", "mce-grp");
+	wrap.appendChild(el("div", "mce-grp-t", "★ 特质管理：可直接获取/移除，有数值的可直接更改（含其他模组注入的特质，自动发现）。已按分类折叠，点击分类标题展开"));
+	var vanilla = compileVanillaTraits();
+	var modTraits = discoverModTraits();
+	var q = (curPlayerFilter || "").toLowerCase();
+	var seenV = {}, seenM = {}, groups = {};
+	/* 可折叠分类组：标题可点，body 默认收起（data-collapsed=1，CSS 隐藏） */
+	function bodyFor(zhCat, note) {
+		if (groups[zhCat]) { return groups[zhCat]; }
+		var grp = el("div", "mce-grp");
+		grp.setAttribute("data-tcat", zhCat);
+		var head = el("div", "mce-grp-t mce-collapse-head", "▸ " + zhCat);
+		var body = el("div", "mce-grp-body");
+		body.setAttribute("data-collapsed", "1");
+		head.addEventListener("click", function () {
+			var open = body.getAttribute("data-collapsed") !== "1";
+			body.setAttribute("data-collapsed", open ? "1" : "0");
+			head.textContent = (open ? "▸ " : "▾ ") + zhCat + (groups[zhCat].count > 0 ? "（" + groups[zhCat].count + "）" : "") + groups[zhCat].note;
+		});
+		grp.appendChild(head);
+		grp.appendChild(body);
+		wrap.appendChild(grp);
+		var g = { head: head, body: body, count: 0, note: note || "" };
+		groups[zhCat] = g;
+		return g;
+	}
+	/* 原版按分类分组渲染（同分类同中文名去重：原版 widget 多段/函数名同语义只显示一行） */
+	vanilla.forEach(function (t) {
+		var nameZh = traitDisplayName(t, V);
+		if (q && nameZh.toLowerCase().indexOf(q) === -1 && String(t.name || "").toLowerCase().indexOf(q) === -1) { return; }
+		var key = t.cat + "\u0001" + nameZh;
+		if (seenV[key]) { return; }
+		seenV[key] = true;
+		var zhCat = TRAIT_ZH_CAT[t.cat] || t.cat;
+		var g = bodyFor(zhCat, "");
+		g.count++;
+		renderTraitRow(g.body, t, V, C, false);
+	});
+	/* 模组特质分类（按 title 分组，同分类同中文名去重） */
+	modTraits.forEach(function (t) {
+		var nameZh = traitDisplayName(t, V);
+		if (q && nameZh.toLowerCase().indexOf(q) === -1 && t.cat.toLowerCase().indexOf(q) === -1) { return; }
+		var key = t.cat + "\u0001" + nameZh;
+		if (seenM[key]) { return; }
+		seenM[key] = true;
+		var zhCat = TRAIT_ZH_CAT[t.cat] ? TRAIT_ZH_CAT[t.cat] + "（模组）" : (t.cat + "（模组）");
+		var g = bodyFor(zhCat, " · 模组注入（只读展示，可在模组自身页操作）");
+		g.count++;
+		renderTraitRow(g.body, t, V, C, true);
+	});
+	/* 组标题统一补数量（默认收起） */
+	Object.keys(groups).forEach(function (k) {
+		var g = groups[k];
+		g.head.textContent = "▸ " + k + "（" + g.count + "）" + g.note;
+	});
+	pane.appendChild(wrap);
+}
+function renderTraitRow(grp, t, V, C, isMod) {
+	var owned = traitOwned(t, V, C);
+	var nameZh = traitDisplayName(t, V);
+	var row = el("div", "mce-row");
+	row.appendChild(el("span", "mce-row-lbl", (owned ? "● " : "○ ") + nameZh + (isMod ? "（模组）" : "")));
+	/* 描述（函数/模板源码型描述不展示，避免源码泄漏） */
+	var desc = isMod ? t.text : String(t.text || "");
+	desc = String(desc || "");
+	if (/^\s*\(?\s*\)\s*=>/.test(desc) || /^\s*function\b/.test(desc) || (desc.length > 300 && desc.indexOf("`") !== -1)) { desc = ""; }
+	if (desc) {
+		row.appendChild(el("span", "mce-hint", String(desc).slice(0, 90) + (String(desc).length > 90 ? "…" : "")));
+	}
+	if (!isMod) {
+		/* 获取 / 移除 */
+		var bG = el("button", "", owned ? "移除" : "获取");
+		bG.type = "button";
+		bG.addEventListener("click", function () {
+			var res;
+			if (owned) {
+				var w = revokeTrait(t, V, C);
+				res = { ok: w.length > 0, message: w.length ? "已移除「" + nameZh + "」：" + w.join("、") : "该特质无可移除的条件变量" };
+			} else {
+				var w2 = grantTrait(t, V, C);
+				res = { ok: w2.length > 0, message: w2.length ? "已获取「" + nameZh + "」：" + w2.join("、") : "该特质无可写条件（只读展示）" };
+			}
+			actPlayer(res);
+		});
+		row.appendChild(bG);
+		/* 数值可改（数字比较变量）：写入走 player-self 留痕通道 + 回退 */
+		t.values.forEach(function (v) {
+			var cur = safeGetObj(V, v.path);
+			var num = (typeof cur === "number") ? cur : 0;
+			var inp = el("input", "mce-inp");
+			inp.type = "number"; inp.step = "1"; inp.value = String(num);
+			var bS = el("button", "", "改数值"); bS.type = "button";
+			bS.addEventListener("click", function () {
+				var res = traitWriteValue(t, V, v.path, inp.value);
+				actPlayer(res);
+			});
+			var bU = el("button", "", "回退"); bU.type = "button";
+			bU.addEventListener("click", function () {
+				var res = undoCheatModValue("player-self", "trait:" + v.path);
+				actPlayer(res);
+			});
+			row.appendChild(inp); row.appendChild(bS); row.appendChild(bU);
+		});
+	}
+	grp.appendChild(row);
+}
+function traitWriteValue(t, V, path, raw) {
+	var num = parseFloat(raw);
+	if (isNaN(num)) { return { ok: false, message: "请输入数字（当前值 " + (safeGetObj(V, path) === undefined ? "?" : safeGetObj(V, path)) + "）" }; }
+	var before = safeGetObj(V, path);
+	var res = cheatWriteValue("player-self", "trait:" + path, "value_set", path, String(num), "number");
+	if (!res || !res.ok) { return { ok: false, message: "写入失败：" + (res && res.message ? res.message : "未知错误") }; }
+	var after = safeGetObj(V, path);
+	return { ok: true, message: "「" + traitDisplayName(t, V) + "」数值 " + path + "：" + (before === undefined ? "?" : before) + " → " + after + "（可回退）" };
+}
+/* 兼容导出（v1.7.x 老 API 保留，UI 已迁移至特质管理）：模组属性判定（数据层） */
+function isModOnlyRoot(k) {
+	if (!k) { return false; }
+	if (k.indexOf("mbCE_") === 0) { return false; }
+	if (ORIGINAL_V_ROOT_KEYS.indexOf(k) !== -1) { return false; }
+	if (CHEAT_VANILLA_ROOTS.indexOf(k) !== -1) { return false; }
+	return true;
+}
+function renderPlayerEdit() {
+	var pane = root.querySelector('[data-pane="mods"]');
+	if (!pane) { return; }
+	pane.textContent = "";
+	var back = el("button", "", "← 返回模组列表");
+	back.type = "button";
+	back.addEventListener("click", function () { renderModCheats(); });
+	pane.appendChild(back);
+	pane.appendChild(el("div", "mce-hint", "【玩家自己 · 属性与特质】游戏属性面板数值快捷编辑 + 全部特质管理（含其他模组注入的特质，自动发现）。中文键名仅用于显示，写入仍用原键名。"));
+	var frow = el("div", "mce-row");
+	frow.appendChild(el("span", "mce-row-lbl", "关键词过滤："));
+	var finp = el("input", "mce-inp");
+	finp.type = "text";
+	finp.value = curPlayerFilter || "";
+	finp.addEventListener("input", function () { curPlayerFilter = finp.value; renderPlayerEdit(); });
+	frow.appendChild(finp);
+	pane.appendChild(frow);
+	var qwrap = el("div", "mce-grp");
+	qwrap.appendChild(el("div", "mce-grp-t", "★ 游戏属性面板（颜色分级）快捷编辑：直接改面板显示的核心属性/技能/性技能/成绩/武器"));
+	renderQuickPanel(qwrap);
+	pane.appendChild(qwrap);
+	var V = getV();
+	if (!V) { pane.appendChild(el("div", "mce-err", "存档变量不可用。")); return; }
+	var C = null;
+	try { if (typeof C !== "undefined" && C) { C = window.C || C; } } catch (e) {}
+	renderTraitsSection(pane, V, C);
+}
+
+
 	/* ============ UI：右侧常驻黑色悬浮侧边面板（CE 样式，双层标签） ============ */
 	var root = null;
 	var toggleBtn = null;
@@ -1822,6 +2737,9 @@
 		/* v1.4.0 Mod作弊页面 */
 		".mce-grp{border:1px solid #2a2a2a;border-radius:3px;margin:8px 0;padding:8px;background:#0f0f0f}" +
 		".mce-grp-t{color:#d4a73c;font-weight:700;font-size:13px;margin-bottom:6px}" +
+		".mce-collapse-head{cursor:pointer;user-select:none}" +
+		".mce-collapse-head:hover{color:#f0d070}" +
+		".mce-grp-body[data-collapsed=\"1\"]{display:none}" +
 		".mce-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:1px solid #1f1f1f;font-size:12px}" +
 		".mce-row-lbl{color:#e6e6e6;flex:1;min-width:120px;word-break:break-all}" +
 		".mce-row button{background:#181818;color:#ccc;border:1px solid #3a3a3a;border-radius:2px;padding:3px 8px;cursor:pointer;font-size:12px;font-family:inherit}" +
@@ -2030,7 +2948,19 @@
 		{ id: "sydney_temple", name: "悉尼（Sydney）· 神殿居所", match: function (n) { return n.indexOf("Temple Sydney") === 0 || n.indexOf("Sydney Temple") === 0; }, main: "Temple Sydney", note: "神殿中悉尼的房间与祭坛场景（纯/堕两线都在此）" },
 		{ id: "sirris_places", name: "西里斯（Sirris）· 学校与成人商店", match: function (n) { return /sirris/i.test(n) || n === "Sydney Ride Home" || n === "Sydney Ride Temple"; }, main: "Adult Shop Approach Sirris", note: "西里斯常驻的科学教室与成人商店，以及开车接送的车程场景（悉尼的家长）" },
 		{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）" },
-		{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" }
+		{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" },
+		/* v1.7.0：多伦公寓（Doren's flat，$location="flats"）+ 麋鹿街大院（Elk Compound，原版 73 段）。
+		   多伦公寓实证：Doren Entrance（入口，"You climb to Doren's flat"）、Doren Talk/Cry、Doren Shower 系列均在公寓内；
+		   Doren Loft 系列为孤儿院阁楼布置线（用户点名一并收录）；Doren Jog/Beach/School Infirmary 为户外/学校，不收。
+		   麋鹿街大院实证：Elk Compound 为入口（"You are in the compound on Elk Street"），Interior/Underground/Central/
+		   Wraith/Possessed/Station 等 70+ 子场景；Docks Compound 为码头大院，不收。 */
+		{ id: "doren_flat", name: "多伦 · 公寓与阁楼", match: function (n) {
+			return n === "Doren Entrance" || n === "Doren Talk" || n === "Doren Cry"
+				|| n.indexOf("Doren Shower") === 0 || n.indexOf("Doren Loft") === 0;
+		}, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
+		{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) {
+			return n.indexOf("Elk Compound") === 0;
+		}, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/怨灵线/附身线等 70+ 子场景）" }
 	];
 	var PLACE_CN = {
 		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
@@ -2042,7 +2972,12 @@
 		"stairs": "楼梯", "antiques": "古董", "mirror": "镜子", "intro": "初次进入", "vigil": "守夜",
 		"pray": "祈祷", "wakeup": "醒来", "rescue": "营救", "confess": "忏悔", "pure": "纯洁线",
 		"corrupt": "堕落线", "seduce": "引诱", "spank": "拍打", "sex": "性爱", "ritual": "仪式",
-		"start": "开始", "pregnancy": "分娩", "birth": "接生", "forest": "森林", "shop": "商店"
+		"start": "开始", "pregnancy": "分娩", "birth": "接生", "forest": "森林", "shop": "商店",
+		"compound": "大院", "central": "中央区", "underground": "地下", "interior": "室内", "station": "站台",
+		"wraith": "怨灵", "possessed": "附身", "machine": "机械", "experiment": "实验", "tentacles": "触手",
+		"crystal": "水晶", "sell": "出售", "bluff": "虚张声势", "fight": "战斗", "explore": "探索",
+		"camera": "摄像头", "pipes": "管道", "smoke": "烟雾", "climb": "攀爬", "tower": "塔楼",
+		"shower": "淋浴", "cry": "哭泣", "talk": "交谈", "hot chocolate": "热巧克力", "volleyball": "排球"
 	};
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
@@ -2817,23 +3752,41 @@
 	   - orphanage_loft：孤儿院大厅 → "Loft" 链接，条件 $loft_known is 1
 	   - avery_mansion：多瑙河街 → "Avery's mansion" 链接，条件 $avery_mansion 存在且 fate 非 fallen/kicked（v1.2.1 兜底已自动满足）
 	   - sirris_places：成人商店 → "Approach Sirris" 链接，条件 $adultshopstate 非 "closed"（营业时间仍受原版控制）
-	   - sydney_temple / gwylan_garden：无持久世界入口（动态位置 / 剧情专属）→ 不写入 */
+	   - elk_compound（v1.7.0）：Elk Street → "Approach the compound" 链接，条件 $compound.allowed 为 true
+	     （未允许时仅显示 "Sneak into the compound" 潜入链接，crimeUp 30 trespassing——已从本体源码实证）
+	   - doren_flat / sydney_temple / gwylan_garden：无持久世界入口（剧情/时间触发或动态位置）→ 不写入 */
 	var WORLD_UNLOCKS = {
 		"kylar_manor": { var: "syndromekylar", set: 1, entry: "多瑙河街 → Kylar's manor（庄园花园）" },
 		"orphanage_loft": { var: "loft_known", set: 1, entry: "孤儿院大厅 → Loft（阁楼）" },
 		"avery_mansion": { entry: "多瑙河街 → Avery's mansion（已由庄园状态兜底自动解锁）" },
-		"sirris_places": { var: "adultshopstate", set: "open", entry: "成人商店 → 接近西里斯（营业时段可见）" }
+		"sirris_places": { var: "adultshopstate", set: "open", entry: "成人商店 → 接近西里斯（营业时段可见）" },
+		"elk_compound": { path: "compound.allowed", set: true, entry: "Elk Street → Approach the compound（需 $compound.allowed）" }
 	};
-	/* 幂等写入世界入口条件：已有更高/相同值不覆盖，只补缺失或更低值 */
+	/* 幂等写入世界入口条件：已有更高/相同值不覆盖，只补缺失或更低值（v1.7.0 支持子路径 path 型，如 compound.allowed） */
 	function applyWorldUnlock(gid) {
 		try {
 			var V = getV();
 			if (!V || !gid || !WORLD_UNLOCKS[gid]) { return; }
 			var w = WORLD_UNLOCKS[gid];
+			if (w.path !== undefined) {
+				var segs = String(w.path).split(".");
+				var cur = V, i;
+				for (i = 0; i < segs.length - 1; i++) {
+					if (cur[segs[i]] === null || typeof cur[segs[i]] !== "object") {
+						/* 父级缺失则逐层补空对象壳（防 undefined 写入） */
+						cur[segs[i]] = {};
+					}
+					cur = cur[segs[i]];
+				}
+				if (cur[segs[segs.length - 1]] !== w.set) { cur[segs[segs.length - 1]] = w.set; }
+				/* 顺带补 discovered（Elk Street 逻辑：discovered 才显示大院入口判定） */
+				if (gid === "elk_compound" && V.compound && V.compound.discovered !== true) { V.compound.discovered = true; }
+				return;
+			}
 			if (w.var === undefined) { return; }
 			if (typeof w.set === "number") {
-				var cur = typeof V[w.var] === "number" ? V[w.var] : 0;
-				if (cur < w.set) { V[w.var] = w.set; }
+				var cur2 = typeof V[w.var] === "number" ? V[w.var] : 0;
+				if (cur2 < w.set) { V[w.var] = w.set; }
 			} else if (V[w.var] === undefined || V[w.var] === null || V[w.var] === "") {
 				V[w.var] = w.set;
 			}
@@ -3825,7 +4778,31 @@
 				getVowStatus: getVowStatus,
 				fixVows: fixVows,
 				listNpcTraits: listNpcTraits,
-				grantNpcTrait: grantNpcTrait
+				grantNpcTrait: grantNpcTrait,
+				/* v1.8.0 玩家属性与特质管理 */
+				renderPlayerEdit: renderPlayerEdit,
+				compileVanillaTraits: compileVanillaTraits,
+				discoverModTraits: discoverModTraits,
+				traitOwned: traitOwned,
+				grantTrait: grantTrait,
+				revokeTrait: revokeTrait,
+				traitWriteValue: traitWriteValue,
+				traitDisplayName: traitDisplayName,
+				traitEval: traitEval,
+				VANILLA_TRAITS_RAW: VANILLA_TRAITS_RAW,
+				/* 兼容导出（v1.7.x 保留） */
+				isModOnlyRoot: isModOnlyRoot,
+				ORIGINAL_V_ROOT_KEYS: ORIGINAL_V_ROOT_KEYS,
+				cheatWriteValuePlayer: function (path, raw, type) {
+					return cheatWriteValue("player-self", "p:" + path, type === "string" ? "stage_set" : "value_set", path, raw, type);
+				},
+				undoPlayerValue: function (path) { return undoCheatModValue("player-self", "p:" + path); },
+				zhKey: zhKey, zhPath: zhPath, zhType: zhType, ZH_KEYS: ZH_KEYS,
+				/* v1.7.2 游戏属性面板快捷编辑 */
+				PANEL_QUICK_GROUPS: PANEL_QUICK_GROUPS,
+				quickReadValue: quickReadValue,
+				quickWrite: quickWrite,
+				ensureProfShell: ensureProfShell
 			};
 		} catch (e) {}
 	}
