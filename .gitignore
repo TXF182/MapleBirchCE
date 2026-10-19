@@ -1,0 +1,9 @@
+# 构建产物（保留跟踪，勿忽略）
+# javascript/maplebirchce.js   —— 构建产物，已纳入 git（交付物）
+
+# 依赖与运行副产物
+node_modules/
+tests/mce_script.js
+
+# 安装包
+*.zip

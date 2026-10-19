@@ -1,8 +1,29 @@
-# Maplebirch CE · 全局全自动剧情条件解锁（v1.8.2 · 特质分类折叠 · 特质全中文映射 · 原版 170 特质全收录 · 模组特质自动发现 · 游戏属性面板快捷编辑 · 场景直达 8 组 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
+# Maplebirch CE · 全局全自动剧情条件解锁（v1.8.6 · 适配器同步枯木逢春 2.4.1/归途之书 1.3.7/MLI 0.1.8.0 · 每日模组更新自动检测 · 修复系列行 select 崩溃 · 同阶段特质合并 · 模组角色中文映射 · 无可写条件直接获得 · 面板标题版本号动态化 · 特质分类折叠 · 特质全中文映射 · 原版 170 特质全收录 · 模组特质自动发现 · 游戏属性面板快捷编辑 · 场景直达 8 组 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
 ## 版本说明
+
+- **v1.8.6（2026-10-19 · 适配器同步三个模组最新版 + 每日模组更新自动检测）**：
+  - **适配器升级**：枯木逢春 2.2.7→**2.4.1**、归途之书 v1.3.4→**v1.3.7**、More Love Interests 0.1.7.0→**0.1.8.0**（GitHub Releases 最新版核对：2.4.1 下 `VanillaPlus.attitudes.ironWill/sadomasochist` 字面路径出现、与声明对上；1.3.7 缺失的 `faith_band/rite_round/candidates.*.agreed` 经源码实证均为 `this.state`/动态键别名盲区假报，声明无需改动；MLI 0.1.8.0 声明覆盖 100%）；
+  - **移除过时声明**：枯木逢春 2.4.1 官方作弊面板已删除「校园秩序」字段（2.2.0 为 `{id:'order'}`，2.4.1 改为 studentSupport/staffSupport/corruption 三项，适配器早已声明）——删除 `LifeSimulation.school.order`，避免无效写入；
+  - **自动检测机制**：`tools/check_mod_updates.js` 每日检测 **6 个渠道**（5 个适配模组：枯木逢春 / 归途之书 / DomRobin / More Love Interests / SmartPhone `ANLINSTUDIO/Degrees-of-Lewdity-DolSmartPhone` + 框架本体 `MaplebirchLeaf/SCML-DOL-maplebirchFramework`），GitHub Releases 最新版 vs 适配器声明版本（框架渠道对比"实测兼容版本"）；检出更新→自动下载源码→audit 核对→缺失条目自动定案（resolve_missing.js）→更新适配器→全链测试→汇报（不打包不发版，需另行确认）；框架检出更新时先跑 `check_framework_api.js` 核对 CE 依赖的框架 API 全保留、确认兼容后才更新兼容版本记录；已创建每日 21:15 定时任务；
+  - **验证**：全量回归通过（21.1 数值分组 21→20、31.1 声明 v1.3.7、32.1 声明 2.4.1、37.2 面板标题 v1.8.6）。
+
+- **v1.8.5（2026-10-19 · 修复严重 bug：特质管理区整体消失）**：
+  - **修复**：v1.8.4 系列行渲染对 `<select>` 元素赋值只读属性 `type`（`sel.type = ""`），真实浏览器抛 `Cannot set property type of #<HTMLSelectElement> which has only a getter`，导致 `renderTraitsSection` 中断、整个「特质管理」区不显示。删除该赋值（select 不需要 type），特质区恢复；
+  - **验证**：全量回归通过（新增断言：渲染树中 select 元素不得携带 type 属性）。
+
+- **v1.8.4（2026-10-19 · 三需求：同阶段特质合并 / 模组角色中文映射 / 无可写条件直接获得）**：
+  - **同阶段特质合并为系列行**：受虐狂 / 施虐狂 各 4 档、科学 / 数学 / 语文 / 历史成绩 各 4 档、在校表现 4 档、催眠建议 / 催眠尖叫 / 催眠掩饰 / 催眠异常 5 档、创伤（焦虑 / 惊恐 / 幻觉 / 解离）等**同一变量不同阈值**的特质不再逐条平铺，自动识别并按分类合并为一行：`系列名（当前：X档）＋阶段下拉（无/各档位）＋应用＋跳至最高＋回退初始`（对齐 Mod作弊 子页阶段控件样式，参照【默示录：归途之书】阶段区）；
+  - **模组角色英文名中文化**：角色一览页枚举到的模组角色（`Tsukihan`→月半、`Rowan`→罗文、`Adrian`→阿德里安、`Marlow`→马洛、`Grant`→格兰特、`Needmeet`→尼德米特、`Feng`→老冯）映射为中文显示；未收录角色名兜底原样；
+  - **无可写条件特质直接获得**：has 为复杂表达式/函数判定（如 `playerIsPregnant() and ...`）、`isnot + 字符串值`（`"none"`/`"prospective"`）等**无法通过写变量满足**的特质，原先提示「该特质无可写条件（只读展示）」点「获取」无效果；现改为**直接获得**：点「获取」记入强制获得标记（面板内视为已获得），「移除」清除标记恢复原状；可写条件特质仍走变量写入，不受影响；
+  - **验证**：全量回归通过（新增 37.5 节 5 条系列渲染断言 + 40 节 20 条角色映射/系列 API/强制获得断言）。
+
+- **v1.8.3（2026-10-19 · 面板标题版本号动态化）**：
+  - **修复遗留问题**：面板标题「剧情条件解锁面板 v1.2」为写死字符串，自 v1.2 后未随版本更新（用户看到的版本号始终是 v1.2）；
+  - **修复**：新增 `MCE_VERSION` 常量（源码单一事实源），标题改为动态拼接 `剧情条件解锁面板 v + MCE_VERSION`，今后每次发布只需同步常量与 boot.json；
+  - **验证**：全量回归通过（新增断言：面板标题包含当前版本号）。
 
 - **v1.8.2（2026-10-18 · 特质按分类折叠收起，面板不再过长）**：
   - 用户反馈：170 条特质全部平铺太长。**特质管理区改为分类折叠**——同类型特质收在一起，每类只有一行标题（▸ 分类名＋数量，如「▸ 一般特质（65）」），默认收起；点击标题展开/收起（▾/▸ 切换），展开才显示该类全部特质行；
@@ -124,7 +145,7 @@
   - **动态发现三通道**：注册制 `setup.mbCE_modCheats = [...]`（外部模组按约定格式自注册可操控项）→ 内置适配器 `CHEAT_ADAPTERS`（内建 detect 探测）→ 被动探测 `CHEAT_PASSIVE_PROBES`；每次渲染面板/切换时重扫，新增模组自动出现，无需硬编码；
   - **防崩与幂等**：写入前校验父级对象链（缺失即拒，绝不写 undefined）；数字校验 isFinite + min/max 钳制、布尔归一化、字符串数组列表型（list）追加/移除；原版变量/未声明项一律拒绝并页面提示；
   - **操作留痕**：所有修改记入 `V.mbCE_wrote`（key=`cheat:模组ID:操作:条目`，含 modId/op/path/before/after/t），每项控件带「回退」按钮，还原首次面板写入前状态，二次回退拒绝；
-  - **内置适配器（首版）**：More Love Interests Mod 0.1.7.0——探测键 `setup.foodPreference`（模组无条件注入，卸载即消失），可操控项：扩容恋人列表 `$loveInterestList`（11 槽，勾选候选 NPC 加入/移出，模组自身的条件剔除逻辑如 Remy/Black Wolf/Avery 由模组 widget 照常执行）；`$loveInterest.primary..undecimal` 由模组 widget 从列表自动重建，面板不直接写；
+  - **内置适配器（首版）**：More Love Interests Mod 0.1.8.0——探测键 `setup.foodPreference`（模组无条件注入，卸载即消失），可操控项：扩容恋人列表 `$loveInterestList`（11 槽，勾选候选 NPC 加入/移出，模组自身的条件剔除逻辑如 Remy/Black Wolf/Avery 由模组 widget 照常执行）；`$loveInterest.primary..undecimal` 由模组 widget 从列表自动重建，面板不直接写；
   - 222 项断言调用回归全过（新增第 18 节 35 条：动态扫描/标准化/子页面隔离/父级缺失防崩/原版过滤/数值钳制/布尔归一/留痕结构/回退/任务跳过完成/阶段钳制跳级回退/能力启停/剧情三动作/列表追加移除回退/适配器探测与写入/重扫）。
 - **v1.3.5（2026-10-15 · 格威岚场景直达崩溃闭环）**：
   - **现象**：新存档（只装框架 + 本 MOD）在场景直达页点「格威岚 · 花园与森林商店」直达后，多瑙河街/花园段落报 `<<if>>: bad conditional expression ... reading 'includesAny'`（`<<if _gwylanStatus.includesAny("wounded", "scarred")>>`）与 `reading 'tail'`（`<<if ... _gwylanTF.tail isnot "revealed">>`）；
@@ -308,3 +329,78 @@ MapleBirchCE.mod.zip
 ```
 
 依赖声明（boot.json `dependenceInfo`）：`ModLoader >=2.0.0`、`GameVersion >=0.5.12.13`、`maplebirch >=5.4.2`。
+
+## 开发与工程化（v1.9.0 工具链）
+
+源码仓库采用**开发多文件 + 构建合并单文件**模式，交付物结构不变：
+
+```
+MapleBirchCE/（git 源码真相源）
+├── javascript/
+│   ├── src/                       # 开发源，按功能域拆 17 段（改代码改这里）
+│   │   ├── 00-preamble.js         # 顶部版本注释 + IIFE 头
+│   │   ├── 01-core.js             # 基础：版本号/框架解析/数值/中文/角色枚举/数值读写
+│   │   ├── 02-romance.js          # 恋爱剧情阶段 + 转化阶段
+│   │   ├── 03-global.js           # 全局批量（格威岚防崩/属性中英映射）
+│   │   ├── 04-modcheat.js         # Mod作弊适配器 + 通用写入执行器 + 回退
+│   │   ├── 05-modcheat-ui.js      # Mod作弊动态发现 + 渲染 + 玩家属性编辑
+│   │   ├── 06-traits.js           # 特质管理：静态表/编译/系列合并/强制获得/渲染
+│   │   ├── 07a-shell.js           # 面板基础：CSS/el/injectCSS/setStatus/标签切换
+│   │   ├── 07b-char.js            # 角色一览卡片
+│   │   ├── 07c-stage.js           # 阶段页数据卡 + 内层标签
+│   │   ├── 07d-places.js          # 特殊场景直达（8 组）
+│   │   ├── 07e-scenes.js          # 剧情数据层：场景注册表解析/求值/一键完成
+│   │   ├── 07f-pins.js            # 固定触发 + 段落钩子 + 农场/庄园/格威岚防崩兜底
+│   │   ├── 07g-romance.js         # 恋爱/转化阶段渲染
+│   │   ├── 07h-render.js          # 剧情页渲染 + 全局页
+│   │   ├── 08-npc-traits.js       # NPC 特质表与获取
+│   │   └── 09-exports.js          # render/init/mountApi + 导出区 + IIFE 尾
+│   └── maplebirchce.js            # 构建产物（build 生成，勿手改）
+├── tools/
+│   ├── build_js.js                # 拼接 src → 单文件（--sync-pkg <打包源> 顺手同步）
+│   ├── split_js.js                # 全文件切分脚本（重建 SHA 自检；07 段再拆已并入 07a-07h）
+│   ├── audit_adapters.js          # 模组升级核对：扫描第三方模组源码 V 路径 vs 适配器声明
+│   ├── resolve_missing.js         # 缺失条目自动定案：对 audit 报告的每项自动判 KEEP/REVIEW/REMOVE（见下）
+│   ├── check_framework_api.js     # 框架兼容性核对：框架新版 inject_early.js 中 CE 依赖的 API 是否保留
+│   ├── check_mod_updates.js       # 模组更新检测：GitHub Releases 最新版 vs 适配器声明（每日定时任务调用）
+│   ├── run_all.ps1                # 一键验证链（见下）
+│   └── install-hooks.ps1          # 安装 pre-commit 钩子（core.hooksPath → githooks/）
+├── githooks/
+│   └── pre-commit                 # 提交前自动跑一键验证链，失败阻止提交
+├── tests/
+│   ├── smoke_dom.js               # jsdom 浏览器级 DOM 冒烟（真实 DOM 语义）
+│   ├── test_mce.js                # 全量回归（570+ 断言，读 git 源构建产物，可用 MCE_PKG_JS 覆盖）
+│   └── package.json               # jsdom 依赖
+└── README.md
+```
+
+**一键验证**（日常改完代码只需一条命令）：
+
+```powershell
+.\tools\run_all.ps1            # build → 语法 → DOM 冒烟 → 全量回归
+.\tools\run_all.ps1 -Pkg <打包源目录>   # 额外把构建产物同步到打包源
+```
+
+**提交前自动验证**（推荐）：跑一次安装脚本，此后每次 `git commit` 自动先执行一键链，失败则阻止提交：
+
+```powershell
+.\tools\install-hooks.ps1      # 设置 core.hooksPath → githooks/（本地配置，新 clone 后需重跑一次）
+```
+
+`githooks/pre-commit` 随仓库提交；紧急绕过可用 `git commit --no-verify`（不推荐）。非 Windows 环境无 `powershell.exe` 时钩子自动跳过，不阻塞提交。
+
+**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令（或手动：build → check → smoke → 全量回归）→ 打包 `pack_v11.ps1` → `verify_v11.ps1`（boot 版本 + 包内 SHA == 构建产物）→ verifier 校验 → 交付。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
+
+**第三方模组升级核对（audit_adapters.js）**：模组发布新版后，运行
+`node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `SmartPhone`。
+
+**缺失条目自动定案（resolve_missing.js）**：`audit_adapters.js` 报出的"缺失"多为盲区假报（`this.state.xxx` 别名访问、twee 别名、动态键 `obj[_ordinand].leaf`），逐条人工 grep 验证很费时。运行
+`node tools/resolve_missing.js <适配器id> <新源码目录>` 自动判定每条缺失为 **KEEP**（源码确实存在，audit 误报）/ **REVIEW**（疑似存在需复核）/ **REMOVE**（零证据真缺失，模组删字段）。证据链六类：字面 V/$root 路径、连写 parent.leaf、父根定义块 leaf 类型/默认值、`this.state.leaf` + state 绑定属主校验、叶子键字符串/动态键、零证据。判定原则：宁可"存在"不误删，REMOVE 只给零证据或"属主不符+模块目录零出现"。已对枯木逢春 2.4.1（42 条全 KEEP，含 duties.completed）/ 归途之书 1.3.7（56 条全 KEEP，含 rite_round/faith_band/动态键）/ MLI 0.1.8.0（1 条 KEEP）实测，与人工 grep 结论一致。
+
+**框架兼容性核对（check_framework_api.js）**：maplebirchFramework 发布新版时，先下载新版 `.mod.zip` 解压出 `dist/inject_early.js`，运行
+`node tools/check_framework_api.js <inject_early.js 路径>` 核对 CE 运行时依赖的框架 API（`window.maplebirch` / `maplebirch.get` / `maplebirch.npc(.data)` / `maplebirch.temporary.traitLists`）是否全部保留。核心 API 全保留才把 `tools/check_mod_updates.js` 框架渠道的 `declOverride` 更新为新版本。已核对 5.4.12→**5.5.0**（2026-10-19）：核心 6 项全过，`setup.MapleBirch` 回退缺失无害（5.5.0 走 `window.maplebirch` 主路径，回退仅老环境兜底）。
+
+**v1.8.4 select.type 崩溃的防再犯体系**（三层）：
+- 源码已删除对 `<select>` 赋值只读 `type` 的代码（留注释警示）；
+- 单元测试 mock（`mkNode`）对 select 用 `Object.defineProperty` 复现只读 `type`（getter 返 "select-one"、setter 抛 TypeError），断言渲染树 select 只读；
+- DOM 冒烟把 jsdom 的 `HTMLSelectElement.prototype.type` patch 为抛错 setter（jsdom 原生赋值静默忽略、与真实浏览器不同），渲染玩家页/Mod作弊页时任何对 select.type 的赋值都会像真实浏览器一样抛错中断。

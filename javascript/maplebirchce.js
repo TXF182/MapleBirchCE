@@ -113,6 +113,8 @@
 	"use strict";
 
 	/* ============ 基础 ============ */
+	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
+	var MCE_VERSION = "1.8.6";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -158,7 +160,10 @@
 		"winter": "温特", "briar": "布莱尔", "mason": "梅森", "doren": "多伦",
 		"sam": "萨姆", "charlie": "查里", "mickey": "米奇", "harper": "哈珀",
 		"quinn": "奎恩", "darryl": "达里尔", "niki": "尼奇", "luna": "露娜", "raven": "渡鸦", "ivory wraith": "怨灵", "adian": "阿电",
-		"zephyr": "泽菲尔", "morgan": "摩根", "river": "瑞沃", "sirris": "西里斯", "night monster": "夜魔"
+		"zephyr": "泽菲尔", "morgan": "摩根", "river": "瑞沃", "sirris": "西里斯", "night monster": "夜魔",
+		/* v1.8.3：模组枚举角色中文映射（音译初版，可在游戏内按实际名称校对调整） */
+		"tsukihan": "月半", "rowan": "罗文", "adrian": "阿德里安", "marlow": "马洛",
+		"grant": "格兰特", "needmeet": "尼德米特", "feng": "老冯"
 	};
 	function displayName(name) {
 		try {
@@ -1205,7 +1210,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.3.4",
+			modName: "默示录：归途之书 v1.3.7",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -1320,7 +1325,7 @@
 		},
 		entry: {
 			modId: "more_love_interests",
-			modName: "More Love Interests Mod 0.1.7.0",
+			modName: "More Love Interests Mod 0.1.8.0",
 			tasks: [],
 			stages: [],
 			abilities: [],
@@ -1406,7 +1411,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.2.7",
+			modName: "枯木逢春 · Deadwood Reblooms 2.4.1",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -1466,7 +1471,6 @@
 				{ key: "sl_race_wins", name: "街头 · 公路赛胜场", varPath: "StreetLife.races.wins", type: "number", min: 0, max: 999 },
 				{ key: "sl_race_done", name: "街头 · 公路赛完赛次数", varPath: "StreetLife.races.completed", type: "number", min: 0, max: 999 },
 				{ key: "bt_ring", name: "鹰塔 · 金戒指类型（0 无/1 普通/2 镶宝石）", varPath: "BirdTower.ring.kept", type: "number", min: 0, max: 2 },
-				{ key: "ls_order", name: "校园 · 秩序值", varPath: "LifeSimulation.school.order", type: "number", min: 0, max: 100 },
 				{ key: "ls_student", name: "校园 · 学生支持", varPath: "LifeSimulation.school.studentSupport", type: "number", min: 0, max: 100 },
 				{ key: "ls_staff", name: "校园 · 教职支持", varPath: "LifeSimulation.school.staffSupport", type: "number", min: 0, max: 100 },
 				{ key: "ls_corruption", name: "校园 · 腐败值", varPath: "LifeSimulation.school.corruption", type: "number", min: 0, max: 100 },
@@ -2382,11 +2386,23 @@ function traitDisplayName(t, V) {
 	var out = zhTraitName(nm);
 	return out;
 }
+/* 强制获得标记（v1.8.3）：has 无可写条件变量的特质（复杂表达式/函数判定）无法通过写变量满足，
+   点「获取」时直接记入 V.mbCE_forcedTraits，面板内视为已获得；可移除（从标记列表删除）。 */
+function forcedTraitKey(t) {
+	return (t.cat ? String(t.cat) : "?") + "\u0001" + String(t.name || "");
+}
+function isForcedTrait(V, t) {
+	try {
+		var fl = V.mbCE_forcedTraits;
+		return Array.isArray(fl) && fl.indexOf(forcedTraitKey(t)) !== -1;
+	} catch (e) { return false; }
+}
 function traitOwned(t, V, C) {
+	if (isForcedTrait(V, t)) { return true; }
 	if (t.hasFn) { try { return !!t.hasFn(); } catch (e) { return false; } }
 	return traitEval(V, C, t.has);
 }
-/* 获取特质：has 全部比较变量写满足值；includes 目标 push 进数组 */
+/* 获取特质：has 全部比较变量写满足值；includes 目标 push 进数组；无可写条件 → 强制获得标记 */
 function grantTrait(t, V, C) {
 	var info = parseTraitHas(t.has);
 	var wrote = [];
@@ -2404,17 +2420,37 @@ function grantTrait(t, V, C) {
 		var w = traitWriteSatisfy(V, v.path, v.op, v.val);
 		if (w) { wrote.push(w); }
 	});
+	/* 无可写条件（复杂表达式/函数判定/isnot 字符串值）→ 直接获得：记入强制标记 */
+	if (!wrote.length) {
+		try {
+			if (!V.mbCE_forcedTraits || !Array.isArray(V.mbCE_forcedTraits)) { V.mbCE_forcedTraits = []; }
+			var fk = forcedTraitKey(t);
+			if (V.mbCE_forcedTraits.indexOf(fk) === -1) {
+				V.mbCE_forcedTraits.push(fk);
+				wrote.push("mbCE_forcedTraits+" + (t.name || fk));
+			} else {
+				wrote.push("mbCE_forcedTraits+" + (t.name || fk) + "(已有)");
+			}
+		} catch (e) { wrote.push("(强制获得失败) " + (e && e.message ? e.message : e)); }
+	}
 	return wrote;
 }
-/* 移除特质：主变量（第一个比较变量）写回不满足值 */
+/* 移除特质：先清强制获得标记（若有）；再主变量（第一个比较变量）写回不满足值 */
 function revokeTrait(t, V, C) {
 	var info = parseTraitHas(t.has);
 	var wrote = [];
+	if (isForcedTrait(V, t)) {
+		try {
+			var fl = V.mbCE_forcedTraits;
+			var idx = fl.indexOf(forcedTraitKey(t));
+			if (idx !== -1) { fl.splice(idx, 1); wrote.push("mbCE_forcedTraits-" + (t.name || forcedTraitKey(t))); }
+		} catch (e) {}
+	}
 	if (info.includes) {
 		var arr = safeGetObj(V, "backgroundTraits");
 		if (Array.isArray(arr)) {
-			var idx = arr.indexOf(info.includes);
-			if (idx !== -1) { arr.splice(idx, 1); wrote.push("backgroundTraits-" + info.includes); }
+			var idx2 = arr.indexOf(info.includes);
+			if (idx2 !== -1) { arr.splice(idx2, 1); wrote.push("backgroundTraits-" + info.includes); }
 		}
 	}
 	if (info.vars.length) {
@@ -2495,6 +2531,86 @@ function discoverModTraits() {
 	} catch (e) {}
 	return out;
 }
+/* v1.8.3：同系列不同阶段特质合并（如受虐狂 4 档 / 施虐狂 4 档 / 各科成绩 4 档）——
+   识别依据：同一分类下 has 表达式只含一个数字比较变量（is/gte/gt N），同变量归为一组，按阈值排序。
+   渲染为「阶段下拉 + 应用 + 跳至最高 + 回退初始」，对齐 Mod作弊 子页阶段控件。 */
+var TRAIT_SERIES_CN = {
+	"masochism_level": "受虐狂", "sadism_level": "施虐狂",
+	"sciencetrait": "科学成绩", "mathstrait": "数学成绩", "englishtrait": "语文成绩",
+	"historytrait": "历史成绩", "schooltrait": "在校表现"
+};
+function groupTraitSeries(vanilla) {
+	var groups = {};
+	vanilla.forEach(function (t) {
+		var v = t.parsed && t.parsed.vars;
+		if (!v || v.length !== 1) { return; }
+		var v0 = v[0];
+		if ((v0.op !== "is" && v0.op !== "gte" && v0.op !== "gt") || isNaN(parseFloat(String(v0.val).replace(/["']/g, "")))) { return; }
+		var key = t.cat + "\u0001" + v0.path;
+		(groups[key] = groups[key] || []).push({ t: t, path: v0.path, val: parseFloat(String(v0.val).replace(/["']/g, "")) });
+	});
+	var out = [];
+	Object.keys(groups).forEach(function (k) {
+		var g = groups[k];
+		if (g.length >= 2) {
+			g.sort(function (a, b) { return a.val - b.val; });
+			out.push({ cat: g[0].t.cat, path: g[0].path, series: g });
+		}
+	});
+	out.sort(function (a, b) { return a.series[0].val - b.series[0].val; });
+	return out;
+}
+function traitSeriesName(series) {
+	var base = TRAIT_SERIES_CN[series.path];
+	if (base) { return base; }
+	return traitDisplayName(series.series[0].t, getV());
+}
+/* 系列行渲染：系列名 + 阶段下拉（无/各档位）+ 应用 + 跳至最高 + 回退初始 */
+function renderTraitSeriesRow(body, series, V) {
+	var V2 = V || getV();
+	var seriesName = traitSeriesName(series);
+	var cur = safeGetObj(V2, series.path);
+	var curNum = (typeof cur === "number" && isFinite(cur)) ? cur : null;
+	var curTier = -1, i;
+	for (i = 0; i < series.series.length; i++) {
+		if (series.series[i].val === curNum) { curTier = i; break; }
+	}
+	var sel = el("select", "mce-sel");
+	/* 注意：HTMLSelectElement.type 是只读 getter，不能赋值（赋了真实浏览器抛
+	   "Cannot set property type of #<HTMLSelectElement>"）；select 也不需要 type */
+	var opt0 = el("option", "", "无（未获得）");
+	opt0.value = "0";
+	sel.appendChild(opt0);
+	series.series.forEach(function (item, idx) {
+		var o = el("option", "", traitDisplayName(item.t, V2) + "（" + item.val + "）");
+		o.value = String(item.val);
+		sel.appendChild(o);
+	});
+	sel.value = String(curTier >= 0 ? series.series[curTier].val : 0);
+	var lbl = el("span", "mce-row-lbl", seriesName + "（当前 " + (curTier >= 0 ? traitDisplayName(series.series[curTier].t, V2) : "无") + "）");
+	var bApp = el("button", "", "应用"); bApp.type = "button";
+	bApp.addEventListener("click", function () {
+		var v = parseFloat(sel.value);
+		if (isNaN(v)) { v = 0; }
+		var res = traitWriteValue(series.series[0].t, V2, series.path, String(v));
+		actPlayer(res);
+	});
+	var bMax = el("button", "", "跳至最高"); bMax.type = "button";
+	bMax.addEventListener("click", function () {
+		var v = series.series[series.series.length - 1].val;
+		var res = traitWriteValue(series.series[0].t, V2, series.path, String(v));
+		actPlayer(res);
+	});
+	var bInit = el("button", "", "回退初始"); bInit.type = "button";
+	bInit.addEventListener("click", function () {
+		/* 回退初始 = 写 0（无阶段），不依赖留痕（保证从未改过也能回退） */
+		var res = traitWriteValue(series.series[0].t, V2, series.path, "0");
+		actPlayer(res);
+	});
+	var row = el("div", "mce-row");
+	row.appendChild(lbl); row.appendChild(sel); row.appendChild(bApp); row.appendChild(bMax); row.appendChild(bInit);
+	body.appendChild(row);
+}
 /* 特质管理区渲染：原版分类（静态表）+ 模组特质分类（运行时发现） */
 function renderTraitsSection(pane, V, C) {
 	var wrap = el("div", "mce-grp");
@@ -2523,8 +2639,15 @@ function renderTraitsSection(pane, V, C) {
 		groups[zhCat] = g;
 		return g;
 	}
+	/* 系列识别：同变量多档位特质 → 合并为一行（阶段下拉），不再逐条平铺 */
+	var seriesGroups = groupTraitSeries(vanilla);
+	var seriesKeys = {};
+	seriesGroups.forEach(function (s) {
+		s.series.forEach(function (item) { seriesKeys[item.t.cat + "\u0001" + String(item.t.name || "")] = true; });
+	});
 	/* 原版按分类分组渲染（同分类同中文名去重：原版 widget 多段/函数名同语义只显示一行） */
 	vanilla.forEach(function (t) {
+		if (seriesKeys[t.cat + "\u0001" + String(t.name || "")]) { return; }
 		var nameZh = traitDisplayName(t, V);
 		if (q && nameZh.toLowerCase().indexOf(q) === -1 && String(t.name || "").toLowerCase().indexOf(q) === -1) { return; }
 		var key = t.cat + "\u0001" + nameZh;
@@ -2534,6 +2657,15 @@ function renderTraitsSection(pane, V, C) {
 		var g = bodyFor(zhCat, "");
 		g.count++;
 		renderTraitRow(g.body, t, V, C, false);
+	});
+	/* 系列行渲染（放入所属分类组；搜索时按系列名过滤） */
+	seriesGroups.forEach(function (s) {
+		var seriesName = traitSeriesName(s);
+		if (q && seriesName.toLowerCase().indexOf(q) === -1) { return; }
+		var zhCat = TRAIT_ZH_CAT[s.cat] || s.cat;
+		var g = bodyFor(zhCat, "");
+		g.count++;
+		renderTraitSeriesRow(g.body, s, V);
 	});
 	/* 模组特质分类（按 title 分组，同分类同中文名去重） */
 	modTraits.forEach(function (t) {
@@ -4611,7 +4743,7 @@ function renderPlayerEdit() {
 		root.id = "mce-root";
 
 		var header = el("div", "mce-header");
-		header.appendChild(el("span", "mce-title", "剧情条件解锁面板 v1.2"));
+		header.appendChild(el("span", "mce-title", "剧情条件解锁面板 v" + MCE_VERSION));
 		var minBtn = el("button", "mce-min", "收起");
 		minBtn.type = "button";
 		minBtn.title = "收起";
@@ -4782,6 +4914,7 @@ function renderPlayerEdit() {
 				/* v1.8.0 玩家属性与特质管理 */
 				renderPlayerEdit: renderPlayerEdit,
 				compileVanillaTraits: compileVanillaTraits,
+				groupTraitSeries: groupTraitSeries, traitSeriesName: traitSeriesName,
 				discoverModTraits: discoverModTraits,
 				traitOwned: traitOwned,
 				grantTrait: grantTrait,
