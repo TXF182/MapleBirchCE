@@ -1,14 +1,15 @@
-# Maplebirch CE · 全局全自动剧情条件解锁（v1.8.6 · 适配器同步枯木逢春 2.4.1/归途之书 1.3.7/MLI 0.1.8.0 · 每日模组更新自动检测 · 修复系列行 select 崩溃 · 同阶段特质合并 · 模组角色中文映射 · 无可写条件直接获得 · 面板标题版本号动态化 · 特质分类折叠 · 特质全中文映射 · 原版 170 特质全收录 · 模组特质自动发现 · 游戏属性面板快捷编辑 · 场景直达 8 组 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
+# Maplebirch CE · 全局全自动剧情条件解锁（v1.8.6 · 适配器同步枯木逢春 2.4.2/归途之书 1.3.8/框架 5.5.1/MLI 0.1.8.0 · 每日模组更新自动检测 · 修复系列行 select 崩溃 · 同阶段特质合并 · 模组角色中文映射 · 无可写条件直接获得 · 面板标题版本号动态化 · 特质分类折叠 · 特质全中文映射 · 原版 170 特质全收录 · 模组特质自动发现 · 游戏属性面板快捷编辑 · 场景直达 8 组 · 纯 JS 加载版 · 界面全中文 · 完整恋爱阶段 · 条件中文说明）
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
 ## 版本说明
 
 - **v1.8.6（2026-10-19 · 适配器同步三个模组最新版 + 每日模组更新自动检测）**：
-  - **适配器升级**：枯木逢春 2.2.7→**2.4.1**、归途之书 v1.3.4→**v1.3.7**、More Love Interests 0.1.7.0→**0.1.8.0**（GitHub Releases 最新版核对：2.4.1 下 `VanillaPlus.attitudes.ironWill/sadomasochist` 字面路径出现、与声明对上；1.3.7 缺失的 `faith_band/rite_round/candidates.*.agreed` 经源码实证均为 `this.state`/动态键别名盲区假报，声明无需改动；MLI 0.1.8.0 声明覆盖 100%）；
+  - **适配器升级（2026-10-20 追加）**：枯木逢春 2.4.1→**2.4.2**、归途之书 v1.3.7→**v1.3.8**、框架 5.5.0→**5.5.1**（自动检测检出后手动同步：2.4.2/1.3.8 全量 audit + resolve_missing 定案 42/56 条全 KEEP，声明无删除；2.4.2 新增 `Finance.orphanage.avery_adoption_refused`（艾弗里收养拒绝标记，源码 `Finance/Orphanage.ts` 实证），补录为「孤儿院 · 已拒绝艾弗里收养」能力；框架 5.5.1 `check_framework_api.js` 核对核心 6 项 API 全过，`setup.MapleBirch`/`maplebirch.patch` 缺失均为非 CE 依赖（CE 0 次调用 patch））；
+  - **适配器升级（首发）**：枯木逢春 2.2.7→**2.4.1**、归途之书 v1.3.4→**v1.3.7**、More Love Interests 0.1.7.0→**0.1.8.0**（GitHub Releases 最新版核对：2.4.1 下 `VanillaPlus.attitudes.ironWill/sadomasochist` 字面路径出现、与声明对上；1.3.7 缺失的 `faith_band/rite_round/candidates.*.agreed` 经源码实证均为 `this.state`/动态键别名盲区假报，声明无需改动；MLI 0.1.8.0 声明覆盖 100%）；
   - **移除过时声明**：枯木逢春 2.4.1 官方作弊面板已删除「校园秩序」字段（2.2.0 为 `{id:'order'}`，2.4.1 改为 studentSupport/staffSupport/corruption 三项，适配器早已声明）——删除 `LifeSimulation.school.order`，避免无效写入；
   - **自动检测机制**：`tools/check_mod_updates.js` 每日检测 **6 个渠道**（5 个适配模组：枯木逢春 / 归途之书 / DomRobin / More Love Interests / SmartPhone `ANLINSTUDIO/Degrees-of-Lewdity-DolSmartPhone` + 框架本体 `MaplebirchLeaf/SCML-DOL-maplebirchFramework`），GitHub Releases 最新版 vs 适配器声明版本（框架渠道对比"实测兼容版本"）；检出更新→自动下载源码→audit 核对→缺失条目自动定案（resolve_missing.js）→更新适配器→全链测试→汇报（不打包不发版，需另行确认）；框架检出更新时先跑 `check_framework_api.js` 核对 CE 依赖的框架 API 全保留、确认兼容后才更新兼容版本记录；已创建每日 21:15 定时任务；
-  - **验证**：全量回归通过（21.1 数值分组 21→20、31.1 声明 v1.3.7、32.1 声明 2.4.1、37.2 面板标题 v1.8.6）。
+  - **验证**：全量回归通过（21.1 能力分组 14→15（2.4.2 补录拒绝收养）、31.1 声明 v1.3.8、32.1 声明 2.4.2、37.2 面板标题 v1.8.6）。
 
 - **v1.8.5（2026-10-19 · 修复严重 bug：特质管理区整体消失）**：
   - **修复**：v1.8.4 系列行渲染对 `<select>` 元素赋值只读属性 `type`（`sel.type = ""`），真实浏览器抛 `Cannot set property type of #<HTMLSelectElement> which has only a getter`，导致 `renderTraitsSection` 中断、整个「特质管理」区不显示。删除该赋值（select 不需要 type），特质区恢复；
