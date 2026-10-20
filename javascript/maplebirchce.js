@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.8.6";
+	var MCE_VERSION = "1.8.7";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1266,9 +1266,11 @@
 				  labels: ["现场", "战斗", "汇报"] }
 			],
 			abilities: [
-				{ key: "tc_joined", name: "唱诗班 · 已入团", varPath: "TempleChoir.joined", type: "boolean" },
+				{ key: "tc_joined", name: "唱诗班 · 已入团", varPath: "TempleChoir.joined", type: "boolean",
+				  note: "判定：唱诗班入团事件后为 true；勾选直接入团，跳过考核剧情" },
 				{ key: "tc_lead", name: "唱诗班 · 领唱资格", varPath: "TempleChoir.lead", type: "boolean" },
-				{ key: "rt_pendant", name: "罗宾神殿 · 携带挂坠", varPath: "RobinTemple.pendant", type: "boolean" },
+				{ key: "rt_pendant", name: "罗宾神殿 · 携带挂坠", varPath: "RobinTemple.pendant", type: "boolean",
+				  note: "判定：获得罗宾神殿挂坠后为 true；勾选视为已携带，挂坠相关剧情选项可触发" },
 				{ key: "rt_dual", name: "罗宾神殿 · 第二份誓约", varPath: "RobinTemple.dual_promise", type: "boolean" },
 				{ key: "rt_assess", name: "罗宾神殿 · 评估通过", varPath: "RobinTemple.assessment_passed", type: "boolean" },
 				{ key: "rt_clasp", name: "罗宾神殿 · 圣带装备", varPath: "RobinTemple.clasp_equipped", type: "boolean" },
@@ -1443,7 +1445,8 @@
 				{ key: "r_rebellion", name: "罗宾 · 反抗贝利路线", varPath: "RobinExpansion.rebellion", type: "boolean" },
 				{ key: "r_allies", name: "罗宾 · 已结成同盟", varPath: "RobinExpansion.allies", type: "boolean" },
 				{ key: "r_solidarity", name: "罗宾 · 团结结局线", varPath: "RobinExpansion.solidarity", type: "boolean" },
-				{ key: "r_bailey", name: "罗宾 · 贝利已击败", varPath: "RobinExpansion.bailey_defeated", type: "boolean" },
+				{ key: "r_bailey", name: "罗宾 · 贝利已击败", varPath: "RobinExpansion.bailey_defeated", type: "boolean",
+				  note: "反抗线终点：勾选视为已击败贝利，反抗路线结算剧情可直接进入" },
 				{ key: "r_shop", name: "罗宾 · 店铺已开张", varPath: "RobinExpansion.shop", type: "boolean" },
 				{ key: "r_tutor", name: "罗宾 · 家教业务开办", varPath: "RobinExpansion.tutor", type: "boolean" },
 				{ key: "r_fish_cooked", name: "罗宾 · 鲜鱼料理试做", varPath: "RobinExpansion.fish_cooked", type: "boolean" },
@@ -1453,8 +1456,10 @@
 				{ key: "bt_milk", name: "鹰塔 · 哺乳事件已触发", varPath: "BirdTower.seen.milk", type: "boolean" },
 				{ key: "clothes_stored", name: "校园 · 校服已存放", varPath: "LifeSimulation.school.clothesStored", type: "boolean" },
 				{ key: "vp_ironwill", name: "原版增强 · 铁意志特质", varPath: "VanillaPlus.attitudes.ironWill", type: "boolean" },
-				{ key: "vp_sadomaso", name: "原版增强 · 受虐狂特质", varPath: "VanillaPlus.attitudes.sadomasochist", type: "boolean" },
-				{ key: "f_avery_refused", name: "孤儿院 · 已拒绝艾弗里收养（2.4.2 新增）", varPath: "Finance.orphanage.avery_adoption_refused", type: "boolean" }
+				{ key: "vp_sadomaso", name: "原版增强 · 受虐狂特质", varPath: "VanillaPlus.attitudes.sadomasochist", type: "boolean",
+				  note: "2.2.7 新增特质：勾选直接获得，影响原版受虐狂相关判定" },
+				{ key: "f_avery_refused", name: "孤儿院 · 已拒绝艾弗里收养（2.4.2 新增）", varPath: "Finance.orphanage.avery_adoption_refused", type: "boolean",
+				  note: "2.4.2 新增：勾选视为已拒绝艾弗里收养，孤儿院收养剧情将跳过" }
 			],
 			scenes: [],
 			values: [
@@ -1512,8 +1517,10 @@
 			abilities: [],
 			scenes: [],
 			values: [
-				{ key: "sp_photography", name: "摄影技能", varPath: "Phone.photography", type: "number", min: 0, max: 1000 },
-				{ key: "sp_task_danger", name: "危险任务模式（0 关 / 1 开）", varPath: "Phone.TaskDanger", type: "number", min: 0, max: 1 },
+				{ key: "sp_photography", name: "摄影技能", varPath: "Phone.photography", type: "number", min: 0, max: 1000,
+				  note: "摄影技能 0-1000：写值后立即生效，影响摄影相关剧情判定" },
+				{ key: "sp_task_danger", name: "危险任务模式（0 关 / 1 开）", varPath: "Phone.TaskDanger", type: "number", min: 0, max: 1,
+				  note: "模组以 ===1 严格判断：只可写 0/1，勿写 boolean true（会破坏判断）" },
 				{ key: "sp_feng_meet", name: "已初遇老冯（0/1）", varPath: "Phone.FengMeeet", type: "number", min: 0, max: 1 },
 				{ key: "sp_feng_giveup", name: "已放弃老冯线（0/1）", varPath: "Phone.MetFengGiveup", type: "number", min: 0, max: 1 },
 				{ key: "sp_second_known", name: "已发现老冯二手店（0/1）", varPath: "Phone.SecondShopKnown", type: "number", min: 0, max: 1 },
@@ -1881,6 +1888,18 @@
 			box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId); });
 			row.appendChild(box);
 			row.appendChild(el("span", "mce-row-lbl", "能力 · " + (a.name || a.key) + (a.varPath ? "（" + a.varPath + "）" : "")));
+			/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
+			var det = el("details", "mce-ab-detail");
+			det.appendChild(el("summary", "mce-ab-sum", "说明"));
+			var body = el("div", "mce-ab-body");
+			if (a.varPath) { body.appendChild(el("div", "", "写入路径：" + a.varPath)); }
+			body.appendChild(el("div", "", "类型：" + (a.type || "boolean")));
+			if (a.type === "number" && (a.min !== undefined || a.max !== undefined)) {
+				body.appendChild(el("div", "", "钳制范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
+			}
+			if (a.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + a.note)); }
+			det.appendChild(body);
+			row.appendChild(det);
 			g.appendChild(row);
 		});
 		pane.appendChild(g);
@@ -1951,6 +1970,18 @@
 			var und = el("button", "", "回退"); und.type = "button";
 			und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key), m.modId); });
 			row.appendChild(und);
+			/* v1.8.7 数值项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
+			var det = el("details", "mce-ab-detail");
+			det.appendChild(el("summary", "mce-ab-sum", "说明"));
+			var body = el("div", "mce-ab-body");
+			if (it.varPath) { body.appendChild(el("div", "", "写入路径：" + it.varPath)); }
+			body.appendChild(el("div", "", "类型：" + (it.type || "number")));
+			if (typeof it.min === "number" || typeof it.max === "number") {
+				body.appendChild(el("div", "", "钳制范围：" + (typeof it.min === "number" ? it.min : "-∞") + " ~ " + (typeof it.max === "number" ? it.max : "∞")));
+			}
+			if (it.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + it.note)); }
+			det.appendChild(body);
+			row.appendChild(det);
 			g.appendChild(row);
 		});
 		pane.appendChild(g);
@@ -2878,7 +2909,13 @@ function renderPlayerEdit() {
 		".mce-row button{background:#181818;color:#ccc;border:1px solid #3a3a3a;border-radius:2px;padding:3px 8px;cursor:pointer;font-size:12px;font-family:inherit}" +
 		".mce-row button:hover{border-color:#d4a73c;color:#d4a73c}" +
 		".mce-inp{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 6px;font-size:12px;width:90px;font-family:Consolas,Menlo,monospace}" +
-		".mce-sel{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 4px;font-size:12px;font-family:inherit}";
+		".mce-sel{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 4px;font-size:12px;font-family:inherit}" +
+		/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档） */
+		".mce-ab-detail{margin-left:4px;font-size:11px}" +
+		".mce-ab-sum{cursor:pointer;color:#8a8a8a;user-select:none;display:inline-block}" +
+		".mce-ab-sum:hover{color:#f0d070}" +
+		".mce-ab-body{background:#141414;border:1px solid #2a2a2a;border-radius:2px;padding:5px 8px;margin-top:3px;color:#b9b9b9;line-height:1.7;min-width:220px}" +
+		".mce-ab-note{color:#8a6d3b;margin-top:2px}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }

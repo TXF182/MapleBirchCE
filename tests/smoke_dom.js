@@ -120,6 +120,13 @@ const detailTxt = document.querySelector('[data-pane="mods"]').textContent;
 assert(detailTxt.indexOf("店铺开办阶段") !== -1, "枯木逢春子页面渲染阶段控件，实际 " + detailTxt.slice(0, 200));
 const dSelects = document.querySelector('[data-pane="mods"]').querySelectorAll("select");
 assert(dSelects.length >= 1 && dSelects[0].type === "select-one", "子页面阶段下拉 select 只读 select-one，实际 " + dSelects.length + " 个");
+/* v1.8.7 能力/数值项说明折叠（学 CE 逐项数值文档） */
+const abDetails = document.querySelector('[data-pane="mods"]').querySelectorAll(".mce-ab-detail");
+assert(abDetails.length >= 1, "能力/数值行渲染「说明」折叠（≥1），实际 " + abDetails.length);
+const abFirst = abDetails[0].textContent || "";
+assert(abFirst.indexOf("写入路径：") !== -1 && abFirst.indexOf("类型：") !== -1, "说明折叠含 写入路径+类型，实际 " + abFirst.slice(0, 80));
+const detailTxt2 = document.querySelector('[data-pane="mods"]').textContent;
+assert(detailTxt2.indexOf("说明：") !== -1, "note 手写说明已渲染，实际 " + detailTxt2.slice(0, 300));
 
 /* ---------- 6. 属性面板快捷编辑（quickWrite 顶层键） ---------- */
 const r = api.quickWrite("purity", "15");

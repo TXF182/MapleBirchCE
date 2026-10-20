@@ -232,6 +232,18 @@
 			box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId); });
 			row.appendChild(box);
 			row.appendChild(el("span", "mce-row-lbl", "能力 · " + (a.name || a.key) + (a.varPath ? "（" + a.varPath + "）" : "")));
+			/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
+			var det = el("details", "mce-ab-detail");
+			det.appendChild(el("summary", "mce-ab-sum", "说明"));
+			var body = el("div", "mce-ab-body");
+			if (a.varPath) { body.appendChild(el("div", "", "写入路径：" + a.varPath)); }
+			body.appendChild(el("div", "", "类型：" + (a.type || "boolean")));
+			if (a.type === "number" && (a.min !== undefined || a.max !== undefined)) {
+				body.appendChild(el("div", "", "钳制范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
+			}
+			if (a.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + a.note)); }
+			det.appendChild(body);
+			row.appendChild(det);
 			g.appendChild(row);
 		});
 		pane.appendChild(g);
@@ -302,6 +314,18 @@
 			var und = el("button", "", "回退"); und.type = "button";
 			und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key), m.modId); });
 			row.appendChild(und);
+			/* v1.8.7 数值项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
+			var det = el("details", "mce-ab-detail");
+			det.appendChild(el("summary", "mce-ab-sum", "说明"));
+			var body = el("div", "mce-ab-body");
+			if (it.varPath) { body.appendChild(el("div", "", "写入路径：" + it.varPath)); }
+			body.appendChild(el("div", "", "类型：" + (it.type || "number")));
+			if (typeof it.min === "number" || typeof it.max === "number") {
+				body.appendChild(el("div", "", "钳制范围：" + (typeof it.min === "number" ? it.min : "-∞") + " ~ " + (typeof it.max === "number" ? it.max : "∞")));
+			}
+			if (it.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + it.note)); }
+			det.appendChild(body);
+			row.appendChild(det);
 			g.appendChild(row);
 		});
 		pane.appendChild(g);

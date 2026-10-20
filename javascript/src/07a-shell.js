@@ -94,7 +94,13 @@
 		".mce-row button{background:#181818;color:#ccc;border:1px solid #3a3a3a;border-radius:2px;padding:3px 8px;cursor:pointer;font-size:12px;font-family:inherit}" +
 		".mce-row button:hover{border-color:#d4a73c;color:#d4a73c}" +
 		".mce-inp{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 6px;font-size:12px;width:90px;font-family:Consolas,Menlo,monospace}" +
-		".mce-sel{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 4px;font-size:12px;font-family:inherit}";
+		".mce-sel{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 4px;font-size:12px;font-family:inherit}" +
+		/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档） */
+		".mce-ab-detail{margin-left:4px;font-size:11px}" +
+		".mce-ab-sum{cursor:pointer;color:#8a8a8a;user-select:none;display:inline-block}" +
+		".mce-ab-sum:hover{color:#f0d070}" +
+		".mce-ab-body{background:#141414;border:1px solid #2a2a2a;border-radius:2px;padding:5px 8px;margin-top:3px;color:#b9b9b9;line-height:1.7;min-width:220px}" +
+		".mce-ab-note{color:#8a6d3b;margin-top:2px}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }
