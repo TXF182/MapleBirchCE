@@ -2014,7 +2014,7 @@ function qsAll37(node, sel, out) {
 }
 // ============ 第 37 节：玩家自己页渲染（v1.8.0 特质管理替代玩家属性/模组属性区；中文显示、写入原键名） ============
 // 37.2) DOM mock：重新 eval 初始化面板（含 mock 模组特质注入：maplebirch.temporary.traitLists）
-global.window = { maplebirch: { npc: {}, temporary: { traitLists: [ { title: "Book Traits", traits: [ { name: "命运之轮", has: function () { return false; }, text: "转吧，命运之神。" } ] } ] } } };
+global.window = { maplebirch: { npc: {}, temporary: { traitLists: [ { title: "Book Traits", traits: [ { name: "命运之轮", has: function () { return false; }, text: "转吧，命运之神。" }, { name: "Acceptance: Small Penis", has: "$acceptance_penis_small gte 1000", text: "You're proud of your small penis." } ] } ] } } };
 V.player = { money: 500, name: "X", virginity: { temple: true, vaginal: true, penile: true }, penisExist: true };
 V.temple_burden = 0;
 delete V.RobinTemple; delete V.mbCE_wrote;
@@ -2050,6 +2050,23 @@ assert(txt37.indexOf("一般特质（") !== -1, "37.2b 分类标题带数量, �
 // 37.3) 模组特质自动发现：maplebirch.temporary.traitLists 注入的"命运之轮"出现在面板（自动收录）
 assert(txt37.indexOf("Book Traits（模组）") !== -1 && txt37.indexOf("命运之轮") !== -1, "37.3 模组特质分类+条目自动发现显示, 实际 " + txt37.slice(0, 400));
 assert(txt37.indexOf("（模组）") !== -1, "37.3 模组注入标记出现, 实际 " + txt37.slice(0, 400));
+// 37.3b) v1.8.11 模组特质可直接获取/移除：字符串判定写变量直接获得；函数判定走强制获得标记（不再只读）
+const mt37 = api37.discoverModTraits();
+assert(mt37.length === 2, "37.3b 自动发现 2 个模组特质（函数型+字符串型）, 实际 " + mt37.length);
+const fnTrait37 = mt37.filter(function (t) { return t.name.indexOf("命运之轮") !== -1; })[0];
+const strTrait37 = mt37.filter(function (t) { return t.name.indexOf("Small Penis") !== -1; })[0];
+assert(!!fnTrait37 && typeof fnTrait37.hasFn === "function" && fnTrait37.has === "", "37.3b 函数型 has 保留 hasFn（has 为空）");
+assert(!!strTrait37 && strTrait37.has === "$acceptance_penis_small gte 1000", "37.3b 字符串型 has 原样保留, 实际 " + (strTrait37 && strTrait37.has));
+const g37s = api37.grantTrait(strTrait37, V, null);
+assert(V.acceptance_penis_small === 1000, "37.3b 字符串型模组特质获取 → 写满足变量 acceptance_penis_small=1000, 实际 " + V.acceptance_penis_small);
+assert(api37.traitOwned(strTrait37, V, null) === true, "37.3b 字符串型获取后拥有判定 true");
+const r37s = api37.revokeTrait(strTrait37, V, null);
+assert(V.acceptance_penis_small === 0, "37.3b 字符串型移除 → 主变量写回不满足（gte 写 0）, 实际 " + V.acceptance_penis_small);
+const g37f = api37.grantTrait(fnTrait37, V, null);
+assert(Array.isArray(V.mbCE_forcedTraits) && V.mbCE_forcedTraits.length === 1 && api37.traitOwned(fnTrait37, V, null) === true, "37.3b 函数型模组特质强制获得标记 + 拥有判定 true, 实际 " + JSON.stringify(V.mbCE_forcedTraits));
+const r37f = api37.revokeTrait(fnTrait37, V, null);
+assert(!Array.isArray(V.mbCE_forcedTraits) || V.mbCE_forcedTraits.length === 0, "37.3b 函数型移除 → 强制标记清除");
+delete V.acceptance_penis_small; delete V.mbCE_forcedTraits;
 // 37.4) 特质写值仍用原键名：traitWriteValue 写 temple_burden（中文显示不影响写入路径）
 let w37 = api37.traitWriteValue(api37.compileVanillaTraits().filter(t => t.name === "Temple Burden: $temple_burden%")[0] || { name: "?" }, V, "temple_burden", "30");
 assert(w37.ok && V.temple_burden === 30, "37.4 特质写值 temple_burden=30 成功, 实际 " + V.temple_burden);

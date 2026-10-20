@@ -488,6 +488,9 @@ function discoverModTraits() {
 					cat: String(cat.title || "模组特质"),
 					name: (typeof t.name === "function") ? t.name() : String(t.name),
 					text: (typeof t.text === "function") ? String(t.text()) : String(t.text || ""),
+					/* v1.8.11：保留 has 字符串——字符串判定可复用 grant/revoke 写变量直接获得/移除；
+					   函数判定保留 hasFn，走强制获得标记路径 */
+					has: (typeof t.has === "string") ? t.has : "",
 					hasFn: (typeof t.has === "function") ? t.has : null,
 					mod: true
 				});
@@ -640,7 +643,7 @@ function renderTraitsSection(pane, V, C) {
 		if (seenM[key]) { return; }
 		seenM[key] = true;
 		var zhCat = TRAIT_ZH_CAT[t.cat] ? TRAIT_ZH_CAT[t.cat] + "（模组）" : (t.cat + "（模组）");
-		var g = bodyFor(zhCat, " · 模组注入（只读展示，可在模组自身页操作）");
+		var g = bodyFor(zhCat, " · 模组注入（自动发现，可直接获取/移除）");
 		g.count++;
 		renderTraitRow(g.body, t, V, C, true);
 	});
@@ -663,23 +666,24 @@ function renderTraitRow(grp, t, V, C, isMod) {
 	if (desc) {
 		row.appendChild(el("span", "mce-hint", String(desc).slice(0, 90) + (String(desc).length > 90 ? "…" : "")));
 	}
+	/* 获取 / 移除：原版与模组注入特质均可（v1.8.11 模组特质不再只读——
+	   字符串判定写变量直接获得/移除，函数判定走强制获得标记） */
+	var bG = el("button", "", owned ? "移除" : "获取");
+	bG.type = "button";
+	bG.addEventListener("click", function () {
+		var res;
+		if (owned) {
+			var w = revokeTrait(t, V, C);
+			res = { ok: w.length > 0, message: w.length ? "已移除「" + nameZh + "」：" + w.join("、") : "该特质无可移除的条件变量" };
+		} else {
+			var w2 = grantTrait(t, V, C);
+			res = { ok: w2.length > 0, message: w2.length ? "已获取「" + nameZh + "」：" + w2.join("、") : "该特质无可写条件（只读展示）" };
+		}
+		actPlayer(res);
+	});
+	row.appendChild(bG);
+	/* 数值可改（数字比较变量）：写入走 player-self 留痕通道 + 回退（仅原版特质有数值清单） */
 	if (!isMod) {
-		/* 获取 / 移除 */
-		var bG = el("button", "", owned ? "移除" : "获取");
-		bG.type = "button";
-		bG.addEventListener("click", function () {
-			var res;
-			if (owned) {
-				var w = revokeTrait(t, V, C);
-				res = { ok: w.length > 0, message: w.length ? "已移除「" + nameZh + "」：" + w.join("、") : "该特质无可移除的条件变量" };
-			} else {
-				var w2 = grantTrait(t, V, C);
-				res = { ok: w2.length > 0, message: w2.length ? "已获取「" + nameZh + "」：" + w2.join("、") : "该特质无可写条件（只读展示）" };
-			}
-			actPlayer(res);
-		});
-		row.appendChild(bG);
-		/* 数值可改（数字比较变量）：写入走 player-self 留痕通道 + 回退 */
 		t.values.forEach(function (v) {
 			var cur = safeGetObj(V, v.path);
 			var num = (typeof cur === "number") ? cur : 0;
