@@ -1136,14 +1136,14 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:do
 global.window = { maplebirch: { get: function (n) { return n === "DeadwoodReblooms" ? {} : undefined; } } };
 var dwd = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
 assert(dwd && dwd.declared === true, "21.1 探测命中：枯木逢春自动识别");
-assert(dwd.stages.length === 8 && dwd.abilities.length === 14 && dwd.values.length === 20, "21.1 分组齐全 阶段8/能力14/数值20（v1.8.6 移除 2.4.1 官方已删的校园秩序值）, 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
+assert(dwd.stages.length === 8 && dwd.abilities.length === 15 && dwd.values.length === 20, "21.1 分组齐全 阶段8/能力15/数值20（v1.8.7 补 2.4.2 新增的拒绝收养能力）, 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
 // 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus），
 //        不碰原版顶层键（rebellion/victories/self_rent/both_rent/rent_separated 等原版同名键均不声明）
 var dwdPaths = [];
 dwd.stages.concat(dwd.abilities).concat(dwd.values).forEach(function (it) { dwdPaths.push(it.varPath); });
 var dwdRoots = [];
 dwdPaths.forEach(function (p) { if (dwdRoots.indexOf(p.split(".")[0]) === -1) { dwdRoots.push(p.split(".")[0]); } });
-assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus"].indexOf(r) !== -1; }),
+assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance"].indexOf(r) !== -1; }),
 	"21.2 声明根键均为模组模块状态, 实际 [" + dwdRoots + "]");
 // 隔离补充：一级键全为模组模块根（V.RobinExpansion 等），绝不落到原版顶层键上；
 // rebellion/victories/self_rent 等在模组里只是 RobinExpansion 对象内的自建副本（模组从不读写原版顶层同名键，已 grep 实证）
@@ -1155,6 +1155,7 @@ V.RobinExpansion = { shop_stage: "none", balloon: "none", asylum: { status: "hom
 V.LifeSimulation = { school: { role: "student", attendanceExempt: false, baileySigned: false, order: 20, studentSupport: 20, staffSupport: 20, corruption: 0, clothesStored: false, dress: { active: "uniform", highest: "uniform" }, duties: { completed: 0 } }, historyProject: { status: "none" } };
 V.StreetLife = { reputation: 0, races: { wins: 0, completed: 0 } };
 V.BirdTower = { seen: { milk: false }, ring: { kept: 0 } };
+V.Finance = { orphanage: {} };
 api.setCheatStage("deadwood-reblooms", "r_shop_stage", "permitted");
 assert(V.RobinExpansion.shop_stage === "permitted", "21.3 店铺阶段写入 permitted, 实际 " + V.RobinExpansion.shop_stage);
 api.setCheatStage("deadwood-reblooms", "ls_role", "president");
@@ -1177,6 +1178,8 @@ api.toggleCheatAbility("deadwood-reblooms", "ls_exempt", true);
 assert(V.LifeSimulation.school.attendanceExempt === true, "21.5 免听凭证 true");
 api.toggleCheatAbility("deadwood-reblooms", "bt_milk", true);
 assert(V.BirdTower.seen.milk === true, "21.5 哺乳事件 true");
+api.toggleCheatAbility("deadwood-reblooms", "f_avery_refused", true);
+assert(V.Finance.orphanage.avery_adoption_refused === true, "21.5 已拒绝艾弗里收养 true（2.4.2 新增）");
 // 21.6) 数值钳制：储备金/口碑/戒指/腐败
 api.applyCheatModValue("deadwood-reblooms", "r_reserve", 9999999);
 assert(V.RobinExpansion.reserve === 1000000, "21.6 储备金钳制 1000000, 实际 " + V.RobinExpansion.reserve);
@@ -1704,7 +1707,7 @@ delete V.mbCE_wrote;
 V.LostLamb = { recalled: false, active: false, scene: "", doubt: 0, fear: 10, notice: 0, ending: "", talkVow: "", known: { bishop: false, gwylan: false, auriga: false } };
 V.TempleDuties = { enrolled: false, review: false, duties: 0, oath: "", bishop: "none", manor: "none", declaration: "private", watch: { phase: "threshold" }, case: { stage: "field" }, archive: { roof: -1, shelves: -1, sorted: 0 }, candidates: { Robin: { agreed: false }, Sydney: { agreed: false } } };
 var r31 = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
-assert(r31 && r31.modName.indexOf("归途之书") !== -1, "31.1 适配器声明升级 1.3.7, 实际 " + (r31 && r31.modName));
+assert(r31 && r31.modName.indexOf("归途之书") !== -1 && r31.modName.indexOf("1.3.8") !== -1, "31.1 适配器声明升级 1.3.8, 实际 " + (r31 && r31.modName));
 assert(r31.stages.filter(function (s) { return s.key === "ll_vow"; }).length === 1 && r31.stages.filter(function (s) { return s.key === "td_oath"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.watch.phase"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·守夜·案件阶段已收录");
@@ -1763,7 +1766,7 @@ delete V.LostLamb; delete V.TempleDuties; delete V.mbCE_wrote;
 V.RobinExpansion = { shop_stage: "none", asylum: { status: "home" } };
 V.VanillaPlus = { attitudes: { ironWill: true, sadomasochist: false } };
 var dw32 = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
-assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1, "32.1 适配器声明升级 2.4.1, 实际 " + (dw32 && dw32.modName));
+assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && dw32.modName.indexOf("2.4.2") !== -1, "32.1 适配器声明升级 2.4.2, 实际 " + (dw32 && dw32.modName));
 assert(dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.ironWill"; }).length === 1 &&
        dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.sadomasochist"; }).length === 1, "32.1 铁意志/受虐狂能力已收录");
 // 32.2) attitudes 能力读写
