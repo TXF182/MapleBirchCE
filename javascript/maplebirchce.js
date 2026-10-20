@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.8.8";
+	var MCE_VERSION = "1.8.9";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -695,8 +695,12 @@
 		var r = { fed: "", missed: false };
 		var man = V.avery_mansion;
 		try {
-			if (V.avery_fate === "saved" || V.avery_fate === "ascended") {
-				var fs = V.foodstuff;
+			if (V.avery_fate !== "saved" && V.avery_fate !== "ascended") {
+				/* v1.8.9 对齐 AutoClean 0.1.5：仅 fate=saved/ascended 时喂食；未达喂食阶段不操作（不计 dinner_missed） */
+				r.skipped = true;
+				return r;
+			}
+			var fs = V.foodstuff;
 				if (man && man.food && fs && fs[man.food] && fs[man.food].amount > 0) {
 					fs[man.food].amount -= 1; r.fed = man.food;
 				} else if (fs && fs.steak && fs.steak.amount > 0) { fs.steak.amount -= 1; r.fed = "steak"; }
@@ -721,10 +725,6 @@
 						r.missed = true;
 					} else { fs[foods[0][0]].amount -= 1; r.fed = foods[0][0]; }
 				}
-			} else {
-				if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
-				r.missed = true;
-			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
 	}
@@ -749,12 +749,10 @@
 					if (!(v > 0)) { return; }
 					/* 原版收获走 <<tending_give>> widget 发货给玩家；面板内尝试 SugarCube 通道（游戏中可用），失败仅清库存 */
 					try {
+						/* v1.8.9 对齐 AutoClean 0.1.5：遍历 stock 直接把键名传给 tending_give（truffles/eggs/milk/cream），
+						   不再做名字映射（原映射漏 cream 且键名可能不符原版） */
 						if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
-							var Tk = k;
-							if (k === "eggs") { Tk = "chicken_egg"; }
-							else if (k === "milk") { Tk = "bottle_of_milk"; }
-							else if (k === "truffles") { Tk = "truffle"; }
-							new window.SugarCube.Wikifier(null, "<<tending_give '" + Tk + "' " + v + ">>");
+							new window.SugarCube.Wikifier(null, "<<tending_give '" + k + "' " + v + ">>");
 						}
 					} catch (e2) {}
 					f.stock[k] = 0;
@@ -763,6 +761,27 @@
 			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
+	}
+
+	/* ============ v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，即时一键执行）
+	   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。
+	   数据层与 UI 分离：动作定义在此，08-npc-traits.js 只负责渲染按钮。 ============ */
+	var COMBAT_ACTIONS = [
+		{ key: "suicide", name: "自我了断", desc: "写 V.pain=1000", run: function (V) { V.pain = 1000; } },
+		{ key: "hero", name: "英雄不屈", desc: "pain=10，清空性奋/压力", run: function (V) { V.pain = 10; V.arousal = 0; V.stress = 0; } },
+		{ key: "extend", name: "延长战斗", desc: "敌方性奋 -500", run: function (V) { V.enemyarousal = (V.enemyarousal || 0) - 500; } },
+		{ key: "calm", name: "息事宁人", desc: "敌方性奋=上限", run: function (V) { V.enemyarousal = V.enemyarousalmax || 0; } },
+		{ key: "knockout", name: "一拳打飞", desc: "写 V.enemyhealth=0", run: function (V) { V.enemyhealth = 0; } },
+		{ key: "struggle", name: "结束挣扎", desc: "挣扎.done=number+1", run: function (V) { if (V.struggle) { V.struggle.done = V.struggle.number + 1; } } },
+		{ key: "tentacle", name: "结束触手", desc: "触手.active=0", run: function (V) { if (V.tentacles) { V.tentacles.active = 0; } } },
+		{ key: "cluster", name: "结束集群", desc: "战斗中生效：吞食计时/阶段/距离清零", run: function (V) { V.timer = 0; V.vorestage = 0; V.swimdistance = 0; } }
+	];
+	function mcCombatAction(key) {
+		var act = null, i;
+		for (i = 0; i < COMBAT_ACTIONS.length; i++) { if (COMBAT_ACTIONS[i].key === key) { act = COMBAT_ACTIONS[i]; break; } }
+		if (!act) { return { ok: false, message: "未知战斗操作：" + key }; }
+		try { act.run(getV()); return { ok: true, name: act.name }; }
+		catch (e) { return { ok: false, message: "执行失败：" + (e.message || e) }; }
 	}
 
 	/* ============ 扩展转化系统（MOD 独立系统，如 v0.1.880 的兔子/人鱼：
@@ -1659,7 +1678,7 @@
 	   状态键：V.WraithsReflection（恋爱总闸门=1）/ HelpAsk（米奇求助线 1-5）/ necklaceWR（项链持有 0-3）/
 	   necklaceThief（偷窃责任枚举，模组自身 Return Necklace 2 写入 "rreturn"（双 r）但约 6 处补丁只认 "return"——
 	   面板如实列出两种取值，写 "return" 覆盖面最全）/ AdmitMR / RefuseWR / SilverConchWR / SilverConchAsk /
-	   WRR / stealdailyMR。原版根（wraith.state="forgive"/weekly.wraithDate/dateCount.Wraith）一律不暴露。 */
+	   WRR / necklaceThiefWR（项链窃案·怨灵侧标记，并入探测）/ stealdailyMR。原版根（wraith.state="forgive"/weekly.wraithDate/dateCount.Wraith）一律不暴露。 */
 	CHEAT_ADAPTERS["wraiths-reflection"] = {
 		detect: function () {
 			try {
@@ -1776,9 +1795,12 @@
 				{ key: "ds_book_15", name: "图书馆 · 15 号书进度", varPath: "citylibrarybook_15", type: "number", min: 0, max: 1000 },
 				{ key: "ds_book_16", name: "图书馆 · 16 号书进度", varPath: "citylibrarybook_16", type: "number", min: 0, max: 1000 },
 				{ key: "ds_book_17", name: "图书馆 · 17 号书进度", varPath: "citylibrarybook_17", type: "number", min: 0, max: 1000 },
-				{ key: "ds_demon", name: "恶魔化进度（≥6 判定）", varPath: "demon", type: "number", min: 0, max: 10 },
-				{ key: "ds_angel", name: "天使化进度", varPath: "angel", type: "number", min: 0, max: 10 },
-				{ key: "ds_fallen", name: "堕落天使进度（≥2 判定）", varPath: "fallenangel", type: "number", min: 0, max: 10 },
+				{ key: "ds_demon", name: "恶魔化进度（≥6 判定）", varPath: "demon", type: "number", min: 0, max: 10,
+				  note: "DoLSims 复用原版转化键（demon），写此值会同时推进原版恶魔转化阶段" },
+				{ key: "ds_angel", name: "天使化进度", varPath: "angel", type: "number", min: 0, max: 10,
+				  note: "DoLSims 复用原版转化键（angel），写此值会同时推进原版天使转化阶段" },
+				{ key: "ds_fallen", name: "堕落天使进度（≥2 判定）", varPath: "fallenangel", type: "number", min: 0, max: 10,
+				  note: "DoLSims 复用原版转化键（fallenangel），写此值会同时推进原版堕落天使转化阶段" },
 				{ key: "ds_corruption", name: "世界软腐化（≥90 触发，时间钩子 -50）", varPath: "world_corruption_soft", type: "number", min: 0, max: 100 },
 				{ key: "ds_spray_skill", name: "喷雾枪熟练度", varPath: "weaponSprayGunSkillSims", type: "number", min: 0, max: 100 },
 				{ key: "ds_head_blackmail", name: "多伦 · 黑料掌握（0/1）", varPath: "headblackmailed", type: "number", min: 0, max: 1 }
@@ -4977,51 +4999,51 @@ function renderPlayerEdit() {
 		pane.appendChild(tbox);
 
 		/* v1.8.8：战斗终结（学 CombatTerminator 0.1：8 个战斗内一键按钮，直接写原版战斗值）。
-		   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。 */
+		   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。
+		   v1.8.9：动作定义下沉至 03-global.js（COMBAT_ACTIONS/mcCombatAction），UI 只负责渲染。 */
 		var btsec = el("div", "mce-section", "战斗终结（学 CombatTerminator 0.1：战斗中可用，直接写原版战斗值）");
 		pane.appendChild(btsec);
-		var btDefs = [
-			["自我了断", function (V) { V.pain = 1000; }, "写 V.pain=1000"],
-			["英雄不屈", function (V) { V.pain = 10; V.arousal = 0; V.stress = 0; }, "pain=10 清空性奋/压力"],
-			["延长战斗", function (V) { V.enemyarousal = (V.enemyarousal || 0) - 500; }, "敌方性奋 -500"],
-			["息事宁人", function (V) { V.enemyarousal = V.enemyarousalmax || 0; }, "敌方性奋=上限"],
-			["一拳打飞", function (V) { V.enemyhealth = 0; }, "写 V.enemyhealth=0"],
-			["结束挣扎", function (V) { if (V.struggle) { V.struggle.done = V.struggle.number + 1; } }, "挣扎.done=number+1"],
-			["结束触手", function (V) { if (V.tentacles) { V.tentacles.active = 0; } }, "触手.active=0"],
-			["结束集群", function (V) { V.timer = 0; V.vorestage = 0; V.swimdistance = 0; }, "吞食时间/阶段/距离清零"]
-		];
-		btDefs.forEach(function (d) {
+		btsec.appendChild(el("div", "mce-hint", "以下按钮直接写原版战斗值，建议战斗中生效；「结束集群」在战斗外会把游戏时钟拨回当日 0 点，请勿误点。"));
+		COMBAT_ACTIONS.forEach(function (d) {
 			var row = el("div", "mce-row");
-			row.appendChild(el("span", "mce-row-lbl", d[2]));
-			var btn = el("button", "mce-btn mce-gold", d[0]);
+			row.appendChild(el("span", "mce-row-lbl", d.desc));
+			var btn = el("button", "mce-btn mce-gold", d.name);
 			btn.type = "button";
 			btn.addEventListener("click", function () {
-				try { d[1](getV()); setStatus("已执行「" + d[0] + "」", "mce-ok"); }
-				catch (e) { setStatus("执行失败：" + (e.message || e), "mce-err"); }
+				var r = mcCombatAction(d.key);
+				setStatus(r.ok ? "已执行「" + r.name + "」" : r.message, r.ok ? "mce-ok" : "mce-err");
 			});
 			row.appendChild(btn);
 			btsec.appendChild(row);
 		});
 
-		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5：即时执行原模组每日 0 点的维护逻辑） */
+		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5：即时执行原模组每日 0 点的维护逻辑）
+		   v1.8.9：按钮改为 mce-row 结构（说明 + 按钮），与战斗终结区样式一致；投喂未达喂食阶段提示 skipped */
 		var acsec = el("div", "mce-section", "庄园自动维护（学 AutoClean 0.1.5：即时执行艾弗里投喂 + 农场维护）");
 		pane.appendChild(acsec);
-		var a1 = el("button", "mce-btn mce-gold", "一键投喂艾弗里（按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱）");
+		var a1row = el("div", "mce-row");
+		a1row.appendChild(el("span", "mce-row-lbl", "按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱；未达喂食阶段（关系未确立）不操作"));
+		var a1 = el("button", "mce-btn mce-gold", "一键投喂艾弗里");
 		a1.type = "button";
 		a1.addEventListener("click", function () {
 			var r = mcFeedAvery();
 			if (r.error) { setStatus("投喂失败：" + r.error, "mce-err"); return; }
-			setStatus(r.missed ? "无菜可喂，dinner_missed +1（艾弗里未达成喂食条件时同样计入）" : "已喂食：" + r.fed, r.missed ? "mce-err" : "mce-ok");
+			if (r.skipped) { setStatus("未达喂食阶段（艾弗里关系未到 saved/ascended），未操作", "mce-err"); return; }
+			setStatus(r.missed ? "无菜可喂，dinner_missed +1" : "已喂食：" + r.fed, r.missed ? "mce-err" : "mce-ok");
 		});
-		var a2 = el("button", "mce-btn mce-gold", "一键农场维护（塔卫≥1000 锁动物 30 / 清 agro / 库存收获并清零）");
+		a1row.appendChild(a1);
+		var a2row = el("div", "mce-row");
+		a2row.appendChild(el("span", "mce-row-lbl", "塔卫≥1000 锁四畜 30 / 清 agro / 库存收获并清零（与 AutoClean 每日 0 点逻辑一致）"));
+		var a2 = el("button", "mce-btn mce-gold", "一键农场维护");
 		a2.type = "button";
 		a2.addEventListener("click", function () {
 			var r = mcMaintainFarm();
 			if (r.error) { setStatus("维护失败：" + r.error, "mce-err"); return; }
 			setStatus("动物锁满 " + r.beasts + " 只" + (r.aggro ? "，agro 已清零" : "") + "，收获 " + r.harvested + " 类库存", "mce-ok");
 		});
-		acsec.appendChild(a1);
-		acsec.appendChild(a2);
+		a2row.appendChild(a2);
+		acsec.appendChild(a1row);
+		acsec.appendChild(a2row);
 	}
 
 	function render() {
@@ -5243,6 +5265,9 @@ function renderPlayerEdit() {
 				/* v1.8.8 庄园自动维护（学 AutoClean 0.1.5 原功能） */
 				mcFeedAvery: mcFeedAvery,
 				mcMaintainFarm: mcMaintainFarm,
+				/* v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，数据层动作） */
+				COMBAT_ACTIONS: COMBAT_ACTIONS,
+				mcCombatAction: mcCombatAction,
 				/* v1.4.5 角色一览恋爱候选过滤 */
 				isLoveCandidate: isLoveCandidate,
 				addLoveInterest: addLoveInterest,

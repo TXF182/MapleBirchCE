@@ -218,6 +218,9 @@
 				/* v1.8.8 庄园自动维护（学 AutoClean 0.1.5 原功能） */
 				mcFeedAvery: mcFeedAvery,
 				mcMaintainFarm: mcMaintainFarm,
+				/* v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，数据层动作） */
+				COMBAT_ACTIONS: COMBAT_ACTIONS,
+				mcCombatAction: mcCombatAction,
 				/* v1.4.5 角色一览恋爱候选过滤 */
 				isLoveCandidate: isLoveCandidate,
 				addLoveInterest: addLoveInterest,

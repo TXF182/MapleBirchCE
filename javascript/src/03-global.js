@@ -41,8 +41,12 @@
 		var r = { fed: "", missed: false };
 		var man = V.avery_mansion;
 		try {
-			if (V.avery_fate === "saved" || V.avery_fate === "ascended") {
-				var fs = V.foodstuff;
+			if (V.avery_fate !== "saved" && V.avery_fate !== "ascended") {
+				/* v1.8.9 对齐 AutoClean 0.1.5：仅 fate=saved/ascended 时喂食；未达喂食阶段不操作（不计 dinner_missed） */
+				r.skipped = true;
+				return r;
+			}
+			var fs = V.foodstuff;
 				if (man && man.food && fs && fs[man.food] && fs[man.food].amount > 0) {
 					fs[man.food].amount -= 1; r.fed = man.food;
 				} else if (fs && fs.steak && fs.steak.amount > 0) { fs.steak.amount -= 1; r.fed = "steak"; }
@@ -67,10 +71,6 @@
 						r.missed = true;
 					} else { fs[foods[0][0]].amount -= 1; r.fed = foods[0][0]; }
 				}
-			} else {
-				if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
-				r.missed = true;
-			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
 	}
@@ -95,12 +95,10 @@
 					if (!(v > 0)) { return; }
 					/* 原版收获走 <<tending_give>> widget 发货给玩家；面板内尝试 SugarCube 通道（游戏中可用），失败仅清库存 */
 					try {
+						/* v1.8.9 对齐 AutoClean 0.1.5：遍历 stock 直接把键名传给 tending_give（truffles/eggs/milk/cream），
+						   不再做名字映射（原映射漏 cream 且键名可能不符原版） */
 						if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
-							var Tk = k;
-							if (k === "eggs") { Tk = "chicken_egg"; }
-							else if (k === "milk") { Tk = "bottle_of_milk"; }
-							else if (k === "truffles") { Tk = "truffle"; }
-							new window.SugarCube.Wikifier(null, "<<tending_give '" + Tk + "' " + v + ">>");
+							new window.SugarCube.Wikifier(null, "<<tending_give '" + k + "' " + v + ">>");
 						}
 					} catch (e2) {}
 					f.stock[k] = 0;
@@ -109,6 +107,27 @@
 			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
+	}
+
+	/* ============ v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，即时一键执行）
+	   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。
+	   数据层与 UI 分离：动作定义在此，08-npc-traits.js 只负责渲染按钮。 ============ */
+	var COMBAT_ACTIONS = [
+		{ key: "suicide", name: "自我了断", desc: "写 V.pain=1000", run: function (V) { V.pain = 1000; } },
+		{ key: "hero", name: "英雄不屈", desc: "pain=10，清空性奋/压力", run: function (V) { V.pain = 10; V.arousal = 0; V.stress = 0; } },
+		{ key: "extend", name: "延长战斗", desc: "敌方性奋 -500", run: function (V) { V.enemyarousal = (V.enemyarousal || 0) - 500; } },
+		{ key: "calm", name: "息事宁人", desc: "敌方性奋=上限", run: function (V) { V.enemyarousal = V.enemyarousalmax || 0; } },
+		{ key: "knockout", name: "一拳打飞", desc: "写 V.enemyhealth=0", run: function (V) { V.enemyhealth = 0; } },
+		{ key: "struggle", name: "结束挣扎", desc: "挣扎.done=number+1", run: function (V) { if (V.struggle) { V.struggle.done = V.struggle.number + 1; } } },
+		{ key: "tentacle", name: "结束触手", desc: "触手.active=0", run: function (V) { if (V.tentacles) { V.tentacles.active = 0; } } },
+		{ key: "cluster", name: "结束集群", desc: "战斗中生效：吞食计时/阶段/距离清零", run: function (V) { V.timer = 0; V.vorestage = 0; V.swimdistance = 0; } }
+	];
+	function mcCombatAction(key) {
+		var act = null, i;
+		for (i = 0; i < COMBAT_ACTIONS.length; i++) { if (COMBAT_ACTIONS[i].key === key) { act = COMBAT_ACTIONS[i]; break; } }
+		if (!act) { return { ok: false, message: "未知战斗操作：" + key }; }
+		try { act.run(getV()); return { ok: true, name: act.name }; }
+		catch (e) { return { ok: false, message: "执行失败：" + (e.message || e) }; }
 	}
 
 	/* ============ 扩展转化系统（MOD 独立系统，如 v0.1.880 的兔子/人鱼：

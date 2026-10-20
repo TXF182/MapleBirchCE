@@ -2,6 +2,17 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.8.9（2026-10-20）
+
+**审查优化：对齐 AutoClean 行为 + 数据层下沉 + 边界标注**
+
+- 农场收获对齐 AutoClean 0.1.5：`mcMaintainFarm()` 遍历 stock 直接把键名传给 `tending_give`（truffles/eggs/milk/cream 全覆盖，修复原映射漏收货 cream；不再用可能不符原版的映射名）
+- 投喂对齐 AutoClean：`mcFeedAvery()` 仅艾弗里关系达 saved/ascended 才喂食；未达阶段返回 `skipped` 不操作、不再计入 `dinner_missed`
+- 战斗终结数据层下沉：8 个动作定义从 08-npc-traits.js 移至 03-global.js（`COMBAT_ACTIONS`/`mcCombatAction`，经 09-exports.js 导出 API），UI 只负责渲染；区级提示注明「建议战斗中生效；结束集群战斗外会把游戏时钟拨回当日 0 点」
+- 庄园自动维护改 mce-row 结构（说明 + 按钮分行），与战斗终结区样式一致；投喂未达喂食阶段显示中文提示
+- 边界标注：DoLSims 适配器 恶魔化/天使化/堕落天使 三项补 note（复用原版转化键，会同时推进原版转化阶段）；wraiths-reflection 状态键注释补全 necklaceThiefWR（探测键与文档一致）
+- 测试：全量回归新增 41.2b 断言（含 cream 四类库存全部收获并清零）；41.1 断言改为「未达喂食阶段不计数」；冒烟 + 全量回归 590+ 断言全绿
+
 ## v1.8.8（2026-10-20）
 
 **5 模组适配落地：全局页同功能（学 CombatTerminator + AutoClean）+ 三新适配器（DoLSims / Dol-Optimization / Wraith'sReflection）**

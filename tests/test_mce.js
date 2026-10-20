@@ -2269,7 +2269,7 @@ var feed2 = api.mcFeedAvery ? api.mcFeedAvery() : (setup.mbStageCE.mcFeedAvery ?
 assert(feed2.missed === true && V.avery_mansion.rage.dinner_missed === 1, "41.1 无菜可喂 → dinner_missed+1，实际 missed=" + feed2.missed + " 计数=" + V.avery_mansion.rage.dinner_missed);
 V.avery_fate = "unknown";
 var feed3 = api.mcFeedAvery ? api.mcFeedAvery() : (setup.mbStageCE.mcFeedAvery ? setup.mbStageCE.mcFeedAvery() : { missed: true });
-assert(feed3.missed === true && V.avery_mansion.rage.dinner_missed === 2, "41.1 未达喂食条件也计入 dinner_missed，实际 " + V.avery_mansion.rage.dinner_missed);
+assert(feed3.skipped === true && feed3.missed !== true && V.avery_mansion.rage.dinner_missed === 1, "41.1 未达喂食阶段不操作不计 missed（对齐 AutoClean），实际 skipped=" + feed3.skipped + " 计数=" + V.avery_mansion.rage.dinner_missed);
 delete V.avery_fate; delete V.avery_mansion; delete V.foodstuff;
 
 /* 41.2）农场维护 mcMaintainFarm（学 AutoClean AutoCleanFarm）：塔卫≥1000 锁动物 / 清 aggro / stock 收获清零 */
@@ -2281,6 +2281,11 @@ assert(mf1.harvested === 2 && V.farm.stock.eggs === 0 && V.farm.stock.milk === 0
 V.farmerCanSell = true;
 var mf2 = api.mcMaintainFarm ? api.mcMaintainFarm() : (setup.mbStageCE.mcMaintainFarm ? setup.mbStageCE.mcMaintainFarm() : {});
 assert(mf2.harvested === 0, "41.2 farmerCanSell 让位不自动收货，实际 " + mf2.harvested);
+V.farmerCanSell = false;
+V.farm = { tower_guard_skill: 1200, beasts: { horses: 1, pigs: 1, cattle: 1, dogs: 1 }, aggro: 1, stock: { eggs: 1, milk: 1, truffles: 1, cream: 2 } };
+V.farm_stage = 6;
+var mf1b = api.mcMaintainFarm ? api.mcMaintainFarm() : (setup.mbStageCE.mcMaintainFarm ? setup.mbStageCE.mcMaintainFarm() : {});
+assert(mf1b.harvested === 4 && V.farm.stock.cream === 0 && V.farm.stock.truffles === 0 && V.farm.stock.eggs === 0, "41.2b 四类库存（含 cream）全部收获并清零（直接传键名，与 AutoClean 一致），实际 harvested=" + mf1b.harvested + " cream=" + V.farm.stock.cream);
 delete V.farm; delete V.farm_stage; delete V.farmerCanSell;
 
 /* 41.3）新适配器探测：Dol-Optimization（window.DolOptimization）/ Wraith（V 根）/ DoLSims（window.MirrorHypnoVariableRefresh） */
