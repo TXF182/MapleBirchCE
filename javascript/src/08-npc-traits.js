@@ -148,4 +148,51 @@
 			tbox.appendChild(row);
 		});
 		pane.appendChild(tbox);
+
+		/* v1.8.8：战斗终结（学 CombatTerminator 0.1：8 个战斗内一键按钮，直接写原版战斗值）。
+		   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。 */
+		var btsec = el("div", "mce-section", "战斗终结（学 CombatTerminator 0.1：战斗中可用，直接写原版战斗值）");
+		pane.appendChild(btsec);
+		var btDefs = [
+			["自我了断", function (V) { V.pain = 1000; }, "写 V.pain=1000"],
+			["英雄不屈", function (V) { V.pain = 10; V.arousal = 0; V.stress = 0; }, "pain=10 清空性奋/压力"],
+			["延长战斗", function (V) { V.enemyarousal = (V.enemyarousal || 0) - 500; }, "敌方性奋 -500"],
+			["息事宁人", function (V) { V.enemyarousal = V.enemyarousalmax || 0; }, "敌方性奋=上限"],
+			["一拳打飞", function (V) { V.enemyhealth = 0; }, "写 V.enemyhealth=0"],
+			["结束挣扎", function (V) { if (V.struggle) { V.struggle.done = V.struggle.number + 1; } }, "挣扎.done=number+1"],
+			["结束触手", function (V) { if (V.tentacles) { V.tentacles.active = 0; } }, "触手.active=0"],
+			["结束集群", function (V) { V.timer = 0; V.vorestage = 0; V.swimdistance = 0; }, "吞食时间/阶段/距离清零"]
+		];
+		btDefs.forEach(function (d) {
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-lbl", d[2]));
+			var btn = el("button", "mce-btn mce-gold", d[0]);
+			btn.type = "button";
+			btn.addEventListener("click", function () {
+				try { d[1](getV()); setStatus("已执行「" + d[0] + "」", "mce-ok"); }
+				catch (e) { setStatus("执行失败：" + (e.message || e), "mce-err"); }
+			});
+			row.appendChild(btn);
+			btsec.appendChild(row);
+		});
+
+		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5：即时执行原模组每日 0 点的维护逻辑） */
+		var acsec = el("div", "mce-section", "庄园自动维护（学 AutoClean 0.1.5：即时执行艾弗里投喂 + 农场维护）");
+		pane.appendChild(acsec);
+		var a1 = el("button", "mce-btn mce-gold", "一键投喂艾弗里（按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱）");
+		a1.type = "button";
+		a1.addEventListener("click", function () {
+			var r = mcFeedAvery();
+			if (r.error) { setStatus("投喂失败：" + r.error, "mce-err"); return; }
+			setStatus(r.missed ? "无菜可喂，dinner_missed +1（艾弗里未达成喂食条件时同样计入）" : "已喂食：" + r.fed, r.missed ? "mce-err" : "mce-ok");
+		});
+		var a2 = el("button", "mce-btn mce-gold", "一键农场维护（塔卫≥1000 锁动物 30 / 清 agro / 库存收获并清零）");
+		a2.type = "button";
+		a2.addEventListener("click", function () {
+			var r = mcMaintainFarm();
+			if (r.error) { setStatus("维护失败：" + r.error, "mce-err"); return; }
+			setStatus("动物锁满 " + r.beasts + " 只" + (r.aggro ? "，agro 已清零" : "") + "，收获 " + r.harvested + " 类库存", "mce-ok");
+		});
+		acsec.appendChild(a1);
+		acsec.appendChild(a2);
 	}

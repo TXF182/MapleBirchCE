@@ -869,6 +869,8 @@ delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending;
 assert(api.isGwylanGardenPassage && api.isGwylanGardenPassage("Gwylan Ritual Start Garden") === true && api.isGwylanGardenPassage("Pregnancy Birth Forest Shop") === true && api.isGwylanGardenPassage("Forest Shop") === true && api.isGwylanGardenPassage("Manor Hall") === false, "isGwylanGardenPassage 匹配格威岚花园/森林商店段落");
 
 // 18) Mod作弊页面（v1.4.0）：动态发现 / 隔离 / 防崩 / 类型校验 / 留痕回退 / 原版过滤 / 重扫
+// 18.0) 清理角色恋爱节（15）写入的 Wraith 根，避免内置 wraiths-reflection 适配器误命中计数（v1.8.8 新增适配器回归隔离）
+delete V.WraithsReflection; delete V.HelpAsk; delete V.necklaceWR; delete V.necklaceThief; delete V.necklaceThiefWR; delete V.SilverConchWR; delete V.stealdailyMR; delete V.WRR;
 // 18.1) 扫描识别：setup.mbCE_modCheats 注册 2 个模组 → getCheatMods 返回 2（标准化结构）
 setup.mbCE_modCheats = [
 	{
@@ -1317,6 +1319,8 @@ const ch2 = (function () { try { return api2.listCharacters(); } catch (e) { ret
 assert(Array.isArray(ch2) && ch2.length === 15, "框架缺失时 listCharacters 从存档兜底不抛错: " + ch2.length);
 
 // 24) Mod作弊：数值/阶段更改 → 读回确认 → 越界/宿主/vanilla 保护 → 回退还原（全链路）
+// 24.0) 清理 23 节可能写入的 Wraith 根（内置 wraiths-reflection 适配器回归隔离，v1.8.8）
+delete V.WraithsReflection; delete V.HelpAsk; delete V.necklaceWR; delete V.necklaceThief; delete V.necklaceThiefWR; delete V.SilverConchWR; delete V.stealdailyMR; delete V.WRR;
 const api24 = setup.mbStageCE;   // 7) 容错节已 eval 重载，取新闭包
 V.TestMod = { num1: 5, flag_b: false, list1: ["a"], str_stage: "started", num_stage: 1 };
 V.mbCE_wrote = {};
@@ -2252,6 +2256,87 @@ const tTemple40 = vt39.filter(t => String(t.name).indexOf("Temple Burden") !== -
 const g40b = api39.grantTrait(tTemple40, V);
 assert(V.temple_burden === 1 && (!V.mbCE_forcedTraits || V.mbCE_forcedTraits.length === 0), "40.4 可写条件特质走变量写入, 不误标强制, 实际 mbCE_forcedTraits=" + JSON.stringify(V.mbCE_forcedTraits));
 delete V.temple_burden; delete V.mbCE_forcedTraits;
+
+// ============ 第 41 节：v1.8.8 新模组适配（学 CombatTerminator/AutoClean 全局页功能 + 三新适配器） ============
+/* 41.1）庄园自动维护 mcFeedAvery（学 AutoClean AutoCleanFeedAvery）：按喜好→牛排/舒芙蕾/扁意面→最高难度 */
+V.avery_fate = "saved"; V.avery_mansion = { food: "steak", rage: {} };
+V.foodstuff = { steak: { amount: 5 }, souffle: { amount: 2 } };
+var feed1 = api.mcFeedAvery ? api.mcFeedAvery() : (setup.mbStageCE.mcFeedAvery ? setup.mbStageCE.mcFeedAvery() : null);
+if (feed1 === null) { feed1 = { error: "mcFeedAvery 不可达" }; }
+assert(feed1 && feed1.fed === "steak" && V.foodstuff.steak.amount === 4, "41.1 艾弗里投喂按喜好扣 steak，实际 fed=" + (feed1 && feed1.fed) + " amount=" + V.foodstuff.steak.amount);
+V.avery_mansion.food = "linguine"; delete V.foodstuff.steak; delete V.foodstuff.souffle;
+var feed2 = api.mcFeedAvery ? api.mcFeedAvery() : (setup.mbStageCE.mcFeedAvery ? setup.mbStageCE.mcFeedAvery() : { missed: true });
+assert(feed2.missed === true && V.avery_mansion.rage.dinner_missed === 1, "41.1 无菜可喂 → dinner_missed+1，实际 missed=" + feed2.missed + " 计数=" + V.avery_mansion.rage.dinner_missed);
+V.avery_fate = "unknown";
+var feed3 = api.mcFeedAvery ? api.mcFeedAvery() : (setup.mbStageCE.mcFeedAvery ? setup.mbStageCE.mcFeedAvery() : { missed: true });
+assert(feed3.missed === true && V.avery_mansion.rage.dinner_missed === 2, "41.1 未达喂食条件也计入 dinner_missed，实际 " + V.avery_mansion.rage.dinner_missed);
+delete V.avery_fate; delete V.avery_mansion; delete V.foodstuff;
+
+/* 41.2）农场维护 mcMaintainFarm（学 AutoClean AutoCleanFarm）：塔卫≥1000 锁动物 / 清 aggro / stock 收获清零 */
+V.farm = { tower_guard_skill: 1200, beasts: { horses: 12, pigs: 5, cattle: 8, dogs: 3 }, aggro: 1, stock: { eggs: 4, milk: 2 } };
+V.farm_stage = 6;
+var mf1 = api.mcMaintainFarm ? api.mcMaintainFarm() : (setup.mbStageCE.mcMaintainFarm ? setup.mbStageCE.mcMaintainFarm() : {});
+assert(mf1.beasts === 4 && V.farm.beasts.horses === 30 && V.farm.aggro === 0, "41.2 塔卫≥1000 动物锁 30 + aggro 清零，实际 beasts=" + mf1.beasts + " aggro=" + V.farm.aggro);
+assert(mf1.harvested === 2 && V.farm.stock.eggs === 0 && V.farm.stock.milk === 0, "41.2 库存收获并清零，实际 harvested=" + mf1.harvested + " eggs=" + V.farm.stock.eggs);
+V.farmerCanSell = true;
+var mf2 = api.mcMaintainFarm ? api.mcMaintainFarm() : (setup.mbStageCE.mcMaintainFarm ? setup.mbStageCE.mcMaintainFarm() : {});
+assert(mf2.harvested === 0, "41.2 farmerCanSell 让位不自动收货，实际 " + mf2.harvested);
+delete V.farm; delete V.farm_stage; delete V.farmerCanSell;
+
+/* 41.3）新适配器探测：Dol-Optimization（window.DolOptimization）/ Wraith（V 根）/ DoLSims（window.MirrorHypnoVariableRefresh） */
+global.window = { DolOptimization: {}, MirrorHypnoVariableRefresh: function () {} };
+V.WraithsReflection = 1;
+var mods41 = api.getCheatMods();
+var mo41 = mods41.filter(function (x) { return x.modId === "dol-optimization"; })[0];
+var mw41 = mods41.filter(function (x) { return x.modId === "wraiths-reflection"; })[0];
+var md41 = mods41.filter(function (x) { return x.modId === "dolsims"; })[0];
+assert(!!mo41 && mo41.modName.indexOf("Dol-Optimization") !== -1, "41.3 Dol-Optimization 探测命中（window.DolOptimization）");
+assert(!!mw41 && mw41.stages.filter(function (s) { return s.varPath === "WraithsReflection"; }).length === 1, "41.3 Wraith'sReflection 探测命中（V 根并集）");
+assert(!!md41 && md41.values.filter(function (v) { return v.varPath === "sinSims"; }).length === 1, "41.3 DoLSims 探测命中（window.MirrorHypnoVariableRefresh）");
+/* 41.4）Dol-Optimization 写入：needmeet_romance 钳制 + options 子键路径 */
+api.applyCheatModValue("dol-optimization", "opt_needmeet", 90);
+assert(V.needmeet_romance === 90, "41.4 Needmeet 好感写入 90");
+api.applyCheatModValue("dol-optimization", "opt_needmeet", 500);
+assert(V.needmeet_romance === 100, "41.4 Needmeet 越上限钳制到 100");
+V.options = { opt: { WornStacking: false } };
+api.toggleCheatAbility("dol-optimization", "opt_worn", true);
+assert(V.options.opt.WornStacking === true, "41.4 叠穿开关经 options.opt 写入，实际 " + V.options.opt.WornStacking);
+V.options.DolOptimization = {};
+api.applyCheatModValue("dol-optimization", "opt_wardrobe", 5000);
+assert(V.options.DolOptimization.LargerWardrobeValue === 5000, "41.4 衣柜扩容值写入 5000");
+api.applyCheatModValue("dol-optimization", "opt_wardrobe", 99999);
+assert(V.options.DolOptimization.LargerWardrobeValue === 9999, "41.4 衣柜扩容钳制 9999");
+delete V.needmeet_romance; delete V.options;
+/* 41.5）Wraith'sReflection：恋爱闸门 0/1 + necklaceThief 枚举拒绝 + rreturn/return 双取值 */
+var wrg = api.setCheatStage("wraiths-reflection", "wr_gate", 1);
+assert(wrg.ok && V.WraithsReflection === 1, "41.5 恋爱闸门写入 1");
+var wrt = api.setCheatStage("wraiths-reflection", "wr_thief", "return");
+assert(wrt.ok && V.necklaceThief === "return", "41.5 necklaceThief 写 return 通过");
+var wrt2 = api.setCheatStage("wraiths-reflection", "wr_thief", "bogus");
+assert(wrt2.ok === false, "41.5 necklaceThief 枚举越界拒绝（bogus），实际 ok=" + wrt2.ok);
+var wrt3 = api.setCheatStage("wraiths-reflection", "wr_thief", "rreturn");
+assert(wrt3.ok && V.necklaceThief === "rreturn", "41.5 双 r 拼写 rreturn 如实可写（模组自身 bug 取值）");
+api.applyCheatModValue("wraiths-reflection", "wr_conch", 1);
+assert(V.SilverConchWR === 1, "41.5 银海螺获得写入 1");
+delete V.WraithsReflection; delete V.necklaceThief; delete V.SilverConchWR;
+/* 41.6）DoLSims：钳制 + 宿主缺失拒绝 */
+api.applyCheatModValue("dolsims", "ds_sin", 5000);
+assert(V.sinSims === 1000, "41.6 sinSims 越上限钳制到 1000，实际 " + V.sinSims);
+var dsd = api.applyCheatModValue("dolsims", "ds_discipline", 30);
+assert(dsd.ok === false && (dsd.message || "").indexOf("宿主") !== -1, "41.6 四维宿主缺失拒绝写入不崩，实际 " + (dsd.message || ""));
+V.DisciplineSims = { value: 5 };
+api.applyCheatModValue("dolsims", "ds_discipline", 50);
+assert(V.DisciplineSims.value === 40, "41.6 纪律值钳制 40（源码 clamp），实际 " + V.DisciplineSims.value);
+api.applyCheatModValue("dolsims", "ds_hypno", 999);
+assert(V.hypnoSims === 999, "41.6 催眠熟练度写入 999");
+var dsu = api.undoCheatModValue("dolsims", "value_set:ds_hypno");
+assert(dsu.ok && V.hypnoSims === undefined, "41.6 催眠熟练度回退还原初始（原为 undefined，删除叶子），实际 " + V.hypnoSims);
+delete V.sinSims; delete V.DisciplineSims; delete V.hypnoSims; delete V.mbCE_wrote;
+/* 41.7）卸载后三个适配器自动消失 */
+delete global.window.DolOptimization; delete global.window.MirrorHypnoVariableRefresh; delete V.WraithsReflection;
+var mods41b = api.getCheatMods();
+assert(mods41b.filter(function (x) { return x.modId === "dol-optimization" || x.modId === "dolsims" || x.modId === "wraiths-reflection"; }).length === 0, "41.7 卸载后三新适配器自动消失");
+delete global.window;
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

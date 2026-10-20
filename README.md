@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.8.7**（完整版本线见 [CHANGELOG.md](CHANGELOG.md)）
+**当前版本：v1.8.8**（完整版本线见 [CHANGELOG.md](CHANGELOG.md)）
 
 ## 安装（快速开始）
 
@@ -57,7 +57,7 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.8.7）
+## Mod作弊 适配器一览（v1.8.8）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -66,9 +66,12 @@
 | DomRobin | 0.0.8 | 阶段 1 / 能力 12 / 数值 3 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
+| 原版优化 Dol-Optimization | 1.1.2 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
+| Wraith'sReflection · 幽灵的倒影 | 1.3.4 | 阶段 4 / 能力 4 / 数值 2 | `V` 自有根并集（WraithsReflection/HelpAsk/项链系） |
+| DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
 | maplebirch 框架本体 | 5.5.1 | 兼容性核对（API 6 项） | `window.maplebirch` |
 
-> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。
+> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。除枯木逢春/归途之书/DomRobin/MLI/SmartPhone 外，其余适配模组无公开仓库，暂不纳入自动检测。
 
 ## 常见问题（FAQ）
 
@@ -90,6 +93,10 @@
 
 ## 版本说明
 
+- **v1.8.8（2026-10-20 · 5 模组适配落地）**：
+  - **全局页同功能（学 CombatTerminator + AutoClean）**：新增「战斗终结」8 按钮（自我了断/英雄不屈/延长战斗/息事宁人/一拳打飞/结束挣扎/结束触手/结束集群，直接写原版战斗值）；新增「庄园自动维护」2 按钮（一键投喂艾弗里——按喜好→牛排/舒芙蕾/扁意面→最高难度菜谱；一键农场维护——塔卫≥1000 锁四畜 30、清 agro、非售卖期库存收获清零）。
+  - **三新适配器**：DoLSims 0.8.1.7（阶段 2/能力 18/数值 26，探测 `window.MirrorHypnoVariableRefresh`）、Dol-Optimization 1.1.2（阶段 1/能力 4/数值 5，探测 `window.DolOptimization`）、Wraith'sReflection 1.3.4（阶段 4/能力 4/数值 2，探测 V 自有根并集；如实暴露模组 `rreturn` 双 r bug）。探测键与现有适配器零碰撞。
+  - **测试**：冒烟 43 条 + 全量回归 590+ 断言全绿（含全局页两区渲染/点击生效、新适配器写入钳制/枚举拒绝/宿主缺失拒绝/卸载消失）。
 - **v1.8.6（2026-10-19 · 适配器同步三个模组最新版 + 每日模组更新自动检测）**：
   - **适配器升级（2026-10-20 追加）**：枯木逢春 2.4.1→**2.4.2**、归途之书 v1.3.7→**v1.3.8**、框架 5.5.0→**5.5.1**（自动检测检出后手动同步：2.4.2/1.3.8 全量 audit + resolve_missing 定案 42/56 条全 KEEP，声明无删除；2.4.2 新增 `Finance.orphanage.avery_adoption_refused`（艾弗里收养拒绝标记，源码 `Finance/Orphanage.ts` 实证），补录为「孤儿院 · 已拒绝艾弗里收养」能力；框架 5.5.1 `check_framework_api.js` 核对核心 6 项 API 全过，`setup.MapleBirch`/`maplebirch.patch` 缺失均为非 CE 依赖（CE 0 次调用 patch））；
   - **适配器升级（首发）**：枯木逢春 2.2.7→**2.4.1**、归途之书 v1.3.4→**v1.3.7**、More Love Interests 0.1.7.0→**0.1.8.0**（GitHub Releases 最新版核对：2.4.1 下 `VanillaPlus.attitudes.ironWill/sadomasochist` 字面路径出现、与声明对上；1.3.7 缺失的 `faith_band/rite_round/candidates.*.agreed` 经源码实证均为 `this.state`/动态键别名盲区假报，声明无需改动；MLI 0.1.8.0 声明覆盖 100%）；

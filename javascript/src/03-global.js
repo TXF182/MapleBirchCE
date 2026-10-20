@@ -33,6 +33,84 @@
 		return { characters: chars.length, stages: fixed };
 	}
 
+	/* ============ v1.8.8：庄园自动维护（学 AutoClean 0.1.5 原功能，即时一键执行）
+	     AutoClean 原实现：每日 0 点调 AutoCleanFeedAvery()（艾弗里优先吃想吃的菜）+ AutoCleanFarm()
+	     （农场动物锁满/agro 清零/库存收获）。MCE 全局页提供同逻辑的即时按钮，数据逻辑与此处一致。 ============ */
+	function mcFeedAvery() {
+		var V = getV();
+		var r = { fed: "", missed: false };
+		var man = V.avery_mansion;
+		try {
+			if (V.avery_fate === "saved" || V.avery_fate === "ascended") {
+				var fs = V.foodstuff;
+				if (man && man.food && fs && fs[man.food] && fs[man.food].amount > 0) {
+					fs[man.food].amount -= 1; r.fed = man.food;
+				} else if (fs && fs.steak && fs.steak.amount > 0) { fs.steak.amount -= 1; r.fed = "steak"; }
+				else if (fs && fs.souffle && fs.souffle.amount > 0) { fs.souffle.amount -= 1; r.fed = "souffle"; }
+				else if (fs && fs.linguine && fs.linguine.amount > 0) { fs.linguine.amount -= 1; r.fed = "linguine"; }
+				else {
+					/* 其余按菜谱难度降序（与 AutoClean 一致） */
+					var sf = getSetup().foodstuff;
+					var foods = [];
+					if (sf && fs) {
+						Object.keys(sf).forEach(function (k) {
+							var def = sf[k];
+							if (def && def.category === "dish" && def.prop_folder !== "drink" && def.recipe &&
+								fs[k] && fs[k].amount > 0) {
+								foods.push([k, def.recipe.difficulty]);
+							}
+						});
+						foods.sort(function (a, b) { return (b[1] || 0) - (a[1] || 0); });
+					}
+					if (foods.length < 1) {
+						if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
+						r.missed = true;
+					} else { fs[foods[0][0]].amount -= 1; r.fed = foods[0][0]; }
+				}
+			} else {
+				if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
+				r.missed = true;
+			}
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+	function mcMaintainFarm() {
+		var V = getV();
+		var r = { beasts: 0, aggro: false, harvested: 0, error: "" };
+		var f = V.farm;
+		try {
+			if (f && f.tower_guard_skill && f.tower_guard_skill >= 1000) {
+				var b = f.beasts;
+				if (b) {
+					if (b.horses !== undefined) { b.horses = 30; r.beasts += 1; }
+					if (b.pigs !== undefined) { b.pigs = 30; r.beasts += 1; }
+					if (b.cattle !== undefined) { b.cattle = 30; r.beasts += 1; }
+					if (b.dogs !== undefined) { b.dogs = 30; r.beasts += 1; }
+				}
+				if (V.farm_stage >= 5 && f.aggro) { f.aggro = 0; r.aggro = true; }
+			}
+			if (f && f.stock && !V.farmerCanSell) {
+				Object.keys(f.stock).forEach(function (k) {
+					var v = f.stock[k];
+					if (!(v > 0)) { return; }
+					/* 原版收获走 <<tending_give>> widget 发货给玩家；面板内尝试 SugarCube 通道（游戏中可用），失败仅清库存 */
+					try {
+						if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
+							var Tk = k;
+							if (k === "eggs") { Tk = "chicken_egg"; }
+							else if (k === "milk") { Tk = "bottle_of_milk"; }
+							else if (k === "truffles") { Tk = "truffle"; }
+							new window.SugarCube.Wikifier(null, "<<tending_give '" + Tk + "' " + v + ">>");
+						}
+					} catch (e2) {}
+					f.stock[k] = 0;
+					r.harvested += 1;
+				});
+			}
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+
 	/* ============ 扩展转化系统（MOD 独立系统，如 v0.1.880 的兔子/人鱼：
 	     setup.myTFSet(name, stage) 公共 API + V.<name>/V.<name+build> 存档变量，
 	     不注册进 setup.transformations → 按"非原版注册键 + 存档存在"通用检测，零硬编码） ============ */

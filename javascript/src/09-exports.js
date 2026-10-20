@@ -215,6 +215,9 @@
 				globalFill: globalFill,
 				globalRomance: globalRomance,
 				globalTransform: globalTransform,
+				/* v1.8.8 庄园自动维护（学 AutoClean 0.1.5 原功能） */
+				mcFeedAvery: mcFeedAvery,
+				mcMaintainFarm: mcMaintainFarm,
 				/* v1.4.5 角色一览恋爱候选过滤 */
 				isLoveCandidate: isLoveCandidate,
 				addLoveInterest: addLoveInterest,

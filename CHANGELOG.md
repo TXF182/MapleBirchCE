@@ -2,6 +2,21 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.8.8（2026-10-20）
+
+**5 模组适配落地：全局页同功能（学 CombatTerminator + AutoClean）+ 三新适配器（DoLSims / Dol-Optimization / Wraith'sReflection）**
+
+- 全局页新增「战斗终结」（学 CombatTerminator 0.1，8 个按钮直接写原版战斗值：自我了断/英雄不屈/延长战斗/息事宁人/一拳打飞/结束挣扎/结束触手/结束集群）
+- 全局页新增「庄园自动维护」（学 AutoClean 0.1.5，即时执行原模组每日逻辑）：
+  - `mcFeedAvery()`：按艾弗里喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱，无菜 `dinner_missed+1`（与 AutoClean 判定一致）
+  - `mcMaintainFarm()`：塔卫≥1000 锁四畜 30 + 清 agro；非售卖期库存收获并清零（SugarCube Wikifier 通道发货，失败降级仅清库存）
+- 新增 DoLSims 0.8.1.7 适配器（探测 `window.MirrorHypnoVariableRefresh`，精选 42 项：阶段 2 / 能力 18 / 数值 26，值域按源码 clamp 实证；四维 `.value` 宿主缺失自动拒绝）
+- 新增 Dol-Optimization 1.1.2 适配器（探测 `window.DolOptimization`，阶段 1 / 能力 4 / 数值 5；`options` 不在原版根拦截清单，属边界地带写入已注释标注）
+- 新增 Wraith'sReflection 1.3.4 适配器（探测 V 自有根并集，阶段 4 / 能力 4 / 数值 2；如实暴露模组自身 `rreturn` 双 r bug 取值，写 `return` 覆盖面最全）
+- 三新适配器探测键与现有 5 适配器零碰撞；卸载后自动消失
+- 测试扩展：冒烟 +6 断言（全局页两区渲染、战斗按钮点击生效、三新适配器渲染）；全量回归新增第 41 节 21 断言（喂食/农场逻辑、写入钳制、枚举拒绝、宿主缺失拒绝、卸载消失）
+- 全链验证：冒烟 43 条 + 全量回归 590+ 断言全绿
+
 ## v1.8.7（2026-10-20）
 
 **学 CE 落地②**：模组变量探查器 + 能力项逐项数值文档

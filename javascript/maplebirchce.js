@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.8.7";
+	var MCE_VERSION = "1.8.8";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -685,6 +685,84 @@
 		var fixed = 0;
 		chars.forEach(function (name) { fixed += unlockAllTransform(name); });
 		return { characters: chars.length, stages: fixed };
+	}
+
+	/* ============ v1.8.8：庄园自动维护（学 AutoClean 0.1.5 原功能，即时一键执行）
+	     AutoClean 原实现：每日 0 点调 AutoCleanFeedAvery()（艾弗里优先吃想吃的菜）+ AutoCleanFarm()
+	     （农场动物锁满/agro 清零/库存收获）。MCE 全局页提供同逻辑的即时按钮，数据逻辑与此处一致。 ============ */
+	function mcFeedAvery() {
+		var V = getV();
+		var r = { fed: "", missed: false };
+		var man = V.avery_mansion;
+		try {
+			if (V.avery_fate === "saved" || V.avery_fate === "ascended") {
+				var fs = V.foodstuff;
+				if (man && man.food && fs && fs[man.food] && fs[man.food].amount > 0) {
+					fs[man.food].amount -= 1; r.fed = man.food;
+				} else if (fs && fs.steak && fs.steak.amount > 0) { fs.steak.amount -= 1; r.fed = "steak"; }
+				else if (fs && fs.souffle && fs.souffle.amount > 0) { fs.souffle.amount -= 1; r.fed = "souffle"; }
+				else if (fs && fs.linguine && fs.linguine.amount > 0) { fs.linguine.amount -= 1; r.fed = "linguine"; }
+				else {
+					/* 其余按菜谱难度降序（与 AutoClean 一致） */
+					var sf = getSetup().foodstuff;
+					var foods = [];
+					if (sf && fs) {
+						Object.keys(sf).forEach(function (k) {
+							var def = sf[k];
+							if (def && def.category === "dish" && def.prop_folder !== "drink" && def.recipe &&
+								fs[k] && fs[k].amount > 0) {
+								foods.push([k, def.recipe.difficulty]);
+							}
+						});
+						foods.sort(function (a, b) { return (b[1] || 0) - (a[1] || 0); });
+					}
+					if (foods.length < 1) {
+						if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
+						r.missed = true;
+					} else { fs[foods[0][0]].amount -= 1; r.fed = foods[0][0]; }
+				}
+			} else {
+				if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
+				r.missed = true;
+			}
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+	function mcMaintainFarm() {
+		var V = getV();
+		var r = { beasts: 0, aggro: false, harvested: 0, error: "" };
+		var f = V.farm;
+		try {
+			if (f && f.tower_guard_skill && f.tower_guard_skill >= 1000) {
+				var b = f.beasts;
+				if (b) {
+					if (b.horses !== undefined) { b.horses = 30; r.beasts += 1; }
+					if (b.pigs !== undefined) { b.pigs = 30; r.beasts += 1; }
+					if (b.cattle !== undefined) { b.cattle = 30; r.beasts += 1; }
+					if (b.dogs !== undefined) { b.dogs = 30; r.beasts += 1; }
+				}
+				if (V.farm_stage >= 5 && f.aggro) { f.aggro = 0; r.aggro = true; }
+			}
+			if (f && f.stock && !V.farmerCanSell) {
+				Object.keys(f.stock).forEach(function (k) {
+					var v = f.stock[k];
+					if (!(v > 0)) { return; }
+					/* 原版收获走 <<tending_give>> widget 发货给玩家；面板内尝试 SugarCube 通道（游戏中可用），失败仅清库存 */
+					try {
+						if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
+							var Tk = k;
+							if (k === "eggs") { Tk = "chicken_egg"; }
+							else if (k === "milk") { Tk = "bottle_of_milk"; }
+							else if (k === "truffles") { Tk = "truffle"; }
+							new window.SugarCube.Wikifier(null, "<<tending_give '" + Tk + "' " + v + ">>");
+						}
+					} catch (e2) {}
+					f.stock[k] = 0;
+					r.harvested += 1;
+				});
+			}
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
 	}
 
 	/* ============ 扩展转化系统（MOD 独立系统，如 v0.1.880 的兔子/人鱼：
@@ -1526,6 +1604,184 @@
 				{ key: "sp_second_known", name: "已发现老冯二手店（0/1）", varPath: "Phone.SecondShopKnown", type: "number", min: 0, max: 1 },
 				{ key: "sp_feng_exposed", name: "暴露场景计数", varPath: "Phone.FengAcceptExposed", type: "number", min: 0, max: 99 },
 				{ key: "sp_sydney_live", name: "悉尼直播陪伴（0/1）", varPath: "Phone.SydneySexLiveCompanion", type: "number", min: 0, max: 1 }
+			]
+		}
+	};
+
+	/* 内置适配器：原版优化 Dol-Optimization 1.1.2（DoL 体验优化合集，2026-10-20 解压实证，作者 Needmeet）
+	   探测键：window.DolOptimization（opt-early-inject.js inject_early 无条件挂载，装上即存在）。
+	   边界与风险：设置主存 V.options.opt.*（options 为 DoL 原版根，不在 CHEAT_VANILLA_ROOTS 拦截清单内，
+	   当前可经面板写入——属边界地带，若 MCE 日后把 options 补进拦截清单，条目自动变为拒绝写入不崩）；
+	   存档扩展状态 V.options.DolOptimization.*（衣柜扩容）；顶层自有键 needmeet_romance（NPC Needmeet 好感，
+	   ≥80 解锁恋爱线，运行时副本在 C.npc.Needmeet.love 不写 V）/ hymenreconstructioncount（处女膜修复倒计时）/
+	   hairtexture（发质 0-100，疑模组自建）/ nicotine（尼古丁 0-95，疑模组自建）。纯显示类开关（浇水状态/进度
+	   速览、快速按钮位置等）模组设置页可改，面板不重复暴露。 */
+	CHEAT_ADAPTERS["dol-optimization"] = {
+		detect: function () {
+			try {
+				if (typeof window === "undefined") { return false; }
+				return !!window.DolOptimization;
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "dol-optimization",
+			modName: "原版优化 Dol-Optimization v1.1.2",
+			tasks: [],
+			stages: [
+				{ key: "opt_ui_bar", name: "导航栏开关美化", varPath: "options.opt.UiBarToggle",
+				  levels: ["default", "back", "hide"],
+				  labels: ["默认", "返回式", "隐藏"],
+				  note: "经 V.options 子键写入（options 不在原版根拦截清单，边界地带）" }
+			],
+			abilities: [
+				{ key: "opt_worn", name: "叠穿总开关", varPath: "options.opt.WornStacking", type: "boolean",
+				  note: "实验性功能，默认关；开启后衣物可叠穿" },
+				{ key: "opt_worn_traits", name: "叠穿 · 特质叠加", varPath: "options.opt.WornStackingTraits", type: "boolean" },
+				{ key: "opt_worn_warmth", name: "叠穿 · 保暖叠加", varPath: "options.opt.WornStackingWarmth", type: "boolean" },
+				{ key: "opt_quicksave", name: "快速存档开关", varPath: "options.opt.QuickSaveEnabled", type: "boolean" }
+			],
+			scenes: [],
+			values: [
+				{ key: "opt_needmeet", name: "Needmeet 好感（0-100，≥80 解锁恋爱线）", varPath: "needmeet_romance", type: "number", min: 0, max: 100,
+				  note: "≥50 信赖，≥80 解锁 loveInterest/恋爱线；面板写 V 侧，运行时副本在 C.npc.Needmeet.love" },
+				{ key: "opt_hymen", name: "处女膜修复剩余天数（每日递减）", varPath: "hymenreconstructioncount", type: "number", min: 0, max: 30 },
+				{ key: "opt_hair", name: "发质（0-100）", varPath: "hairtexture", type: "number", min: 0, max: 100,
+				  note: "模组自建键（原版清单无），随每小时 +0.05 增长" },
+				{ key: "opt_nicotine", name: "尼古丁依赖（0-95）", varPath: "nicotine", type: "number", min: 0, max: 95 },
+				{ key: "opt_wardrobe", name: "衣柜扩容值（模组自标「作弊」）", varPath: "options.DolOptimization.LargerWardrobeValue", type: "number", min: 1, max: 9999 }
+			]
+		}
+	};
+
+	/* 内置适配器：Wraith'sReflection 1.3.4（象牙怨灵恋爱线扩展，2026-10-20 解压 10 twee/1 js/26 补丁逐文件实证）
+	   探测键：模组无具名模块注册（addon 只做 maplebirch.npc.add + 事件监听），用自有 V 根并集探测
+	   （剧情未启动的新档 detect=false，此时本无可作弊内容，可接受；无框架降级安装时 V 键语义不变）。
+	   状态键：V.WraithsReflection（恋爱总闸门=1）/ HelpAsk（米奇求助线 1-5）/ necklaceWR（项链持有 0-3）/
+	   necklaceThief（偷窃责任枚举，模组自身 Return Necklace 2 写入 "rreturn"（双 r）但约 6 处补丁只认 "return"——
+	   面板如实列出两种取值，写 "return" 覆盖面最全）/ AdmitMR / RefuseWR / SilverConchWR / SilverConchAsk /
+	   WRR / stealdailyMR。原版根（wraith.state="forgive"/weekly.wraithDate/dateCount.Wraith）一律不暴露。 */
+	CHEAT_ADAPTERS["wraiths-reflection"] = {
+		detect: function () {
+			try {
+				if (typeof window === "undefined") { return false; }
+				var V = getV();
+				if (!V) { return false; }
+				return (V.WraithsReflection !== undefined || V.HelpAsk !== undefined ||
+					V.necklaceWR !== undefined || V.necklaceThief !== undefined ||
+					V.necklaceThiefWR !== undefined || V.SilverConchWR !== undefined ||
+					V.stealdailyMR !== undefined || V.WRR !== undefined);
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "wraiths-reflection",
+			modName: "Wraith'sReflection 1.3.4（幽灵的倒影）",
+			tasks: [],
+			stages: [
+				{ key: "wr_gate", name: "恋爱线总闸门", varPath: "WraithsReflection",
+				  levels: [0, 1],
+				  labels: ["未开启", "已开启"],
+				  note: "=1 后怨灵可设为恋爱对象（约会/海螺/倒影特质解锁）；项链线未走时 UI 会「能恋爱但无记忆」，建议配合项链阶段一起设" },
+				{ key: "wr_help", name: "米奇求助线 · 进程", varPath: "HelpAsk",
+				  levels: [1, 2, 3, 4, 5],
+				  labels: ["已答应", "已找到 IP", "已汇报", "已翻到 IP", "已偷完离开"] },
+				{ key: "wr_necklace", name: "象牙项链 · 持有阶段", varPath: "necklaceWR",
+				  levels: [0, 1, 2, 3],
+				  labels: ["未偷", "已偷出", "监狱已推进", "已归还基座"] },
+				{ key: "wr_thief", name: "偷窃责任归属", varPath: "necklaceThief",
+				  levels: ["", "player", "diver", "return", "rreturn"],
+				  labels: ["未定", "玩家", "潜水者", "已归还", "已归还(双r)"],
+				  note: "模组自身 Return Necklace 2 写入「rreturn」（双 r），但 Lake Ruin Plinth/Schism/Nightmare 等约 6 处补丁只认「return」——写「return」覆盖面最全" }
+			],
+			abilities: [
+				{ key: "wr_admit", name: "监狱对峙 · 承认罪过", varPath: "AdmitMR", type: "boolean" },
+				{ key: "wr_refuse", name: "分裂 · 已拒绝", varPath: "RefuseWR", type: "boolean" },
+				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean" },
+				{ key: "wr_rr", name: "麋鹿公寓/公园 · 罗宾介绍标记", varPath: "WRR", type: "boolean",
+				  note: "复用型标记：麋鹿公寓「说过话」与公园约会「罗宾已见过祂」共用" }
+			],
+			scenes: [],
+			values: [
+				{ key: "wr_conch", name: "银海螺已获得（0/1）", varPath: "SilverConchWR", type: "number", min: 0, max: 1,
+				  note: "前提 $WraithsReflection：湖底罐子摸到海螺" },
+				{ key: "wr_steal", name: "当日偷窃冷却（0/1，清 0 可再偷）", varPath: "stealdailyMR", type: "number", min: 0, max: 1 }
+			]
+		}
+	};
+
+	/* 内置适配器：DoLSims 0.8.1.7（类模拟人生大扩展，2026-10-20 解压 19 twee/2 js/265 文件实证）
+	   探测键：window.MirrorHypnoVariableRefresh（funcSims.js 无条件挂载，脚本加载即存在）。
+	   结构：无统一宿主对象，持久态散挂 V 顶层（*Sims 后缀 + 少量无前缀新根）；从 250 个候选根精选 42 项，
+	   剔除原版键（options/NPCName/kylarenglish/mental 等）与日锁类（每日自动重置，无作弊价值）。
+	   值域依据源码 clamp 实证；未确认具体枚举的阶段（Seath_phase/Judgement_Init 等）按数值钳制暴露并注明。
+	   写入防线天然成立：四维 .value/SchoolOrder 等只在开局/迁移 passage 后存在，宿主缺失时拒绝写入不崩。 */
+	CHEAT_ADAPTERS["dolsims"] = {
+		detect: function () {
+			try {
+				if (typeof window === "undefined") { return false; }
+				return typeof window.MirrorHypnoVariableRefresh === "function";
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "dolsims",
+			modName: "DoLSims 0.8.1.7（类模拟人生大扩展）",
+			tasks: [],
+			stages: [
+				{ key: "ds_lib_trouble", name: "市立图书馆 · 事件状态", varPath: "Library_Trouble",
+				  levels: [0, 1, 2],
+				  labels: ["平静", "事件 1", "事件 2"] },
+				{ key: "ds_clear_phase", name: "功能解锁阶段", varPath: "clearModSimsFuncDec_phase",
+				  levels: [0, 1],
+				  labels: ["未解锁", "已解锁"] }
+			],
+			abilities: [
+				{ key: "ds_hypno_0", name: "镜中催眠 · 第 1 档", varPath: "MirrorHypnoSims_0", type: "boolean" },
+				{ key: "ds_hypno_1", name: "镜中催眠 · 第 2 档", varPath: "MirrorHypnoSims_1", type: "boolean" },
+				{ key: "ds_hypno_2", name: "镜中催眠 · 第 3 档", varPath: "MirrorHypnoSims_2", type: "boolean" },
+				{ key: "ds_hypno_3", name: "镜中催眠 · 第 4 档", varPath: "MirrorHypnoSims_3", type: "boolean" },
+				{ key: "ds_hypno_4", name: "镜中催眠 · 第 5 档", varPath: "MirrorHypnoSims_4", type: "boolean" },
+				{ key: "ds_hypno_5", name: "镜中催眠 · 第 6 档", varPath: "MirrorHypnoSims_5", type: "boolean" },
+				{ key: "ds_spray", name: "酒吧 · 喷雾枪", varPath: "weaponSprayGunSims", type: "boolean" },
+				{ key: "ds_bike", name: "市场 · 已购自行车（£3000）", varPath: "BicycleSims", type: "boolean" },
+				{ key: "ds_listen", name: "倾听权限", varPath: "FreeListenPermissionSims", type: "boolean" },
+				{ key: "ds_temple_dream", name: "神殿 · 已知梦境", varPath: "TempleDreamKnewSims", type: "boolean" },
+				{ key: "ds_pass_anytime", name: "图书馆 · 随时放行", varPath: "Seath_Allowed_Pass_Anytime", type: "boolean" },
+				{ key: "ds_trait_1", name: "14 号书 · 特质 1 封印", varPath: "citylibrarybook_14_1_trait", type: "boolean" },
+				{ key: "ds_trait_2", name: "14 号书 · 特质 2 封印", varPath: "citylibrarybook_14_2_trait", type: "boolean" },
+				{ key: "ds_trait_3", name: "14 号书 · 特质 3 封印", varPath: "citylibrarybook_14_3_trait", type: "boolean" },
+				{ key: "ds_trait_4", name: "14 号书 · 特质 4 封印", varPath: "citylibrarybook_14_4_trait", type: "boolean" },
+				{ key: "ds_trait_5", name: "14 号书 · 特质 5 封印", varPath: "citylibrarybook_14_5_trait", type: "boolean" },
+				{ key: "ds_pray_used", name: "今日已祈祷", varPath: "usedpraySims", type: "boolean" },
+				{ key: "ds_pray_not", name: "今日未祈祷标记", varPath: "usedNotPraySims", type: "boolean" }
+			],
+			scenes: [],
+			values: [
+				{ key: "ds_sin", name: "罪恶值（0-1000）", varPath: "sinSims", type: "number", min: 0, max: 1000 },
+				{ key: "ds_hypno", name: "催眠熟练度（0-1000，门槛 100/300/500/1000）", varPath: "hypnoSims", type: "number", min: 0, max: 1000 },
+				{ key: "ds_discipline", name: "风纪委员 · 纪律", varPath: "DisciplineSims.value", type: "number", min: 0, max: 40,
+				  note: "源码 clamp 锁死上限 40；宿主对象在开局/迁移 passage 后存在，未初始化时拒绝写入" },
+				{ key: "ds_popularity", name: "风纪委员 · 声望", varPath: "PopularitySims.value", type: "number", min: 0, max: 40 },
+				{ key: "ds_horniness", name: "风纪委员 · 性欲值", varPath: "HorninessSims.value", type: "number", min: 0, max: 40 },
+				{ key: "ds_influence", name: "风纪委员 · 影响力", varPath: "InfluenceSims.value", type: "number", min: 0, max: 40 },
+				{ key: "ds_gym", name: "健身卡剩余（每日非周一 -1）", varPath: "Gym_Card", type: "number", min: 0, max: 7 },
+				{ key: "ds_skill_game", name: "电脑房 · 游戏技能", varPath: "gameskillSims", type: "number", min: 0, max: 999 },
+				{ key: "ds_skill_live", name: "电脑房 · 直播技能", varPath: "liveskillSims", type: "number", min: 0, max: 999 },
+				{ key: "ds_skill_program", name: "电脑房 · 编程技能", varPath: "programskillSims", type: "number", min: 0, max: 999 },
+				{ key: "ds_skill_create", name: "电脑房 · 创作技能", varPath: "createskillSims", type: "number", min: 0, max: 999 },
+				{ key: "ds_skill_search", name: "电脑房 · 检索技能", varPath: "searchskillSims", type: "number", min: 0, max: 999 },
+				{ key: "ds_skill_hypno", name: "电脑房 · 催眠技能", varPath: "hypnosisskillSims", type: "number", min: 0, max: 999 },
+				{ key: "ds_book_11", name: "图书馆 · 11 号书进度", varPath: "citylibrarybook_11", type: "number", min: 0, max: 1000 },
+				{ key: "ds_book_12", name: "图书馆 · 12 号书进度", varPath: "citylibrarybook_12", type: "number", min: 0, max: 1000 },
+				{ key: "ds_book_13", name: "图书馆 · 13 号书进度", varPath: "citylibrarybook_13", type: "number", min: 0, max: 1000 },
+				{ key: "ds_book_14", name: "图书馆 · 14 号书进度", varPath: "citylibrarybook_14", type: "number", min: 0, max: 1000 },
+				{ key: "ds_book_15", name: "图书馆 · 15 号书进度", varPath: "citylibrarybook_15", type: "number", min: 0, max: 1000 },
+				{ key: "ds_book_16", name: "图书馆 · 16 号书进度", varPath: "citylibrarybook_16", type: "number", min: 0, max: 1000 },
+				{ key: "ds_book_17", name: "图书馆 · 17 号书进度", varPath: "citylibrarybook_17", type: "number", min: 0, max: 1000 },
+				{ key: "ds_demon", name: "恶魔化进度（≥6 判定）", varPath: "demon", type: "number", min: 0, max: 10 },
+				{ key: "ds_angel", name: "天使化进度", varPath: "angel", type: "number", min: 0, max: 10 },
+				{ key: "ds_fallen", name: "堕落天使进度（≥2 判定）", varPath: "fallenangel", type: "number", min: 0, max: 10 },
+				{ key: "ds_corruption", name: "世界软腐化（≥90 触发，时间钩子 -50）", varPath: "world_corruption_soft", type: "number", min: 0, max: 100 },
+				{ key: "ds_spray_skill", name: "喷雾枪熟练度", varPath: "weaponSprayGunSkillSims", type: "number", min: 0, max: 100 },
+				{ key: "ds_head_blackmail", name: "多伦 · 黑料掌握（0/1）", varPath: "headblackmailed", type: "number", min: 0, max: 1 }
 			]
 		}
 	};
@@ -4719,6 +4975,53 @@ function renderPlayerEdit() {
 			tbox.appendChild(row);
 		});
 		pane.appendChild(tbox);
+
+		/* v1.8.8：战斗终结（学 CombatTerminator 0.1：8 个战斗内一键按钮，直接写原版战斗值）。
+		   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。 */
+		var btsec = el("div", "mce-section", "战斗终结（学 CombatTerminator 0.1：战斗中可用，直接写原版战斗值）");
+		pane.appendChild(btsec);
+		var btDefs = [
+			["自我了断", function (V) { V.pain = 1000; }, "写 V.pain=1000"],
+			["英雄不屈", function (V) { V.pain = 10; V.arousal = 0; V.stress = 0; }, "pain=10 清空性奋/压力"],
+			["延长战斗", function (V) { V.enemyarousal = (V.enemyarousal || 0) - 500; }, "敌方性奋 -500"],
+			["息事宁人", function (V) { V.enemyarousal = V.enemyarousalmax || 0; }, "敌方性奋=上限"],
+			["一拳打飞", function (V) { V.enemyhealth = 0; }, "写 V.enemyhealth=0"],
+			["结束挣扎", function (V) { if (V.struggle) { V.struggle.done = V.struggle.number + 1; } }, "挣扎.done=number+1"],
+			["结束触手", function (V) { if (V.tentacles) { V.tentacles.active = 0; } }, "触手.active=0"],
+			["结束集群", function (V) { V.timer = 0; V.vorestage = 0; V.swimdistance = 0; }, "吞食时间/阶段/距离清零"]
+		];
+		btDefs.forEach(function (d) {
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-lbl", d[2]));
+			var btn = el("button", "mce-btn mce-gold", d[0]);
+			btn.type = "button";
+			btn.addEventListener("click", function () {
+				try { d[1](getV()); setStatus("已执行「" + d[0] + "」", "mce-ok"); }
+				catch (e) { setStatus("执行失败：" + (e.message || e), "mce-err"); }
+			});
+			row.appendChild(btn);
+			btsec.appendChild(row);
+		});
+
+		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5：即时执行原模组每日 0 点的维护逻辑） */
+		var acsec = el("div", "mce-section", "庄园自动维护（学 AutoClean 0.1.5：即时执行艾弗里投喂 + 农场维护）");
+		pane.appendChild(acsec);
+		var a1 = el("button", "mce-btn mce-gold", "一键投喂艾弗里（按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱）");
+		a1.type = "button";
+		a1.addEventListener("click", function () {
+			var r = mcFeedAvery();
+			if (r.error) { setStatus("投喂失败：" + r.error, "mce-err"); return; }
+			setStatus(r.missed ? "无菜可喂，dinner_missed +1（艾弗里未达成喂食条件时同样计入）" : "已喂食：" + r.fed, r.missed ? "mce-err" : "mce-ok");
+		});
+		var a2 = el("button", "mce-btn mce-gold", "一键农场维护（塔卫≥1000 锁动物 30 / 清 agro / 库存收获并清零）");
+		a2.type = "button";
+		a2.addEventListener("click", function () {
+			var r = mcMaintainFarm();
+			if (r.error) { setStatus("维护失败：" + r.error, "mce-err"); return; }
+			setStatus("动物锁满 " + r.beasts + " 只" + (r.aggro ? "，agro 已清零" : "") + "，收获 " + r.harvested + " 类库存", "mce-ok");
+		});
+		acsec.appendChild(a1);
+		acsec.appendChild(a2);
 	}
 
 	function render() {
@@ -4937,6 +5240,9 @@ function renderPlayerEdit() {
 				globalFill: globalFill,
 				globalRomance: globalRomance,
 				globalTransform: globalTransform,
+				/* v1.8.8 庄园自动维护（学 AutoClean 0.1.5 原功能） */
+				mcFeedAvery: mcFeedAvery,
+				mcMaintainFarm: mcMaintainFarm,
 				/* v1.4.5 角色一览恋爱候选过滤 */
 				isLoveCandidate: isLoveCandidate,
 				addLoveInterest: addLoveInterest,

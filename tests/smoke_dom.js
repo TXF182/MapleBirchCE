@@ -155,6 +155,27 @@ ptxt = clickTabSafe("places");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "场景直达页渲染不崩，实际 " + ptxt.slice(0, 50));
 ptxt = clickTabSafe("global");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "全局页渲染不崩，实际 " + ptxt.slice(0, 50));
+/* v1.8.8 全局页新区：战斗终结（学 CombatTerminator）+ 庄园自动维护（学 AutoClean） */
+const globalPane = document.querySelector('[data-pane="global"]');
+const gtxt = globalPane.textContent;
+assert(gtxt.indexOf("战斗终结") !== -1 && gtxt.indexOf("庄园自动维护") !== -1, "全局页含 战斗终结+庄园自动维护 两区，实际 " + gtxt.slice(0, 120));
+const btBtns = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自我了断") !== -1; });
+assert(btBtns.length === 1, "战斗终结「自我了断」按钮存在");
+if (btBtns[0]) { btBtns[0].click(); }
+assert(V.pain === 1000, "点击自我了断 → V.pain=1000，实际 " + V.pain);
+const feedBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("一键投喂艾弗里") !== -1; });
+assert(feedBtn.length === 1, "庄园维护「一键投喂艾弗里」按钮存在");
+const farmBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("一键农场维护") !== -1; });
+assert(farmBtn.length === 1, "庄园维护「一键农场维护」按钮存在");
+/* v1.8.8 三个新适配器：注入探测 mock 后 Mod作弊 页出现 */
+window.DolOptimization = {};
+window.MirrorHypnoVariableRefresh = function () {};
+V.WraithsReflection = 1;
+V.mbCE_wrote = {};
+api.renderModCheats();
+const modsTxt2 = document.querySelector('[data-pane="mods"]').textContent;
+assert(modsTxt2.indexOf("Dol-Optimization") !== -1 && modsTxt2.indexOf("幽灵的倒影") !== -1 && modsTxt2.indexOf("DoLSims") !== -1, "Mod作弊 页渲染三新适配器，实际 " + modsTxt2.slice(0, 300));
+delete window.DolOptimization; delete window.MirrorHypnoVariableRefresh; delete V.WraithsReflection;
 ptxt = clickTabSafe("mods");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "切回 Mod作弊页渲染正常");
 
