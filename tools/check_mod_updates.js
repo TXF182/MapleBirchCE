@@ -39,10 +39,16 @@ function declaredVersion(modId) {
   const ch = CHANNELS.find(function (c) { return c.modId === modId; });
   if (!ch) return null;
   if (ch.declOverride) return ch.declOverride; /* 非适配器渠道：直接取当前兼容版本 */
-  /* 适配器渠道：在 CHEAT_ADAPTERS[modId] 块内找 modName 并提取版本 */
+  /* 适配器渠道：在 CHEAT_ADAPTERS[modId] 块内找 modName 并提取版本。
+     v1.8.6 review：括号配对提取完整块（替代固定 4000 字符截断，块超长时不会漏） */
   const i = js.indexOf('CHEAT_ADAPTERS["' + modId + '"]');
   if (i === -1) return null;
-  const seg = js.slice(i, i + 4000);
+  let start = js.indexOf("{", i), depth = 0, end = -1;
+  for (let j = start; j < js.length && end === -1; j++) {
+    if (js[j] === "{") depth++;
+    else if (js[j] === "}") { depth--; if (depth === 0) end = j; }
+  }
+  const seg = end !== -1 ? js.slice(i, end + 1) : js.slice(i, i + 4000);
   const m = seg.match(/modName:\s*"([^"]+)"/);
   if (!m) return null;
   const v = m[1].match(ch.extractDecl);
@@ -67,7 +73,6 @@ function getLatestTag(repo) {
 /* 版本比较：返回 -1（旧）/ 0（同）/ 1（新）。DomRobin 特例：0.0.8 == 官方 0.08 */
 function compareVersions(decl, tagVer) {
   if (!decl || !tagVer) return null;
-  const ch = null; /* 特例判定放这里 */
   const d = (decl.match(/\d+(?:\.\d+)+/) || [""])[0].split(".").map(Number);
   const t = (tagVer.match(/\d+(?:\.\d+)+/) || [""])[0].split(".").map(Number);
   /* DomRobin：声明 0.0.X == tag 0.0X（取声明第三段 vs tag 第二段） */

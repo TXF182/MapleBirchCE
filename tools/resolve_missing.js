@@ -26,6 +26,9 @@
 const fs = require("fs");
 const path = require("path");
 
+/* 判定常量（v1.8.6 review：替代魔法字符串） */
+const KEEP = "KEEP", REVIEW = "REVIEW", REMOVE = "REMOVE";
+
 const ROOT = path.join(__dirname, "..");
 const ADAPTER_SRC = path.join(ROOT, "javascript", "src", "04-modcheat.js");
 
@@ -140,15 +143,15 @@ function classify(files, vp) {
 
 	// ① 字面完整路径
 	if (ev.literal.length > 0)
-		return { vp, verdict: "KEEP", why: "字面命中：源码存在 V/" + vp + "（" + ev.literal.length + " 处）" };
+		return { vp, verdict: KEEP, why: "字面命中：源码存在 V/" + vp + "（" + ev.literal.length + " 处）" };
 
 	// ② 连写访问（twee 别名 / 直接对象访问）
 	if (ev.concat.length > 0)
-		return { vp, verdict: "KEEP", why: "连写访问命中：" + parent + "." + leaf + "（别名形态，" + ev.concat.length + " 处）" };
+		return { vp, verdict: KEEP, why: "连写访问命中：" + parent + "." + leaf + "（别名形态，" + ev.concat.length + " 处）" };
 
 	// ③ 父根定义块内 leaf: 类型/默认值（interface/type 前缀名或对象字面量，任一块命中）
 	if (findLeafDefBlock(files, root, leaf))
-		return { vp, verdict: "KEEP", why: "状态结构定义存在：" + root + " 定义块内 leaf: 类型/默认值" };
+		return { vp, verdict: KEEP, why: "状态结构定义存在：" + root + " 定义块内 leaf: 类型/默认值" };
 
 	// ④ this.state.leaf —— 属主校验
 	if (ev.state.length > 0) {
@@ -158,23 +161,23 @@ function classify(files, vp) {
 		});
 		if (ownerOk) {
 			const why = "this.state." + leaf + " 命中且 state 绑定属主含 " + root + "（别名盲区，" + ev.state.length + " 处）";
-			return { vp: vp, verdict: "KEEP", why: why };
+			return { vp, verdict: KEEP, why: why };
 		}
 		// 属主不符 → 父根模块目录复查
 		if (moduleDirHasLeaf(files, root, leaf)) {
 			const why = "this.state." + leaf + " 属主非 " + root + "，但模块目录内存在 " + leaf + "，疑似有效建议复核";
-			return { vp: vp, verdict: "REVIEW", why: why };
+			return { vp: vp, verdict: REVIEW, why: why };
 		}
 		const why = "属主非 " + root + " 且模块目录内零出现 " + leaf + "：真缺失（模组删除/改名该字段）";
-		return { vp: vp, verdict: "REMOVE", why: why };
+		return { vp: vp, verdict: REMOVE, why: why };
 	}
 
 	// ⑤ 叶子键字符串 / 动态键形态
 	if (ev.stringKey.length > 0 || ev.dynamic.length > 0)
-		return { vp, verdict: "REVIEW", why: "叶子键 " + leaf + " 以字符串/动态键形态存在（配置数组或 obj[xx] 访问，" + (ev.stringKey.length + ev.dynamic.length) + " 处），声明保留建议复核" };
+		return { vp, verdict: REVIEW, why: "叶子键 " + leaf + " 以字符串/动态键形态存在（配置数组或 obj[xx] 访问，" + (ev.stringKey.length + ev.dynamic.length) + " 处），声明保留建议复核" };
 
 	// ⑥ 零证据
-	return { vp, verdict: "REMOVE", why: "零证据：源码中未出现 " + leaf + " 的任何形态，真缺失（模组删除/改名该字段）" };
+	return { vp, verdict: REMOVE, why: "零证据：源码中未出现 " + leaf + " 的任何形态，真缺失（模组删除/改名该字段）" };
 }
 
 /* ---------- main ---------- */

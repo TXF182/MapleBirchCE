@@ -22,12 +22,13 @@
 		for (i = 0; i < tabs.length; i++) {
 			if (tabs[i].classList.contains("mce-active")) { activeTab = tabs[i].getAttribute("data-tab"); }
 		}
-		if (activeTab === "char") { renderCards(); }
-		else if (activeTab === "stage") { renderStagePane(); }
-		else if (activeTab === "scenes") { renderScenes(); }
-		else if (activeTab === "places") { renderPlaces(); }
-		else if (activeTab === "global") { renderGlobal(); }
-		else if (activeTab === "mods") { renderModCheats(); }
+		/* 表驱动分发（v1.8.6 review：替代 6 分支 if 链） */
+		var paneRenders = {
+			char: renderCards, stage: renderStagePane, scenes: renderScenes,
+			places: renderPlaces, global: renderGlobal, mods: renderModCheats
+		};
+		var doRender = paneRenders[activeTab];
+		if (doRender) { doRender(); }
 		setStatus("就绪：" + chars.length + " 个角色", "mce-ok");
 	}
 
@@ -79,18 +80,13 @@
 		});
 
 		var body = el("div", "mce-body");
-		var p1 = el("div", "mce-pane mce-active"); p1.setAttribute("data-pane", "char");
-		var p2 = el("div", "mce-pane"); p2.setAttribute("data-pane", "stage");
-		var p3 = el("div", "mce-pane"); p3.setAttribute("data-pane", "scenes");
-		var p4 = el("div", "mce-pane"); p4.setAttribute("data-pane", "places");
-		var p5 = el("div", "mce-pane"); p5.setAttribute("data-pane", "global");
-		var p6 = el("div", "mce-pane"); p6.setAttribute("data-pane", "mods");
-		body.appendChild(p1);
-		body.appendChild(p2);
-		body.appendChild(p3);
-		body.appendChild(p4);
-		body.appendChild(p5);
-		body.appendChild(p6);
+		var panes = [["char", "mce-pane mce-active"], ["stage", "mce-pane"], ["scenes", "mce-pane"],
+			["places", "mce-pane"], ["global", "mce-pane"], ["mods", "mce-pane"]];
+		panes.forEach(function (pair) {
+			var p = el("div", pair[1]);
+			p.setAttribute("data-pane", pair[0]);
+			body.appendChild(p);
+		});
 
 		var status = el("div", "mce-status", "就绪");
 
