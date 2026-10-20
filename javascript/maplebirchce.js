@@ -1094,7 +1094,7 @@
 		"NPCList", "alarm", "allure", "alluretest", "analchastityparasite", "analskill",
 		"angelbuild", "arousalmax", "askedtochoke", "asylummedicated", "avery_mansion",
 		"averydate", "averyragerevealed", "awareness", "baileydefeatedchain", "ballssize",
-		"beastrapestat", "beauty", "bestialitytrait", "bottomskill", "brothelshowdata",
+		"beastrapestat", "beauty", "beautymax", "bestialitytrait", "bottomskill", "brothelshowdata",
 		"bullytimer", "bullytimeroutside", "bus", "cat", "catbuild", "cave", "chestskill",
 		"choketrait", "compound", "consensual", "container", "control", "cool", "cowbuild",
 		"daily", "dancelocation", "danceskill", "dancing", "debugLines",
@@ -1110,7 +1110,7 @@
 		"molestationstart", "moleststat", "molesttrait", "money", "moonstate", "moor",
 		"moor_hunt", "museumAntiques", "neckuse", "oralskill", "orgasmstat", "orgasmtrait",
 		"outside", "overlowerwet", "overupperwet", "oxygen", "pain", "penileskill",
-		"penistarget", "phase", "physique", "player", "possessed", "pregnancyStats",
+		"penistarget", "phase", "physique", "physiquesize", "player", "possessed", "pregnancyStats",
 		"prevPassage", "promiscuity", "prostitutionstat", "pubwhore", "purity", "rapestat",
 		"rapetrait", "renttime", "rightarm", "rng", "robinPillory", "robindebt",
 		"robinmissing", "robinnote", "robinpaid", "robinromance", "scenePassages", "scenes",
@@ -1122,7 +1122,7 @@
 		"testvar", "thighskill", "timeDistortion", "timer", "tiredness", "trauma",
 		"undertemp", "upperschoolswimsuitno", "uppertemp", "vaginalskill", "venuemod",
 		"vorestage", "wardrobes", "water", "whitney_home_timer", "whitneyromance",
-		"willpower", "wolfbuild", "wolfgirl", "wolfpacktrust", "worn", "wraithPrison"
+		"willpower", "willpowermax", "wolfbuild", "wolfgirl", "wolfpacktrust", "worn", "wraithPrison"
 	];
 	/* 玩家属性/模组键 中英映射（仅用于面板显示，写入路径始终用原键名，绝不影响数据层） */
 	var ZH_KEYS = {

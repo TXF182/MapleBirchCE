@@ -96,14 +96,16 @@ function scanRefs(files) {
 	}
 	const reTwee = /\$([A-Za-z_][A-Za-z0-9_]*)(?:\.[A-Za-z_][A-Za-z0-9_]*)*/g;
 	const reJs = /\bV\.([A-Za-z_][A-Za-z0-9_]*)(?:\.[A-Za-z_][A-Za-z0-9_]*)*|setup\.([A-Za-z_][A-Za-z0-9_]*)/g;
+	let skippedTmp = 0; // $_xxx 私有临时变量（Twine 每段作用域独立、不落存档，非声明候选）
 	for (const f of files) {
 		const text = fs.readFileSync(f, "utf8");
 		const lines = text.split("\n");
 		let m;
 		reTwee.lastIndex = 0;
 		while ((m = reTwee.exec(text))) {
-			// twee 里 $xxx 即 V.xxx
+			// twee 里 $xxx 即 V.xxx；$ 后直接 _ 开头是私有临时变量（_args/_tmp 等），不落存档
 			const root = m[1];
+			if (root.charAt(0) === "_") { skippedTmp++; continue; }
 			const lineNo = text.slice(0, m.index).split("\n").length;
 			const fullPath = m[0].slice(1);
 			bump(root, fullPath, f, lines[lineNo - 1], false);
@@ -112,18 +114,19 @@ function scanRefs(files) {
 		while ((m = reJs.exec(text))) {
 			const isSetup = !!m[2];
 			const root = m[1] || m[2];
+			if (root.charAt(0) === "_") { skippedTmp++; continue; }
 			const lineNo = text.slice(0, m.index).split("\n").length;
 			bump(root, null, f, lines[lineNo - 1], isSetup);
 		}
 	}
-	return refs;
+	return { refs, skippedTmp };
 }
 
 /* ---------- 5. 汇总 ---------- */
 const adapterPaths = extractAdapterPaths();
 const vanillaSet = new Set(extractVanillaRoots());
 const files = collectFiles(srcDir);
-const refs = scanRefs(files);
+const { refs, skippedTmp } = scanRefs(files);
 
 const declaredRoots = new Set();
 for (const modId of Object.keys(adapterPaths)) {
@@ -155,7 +158,7 @@ for (const [root, r] of refs) {
 /* ---------- 6. 输出 ---------- */
 function pad(s, n) { s = String(s); return s.length >= n ? s : s + " ".repeat(n - s.length); }
 console.log("===== 模组变量引用扫描: " + srcDir + " =====");
-console.log("文件数: " + files.length + " | 引用根数: " + refs.size + " | 适配器: " + (filterMod || "全部(" + Object.keys(adapterPaths).length + ")"));
+console.log("文件数: " + files.length + " | 引用根数: " + refs.size + "（已过滤 Twine 私有临时变量 " + skippedTmp + " 个） | 适配器: " + (filterMod || "全部(" + Object.keys(adapterPaths).length + ")"));
 console.log("");
 console.log("[已声明] " + declared.length + " 个根（源码引用 & 适配器命中）");
 for (const d of declared) {
