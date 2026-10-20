@@ -2,6 +2,20 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.8.10（2026-10-20）
+
+**审查补全：庄园自动维护扩至 AutoClean 全维护面 + 点菜刷新对齐**
+
+- 「庄园自动维护」区由 2 按钮扩为 **6 按钮**（补齐 AutoClean 0.1.5 每日 0 点全部维护面）：
+  - `mcMaintainTemple()`：神殿防衰减——housekeeping≥1000 时 `temple_quarters=100`，tending≥1000 时 `temple_garden=100`（对齐 AutoClean 条件锁值）
+  - `mcMaintainEden()`：伊甸菜地/菇桶/泉水 `edengarden/edenshrooms/edenspring=4`（无条件锁值）
+  - `mcRestockSupplies()`：肥皂/药膏补 10、鹰塔木材 `bird.materials.wood=10`
+  - `mcCleanMansion()`：艾弗里豪宅全部房间清理 + `days_absent=0`——运行时动态枚举 `avery_mansion` 直接子键、对含布尔 `cleaned` 的对象置真（适配原版结构变化，不写死字段名）
+- 投喂对齐：`mcFeedAvery()` 喂食后调用 `avery_food_select` 刷新点菜（AutoClean 函数末尾逻辑，游戏中存在时生效）
+- 四函数经 09-exports.js 导出 API
+- 测试：全量回归新增 41.2c 断言（技能条件锁 / 无条件锁 / 补货 / 动态打扫四组行为，实测 rooms=3 且 man 对象不动）；冒烟 +4 断言（四新按钮存在且点击不崩）
+- 全链验证：冒烟 + 全量回归 600+ 断言全绿
+
 ## v1.8.9（2026-10-20）
 
 **审查优化：对齐 AutoClean 行为 + 数据层下沉 + 边界标注**

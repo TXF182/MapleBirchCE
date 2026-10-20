@@ -70,6 +70,12 @@
 						if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
 						r.missed = true;
 					} else { fs[foods[0][0]].amount -= 1; r.fed = foods[0][0]; }
+					/* v1.8.10 对齐 AutoClean：喂食后刷新艾弗里点菜（avery_food_select widget，游戏中存在时生效） */
+					try {
+						if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
+							new window.SugarCube.Wikifier(null, "<<avery_food_select>>");
+						}
+					} catch (e3) {}
 				}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
@@ -104,6 +110,63 @@
 					f.stock[k] = 0;
 					r.harvested += 1;
 				});
+			}
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+
+	/* ============ v1.8.10 庄园自动维护扩展（学 AutoClean 0.1.5 剩余维护面：神殿/伊甸/补给/打扫）
+	   与投喂、农场同属「即时执行原模组每日 0 点的维护逻辑」；全部写原版键，键存在才写，防无效写入。 ============ */
+	function mcMaintainTemple() {
+		var V = getV();
+		var r = { quarters: false, garden: false, error: "" };
+		try {
+			/* 对齐 AutoClean：temple_quarters=100 仅 housekeeping≥1000 时；temple_garden=100 仅 tending≥1000 时 */
+			if (V.skill && V.skill.housekeeping >= 1000) {
+				if (typeof V.temple_quarters === "number") { V.temple_quarters = 100; r.quarters = true; }
+			}
+			if (V.skill && V.skill.tending >= 1000) {
+				if (typeof V.temple_garden === "number") { V.temple_garden = 100; r.garden = true; }
+			}
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+	function mcMaintainEden() {
+		var V = getV();
+		var r = { locked: 0, error: "" };
+		try {
+			/* 对齐 AutoClean：伊甸菜地/菇桶/泉水无条件锁 4 */
+			["edengarden", "edenshrooms", "edenspring"].forEach(function (k) {
+				if (typeof V[k] === "number") { V[k] = 4; r.locked += 1; }
+			});
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+	function mcRestockSupplies() {
+		var V = getV();
+		var r = { soap: false, salve: false, wood: false, error: "" };
+		try {
+			/* 对齐 AutoClean：肥皂/药膏补 10，鹰塔木材补 10 */
+			if (typeof V.soap === "number") { V.soap = 10; r.soap = true; }
+			if (typeof V.salve === "number") { V.salve = 10; r.salve = true; }
+			if (V.bird && V.bird.materials && typeof V.bird.materials.wood === "number") { V.bird.materials.wood = 10; r.wood = true; }
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+	function mcCleanMansion() {
+		var V = getV();
+		var r = { rooms: 0, days: false, error: "" };
+		try {
+			/* 对齐 AutoClean：艾弗里豪宅八房间清零 + days_absent=0。
+			   房间字段随原版结构变化，此处运行时动态枚举：遍历 avery_mansion 直接子键，
+			   值含布尔 cleaned 属性的对象视为房间，置 cleaned=true（对结构变化鲁棒，不写死字段名）。 */
+			var man = V.avery_mansion;
+			if (man && typeof man === "object") {
+				Object.keys(man).forEach(function (k) {
+					var v = man[k];
+					if (v && typeof v === "object" && typeof v.cleaned === "boolean") { v.cleaned = true; r.rooms += 1; }
+				});
+				if (typeof man.days_absent === "number") { man.days_absent = 0; r.days = true; }
 			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;

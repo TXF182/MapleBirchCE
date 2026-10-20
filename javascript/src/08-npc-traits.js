@@ -170,7 +170,7 @@
 
 		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5：即时执行原模组每日 0 点的维护逻辑）
 		   v1.8.9：按钮改为 mce-row 结构（说明 + 按钮），与战斗终结区样式一致；投喂未达喂食阶段提示 skipped */
-		var acsec = el("div", "mce-section", "庄园自动维护（学 AutoClean 0.1.5：即时执行艾弗里投喂 + 农场维护）");
+		var acsec = el("div", "mce-section", "庄园自动维护（学 AutoClean 0.1.5：即时执行投喂/农场/神殿/伊甸/补给/打扫）");
 		pane.appendChild(acsec);
 		var a1row = el("div", "mce-row");
 		a1row.appendChild(el("span", "mce-row-lbl", "按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱；未达喂食阶段（关系未确立）不操作"));
@@ -195,4 +195,49 @@
 		a2row.appendChild(a2);
 		acsec.appendChild(a1row);
 		acsec.appendChild(a2row);
+		/* v1.8.10：补全 AutoClean 维护面（神殿/伊甸/补给/打扫），保持 mce-row 结构 */
+		var a3row = el("div", "mce-row");
+		a3row.appendChild(el("span", "mce-row-lbl", "神殿防衰减：housekeeping≥1000 时宿舍=100，tending≥1000 时花园=100（对齐 AutoClean 条件锁值）"));
+		var a3 = el("button", "mce-btn mce-gold", "一键神殿维护");
+		a3.type = "button";
+		a3.addEventListener("click", function () {
+			var r = mcMaintainTemple();
+			if (r.error) { setStatus("神殿维护失败：" + r.error, "mce-err"); return; }
+			setStatus((r.quarters || r.garden) ? "神殿维护完成：宿舍" + (r.quarters ? "=100" : "未达标跳过") + "、花园" + (r.garden ? "=100" : "未达标跳过") : "技能未达标（housekeeping/tending 需≥1000），未操作", (r.quarters || r.garden) ? "mce-ok" : "mce-err");
+		});
+		a3row.appendChild(a3);
+		var a4row = el("div", "mce-row");
+		a4row.appendChild(el("span", "mce-row-lbl", "伊甸菜地/菇桶/泉水锁 4（与 AutoClean 每日 0 点无条件锁值一致）"));
+		var a4 = el("button", "mce-btn mce-gold", "一键伊甸维护");
+		a4.type = "button";
+		a4.addEventListener("click", function () {
+			var r = mcMaintainEden();
+			if (r.error) { setStatus("伊甸维护失败：" + r.error, "mce-err"); return; }
+			setStatus("伊甸维护完成：锁定 " + r.locked + " 项为 4", "mce-ok");
+		});
+		a4row.appendChild(a4);
+		var a5row = el("div", "mce-row");
+		a5row.appendChild(el("span", "mce-row-lbl", "肥皂/药膏补 10，鹰塔木材补 10（与 AutoClean 每日 0 点补货一致）"));
+		var a5 = el("button", "mce-btn mce-gold", "一键补给");
+		a5.type = "button";
+		a5.addEventListener("click", function () {
+			var r = mcRestockSupplies();
+			if (r.error) { setStatus("补给失败：" + r.error, "mce-err"); return; }
+			setStatus("补给完成：肥皂" + (r.soap ? "=10" : "跳过") + "、药膏" + (r.salve ? "=10" : "跳过") + "、鹰塔木材" + (r.wood ? "=10" : "跳过"), "mce-ok");
+		});
+		a5row.appendChild(a5);
+		var a6row = el("div", "mce-row");
+		a6row.appendChild(el("span", "mce-row-lbl", "艾弗里豪宅全部房间清理 + days_absent 归零（动态枚举房间，适配原版结构变化）"));
+		var a6 = el("button", "mce-btn mce-gold", "一键庄园打扫");
+		a6.type = "button";
+		a6.addEventListener("click", function () {
+			var r = mcCleanMansion();
+			if (r.error) { setStatus("庄园打扫失败：" + r.error, "mce-err"); return; }
+			setStatus("庄园打扫完成：清理 " + r.rooms + " 间房" + (r.days ? "，days_absent 归零" : ""), "mce-ok");
+		});
+		a6row.appendChild(a6);
+		acsec.appendChild(a3row);
+		acsec.appendChild(a4row);
+		acsec.appendChild(a5row);
+		acsec.appendChild(a6row);
 	}

@@ -2288,6 +2288,25 @@ var mf1b = api.mcMaintainFarm ? api.mcMaintainFarm() : (setup.mbStageCE.mcMainta
 assert(mf1b.harvested === 4 && V.farm.stock.cream === 0 && V.farm.stock.truffles === 0 && V.farm.stock.eggs === 0, "41.2b 四类库存（含 cream）全部收获并清零（直接传键名，与 AutoClean 一致），实际 harvested=" + mf1b.harvested + " cream=" + V.farm.stock.cream);
 delete V.farm; delete V.farm_stage; delete V.farmerCanSell;
 
+/* 41.2c）v1.8.10 维护扩展（学 AutoClean 剩余维护面）：神殿条件锁 / 伊甸无条件锁 / 补给 / 动态打扫 */
+V.skill = { housekeeping: 1200, tending: 800 };
+V.temple_quarters = 55; V.temple_garden = 60;
+var mt1 = api.mcMaintainTemple ? api.mcMaintainTemple() : (setup.mbStageCE.mcMaintainTemple ? setup.mbStageCE.mcMaintainTemple() : {});
+assert(mt1.quarters === true && V.temple_quarters === 100 && mt1.garden === false && V.temple_garden === 60, "41.2c 神殿维护按技能条件锁：housekeeping≥1000 宿舍=100，tending<1000 花园不动，实际 quarters=" + mt1.quarters + " garden=" + mt1.garden + " temple_garden=" + V.temple_garden);
+V.skill.tending = 1200;
+var mt2 = api.mcMaintainTemple ? api.mcMaintainTemple() : (setup.mbStageCE.mcMaintainTemple ? setup.mbStageCE.mcMaintainTemple() : {});
+assert(mt2.garden === true && V.temple_garden === 100, "41.2c 神殿维护 tending≥1000 花园=100，实际 garden=" + mt2.garden);
+V.edengarden = 1; V.edenshrooms = 2; V.edenspring = 3;
+var me1 = api.mcMaintainEden ? api.mcMaintainEden() : (setup.mbStageCE.mcMaintainEden ? setup.mbStageCE.mcMaintainEden() : {});
+assert(me1.locked === 3 && V.edengarden === 4 && V.edenshrooms === 4 && V.edenspring === 4, "41.2c 伊甸维护无条件锁 4（三键），实际 locked=" + me1.locked);
+V.soap = 3; V.salve = 5; V.bird = { materials: { wood: 2 } };
+var mr1 = api.mcRestockSupplies ? api.mcRestockSupplies() : (setup.mbStageCE.mcRestockSupplies ? setup.mbStageCE.mcRestockSupplies() : {});
+assert(mr1.soap === true && mr1.salve === true && mr1.wood === true && V.soap === 10 && V.salve === 10 && V.bird.materials.wood === 10, "41.2c 补给：肥皂/药膏/鹰塔木材补 10，实际 soap=" + V.soap + " wood=" + V.bird.materials.wood);
+V.avery_mansion = { office: { cleaned: false }, bathroom: { cleaned: false }, bedroom: { cleaned: false }, man: { food: "steak" }, days_absent: 3 };
+var mc1 = api.mcCleanMansion ? api.mcCleanMansion() : (setup.mbStageCE.mcCleanMansion ? setup.mbStageCE.mcCleanMansion() : {});
+assert(mc1.rooms === 3 && V.avery_mansion.office.cleaned === true && V.avery_mansion.bedroom.cleaned === true && V.avery_mansion.days_absent === 0, "41.2c 庄园打扫动态枚举房间清零（3 间，man 非房间不动）+ days_absent=0，实际 rooms=" + mc1.rooms + " days=" + mc1.days);
+delete V.skill; delete V.temple_quarters; delete V.temple_garden; delete V.edengarden; delete V.edenshrooms; delete V.edenspring; delete V.soap; delete V.salve; delete V.bird; delete V.avery_mansion;
+
 /* 41.3）新适配器探测：Dol-Optimization（window.DolOptimization）/ Wraith（V 根）/ DoLSims（window.MirrorHypnoVariableRefresh） */
 global.window = { DolOptimization: {}, MirrorHypnoVariableRefresh: function () {} };
 V.WraithsReflection = 1;

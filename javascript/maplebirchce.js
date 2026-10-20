@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.8.9";
+	var MCE_VERSION = "1.8.10";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -724,6 +724,12 @@
 						if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
 						r.missed = true;
 					} else { fs[foods[0][0]].amount -= 1; r.fed = foods[0][0]; }
+					/* v1.8.10 对齐 AutoClean：喂食后刷新艾弗里点菜（avery_food_select widget，游戏中存在时生效） */
+					try {
+						if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
+							new window.SugarCube.Wikifier(null, "<<avery_food_select>>");
+						}
+					} catch (e3) {}
 				}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
@@ -758,6 +764,63 @@
 					f.stock[k] = 0;
 					r.harvested += 1;
 				});
+			}
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+
+	/* ============ v1.8.10 庄园自动维护扩展（学 AutoClean 0.1.5 剩余维护面：神殿/伊甸/补给/打扫）
+	   与投喂、农场同属「即时执行原模组每日 0 点的维护逻辑」；全部写原版键，键存在才写，防无效写入。 ============ */
+	function mcMaintainTemple() {
+		var V = getV();
+		var r = { quarters: false, garden: false, error: "" };
+		try {
+			/* 对齐 AutoClean：temple_quarters=100 仅 housekeeping≥1000 时；temple_garden=100 仅 tending≥1000 时 */
+			if (V.skill && V.skill.housekeeping >= 1000) {
+				if (typeof V.temple_quarters === "number") { V.temple_quarters = 100; r.quarters = true; }
+			}
+			if (V.skill && V.skill.tending >= 1000) {
+				if (typeof V.temple_garden === "number") { V.temple_garden = 100; r.garden = true; }
+			}
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+	function mcMaintainEden() {
+		var V = getV();
+		var r = { locked: 0, error: "" };
+		try {
+			/* 对齐 AutoClean：伊甸菜地/菇桶/泉水无条件锁 4 */
+			["edengarden", "edenshrooms", "edenspring"].forEach(function (k) {
+				if (typeof V[k] === "number") { V[k] = 4; r.locked += 1; }
+			});
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+	function mcRestockSupplies() {
+		var V = getV();
+		var r = { soap: false, salve: false, wood: false, error: "" };
+		try {
+			/* 对齐 AutoClean：肥皂/药膏补 10，鹰塔木材补 10 */
+			if (typeof V.soap === "number") { V.soap = 10; r.soap = true; }
+			if (typeof V.salve === "number") { V.salve = 10; r.salve = true; }
+			if (V.bird && V.bird.materials && typeof V.bird.materials.wood === "number") { V.bird.materials.wood = 10; r.wood = true; }
+		} catch (e) { r.error = String(e.message || e); }
+		return r;
+	}
+	function mcCleanMansion() {
+		var V = getV();
+		var r = { rooms: 0, days: false, error: "" };
+		try {
+			/* 对齐 AutoClean：艾弗里豪宅八房间清零 + days_absent=0。
+			   房间字段随原版结构变化，此处运行时动态枚举：遍历 avery_mansion 直接子键，
+			   值含布尔 cleaned 属性的对象视为房间，置 cleaned=true（对结构变化鲁棒，不写死字段名）。 */
+			var man = V.avery_mansion;
+			if (man && typeof man === "object") {
+				Object.keys(man).forEach(function (k) {
+					var v = man[k];
+					if (v && typeof v === "object" && typeof v.cleaned === "boolean") { v.cleaned = true; r.rooms += 1; }
+				});
+				if (typeof man.days_absent === "number") { man.days_absent = 0; r.days = true; }
 			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
@@ -5019,7 +5082,7 @@ function renderPlayerEdit() {
 
 		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5：即时执行原模组每日 0 点的维护逻辑）
 		   v1.8.9：按钮改为 mce-row 结构（说明 + 按钮），与战斗终结区样式一致；投喂未达喂食阶段提示 skipped */
-		var acsec = el("div", "mce-section", "庄园自动维护（学 AutoClean 0.1.5：即时执行艾弗里投喂 + 农场维护）");
+		var acsec = el("div", "mce-section", "庄园自动维护（学 AutoClean 0.1.5：即时执行投喂/农场/神殿/伊甸/补给/打扫）");
 		pane.appendChild(acsec);
 		var a1row = el("div", "mce-row");
 		a1row.appendChild(el("span", "mce-row-lbl", "按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱；未达喂食阶段（关系未确立）不操作"));
@@ -5044,6 +5107,51 @@ function renderPlayerEdit() {
 		a2row.appendChild(a2);
 		acsec.appendChild(a1row);
 		acsec.appendChild(a2row);
+		/* v1.8.10：补全 AutoClean 维护面（神殿/伊甸/补给/打扫），保持 mce-row 结构 */
+		var a3row = el("div", "mce-row");
+		a3row.appendChild(el("span", "mce-row-lbl", "神殿防衰减：housekeeping≥1000 时宿舍=100，tending≥1000 时花园=100（对齐 AutoClean 条件锁值）"));
+		var a3 = el("button", "mce-btn mce-gold", "一键神殿维护");
+		a3.type = "button";
+		a3.addEventListener("click", function () {
+			var r = mcMaintainTemple();
+			if (r.error) { setStatus("神殿维护失败：" + r.error, "mce-err"); return; }
+			setStatus((r.quarters || r.garden) ? "神殿维护完成：宿舍" + (r.quarters ? "=100" : "未达标跳过") + "、花园" + (r.garden ? "=100" : "未达标跳过") : "技能未达标（housekeeping/tending 需≥1000），未操作", (r.quarters || r.garden) ? "mce-ok" : "mce-err");
+		});
+		a3row.appendChild(a3);
+		var a4row = el("div", "mce-row");
+		a4row.appendChild(el("span", "mce-row-lbl", "伊甸菜地/菇桶/泉水锁 4（与 AutoClean 每日 0 点无条件锁值一致）"));
+		var a4 = el("button", "mce-btn mce-gold", "一键伊甸维护");
+		a4.type = "button";
+		a4.addEventListener("click", function () {
+			var r = mcMaintainEden();
+			if (r.error) { setStatus("伊甸维护失败：" + r.error, "mce-err"); return; }
+			setStatus("伊甸维护完成：锁定 " + r.locked + " 项为 4", "mce-ok");
+		});
+		a4row.appendChild(a4);
+		var a5row = el("div", "mce-row");
+		a5row.appendChild(el("span", "mce-row-lbl", "肥皂/药膏补 10，鹰塔木材补 10（与 AutoClean 每日 0 点补货一致）"));
+		var a5 = el("button", "mce-btn mce-gold", "一键补给");
+		a5.type = "button";
+		a5.addEventListener("click", function () {
+			var r = mcRestockSupplies();
+			if (r.error) { setStatus("补给失败：" + r.error, "mce-err"); return; }
+			setStatus("补给完成：肥皂" + (r.soap ? "=10" : "跳过") + "、药膏" + (r.salve ? "=10" : "跳过") + "、鹰塔木材" + (r.wood ? "=10" : "跳过"), "mce-ok");
+		});
+		a5row.appendChild(a5);
+		var a6row = el("div", "mce-row");
+		a6row.appendChild(el("span", "mce-row-lbl", "艾弗里豪宅全部房间清理 + days_absent 归零（动态枚举房间，适配原版结构变化）"));
+		var a6 = el("button", "mce-btn mce-gold", "一键庄园打扫");
+		a6.type = "button";
+		a6.addEventListener("click", function () {
+			var r = mcCleanMansion();
+			if (r.error) { setStatus("庄园打扫失败：" + r.error, "mce-err"); return; }
+			setStatus("庄园打扫完成：清理 " + r.rooms + " 间房" + (r.days ? "，days_absent 归零" : ""), "mce-ok");
+		});
+		a6row.appendChild(a6);
+		acsec.appendChild(a3row);
+		acsec.appendChild(a4row);
+		acsec.appendChild(a5row);
+		acsec.appendChild(a6row);
 	}
 
 	function render() {
@@ -5265,6 +5373,11 @@ function renderPlayerEdit() {
 				/* v1.8.8 庄园自动维护（学 AutoClean 0.1.5 原功能） */
 				mcFeedAvery: mcFeedAvery,
 				mcMaintainFarm: mcMaintainFarm,
+				/* v1.8.10 庄园自动维护扩展（神殿/伊甸/补给/打扫） */
+				mcMaintainTemple: mcMaintainTemple,
+				mcMaintainEden: mcMaintainEden,
+				mcRestockSupplies: mcRestockSupplies,
+				mcCleanMansion: mcCleanMansion,
 				/* v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，数据层动作） */
 				COMBAT_ACTIONS: COMBAT_ACTIONS,
 				mcCombatAction: mcCombatAction,

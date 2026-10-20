@@ -218,6 +218,11 @@
 				/* v1.8.8 庄园自动维护（学 AutoClean 0.1.5 原功能） */
 				mcFeedAvery: mcFeedAvery,
 				mcMaintainFarm: mcMaintainFarm,
+				/* v1.8.10 庄园自动维护扩展（神殿/伊甸/补给/打扫） */
+				mcMaintainTemple: mcMaintainTemple,
+				mcMaintainEden: mcMaintainEden,
+				mcRestockSupplies: mcRestockSupplies,
+				mcCleanMansion: mcCleanMansion,
 				/* v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，数据层动作） */
 				COMBAT_ACTIONS: COMBAT_ACTIONS,
 				mcCombatAction: mcCombatAction,
