@@ -256,6 +256,7 @@
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			var key = parsed.type + ":" + (parsed.path || npcName) + ":" + (parsed.value || "");
 			V.mbCE_wrote[key] = { type: parsed.type, path: parsed.path || "", value: parsed.value || "", npc: npcName, t: Date.now() };
+			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
 		} catch (e) {}
 	}
 	function recordVanillaWrite(key) {
@@ -264,6 +265,7 @@
 			if (!V) { return; }
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["vanilla:" + key] = { type: "vanilla", key: key, npc: "Gwylan", t: Date.now() };
+			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
 		} catch (e) {}
 	}
 	function fillGwylanLoveMax() {
@@ -593,7 +595,7 @@
 		"weekly", "specialClothes", "loveInterest", "replayScene", "sceneViewSwitch",
 		"mbCE_queue", "mbCE_wrote", "mbCE_replayOnce", "mbCE_replayPending", "mbCE_unlockedPlaces"
 	];
-	/* v1.7.0：DoL 原版 V 顶层键清单（从本体 0.5.12.13 HTML 宏上下文实证提取，183 键）。
+	/* v1.7.0：DoL 原版 V 顶层键清单（从本体 0.5.12.13 HTML 宏上下文实证提取，186 键）。
 	   用途：玩家属性编辑页「模组属性」区 = 运行时 V 顶层键 - 本清单（只添加原版没有的，原版键不重复添加）。
 	   来源：twine 宏内 $xxx（含对象型）全部出现 + 手工补充运行时实证的原版顶层对象键（scenes/compound/money 等）。 */
 	var ORIGINAL_V_ROOT_KEYS = [

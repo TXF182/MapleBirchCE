@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.8.11";
+	var MCE_VERSION = "1.8.22";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -9,6 +9,24 @@
 	function getSetup() {
 		try { if (typeof setup !== "undefined" && setup) { return setup; } } catch (e) {}
 		return {};
+	}
+	/* v1.8.15 九巡：面板写入留痕 V.mbCE_wrote 有界化——条目数 > 400 时按时间戳升序删除最旧一半。
+	   防止长时间高强度操作导致留痕无限增长（每笔写入都占存档空间）；被删条目的回退窗口随之关闭（旧操作不再可回退）。 */
+	function mbCEWroteTrim(V) {
+		try {
+			if (!V || !V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { return; }
+			var keys = Object.keys(V.mbCE_wrote);
+			if (keys.length <= 400) { return; }
+			keys.sort(function (a, b) {
+				var ta = (V.mbCE_wrote[a] && typeof V.mbCE_wrote[a].t === "number") ? V.mbCE_wrote[a].t : 0;
+				var tb = (V.mbCE_wrote[b] && typeof V.mbCE_wrote[b].t === "number") ? V.mbCE_wrote[b].t : 0;
+				return ta - tb;
+			});
+			var drop = Math.floor(keys.length / 2);
+			for (var i = 0; i < drop; i++) {
+				try { delete V.mbCE_wrote[keys[i]]; } catch (e) { V.mbCE_wrote[keys[i]] = undefined; }
+			}
+		} catch (e) {}
 	}
 
 	/* ============ 框架解析（window.maplebirch 优先，setup.MapleBirch 回退） ============ */
@@ -49,7 +67,9 @@
 		"zephyr": "泽菲尔", "morgan": "摩根", "river": "瑞沃", "sirris": "西里斯", "night monster": "夜魔",
 		/* v1.8.3：模组枚举角色中文映射（音译初版，可在游戏内按实际名称校对调整） */
 		"tsukihan": "月半", "rowan": "罗文", "adrian": "阿德里安", "marlow": "马洛",
-		"grant": "格兰特", "needmeet": "尼德米特", "feng": "老冯"
+		"grant": "格兰特", "needmeet": "尼德米特", "feng": "老冯",
+		/* v1.8.19：Maplebirch 恋爱扩展/模组注入角色（用户实测角色页仍有英文名） */
+		"seath": "希斯", "alice": "爱丽丝", "liddell": "利德尔"
 	};
 	function displayName(name) {
 		try {

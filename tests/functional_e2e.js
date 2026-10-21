@@ -177,6 +177,9 @@ function findTraitRow(keyword) {
   })[0];
 }
 api.renderPlayerEdit();
+/* v1.8.15 懒渲染：特质区默认收起 → 先展开全部分类，后续模组特质行断言才能命中 */
+const openAllE = [].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "全部展开"; })[0];
+if (openAllE) { openAllE.click(); }
 /* D1. 函数型「命运之轮」：获取 → 强制标记；重渲染 ●+移除；移除 → 清空 */
 let fateRow = findTraitRow("命运之轮");
 assert(!!fateRow, "D1. 函数型模组特质「命运之轮」行渲染");

@@ -427,6 +427,14 @@ function revokeTrait(t, V, C) {
 }
 function traitWriteSatisfy(V, path, op, valRaw) {
 	var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
+	/* 十二巡修复：isnot 语义是「不等于」——满足 isnot true → 写 false；isnot false → 写 true；
+	   isnot undefined → 写 1；isnot N → 写 N-1。此前与 is 共用分支导致布尔写反 */
+	if (op === "isnot") {
+		if (String(valRaw) === "true") { setPathVal(V, path, false); return path + "=false"; }
+		if (String(valRaw) === "false") { setPathVal(V, path, true); return path + "=true"; }
+		if (String(valRaw) === "undefined") { setPathVal(V, path, 1); return path + "=1"; }
+		setPathVal(V, path, num - 1); return path + "=" + (num - 1);
+	}
 	if (String(valRaw) === "true") { setPathVal(V, path, true); return path + "=true"; }
 	if (String(valRaw) === "false") { setPathVal(V, path, false); return path + "=false"; }
 	if (String(valRaw) === "undefined") { return null; }
@@ -437,6 +445,14 @@ function traitWriteSatisfy(V, path, op, valRaw) {
 }
 function traitWriteUnsatisfy(V, path, op, valRaw) {
 	var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
+	/* 十二巡修复：移除时让 isnot 条件变 false——isnot true → 写 true；isnot false → 写 false；
+	   isnot undefined → 写 undefined（属性值为 undefined 时 undefined !== undefined 为 false）；isnot N → 写 N */
+	if (op === "isnot") {
+		if (String(valRaw) === "true") { setPathVal(V, path, true); return path + "=true"; }
+		if (String(valRaw) === "false") { setPathVal(V, path, false); return path + "=false"; }
+		if (String(valRaw) === "undefined") { setPathVal(V, path, undefined); return path + "=undefined"; }
+		setPathVal(V, path, num); return path + "=" + num;
+	}
 	if (String(valRaw) === "true") { setPathVal(V, path, false); return path + "=false"; }
 	if (String(valRaw) === "false") { setPathVal(V, path, true); return path + "=true"; }
 	if (isNaN(num)) { setPathVal(V, path, ""); return path + '=""'; }
@@ -582,31 +598,85 @@ function renderTraitSeriesRow(body, series, V) {
 /* 特质管理区渲染：原版分类（静态表）+ 模组特质分类（运行时发现） */
 function renderTraitsSection(pane, V, C) {
 	var wrap = el("div", "mce-grp");
-	wrap.appendChild(el("div", "mce-grp-t", "★ 特质管理：可直接获取/移除，有数值的可直接更改（含其他模组注入的特质，自动发现）。已按分类折叠，点击分类标题展开"));
+	wrap.appendChild(el("div", "mce-grp-t", "★ 特质管理：可直接获取/移除，有数值的可直接更改（含其他模组注入的特质，自动发现）。已按分类折叠，点击分类标题展开；行首 ☆ 点击可收藏置顶"));
 	var vanilla = compileVanillaTraits();
 	var modTraits = discoverModTraits();
 	var q = (curPlayerFilter || "").toLowerCase();
 	var seenV = {}, seenM = {}, groups = {};
+	/* v1.8.12 收藏置顶组：收藏的特质优先显示在最前（含模组特质） */
+	var FAV_CAT = "★ 已收藏";
+	/* v1.8.12 功能13：收藏集合局部缓存——一次扫描替代逐行 indexOf 查询（几十个特质行的重复数组查找） */
+	var favCache = getFavTraits(V).slice();
+	function isFav(t) {
+		var k = favTraitKey(t);
+		return favCache.indexOf(k) !== -1;
+	}
 	/* 可折叠分类组：标题可点，body 默认收起（data-collapsed=1，CSS 隐藏） */
+	/* v1.8.15 九巡：懒渲染——初始收起的组不建行（行闭包进 g.pending），展开才建行，面板开合/切页显著减 DOM */
+	function buildLazyRows(g) {
+		if (!g || !g.pending || g.pending.length === 0) { return; }
+		var pend = g.pending;
+		g.pending = [];
+		pend.forEach(function (fn) { try { fn(); } catch (e) {} });
+	}
 	function bodyFor(zhCat, note) {
 		if (groups[zhCat]) { return groups[zhCat]; }
 		var grp = el("div", "mce-grp");
 		grp.setAttribute("data-tcat", zhCat);
-		var head = el("div", "mce-grp-t mce-collapse-head", "▸ " + zhCat);
+		/* 恢复展开时箭头同步 ▾（bodyFor 内读取 mbCEUiState，head 文案一次成型） */
+		var restoreOpen = mbCEUiState.collapsed[zhCat] === 0;
+		var head = el("div", "mce-grp-t mce-collapse-head", (restoreOpen ? "▾ " : "▸ ") + zhCat);
 		var body = el("div", "mce-grp-body");
-		body.setAttribute("data-collapsed", "1");
+		/* v1.8.12 持久化：恢复上次折叠状态（0=展开，1=收起；未记录默认收起）；箭头同步 ▸/▾ */
+		var collapsedNow = mbCEUiState.collapsed[zhCat] === 0 ? false : true;
+		body.setAttribute("data-collapsed", collapsedNow ? "1" : "0");
 		head.addEventListener("click", function () {
 			var open = body.getAttribute("data-collapsed") !== "1";
 			body.setAttribute("data-collapsed", open ? "1" : "0");
 			head.textContent = (open ? "▸ " : "▾ ") + zhCat + (groups[zhCat].count > 0 ? "（" + groups[zhCat].count + "）" : "") + groups[zhCat].note;
+			/* 懒渲染：展开瞬间补建行（open=点击前展开态，点击前收起(!open) → 点击后展开 → 补建） */
+			if (!open) { buildLazyRows(groups[zhCat]); }
+			/* v1.8.12 持久化：记录点击后状态（点击后展开 = !open） */
+			mbCEUiCollapsed(zhCat, !open);
 		});
 		grp.appendChild(head);
 		grp.appendChild(body);
-		wrap.appendChild(grp);
-		var g = { head: head, body: body, count: 0, note: note || "" };
+		if (zhCat === FAV_CAT && wrap.firstChild) {
+			/* 收藏组置顶：插到头部工具行之后（工具行常驻最顶） */
+			wrap.insertBefore(grp, wrap.firstChild.nextSibling);
+		}
+		else { wrap.appendChild(grp); }
+		var g = { head: head, body: body, count: 0, note: note || "", pending: [] };
 		groups[zhCat] = g;
 		return g;
 	}
+	/* v1.8.12 二轮优化：折叠工具行——全部展开 / 全部收起（点击时 groups 已渲染完成） */
+	var toolRow = el("div", "mce-row");
+	toolRow.appendChild(el("span", "mce-row-lbl", "折叠工具："));
+	var bAllOpen = el("button", "", "全部展开"); bAllOpen.type = "button";
+	bAllOpen.title = "展开特质管理区全部分类";
+	bAllOpen.addEventListener("click", function () {
+		Object.keys(groups).forEach(function (k) {
+			var g = groups[k];
+			g.body.setAttribute("data-collapsed", "0");
+			g.head.textContent = "▾ " + k + "（" + g.count + "）" + g.note;
+			buildLazyRows(g); /* 懒渲染：全部展开时补建所有行 */
+			mbCEUiCollapsed(k, true);
+		});
+	});
+	var bAllClose = el("button", "", "全部收起"); bAllClose.type = "button";
+	bAllClose.title = "收起特质管理区全部分类";
+	bAllClose.addEventListener("click", function () {
+		Object.keys(groups).forEach(function (k) {
+			var g = groups[k];
+			g.body.setAttribute("data-collapsed", "1");
+			g.head.textContent = "▸ " + k + "（" + g.count + "）" + g.note;
+			mbCEUiCollapsed(k, false);
+		});
+	});
+	toolRow.appendChild(bAllOpen);
+	toolRow.appendChild(bAllClose);
+	wrap.appendChild(toolRow);
 	/* 系列识别：同变量多档位特质 → 合并为一行（阶段下拉），不再逐条平铺 */
 	var seriesGroups = groupTraitSeries(vanilla);
 	var seriesKeys = {};
@@ -622,9 +692,9 @@ function renderTraitsSection(pane, V, C) {
 		if (seenV[key]) { return; }
 		seenV[key] = true;
 		var zhCat = TRAIT_ZH_CAT[t.cat] || t.cat;
-		var g = bodyFor(zhCat, "");
+		var g = bodyFor(isFav(t) ? FAV_CAT : zhCat, isFav(t) ? " · 收藏置顶（点击☆取消）" : "");
 		g.count++;
-		renderTraitRow(g.body, t, V, C, false);
+		g.pending.push(function () { renderTraitRow(g.body, t, V, C, false); }); /* 懒渲染：收起组只记账不建行 */
 	});
 	/* 系列行渲染（放入所属分类组；搜索时按系列名过滤） */
 	seriesGroups.forEach(function (s) {
@@ -633,7 +703,7 @@ function renderTraitsSection(pane, V, C) {
 		var zhCat = TRAIT_ZH_CAT[s.cat] || s.cat;
 		var g = bodyFor(zhCat, "");
 		g.count++;
-		renderTraitSeriesRow(g.body, s, V);
+		g.pending.push(function () { renderTraitSeriesRow(g.body, s, V); }); /* 懒渲染 */
 	});
 	/* 模组特质分类（按 title 分组，同分类同中文名去重） */
 	modTraits.forEach(function (t) {
@@ -643,21 +713,53 @@ function renderTraitsSection(pane, V, C) {
 		if (seenM[key]) { return; }
 		seenM[key] = true;
 		var zhCat = TRAIT_ZH_CAT[t.cat] ? TRAIT_ZH_CAT[t.cat] + "（模组）" : (t.cat + "（模组）");
-		var g = bodyFor(zhCat, " · 模组注入（自动发现，可直接获取/移除）");
+		var g = bodyFor(isFav(t) ? FAV_CAT : zhCat, isFav(t) ? " · 收藏置顶（点击☆取消）" : " · 模组注入（自动发现，可直接获取/移除）");
 		g.count++;
-		renderTraitRow(g.body, t, V, C, true);
+		g.pending.push(function () { renderTraitRow(g.body, t, V, C, true); }); /* 懒渲染 */
 	});
-	/* 组标题统一补数量（默认收起） */
+	/* 组标题统一补数量（箭头按当前展开状态：0=展开 ▾，1=收起 ▸；持久化恢复时保持一致性） */
 	Object.keys(groups).forEach(function (k) {
 		var g = groups[k];
-		g.head.textContent = "▸ " + k + "（" + g.count + "）" + g.note;
+		var open = g.body.getAttribute("data-collapsed") !== "1";
+		g.head.textContent = (open ? "▾ " : "▸ ") + k + "（" + g.count + "）" + g.note;
 	});
+	/* 懒渲染：展开状态的分组初始即建行（收起的组保持空，等点击展开才建）。
+	   搜索态（q 非空）下强制所有组展开并建行——否则匹配行落在收起组里不可见（搜索结果丢失）。
+	   仅改 DOM 收起标记，不写入持久化折叠状态，搜索结束后恢复默认收起 */
+	Object.keys(groups).forEach(function (k) {
+		var g = groups[k];
+		if (q) {
+			g.body.setAttribute("data-collapsed", "0");
+			g.head.textContent = "▾ " + k + "（" + g.count + "）" + g.note;
+		}
+		if (q || g.body.getAttribute("data-collapsed") !== "1") { buildLazyRows(g); }
+	});
+	/* v1.8.12 二轮优化：折叠状态残留键清理（仅全量渲染时——搜索过滤下未显示分类会被误删） */
+	if (!q) {
+		var alive = {};
+		Object.keys(groups).forEach(function (k) { alive[k] = true; });
+		var stale = false;
+		Object.keys(mbCEUiState.collapsed).forEach(function (k) {
+			if (!alive[k]) { delete mbCEUiState.collapsed[k]; stale = true; }
+		});
+		if (stale) { mbCEUiSave({ collapsed: mbCEUiState.collapsed }); }
+	}
 	pane.appendChild(wrap);
 }
 function renderTraitRow(grp, t, V, C, isMod) {
 	var owned = traitOwned(t, V, C);
 	var nameZh = traitDisplayName(t, V);
 	var row = el("div", "mce-row");
+	/* v1.8.12 收藏置顶：☆ 收藏 / ★ 已收藏（数据存 V.mbCE_favTraits，CSS 类渲染兼容无 DOM 环境） */
+	var favNow = isFavTrait(t, V);
+	var bF = el("button", "mce-favstar" + (favNow ? " mce-fav" : ""), favNow ? "★" : "☆");
+	bF.type = "button";
+	bF.title = favNow ? "取消收藏（该特质不再置顶）" : "收藏（该特质置顶到「★ 已收藏」组）";
+	bF.addEventListener("click", function () {
+		var res = toggleFavTrait(t, V);
+		actPlayer(res);
+	});
+	row.appendChild(bF);
 	row.appendChild(el("span", "mce-row-lbl", (owned ? "● " : "○ ") + nameZh + (isMod ? "（模组）" : "")));
 	/* 描述（函数/模板源码型描述不展示，避免源码泄漏） */
 	var desc = isMod ? t.text : String(t.text || "");
@@ -688,7 +790,9 @@ function renderTraitRow(grp, t, V, C, isMod) {
 			var cur = safeGetObj(V, v.path);
 			var num = (typeof cur === "number") ? cur : 0;
 			var inp = el("input", "mce-inp");
-			inp.type = "number"; inp.step = "1"; inp.value = String(num);
+			inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(num);
+			inp.placeholder = "+N / -N 相对";
+			inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值";
 			var bS = el("button", "", "改数值"); bS.type = "button";
 			bS.addEventListener("click", function () {
 				var res = traitWriteValue(t, V, v.path, inp.value);
@@ -704,11 +808,39 @@ function renderTraitRow(grp, t, V, C, isMod) {
 	}
 	grp.appendChild(row);
 }
+/* v1.8.12 特质收藏（数据层）：V.mbCE_favTraits 数组，key=cat\u0001name，收藏项渲染置顶 */
+function favTraitKey(t) {
+	return String(t && (t.cat || t.kind || "")) + "\u0001" + String(t && (t.name || ""));
+}
+function getFavTraits(V) {
+	try {
+		var v = V || getV();
+		if (v && Array.isArray(v.mbCE_favTraits)) { return v.mbCE_favTraits; }
+	} catch (e) {}
+	return [];
+}
+function isFavTrait(t, V) {
+	try { return getFavTraits(V).indexOf(favTraitKey(t)) !== -1; } catch (e) { return false; }
+}
+function toggleFavTrait(t, V) {
+	try {
+		var v = V || getV();
+		if (!v) { return { ok: false, message: "存档变量不可用" }; }
+		if (!Array.isArray(v.mbCE_favTraits)) { v.mbCE_favTraits = []; }
+		var k = favTraitKey(t);
+		var idx = v.mbCE_favTraits.indexOf(k);
+		if (idx !== -1) { v.mbCE_favTraits.splice(idx, 1); return { ok: true, fav: false, message: "已取消收藏" }; }
+		v.mbCE_favTraits.push(k);
+		return { ok: true, fav: true, message: "已收藏（置顶显示）" };
+	} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+}
+
 function traitWriteValue(t, V, path, raw) {
 	var num = parseFloat(raw);
 	if (isNaN(num)) { return { ok: false, message: "请输入数字（当前值 " + (safeGetObj(V, path) === undefined ? "?" : safeGetObj(V, path)) + "）" }; }
 	var before = safeGetObj(V, path);
-	var res = cheatWriteValue("player-self", "trait:" + path, "value_set", path, String(num), "number");
+	/* v1.8.12：保留原始字符串传给 cheatWriteValue，使 +N / -N 相对语法生效（parseFloat 仅作合法性校验） */
+	var res = cheatWriteValue("player-self", "trait:" + path, "value_set", path, raw, "number");
 	if (!res || !res.ok) { return { ok: false, message: "写入失败：" + (res && res.message ? res.message : "未知错误") }; }
 	var after = safeGetObj(V, path);
 	return { ok: true, message: "「" + traitDisplayName(t, V) + "」数值 " + path + "：" + (before === undefined ? "?" : before) + " → " + after + "（可回退）" };
@@ -722,8 +854,12 @@ function isModOnlyRoot(k) {
 	return true;
 }
 function renderPlayerEdit() {
+	/* 十巡：渲染时从持久化状态恢复搜索词（搜索框 input 事件已写入 mbCEUiState.filter；
+	   此前只写不读，刷新/重开面板后搜索词丢失） */
+	curPlayerFilter = (typeof mbCEUiState !== "undefined" && mbCEUiState && mbCEUiState.filter) ? String(mbCEUiState.filter) : "";
 	var pane = root.querySelector('[data-pane="mods"]');
 	if (!pane) { return; }
+	var st = pane.scrollTop; /* 五巡：重建后保持滚动位置（快速面板/特质区长列表操作不跳顶） */
 	pane.textContent = "";
 	var back = el("button", "", "← 返回模组列表");
 	back.type = "button";
@@ -735,7 +871,12 @@ function renderPlayerEdit() {
 	var finp = el("input", "mce-inp");
 	finp.type = "text";
 	finp.value = curPlayerFilter || "";
-	finp.addEventListener("input", function () { curPlayerFilter = finp.value; renderPlayerEdit(); });
+	finp.addEventListener("input", function () {
+		curPlayerFilter = finp.value;
+		mbCEUiSave({ filter: finp.value });
+		/* v1.8.12 功能13：搜索输入 250ms 防抖，避免逐键全量重建特质区 */
+		mceSchedule(renderPlayerEdit, 250, "search");
+	});
 	frow.appendChild(finp);
 	pane.appendChild(frow);
 	var qwrap = el("div", "mce-grp");
@@ -747,6 +888,7 @@ function renderPlayerEdit() {
 	var C = null;
 	try { if (typeof C !== "undefined" && C) { C = window.C || C; } } catch (e) {}
 	renderTraitsSection(pane, V, C);
+	pane.scrollTop = st; /* 五巡：恢复滚动位置 */
 }
 
 

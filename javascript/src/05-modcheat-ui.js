@@ -158,6 +158,7 @@
 		var pane = root.querySelector('[data-pane="mods"]');
 		if (!pane) { return; }
 		var m = findCheatMod(modId);
+		var st = pane.scrollTop; /* 五巡：重建后保持滚动位置（翻到长列表底部操作不再跳回顶部） */
 		pane.textContent = "";
 		if (!m) {
 			pane.appendChild(el("div", "mce-err", "模组未识别（可能已卸载），请返回列表。"));
@@ -177,17 +178,20 @@
 		if (!any) {
 			pane.appendChild(el("div", "mce-hint", "该模组已识别但未声明可操控项（任务/阶段/剧情/数值均为空）。"));
 		}
+		pane.scrollTop = st; /* 五巡：恢复滚动位置 */
 	}
 	function renderCheatTasks(pane, m) {
 		var g = el("div", "mce-grp");
 		g.appendChild(el("div", "mce-grp-t", "1. 模组新增任务"));
 		m.tasks.forEach(function (t) {
 			var row = el("div", "mce-row");
+			/* 五巡：行带 data-mce-key——操作后 actCheat 局部刷新该行，不再全量重建整个模组页 */
+			row.setAttribute("data-mce-key", "tasks:" + t.key);
 			row.appendChild(el("span", "mce-row-lbl", t.name || t.key));
 			var b1 = el("button", "", "跳过任务"); b1.type = "button";
-			b1.addEventListener("click", function () { actCheat(skipCheatTask(m.modId, t.key), m.modId); });
+			b1.addEventListener("click", function () { actCheat(skipCheatTask(m.modId, t.key), m.modId, "tasks:" + t.key); });
 			var b2 = el("button", "", "直接完成任务"); b2.type = "button";
-			b2.addEventListener("click", function () { actCheat(completeCheatTask(m.modId, t.key), m.modId); });
+			b2.addEventListener("click", function () { actCheat(completeCheatTask(m.modId, t.key), m.modId, "tasks:" + t.key); });
 			row.appendChild(b1); row.appendChild(b2);
 			g.appendChild(row);
 		});
@@ -200,6 +204,7 @@
 			var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
 			var labels = Array.isArray(s.labels) && s.labels.length ? s.labels : levels.map(function (lv) { return String(lv); });
 			var row = el("div", "mce-row");
+			row.setAttribute("data-mce-key", "stages:" + s.key);
 			row.appendChild(el("span", "mce-row-lbl", "阶段 · " + (s.name || s.key)));
 			var sel = el("select", "mce-sel");
 			levels.forEach(function (lv, i) {
@@ -207,29 +212,24 @@
 				opt.value = String(lv);
 				sel.appendChild(opt);
 			});
-			/* v1.4.4：回显当前阶段值（字符串枚举/数字枚举均按值匹配），应用后重渲染立即可见生效 */
-			var curStage = cheatReadSafe(m.modId, s.varPath);
-			if (curStage !== undefined && curStage !== null) {
-				var curStr = String(curStage);
-				for (var si = 0; si < levels.length; si++) {
-					if (String(levels[si]) === curStr) { sel.selectedIndex = si; break; }
-				}
-			}
+			/* v1.4.4：回显当前阶段值（字符串枚举/数字枚举均按值匹配），应用后局部刷新立即可见生效 */
+			reflectStageSelect(sel, s, m.modId);
 			var bSet = el("button", "", "应用"); bSet.type = "button";
-			bSet.addEventListener("click", function () { actCheat(setCheatStage(m.modId, s.key, sel.value), m.modId); });
+			bSet.addEventListener("click", function () { actCheat(setCheatStage(m.modId, s.key, sel.value), m.modId, "stages:" + s.key); });
 			var bMax = el("button", "", "跳至最高"); bMax.type = "button";
-			bMax.addEventListener("click", function () { actCheat(jumpCheatStageMax(m.modId, s.key), m.modId); });
+			bMax.addEventListener("click", function () { actCheat(jumpCheatStageMax(m.modId, s.key), m.modId, "stages:" + s.key); });
 			var bMin = el("button", "", "回退初始"); bMin.type = "button";
-			bMin.addEventListener("click", function () { actCheat(resetCheatStage(m.modId, s.key), m.modId); });
+			bMin.addEventListener("click", function () { actCheat(resetCheatStage(m.modId, s.key), m.modId, "stages:" + s.key); });
 			row.appendChild(sel); row.appendChild(bSet); row.appendChild(bMax); row.appendChild(bMin);
 			g.appendChild(row);
 		});
 		m.abilities.forEach(function (a) {
 			var row = el("div", "mce-row");
+			row.setAttribute("data-mce-key", "abilities:" + a.key);
 			var box = el("input", "");
 			box.type = "checkbox";
 			box.checked = !!cheatReadSafe(m.modId, a.varPath);
-			box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId); });
+			box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId, "abilities:" + a.key); });
 			row.appendChild(box);
 			row.appendChild(el("span", "mce-row-lbl", "能力 · " + (a.name || a.key) + (a.varPath ? "（" + a.varPath + "）" : "")));
 			/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
@@ -253,13 +253,14 @@
 		g.appendChild(el("div", "mce-grp-t", "3. 模组自定义剧情"));
 		m.scenes.forEach(function (s) {
 			var row = el("div", "mce-row");
+			row.setAttribute("data-mce-key", "scenes:" + s.key);
 			row.appendChild(el("span", "mce-row-lbl", s.name || s.key));
 			var b1 = el("button", "", "跳过此段剧情"); b1.type = "button";
-			b1.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_skip"), m.modId); });
+			b1.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_skip"), m.modId, "scenes:" + s.key); });
 			var b2 = el("button", "", "强制完成剧情"); b2.type = "button";
-			b2.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_force"), m.modId); });
+			b2.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_force"), m.modId, "scenes:" + s.key); });
 			var b3 = el("button", "", "重置剧情进度"); b3.type = "button";
-			b3.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_reset"), m.modId); });
+			b3.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_reset"), m.modId, "scenes:" + s.key); });
 			row.appendChild(b1); row.appendChild(b2); row.appendChild(b3);
 			g.appendChild(row);
 		});
@@ -278,29 +279,33 @@
 				}
 				opts.forEach(function (opt) {
 					var brow = el("div", "mce-row");
+					brow.setAttribute("data-mce-key", "values:" + it.key + ":" + opt);
 					var box = el("input", "");
 					box.type = "checkbox";
 					box.checked = arr.indexOf(opt) !== -1;
 					box.addEventListener("change", function () {
-						actCheat(applyCheatModValue(m.modId, it.key, { value: opt, on: box.checked }), m.modId);
+						actCheat(applyCheatModValue(m.modId, it.key, { value: opt, on: box.checked }), m.modId, "values:" + it.key + ":" + opt);
 					});
 					brow.appendChild(box);
 					brow.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt + "（" + it.varPath + "）"));
 					var und = el("button", "", "回退"); und.type = "button";
-					und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key + ":" + opt), m.modId); });
+					und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key + ":" + opt), m.modId, "values:" + it.key + ":" + opt); });
 					brow.appendChild(und);
 					g.appendChild(brow);
 				});
 				return;
 			}
 			var row = el("div", "mce-row");
+			row.setAttribute("data-mce-key", "values:" + it.key);
 			row.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + "（" + it.varPath + "）"));
 			var inp = el("input", "mce-inp");
-			inp.type = it.type === "boolean" ? "checkbox" : "number";
+			inp.type = it.type === "boolean" ? "checkbox" : "text";
 			if (it.type !== "boolean") {
-				if (typeof it.min === "number") { inp.min = String(it.min); }
-				if (typeof it.max === "number") { inp.max = String(it.max); }
-				inp.step = "1";
+				/* v1.8.12 功能9+优化：text 输入使 +N / -N 相对语法可输入（number 输入框会拒绝 + 号），
+				   数值合法性由 cheatWriteValue 校验兜底 */
+				inp.inputmode = "decimal";
+				inp.placeholder = "+N / -N 相对";
+				inp.title = "支持相对调整：输入 +100 表示在当前值上加 100，-20 表示减 20；直接输入数字为绝对值（受钳制范围约束）";
 			}
 			var cur = cheatReadSafe(m.modId, it.varPath);
 			if (it.type === "boolean") { inp.checked = !!cur; }
@@ -308,11 +313,11 @@
 			var b = el("button", "", "应用修改"); b.type = "button";
 			b.addEventListener("click", function () {
 				var raw = it.type === "boolean" ? inp.checked : inp.value;
-				actCheat(applyCheatModValue(m.modId, it.key, raw), m.modId);
+				actCheat(applyCheatModValue(m.modId, it.key, raw), m.modId, "values:" + it.key);
 			});
 			row.appendChild(inp); row.appendChild(b);
 			var und = el("button", "", "回退"); und.type = "button";
-			und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key), m.modId); });
+			und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key), m.modId, "values:" + it.key); });
 			row.appendChild(und);
 			/* v1.8.7 数值项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
 			var det = el("details", "mce-ab-detail");
@@ -330,9 +335,68 @@
 		});
 		pane.appendChild(g);
 	}
-	function actCheat(res, modId) {
+	function actCheat(res, modId, key) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
+		/* 五巡：操作后局部刷新目标行（不再全量重建整个模组页——高频操作下 DOM churn 是卡顿/闪退累积源之一） */
+		if (modId && key) {
+			var pane = root.querySelector('[data-pane="mods"]');
+			if (pane && refreshModRow(pane, modId, key)) { return; }
+		}
 		if (modId) { renderModCheatDetail(modId); }
+	}
+	/* 阶段下拉回显公共（渲染与局部刷新共用，v1.4.4 行为保持） */
+	function reflectStageSelect(sel, s, modId) {
+		try {
+			var curStage = cheatReadSafe(modId, s.varPath);
+			if (curStage !== undefined && curStage !== null) {
+				var curStr = String(curStage);
+				for (var si = 0; si < s.levels.length; si++) {
+					if (String(s.levels[si]) === curStr) { sel.selectedIndex = si; return; }
+				}
+			}
+		} catch (e) {}
+	}
+	/* 五巡：局部刷新单行回显态；行不存在或出错返回 false（调用方兜底全量重建） */
+	function refreshModRow(pane, modId, key) {
+		try {
+			var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
+			var row = pane.querySelector('[data-mce-key="' + esc + '"]');
+			if (!row) { return false; }
+			var m = findCheatMod(modId);
+			if (!m) { return false; }
+			var parts = String(key).split(":");
+			var kind = parts[0];
+			if (kind === "stages") {
+				var s = findCheatItem(m.stages, parts.slice(1).join(":"));
+				var sel = row.querySelector("select");
+				if (s && sel) { reflectStageSelect(sel, s, modId); }
+				return true;
+			}
+			if (kind === "abilities") {
+				var a = findCheatItem(m.abilities, parts.slice(1).join(":"));
+				var box = row.querySelector('input[type="checkbox"]');
+				if (a && box) { box.checked = !!cheatReadSafe(modId, a.varPath); }
+				return true;
+			}
+			if (kind === "values") {
+				var it = findCheatItem(m.values, parts[1]);
+				if (it && it.type === "list") {
+					var opt = parts.slice(2).join(":");
+					var lb = row.querySelector('input[type="checkbox"]');
+					var arr = Array.isArray(cheatReadSafe(modId, it.varPath)) ? cheatReadSafe(modId, it.varPath) : [];
+					if (lb) { lb.checked = arr.indexOf(opt) !== -1; }
+				} else if (it) {
+					var inp = row.querySelector("input");
+					var cur = cheatReadSafe(modId, it.varPath);
+					if (inp) {
+						if (it.type === "boolean") { inp.checked = !!cur; }
+						else if (cur !== undefined && cur !== null) { inp.value = String(cur); }
+					}
+				}
+				return true;
+			}
+			return true; /* 任务/剧情行无回显态，行存在即视为已刷新 */
+		} catch (e) { return false; }
 	}
 
 	/* ============ v1.7.0 玩家属性全量编辑（Mod作弊 主容器页「玩家自己」入口）
@@ -344,20 +408,79 @@
 	       mbCE_wrote 留痕 + 每项回退按钮。 ============ */
 	var curPlayerFilter = "";
 	var curPlayerSection = "player";
-	function actPlayer(res) {
+	function actPlayer(res, path) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
+		/* 六巡：快速面板数值操作局部刷新该行（不再全量重建 33 行 + 特质区）；特质类操作无 path → 全量重建 */
+		if (path) {
+			var pane = root.querySelector('[data-pane="mods"]');
+			/* 兜底分支必须带 "quick:" 前缀（与渲染 setAttribute 一致）；无 CSS.escape 时仅转义引号/反斜杠 */
+			var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape("quick:" + path) : String("quick:" + path).replace(/["\\]/g, "\\$&");
+			var row = pane ? pane.querySelector('[data-mce-key="' + esc + '"]') : null;
+			if (row) {
+				var inp = row.querySelector("input.mce-inp");
+				var lbl = row.querySelector(".mce-row-lbl");
+				var cur = quickReadValue(path);
+				if (inp) { inp.value = (typeof cur === "number") ? String(cur) : "0"; }
+				if (lbl) {
+					var meta = (PANEL_QUICK_PATH_INDEX && PANEL_QUICK_PATH_INDEX[path]) || null;
+					lbl.textContent = (meta ? meta.label : path) + "（当前 " + (typeof cur === "number" ? cur : "—") + "）";
+				}
+				return;
+			}
+		}
 		renderPlayerEdit();
 	}
-	/* v1.7.2：游戏属性面板（颜色分级）快捷编辑——直接改游戏面板显示的原版数值键
-	   （purity/physique 等顶层键 + prof.* 武器键；实证自本体 currentSkillValue 体系与 $prof 对象；
-	     歌唱/驾驶无原版变量（GameUI 自定义/未解锁），不收录；不安感无数值显示，不收录）。 */
+	/* v1.8.12 功能6：能力项数据驱动重构——数据表声明式（path/label/type/min/max/note），渲染与钳制统一走表数据。
+	   口径：purity 内部 0-2000（UI 显示 %）；beauty/physique 及意志/意识/淫乱/暴露癖/异种癖按用户要求无硬上限
+	   （999999 仅防误输入，非游戏上限；v1.8.19 体能 physique 由 0-100 提为无上限）；技能/性技能/成绩/武器 0-1000（百分比量纲）。 */
 	var PANEL_QUICK_GROUPS = [
-		{ title: "核心属性", items: [["purity", "纯洁"], ["beauty", "容貌"], ["physique", "体能"], ["willpower", "意志"], ["awareness", "意识"], ["promiscuity", "淫乱"], ["exhibitionism", "暴露癖"], ["deviancy", "异种癖"]] },
-		{ title: "基础技能", items: [["skulduggery", "诡术"], ["danceskill", "舞蹈"], ["swimmingskill", "游泳"], ["athletics", "运动"], ["tending", "护理"], ["housekeeping", "家务"]] },
-		{ title: "性技能", items: [["seductionskill", "魅惑"], ["oralskill", "口部"], ["chestskill", "胸部"], ["handskill", "手部"], ["bottomskill", "臀部"], ["penileskill", "阴茎"], ["vaginalskill", "小穴"], ["analskill", "后庭"], ["thighskill", "大腿"], ["feetskill", "足部"]] },
-		{ title: "学校成绩", items: [["science", "科学"], ["maths", "数学"], ["english", "语文"], ["history", "历史"]] },
-		{ title: "武器技能", items: [["prof.spray", "防狼喷雾"], ["prof.baton", "短棍"], ["prof.whip", "鞭子"], ["prof.net", "网"], ["prof.pickaxe", "镐"]] }
+		{ title: "核心属性", items: [
+			{ path: "purity", label: "纯洁", min: 0, max: 2000, note: "面板显示 0-100%，内部 0-2000" },
+			{ path: "beauty", label: "容貌", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "physique", label: "体能", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "willpower", label: "意志", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "awareness", label: "意识", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "promiscuity", label: "淫乱", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "exhibitionism", label: "暴露癖", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "deviancy", label: "异种癖", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "money", label: "资金", min: 0, max: 1000000, note: "单位 £，建议输入整数" }
+		] },
+		{ title: "基础技能", items: [
+			{ path: "skulduggery", label: "诡术", min: 0, max: 1000 },
+			{ path: "danceskill", label: "舞蹈", min: 0, max: 1000 },
+			{ path: "swimmingskill", label: "游泳", min: 0, max: 1000 },
+			{ path: "athletics", label: "运动", min: 0, max: 1000 },
+			{ path: "tending", label: "护理", min: 0, max: 1000 },
+			{ path: "housekeeping", label: "家务", min: 0, max: 1000 }
+		] },
+		{ title: "性技能", items: [
+			{ path: "seductionskill", label: "魅惑", min: 0, max: 1000 },
+			{ path: "oralskill", label: "口部", min: 0, max: 1000 },
+			{ path: "chestskill", label: "胸部", min: 0, max: 1000 },
+			{ path: "handskill", label: "手部", min: 0, max: 1000 },
+			{ path: "bottomskill", label: "臀部", min: 0, max: 1000 },
+			{ path: "penileskill", label: "阴茎", min: 0, max: 1000 },
+			{ path: "vaginalskill", label: "小穴", min: 0, max: 1000 },
+			{ path: "analskill", label: "后庭", min: 0, max: 1000 },
+			{ path: "thighskill", label: "大腿", min: 0, max: 1000 },
+			{ path: "feetskill", label: "足部", min: 0, max: 1000 }
+		] },
+		{ title: "学校成绩", items: [
+			{ path: "science", label: "科学", min: 0, max: 1000 },
+			{ path: "maths", label: "数学", min: 0, max: 1000 },
+			{ path: "english", label: "语文", min: 0, max: 1000 },
+			{ path: "history", label: "历史", min: 0, max: 1000 }
+		] },
+		{ title: "武器技能", items: [
+			{ path: "prof.spray", label: "防狼喷雾", min: 0, max: 1000 },
+			{ path: "prof.baton", label: "短棍", min: 0, max: 1000 },
+			{ path: "prof.whip", label: "鞭子", min: 0, max: 1000 },
+			{ path: "prof.net", label: "网", min: 0, max: 1000 },
+			{ path: "prof.pickaxe", label: "镐", min: 0, max: 1000 }
+		] }
 	];
+	/* v1.8.12 功能13：数据表路径索引（quickWrite 查 min/max 用，懒建） */
+	var PANEL_QUICK_PATH_INDEX = null;
 	function quickReadValue(path) {
 		try {
 			var V2 = getV();
@@ -386,18 +509,34 @@
 			var es = ensureProfShell();
 			if (!es.ok) { return es; }
 		}
-		return cheatWriteValue("player-self", "p:" + path, "value_set", path, raw, "number");
+		/* v1.8.12 功能6：查数据表取该项 min/max，传给 cheatWriteValue 统一钳制（一次性索引，避免每次遍历 33 项） */
+		if (!PANEL_QUICK_PATH_INDEX) {
+			PANEL_QUICK_PATH_INDEX = {};
+			PANEL_QUICK_GROUPS.forEach(function (g) {
+				g.items.forEach(function (it) { PANEL_QUICK_PATH_INDEX[it.path] = it; });
+			});
+		}
+		var meta = PANEL_QUICK_PATH_INDEX[path] || null;
+		return cheatWriteValue("player-self", "p:" + path, "value_set", path, raw, "number",
+			meta && typeof meta.min === "number" ? meta.min : undefined,
+			meta && typeof meta.max === "number" ? meta.max : undefined);
 	}
-	function renderQuickRow(pane, path, label) {
+	function renderQuickRow(pane, it) {
+		var path = it.path, label = it.label;
 		var cur = quickReadValue(path);
 		var row = el("div", "mce-row");
+		/* 六巡：行带 data-mce-key——快速面板数值操作后 actPlayer 局部刷新该行，不再全量重建 33 行 + 特质区 */
+		row.setAttribute("data-mce-key", "quick:" + path);
 		row.appendChild(el("span", "mce-row-lbl", label + "（当前 " + (typeof cur === "number" ? cur : "—") + "）"));
 		var inp = el("input", "mce-inp");
-		inp.type = "number"; inp.step = "1"; inp.value = (typeof cur === "number") ? String(cur) : "0";
+		inp.type = "text"; inp.inputmode = "decimal"; inp.value = (typeof cur === "number") ? String(cur) : "0";
+		inp.placeholder = "+N / -N 相对";
+		var rangeTxt = (typeof it.min === "number" && typeof it.max === "number") ? "；合理范围 " + it.min + "–" + it.max : "";
+		inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值" + rangeTxt + (it.note ? "（" + it.note + "）" : "");
 		var b = el("button", "", "应用"); b.type = "button";
-		b.addEventListener("click", function () { actPlayer(quickWrite(path, inp.value)); });
+		b.addEventListener("click", function () { actPlayer(quickWrite(path, inp.value), path); });
 		var und = el("button", "", "回退"); und.type = "button";
-		und.addEventListener("click", function () { actPlayer(undoCheatModValue("player-self", "p:" + path)); });
+		und.addEventListener("click", function () { actPlayer(undoCheatModValue("player-self", "p:" + path), path); });
 		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
 		pane.appendChild(row);
 	}
@@ -405,7 +544,7 @@
 		PANEL_QUICK_GROUPS.forEach(function (g) {
 			var box = el("div", "mce-grp");
 			box.appendChild(el("div", "mce-grp-t", g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）"));
-			g.items.forEach(function (it) { renderQuickRow(box, it[0], it[1]); });
+			g.items.forEach(function (it) { renderQuickRow(box, it); });
 			pane.appendChild(box);
 		});
 	}

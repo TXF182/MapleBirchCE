@@ -10,7 +10,7 @@
 
 1. **前置依赖**：
    - [SugarCube 2 ModLoader](https://github.com/Lyoko-Jeremie/sugarcube-2-ModLoader) ≥ 2.0.0
-   - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.5.1）
+   - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.5.2）
    - 游戏本体 ≥ 0.5.12.13
 2. 游戏内按 `Alt+M` 打开 ModLoader → 「添加 / 移除Mod」→ 选择 `MapleBirchCE.mod.zip` → 「添加旁加载Mod」→ 提示 Success 后**刷新页面**。
 3. 若旧版 `MapleBirchCE`（v1）已在列表中：先「移除」再导入新版，避免同名单冲突。
@@ -57,21 +57,21 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.8.8）
+## Mod作弊 适配器一览（v1.8.22）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.4.2 | 阶段 8 / 能力 15 / 数值 20 | `maplebirch.get("DeadwoodReblooms")` |
-| 归途之书 · Revelation | 1.3.8 | 阶段 17 / 能力 21 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
+| 枯木逢春 · Deadwood Reblooms | 2.4.3 | 阶段 8 / 能力 15 / 数值 20 | `maplebirch.get("DeadwoodReblooms")` |
+| 归途之书 · Revelation | 1.3.9 | 阶段 17 / 能力 21 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
 | DomRobin | 0.0.8 | 阶段 1 / 能力 12 / 数值 3 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
 | 原版优化 Dol-Optimization | 1.1.2 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
 | Wraith'sReflection · 幽灵的倒影 | 1.3.4 | 阶段 4 / 能力 4 / 数值 2 | `V` 自有根并集（WraithsReflection/HelpAsk/项链系） |
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
-| maplebirch 框架本体 | 5.5.1 | 兼容性核对（API 6 项） | `window.maplebirch` |
+| maplebirch 框架本体 | 5.5.2 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
-> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。除枯木逢春/归途之书/DomRobin/MLI/SmartPhone 外，其余适配模组无公开仓库，暂不纳入自动检测。
+> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**9 渠道全覆盖**：8 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims）+ 框架本体。
 
 ## 常见问题（FAQ）
 
@@ -89,7 +89,7 @@
 | 依赖 | 最低要求 | 实测版本 |
 |---|---|---|
 | ModLoader | ≥ 2.0.0 | 2.101.1 |
-| maplebirchFramework | ≥ 5.4.2 | 5.5.1 |
+| maplebirchFramework | ≥ 5.4.2 | 5.5.2 |
 | 游戏本体 | ≥ 0.5.12.13 | 0.5.12.13 |
 | Cheat Extended | 任意 | 1.20.3 共存实测无冲突 |
 

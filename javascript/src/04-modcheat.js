@@ -7,7 +7,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.3.8",
+			modName: "默示录：归途之书 v1.3.9",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -102,12 +102,12 @@
 				{ key: "rt_rite_round", name: "秘密誓言 · 同席连续次数", varPath: "RobinTemple.secret.rite_round", type: "number", min: 0, max: 99 },
 				{ key: "rt_intimacy_count", name: "罗宾神殿 · 亲密累计次数", varPath: "RobinTemple.intimacy_count", type: "number", min: 0, max: 999 },
 				{ key: "rt_evaluation_marks", name: "罗宾神殿 · 评估分数", varPath: "RobinTemple.evaluation_marks", type: "number", min: 0, max: 100 },
-				{ key: "ll_doubt", name: "迷途羔羊 · 疑虑", varPath: "LostLamb.doubt", type: "number", min: 0, max: 100 },
-				{ key: "ll_fear", name: "迷途羔羊 · 恐惧", varPath: "LostLamb.fear", type: "number", min: 0, max: 100 },
-				{ key: "ll_notice", name: "迷途羔羊 · 觉察", varPath: "LostLamb.notice", type: "number", min: 0, max: 100 },
+				{ key: "ll_doubt", name: "迷途羔羊 · 疑虑", varPath: "LostLamb.doubt", type: "number", min: 0, max: 1000 },
+				{ key: "ll_fear", name: "迷途羔羊 · 恐惧", varPath: "LostLamb.fear", type: "number", min: 0, max: 1000 },
+				{ key: "ll_notice", name: "迷途羔羊 · 觉察", varPath: "LostLamb.notice", type: "number", min: 0, max: 1000 },
 				{ key: "td_duties", name: "神殿值勤 · 值勤次数", varPath: "TempleDuties.duties", type: "number", min: 0, max: 999 },
-				{ key: "td_roof", name: "神殿值勤 · 屋顶修复进度", varPath: "TempleDuties.archive.roof", type: "number", min: -1, max: 99 },
-				{ key: "td_shelves", name: "神殿值勤 · 书架整理进度", varPath: "TempleDuties.archive.shelves", type: "number", min: -1, max: 99 },
+				{ key: "td_roof", name: "神殿值勤 · 屋顶修复进度", varPath: "TempleDuties.archive.roof", type: "number", min: -1, max: 100 },
+				{ key: "td_shelves", name: "神殿值勤 · 书架整理进度", varPath: "TempleDuties.archive.shelves", type: "number", min: -1, max: 999 },
 				{ key: "td_sorted", name: "神殿值勤 · 归档次数", varPath: "TempleDuties.archive.sorted", type: "number", min: 0, max: 999 }
 			]
 		}
@@ -210,7 +210,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.4.2",
+			modName: "枯木逢春 · Deadwood Reblooms 2.4.3",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -255,8 +255,8 @@
 				{ key: "vp_ironwill", name: "原版增强 · 铁意志特质", varPath: "VanillaPlus.attitudes.ironWill", type: "boolean" },
 				{ key: "vp_sadomaso", name: "原版增强 · 受虐狂特质", varPath: "VanillaPlus.attitudes.sadomasochist", type: "boolean",
 				  note: "2.2.7 新增特质：勾选直接获得，影响原版受虐狂相关判定" },
-				{ key: "f_avery_refused", name: "孤儿院 · 已拒绝艾弗里收养（2.4.2 新增）", varPath: "Finance.orphanage.avery_adoption_refused", type: "boolean",
-				  note: "2.4.2 新增：勾选视为已拒绝艾弗里收养，孤儿院收养剧情将跳过" }
+				{ key: "f_avery_refused", name: "孤儿院 · 已拒绝艾弗里收养（模组新增）", varPath: "Finance.orphanage.avery_adoption_refused", type: "boolean",
+				  note: "模组 2.4.2 起提供：勾选视为已拒绝艾弗里收养，孤儿院收养剧情将跳过" }
 			],
 			scenes: [],
 			values: [
@@ -548,8 +548,16 @@
 			}
 			var val = raw;
 			if (type === "number") {
-				if (typeof val !== "number") { val = Number(val); }
-				if (!isFinite(val)) { return { ok: false, message: "数值无效（需为数字）" }; }
+				/* v1.8.12 相对值：raw 为字符串且以 + / - 开头 → 按「当前值 + delta」计算（随后钳制） */
+				var relDelta = null;
+				if (typeof raw === "string") {
+					var relM = /^([+\-])\s*([\d.]+)$/.exec(raw.trim());
+					if (relM) { relDelta = (relM[1] === "+" ? 1 : -1) * Number(relM[2]); }
+				}
+				var curNum = Number(r.parent[r.leaf]);
+				var baseNum = Number.isFinite(curNum) ? curNum : 0;
+				val = relDelta !== null ? baseNum + relDelta : (typeof val === "number" ? val : Number(val));
+				if (!isFinite(val)) { return { ok: false, message: "数值无效（需为数字，支持 +N / -N 相对调整）" }; }
 				if (typeof min === "number" && val < min) { val = min; }
 				if (typeof max === "number" && val > max) { val = max; }
 			} else if (type === "boolean") {
@@ -563,6 +571,7 @@
 			r.parent[r.leaf] = val;
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: val, t: Date.now() };
+			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
 			return { ok: true, message: "已写入 " + path + " = " + JSON.stringify(val), before: before, after: val };
 		} catch (e) {
 			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };
@@ -595,6 +604,7 @@
 			r.parent[r.leaf] = arr;
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: arr.slice(), t: Date.now() };
+			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
 			return { ok: true, message: "已更新 " + path + (on ? " ＋ " : " － ") + value, after: arr.slice() };
 		} catch (e) {
 			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };
@@ -631,4 +641,48 @@
 			scenes: Array.isArray(m.scenes) ? m.scenes : [],
 			values: Array.isArray(m.values) ? m.values : []
 		};
+	}
+
+	/* v1.8.12 功能12：适配器工作流工具——运行时一致性审计（开发新适配器后自查：
+	   注册键与 entry.modId 一致、分类项 key/name/varPath 完整、探测函数存在、无空适配器）。
+	   返回 { total, healthy, warnings[], errors[] }；healthy>0 时可用面板正常渲染全部适配器。 */
+	function auditAdapters() {
+		var out = { total: 0, healthy: 0, warnings: [], errors: [] };
+		try {
+			Object.keys(CHEAT_ADAPTERS).forEach(function (id) {
+				var a = CHEAT_ADAPTERS[id];
+				out.total++;
+				var entry = (a && a.entry) ? a.entry : {};
+				var name = entry.modName || id;
+				var cats = ["tasks", "stages", "abilities", "scenes", "values"];
+				var itemCount = 0;
+				cats.forEach(function (c) {
+					if (Array.isArray(entry[c])) { itemCount += entry[c].length; }
+				});
+				var errs = [];
+				if (!entry.modId) { errs.push("entry 缺 modId"); }
+				else if (entry.modId !== id) { errs.push("entry.modId（" + entry.modId + "）与注册键不一致"); }
+				if (!itemCount) { out.warnings.push(id + "（" + name + "）：没有任何能力/阶段/数值项（空适配器）"); }
+				/* 分类字段要求：varPath 类（tasks/stages/abilities/values）必须 varPath；
+				   scenes 类（场景直达）用 skipVar/completeVar/progressVar，无 varPath */
+				cats.forEach(function (c) {
+					(Array.isArray(entry[c]) ? entry[c] : []).forEach(function (it, idx) {
+						if (!it || typeof it !== "object") { errs.push(c + "[" + idx + "] 非对象项"); return; }
+						if (!it.key) { errs.push(c + "[" + idx + "] 缺 key"); }
+						if (!it.name) { errs.push(c + "[" + idx + "] 缺 name"); }
+						if (c === "scenes") {
+							if (it.skipVar === undefined && it.completeVar === undefined && it.progressVar === undefined) {
+								errs.push(c + "[" + idx + "] 缺 skipVar/completeVar/progressVar（场景直达键）");
+							}
+						} else if (it.varPath === undefined) {
+							errs.push(c + "[" + idx + "] 缺 varPath");
+						}
+					});
+				});
+				if (typeof a.detect !== "function") { out.warnings.push(id + "：缺 detect 探测函数（列表永不命中）"); }
+				if (errs.length) { out.errors.push(id + "（" + name + "）：" + errs.slice(0, 6).join("；") + (errs.length > 6 ? " 等" + errs.length + " 项" : "")); return; }
+				out.healthy++;
+			});
+		} catch (e) { out.errors.push("审计异常：" + (e && e.message ? e.message : e)); }
+		return out;
 	}

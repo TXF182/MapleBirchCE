@@ -83,10 +83,10 @@
 		var inner = el("div", "mce-inner");
 		var bRom = el("button", curInnerTab === "romance" ? "mce-active" : "", "恋爱阶段");
 		bRom.type = "button";
-		bRom.addEventListener("click", function () { curInnerTab = "romance"; renderStagePane(); });
+		bRom.addEventListener("click", function () { curInnerTab = "romance"; mbCEUiSave({ innerTab: "romance" }); renderStagePane(); });
 		var bTf = el("button", curInnerTab === "transform" ? "mce-active" : "", "转化阶段");
 		bTf.type = "button";
-		bTf.addEventListener("click", function () { curInnerTab = "transform"; renderStagePane(); });
+		bTf.addEventListener("click", function () { curInnerTab = "transform"; mbCEUiSave({ innerTab: "transform" }); renderStagePane(); });
 		inner.appendChild(bRom);
 		inner.appendChild(bTf);
 		pane.appendChild(inner);

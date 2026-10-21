@@ -276,24 +276,38 @@
 			}
 			if (V && V.replayScene) {
 				changed = true;
-				back = V.replayScene.exitpassage || currentPassageName();
-				try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
-				/* v1.4.5 防被困播放器（顺序不可反）：
-				   1) 先清 sceneViewSwitch 为无效值 → Scene Viewer passages 的 switch 走 default；
-				   2) 再跳转——原版 default 退出分支的 Back 链接依赖 $replayScene.exitpassage，
-				      若先删 replayScene 再跳（且目标恰为 Scene Viewer passages）→ Back 无源 →
-				      退出按钮消失 → 被困场景播放器；
-				   3) 跳转完成（同步渲染）后再清理 replayScene / 重放标记。
-				   back 为空时：不跳转也不删 replayScene——保留 default 的 Back 链接，玩家可手动点 Back 退出。 */
+				/* v1.8.19 防困播放器重构（用户实测：手动取消后仍被困场景播放器）：
+				   根因一：back = exitpassage || currentPassageName() 的兜底会让"玩家正处于播放器段落
+				   时取消"变成原地跳转（跳去当前播放器段落），且随后删 replayScene → 播放器 default 分支
+				   的 Back 链接无源 → 退出按钮消失 → 被困。
+				   根因二：先调 unfreezePlayerStats（wikifier）会经 mbCEUnfreezeHook 提前删掉 replayScene，
+				   跳转目标若恰为播放器段落同样导致 Back 无源。
+				   新逻辑：
+				   - back 有效且不在原版播放器内 → 先删重放状态 → 解冻 → 跳回原位；
+				   - back 有效且正处于原版播放器（Scene Viewer passages/End）→ 解冻（hook 兜底清理队列）
+				     → 跳回原位（目标非播放器，安全）→ 删重放状态；
+				   - back 为空（框架播放器/未知段落）→ 保留 replayScene（原版 default 的 Back 链接依赖它），
+				     不主动跳转——玩家经 Back 退出（475 行路径清理）或框架播放器自身退出调用
+				     unfreeze → mbCEUnfreezeHook 兜底清理。 */
+				var cur = currentPassageName();
+				var inPlayer = (cur === "Scene Viewer passages" || cur === "Scene Viewer End");
+				back = (V.replayScene.exitpassage) ? V.replayScene.exitpassage : "";
+				/* 先清 sceneViewSwitch 为无效值 → Scene Viewer passages 的 switch 走 default（顺序不可反） */
 				V.sceneViewSwitch = "MB_CE_END";
-				if (back) {
+				if (back && !inPlayer) {
+					try { delete V.replayScene; } catch (e) { V.replayScene = undefined; }
+					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
 					var ep = getEnginePlayFn();
 					if (ep) { try { ep.play.call(ep.e, back, true); } catch (e) {} }
-					/* 跳转成功（拿到有效 back）后才清理 replayScene/标记；back 为空时保留
-					   replayScene —— 播放器 default 分支的 Back 链接仍可用，玩家可手动退出 */
+				} else if (back && inPlayer) {
+					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
+					var ep2 = getEnginePlayFn();
+					if (ep2) { try { ep2.play.call(ep2.e, back, true); } catch (e) {} }
 					try { delete V.replayScene; } catch (e) { V.replayScene = undefined; }
 					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
 				}
+				/* back 为空：保留 replayScene/标记，不主动跳转（见上方注释） */
 			}
 		} catch (e) {}
 		return changed;
@@ -551,8 +565,9 @@
 	function hookPassageOverride() {
 		try {
 			if (typeof document === "undefined" || !document || typeof $ === "undefined" || !$) { return; }
-			/* SugarCube 自定义事件系统（jQLite）：与 DoL 本体 $(document).one(':passageend',…) 一致 */
-			$(document).on(":passageoverride", function (ev, passageArgs) {
+			/* SugarCube 自定义事件系统（jQLite）：与 DoL 本体 $(document).one(':passageend',…) 一致。
+			   四巡：命名空间防重——重载/重复注入时先 off 再 on，避免 jQuery handler 无限累积 */
+			$(document).off(":passageoverride.mbce").on(":passageoverride.mbce", function (ev, passageArgs) {
 				onPassageOverride(passageArgs);
 			});
 		} catch (e) {}
@@ -585,12 +600,40 @@
 	function hookPassageInit() {
 		try {
 			if (typeof document === "undefined" || !document || typeof $ === "undefined" || !$) { return; }
-			$(document).on(":passageinit", function (ev, passage) {
+			$(document).off(":passageinit.mbce").on(":passageinit.mbce", function (ev, passage) {
 				try {
 					var t = (passage && passage.title) ? passage.title : "";
 					mbCEOnPassageInit(t);
 				} catch (e) {}
 			});
+		} catch (e) {}
+	}
+	/* v1.8.19：播放结束自动清理——包装 window.unfreezePlayerStats。
+	   背景（用户实测）：固定 MOD 剧情播放完一次后不自动取消、仍重新播放；手动取消后仍被困播放器。
+	   根因：结束判定只认 4 个硬编码段落名（Scene Viewer End / Scene Viewer passages / exitpassage /
+	   Farm Work），而 Maplebirch 框架恋爱场景播放器（如「罗宾码头」场景，结束段落为框架自有名，
+	   不走原版 Scene Viewer 通道）的结束段落不被识别 → 队列 used 项永不清理 + replayScene 残留 →
+	   下次推进剧情再次触发（循环）或拦截后续固定。
+	   修复：任何合法 unfreezePlayerStats 调用（原版 Scene Viewer 退出 / 框架播放器结束 / mod 播放器
+	   结束都会解冻）都视为"场景播放结束"→ 清理队列 used 项 + 清 replayScene/标记。不再依赖段落名。 */
+	function hookUnfreezePlayerStats() {
+		try {
+			if (typeof window === "undefined" || !window) { return; }
+			var orig = window.unfreezePlayerStats;
+			if (typeof orig !== "function" || window.__mbCEUnfreezeHooked) { return; }
+			window.__mbCEUnfreezeHooked = true;
+			window.unfreezePlayerStats = function () {
+				try {
+					var V = getV();
+					if (V && V.replayScene && V.mbCE_replayOnce) {
+						/* MOD 固定触发的重放中收到 unfreeze = 播放结束 → 清理已触发项 + 重放状态 */
+						cleanupUsedPins();
+						try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
+						try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+					}
+				} catch (e) {}
+				try { return orig.apply(window, arguments); } catch (e) {}
+			};
 		} catch (e) {}
 	}
 

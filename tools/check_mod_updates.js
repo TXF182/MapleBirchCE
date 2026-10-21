@@ -4,7 +4,7 @@
  * 输出：逐渠道报告（声明版本 / 最新 tag / 结论）+ 总结行 UPDATES: N（供定时任务判断）。
  * 说明：只检测报告，不改任何代码；更新动作由定时任务中的工作流执行
  * （下载新源码 → audit_adapters 核对 → resolve_missing 自动定案 → 补适配器声明 → 全链测试）。
- * 6 渠道：5 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone）+ 框架本体 maplebirch-framework。
+ * 9 渠道：8 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims）+ 框架本体 maplebirch-framework。
  * 框架渠道声明版本来自 declOverride（实测兼容版本），升版前须跑 check_framework_api.js 核对。
  */
 const https = require("https");
@@ -18,23 +18,31 @@ const js = fs.readFileSync(SRC, "utf8");
  * 声明版本 = 本地实测兼容版本（来源见注释），框架更新需确认 CE 引用的框架 API 兼容后再更新此值。 */
 const CHANNELS = [
   { modId: "deadwood-reblooms", repo: "MaplebirchLeaf/Deadwood-Reblooms",
-    extractDecl: /(\d+\.\d+(?:\.\d+)?)/ },
+    extractDecl: /(\d+(?:\.\d+)+)/ },
   { modId: "revelation-the-book-of-return", repo: "MaplebirchLeaf/Revelation-The-Book-of-Return",
-    extractDecl: /(\d+\.\d+(?:\.\d+)?)/ },
+    extractDecl: /(\d+(?:\.\d+)+)/ },
   { modId: "dom_robin", repo: "ZeroRing233/Degrees-of-Lewdity-RobinMod",
-    extractDecl: /(\d+\.\d+(?:\.\d+)?)/ },
+    extractDecl: /(\d+(?:\.\d+)+)/ },
   { modId: "more_love_interests", repo: "Nephthelana/DoL-More-Love-Interests-Mod",
-    extractDecl: /(\d+\.\d+(?:\.\d+)?)/ },
+    extractDecl: /(\d+(?:\.\d+)+)/ },
   { modId: "smartphone", repo: "ANLINSTUDIO/Degrees-of-Lewdity-DolSmartPhone",
-    extractDecl: /(\d+\.\d+(?:\.\d+)?)/ },
+    extractDecl: /(\d+(?:\.\d+)+)/ },
+  { modId: "dol-optimization", repo: "ANLINSTUDIO/Degrees-of-Lewdity-DolOptimization",
+    extractDecl: /(\d+(?:\.\d+)+)/ },
+  { modId: "wraiths-reflection", repo: "Water2311/WraithsReflection",
+    extractDecl: /(\d+(?:\.\d+)+)/ },
+  { modId: "dolsims", repo: "MissedHeart/Degrees-of-Lewdity-DolSims",
+    extractDecl: /(\d+(?:\.\d+)+)/ },
   { modId: "maplebirch-framework", repo: "MaplebirchLeaf/SCML-DOL-maplebirchFramework",
     /* 框架本体（非适配器）：declOverride = 本地实测兼容版本。升版前必须跑
        `node tools/check_framework_api.js <新版 inject_early.js>` 核对 CE 依赖的
        API（maplebirch.get / .npc / .temporary.traitLists / window.maplebirch）
-       全部保留后再更新此值。5.5.1 已核对兼容（2026-10-20）：核心 6 项全过，
-       setup.MapleBirch / maplebirch.patch 缺失均为非 CE 依赖（CE 0 次调用 patch，
-       回退仅老环境兜底），缺失无害。 */
-    declOverride: "5.5.1" }
+       全部保留后再更新此值。5.5.2 已核对兼容（2026-10-21，v1.8.21 十五巡）：
+       核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists /
+       define / frameworkNotice），setup.MapleBirch / maplebirch.patch 缺失均为
+       非 CE 依赖（CE 0 次调用 patch；setup.MapleBirch 仅 01-core.js resolveMB()
+       的兜底分支，window.maplebirch 主路径存在时永不触发），缺失无害。 */
+    declOverride: "5.5.2" }
 ];
 
 function declaredVersion(modId) {

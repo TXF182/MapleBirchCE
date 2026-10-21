@@ -1695,10 +1695,10 @@ assert(V.daily.avery.talk !== undefined, "29.6 Avery's Mansion 触发兜底");
 // 29.7) 28 节残留清理
 delete V.player; delete V.templePromised; delete V.robinpaid; delete V.syndromeeden; delete V.syndromekylar; delete V.RobinExpansion; delete global.window;
 
-// 30) v1.5.2 剧情页页首使用提示（用户给定文案，页首常驻、位于固定触发横幅之前）
+// 30) v1.5.2 剧情页页首使用提示（页首常驻、位于固定触发横幅之前；十四巡：文案还原为固定触发原始说明全文）
 const SRC_NOW = fs.readFileSync(jsPath, "utf8");
 const WARN_TXT = "使用提示：当你使用固定触发后，会一直循环。当出现退出场景时，回到此页面取消队列。之后你会被困在场景播放器中，请使用场景直达退出去。";
-assert(SRC_NOW.includes(WARN_TXT), "30.1 剧情页页首提示文案已写入源码（用户给定全文）");
+assert(SRC_NOW.includes(WARN_TXT), "30.1 剧情页页首提示文案已写入源码（固定触发原始说明全文）");
 const RSI = SRC_NOW.indexOf("function renderScenes()");
 const RNEXT = SRC_NOW.indexOf("固定触发状态横幅", RSI);
 const WARN_I = SRC_NOW.indexOf("mce-warn", RSI);
@@ -1711,7 +1711,7 @@ delete V.mbCE_wrote;
 V.LostLamb = { recalled: false, active: false, scene: "", doubt: 0, fear: 10, notice: 0, ending: "", talkVow: "", known: { bishop: false, gwylan: false, auriga: false } };
 V.TempleDuties = { enrolled: false, review: false, duties: 0, oath: "", bishop: "none", manor: "none", declaration: "private", watch: { phase: "threshold" }, case: { stage: "field" }, archive: { roof: -1, shelves: -1, sorted: 0 }, candidates: { Robin: { agreed: false }, Sydney: { agreed: false } } };
 var r31 = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
-assert(r31 && r31.modName.indexOf("归途之书") !== -1 && r31.modName.indexOf("1.3.8") !== -1, "31.1 适配器声明升级 1.3.8, 实际 " + (r31 && r31.modName));
+assert(r31 && r31.modName.indexOf("归途之书") !== -1 && r31.modName.indexOf("1.3.9") !== -1, "31.1 适配器声明升级 1.3.9, 实际 " + (r31 && r31.modName));
 assert(r31.stages.filter(function (s) { return s.key === "ll_vow"; }).length === 1 && r31.stages.filter(function (s) { return s.key === "td_oath"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.watch.phase"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·守夜·案件阶段已收录");
@@ -1722,9 +1722,11 @@ var rll = api.setCheatStage("revelation-the-book-of-return", "ll_vow", "sealed")
 assert(rll.ok && V.LostLamb.talkVow === "sealed", "31.2 LostLamb 誓约写入 sealed, 实际 " + V.LostLamb.talkVow);
 var rll2 = api.setCheatStage("revelation-the-book-of-return", "ll_ending", "main");
 assert(rll2.ok && V.LostLamb.ending === "main", "31.2 梦境结局写入 main");
-// 31.3) LostLamb 数值钳制
+// 31.3) LostLamb 数值钳制（七巡：fear 上限 100→1000）
 api.applyCheatModValue("revelation-the-book-of-return", "ll_fear", 999);
-assert(V.LostLamb.fear === 100, "31.3 恐惧越上限钳制到 100, 实际 " + V.LostLamb.fear);
+assert(V.LostLamb.fear === 999, "31.3 恐惧写入 999（上限 1000），实际 " + V.LostLamb.fear);
+api.applyCheatModValue("revelation-the-book-of-return", "ll_fear", 9999);
+assert(V.LostLamb.fear === 1000, "31.3 恐惧越上限钳制到 1000, 实际 " + V.LostLamb.fear);
 api.applyCheatModValue("revelation-the-book-of-return", "ll_notice", -5);
 assert(V.LostLamb.notice === 0, "31.3 觉察越下限钳制到 0");
 // 31.4) LostLamb 能力
@@ -1770,7 +1772,7 @@ delete V.LostLamb; delete V.TempleDuties; delete V.mbCE_wrote;
 V.RobinExpansion = { shop_stage: "none", asylum: { status: "home" } };
 V.VanillaPlus = { attitudes: { ironWill: true, sadomasochist: false } };
 var dw32 = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
-assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && dw32.modName.indexOf("2.4.2") !== -1, "32.1 适配器声明升级 2.4.2, 实际 " + (dw32 && dw32.modName));
+assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && dw32.modName.indexOf("2.4.3") !== -1, "32.1 适配器声明升级 2.4.3, 实际 " + (dw32 && dw32.modName));
 assert(dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.ironWill"; }).length === 1 &&
        dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.sadomasochist"; }).length === 1, "32.1 铁意志/受虐狂能力已收录");
 // 32.2) attitudes 能力读写
@@ -2029,12 +2031,13 @@ assert(!!root37, "37.2 ensureDom 建立面板根节点");
 assert(/剧情条件解锁面板 v1\.\d+\.\d+收起/.test(root37.textContent), "37.2 面板标题版本号动态化（不再写死 v1.2）, 实际 " + root37.textContent.slice(0, 60));
 api37.renderPlayerEdit();
 let pane37 = root37.querySelector('[data-pane="mods"]');
+/* v1.8.15 懒渲染：特质区默认收起 → 先展开全部分类，后续行级断言才能命中 */
+const openAll37 = [].slice.call(pane37.querySelectorAll("button")).filter(function (b) { return b.textContent === "全部展开"; })[0];
+if (openAll37 && openAll37.listeners && openAll37.listeners.click) { openAll37.listeners.click[0](); }
 let txt37 = pane37.textContent;
 assert(txt37.indexOf("玩家自己 · 属性与特质") !== -1, "37.2 页面标题中文化, 实际 " + txt37.slice(0, 80));
 assert(txt37.indexOf("游戏属性面板（颜色分级）快捷编辑") !== -1, "37.2 快捷编辑区保留, 实际 " + txt37.slice(0, 120));
 assert(txt37.indexOf("特质管理") !== -1 && txt37.indexOf("一般特质") !== -1, "37.2 特质管理区+一般特质分类出现, 实际 " + txt37.slice(0, 300));
-assert(txt37.indexOf("童贞") !== -1 && (txt37.indexOf("○ 童贞") !== -1 || txt37.indexOf("● 童贞") !== -1), "37.2 童贞行中文显示（拥有 ● 或未拥有 ○）, 实际 " + txt37.slice(0, 300));
-assert(txt37.indexOf("神殿之担") !== -1 && txt37.indexOf("改数值") !== -1, "37.2 神殿之担行+改数值按钮出现, 实际 " + txt37.slice(0, 400));
 assert(txt37.indexOf("1. 玩家属性") === -1 && txt37.indexOf("2. 模组属性") === -1 && txt37.indexOf("模组属性（仅新增）") === -1, "37.2 玩家属性区/模组属性区已删除, 实际 " + txt37.slice(0, 300));
 assert(txt37.indexOf("General Traits") === -1 && txt37.indexOf("player.money") === -1, "37.2 无英文分类/路径残留, 实际 " + txt37.slice(0, 300));
 /* 37.2b) 分类折叠：同类型特质收在一起，默认收起（data-collapsed=1），点击标题展开 */
@@ -2047,7 +2050,17 @@ grp37G.children[0].listeners.click[0]();
 assert(body37G.getAttribute("data-collapsed") === "0", "37.2b 点击标题后展开（data-collapsed=0）");
 assert(grp37G.children[0].textContent.indexOf("▾ 一般特质") !== -1, "37.2b 展开标题显示 ▾+分类, 实际 " + grp37G.children[0].textContent.slice(0, 40));
 assert(txt37.indexOf("一般特质（") !== -1, "37.2b 分类标题带数量, 实际 " + txt37.slice(0, 300));
+/* v1.8.15 懒渲染：点击展开后行才建 → 刷新快照再断言行级文本 */
+txt37 = pane37.textContent;
+assert(txt37.indexOf("童贞") !== -1 && (txt37.indexOf("○ 童贞") !== -1 || txt37.indexOf("● 童贞") !== -1), "37.2 童贞行中文显示（拥有 ● 或未拥有 ○）, 实际 " + txt37.slice(0, 300));
+assert(txt37.indexOf("神殿之担") !== -1 && txt37.indexOf("改数值") !== -1, "37.2 神殿之担行+改数值按钮出现, 实际 " + txt37.slice(0, 400));
+// 37.2c) v1.8.15 懒渲染：点击展开后行才建（mock DOM 的 querySelectorAll 层级不全，用 textContent 判定行已建）
+const rows37Gtxt = body37G.textContent;
+assert(rows37Gtxt.indexOf("童贞") !== -1, "37.2c 点击展开后一般特质组行已建, 实际 " + rows37Gtxt.slice(0, 60));
 // 37.3) 模组特质自动发现：maplebirch.temporary.traitLists 注入的"命运之轮"出现在面板（自动收录）
+const grp37M = root37.querySelector('[data-tcat="Book Traits（模组）"]');
+if (grp37M && grp37M.children[0] && grp37M.children[0].listeners && grp37M.children[0].listeners.click) { grp37M.children[0].listeners.click[0](); }
+txt37 = pane37.textContent;
 assert(txt37.indexOf("Book Traits（模组）") !== -1 && txt37.indexOf("命运之轮") !== -1, "37.3 模组特质分类+条目自动发现显示, 实际 " + txt37.slice(0, 400));
 assert(txt37.indexOf("（模组）") !== -1, "37.3 模组注入标记出现, 实际 " + txt37.slice(0, 400));
 // 37.3b) v1.8.11 模组特质可直接获取/移除：字符串判定写变量直接获得；函数判定走强制获得标记（不再只读）
@@ -2099,7 +2112,7 @@ delete V.temple_burden; delete V.RobinTemple; delete V.player; delete V.mbCE_wro
 let g38 = api.PANEL_QUICK_GROUPS;
 assert(g38.length === 5 && g38[0].title === "核心属性" && g38[4].title === "武器技能", "38.1 快捷区 5 组（核心/基础/性/成绩/武器）, 实际 " + JSON.stringify(g38.map(x => x.title)));
 let all38 = g38.reduce((a, g) => a.concat(g.items), []);
-let names38 = all38.map(x => x[1]);
+let names38 = all38.map(x => x.label);
 ["纯洁", "容貌", "体能", "意志", "意识", "淫乱", "暴露癖", "异种癖", "诡术", "舞蹈", "游泳", "运动", "护理", "家务", "魅惑", "口部", "胸部", "手部", "臀部", "阴茎", "小穴", "后庭", "大腿", "足部", "科学", "数学", "语文", "历史", "防狼喷雾", "短棍", "鞭子"].forEach(n => {
 	assert(names38.indexOf(n) !== -1, "38.1 快捷区含「" + n + "」");
 });
@@ -2245,6 +2258,7 @@ assert(api39.displayName("Marlow") === "马洛", "40.1 Marlow → 马洛, 实际
 assert(api39.displayName("Grant") === "格兰特", "40.1 Grant → 格兰特, 实际 " + api39.displayName("Grant"));
 assert(api39.displayName("Needmeet") === "尼德米特", "40.1 Needmeet → 尼德米特, 实际 " + api39.displayName("Needmeet"));
 assert(api39.displayName("Feng") === "老冯", "40.1 Feng → 老冯, 实际 " + api39.displayName("Feng"));
+assert(api39.displayName("Seath") === "希斯" && api39.displayName("Alice") === "爱丽丝" && api39.displayName("Liddell") === "利德尔", "40.1 v1.8.19 新译名 Seath→希斯/Alice→爱丽丝/Liddell→利德尔, 实际 " + api39.displayName("Seath") + "/" + api39.displayName("Alice") + "/" + api39.displayName("Liddell"));
 assert(api39.displayName("Ivory Wraith") === "怨灵" && api39.displayName("Avery") === "艾弗里", "40.1 原有映射不受影响 怨灵/艾弗里");
 assert(api39.displayName("NoSuchModChar") === "NoSuchModChar", "40.1 未收录模组角色兜底原样");
 // 40.2) 系列合并 API：学校成绩系列（同变量多档位）
@@ -2378,6 +2392,206 @@ delete global.window.DolOptimization; delete global.window.MirrorHypnoVariableRe
 var mods41b = api.getCheatMods();
 assert(mods41b.filter(function (x) { return x.modId === "dol-optimization" || x.modId === "dolsims" || x.modId === "wraiths-reflection"; }).length === 0, "41.7 卸载后三新适配器自动消失");
 delete global.window;
+
+/* 42.1）v1.8.12 数值相对值修改：+N / -N 相对调整（cheatWriteValue 数据层，全部数值通道生效） */
+V.mceRelTest = 50;
+var r42a = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "100", "number");
+assert(r42a.ok && V.mceRelTest === 100, "42.1 绝对值 100 写入（不受相对解析影响），实际 " + V.mceRelTest);
+var r42b = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "+100", "number");
+assert(r42b.ok && V.mceRelTest === 200, "42.1 相对 +100（当前 100→200），实际 " + V.mceRelTest);
+var r42c = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "-20", "number");
+assert(r42c.ok && V.mceRelTest === 180, "42.1 相对 -20（当前 200→180），实际 " + V.mceRelTest);
+var r42d = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "+ 5", "number");
+assert(r42d.ok && V.mceRelTest === 185, "42.1 相对 + 5（空格宽容，180→185），实际 " + V.mceRelTest);
+/* 相对值 + 钳制组合 */
+var r42e = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "+50", "number", undefined, 190);
+assert(r42e.ok && V.mceRelTest === 190, "42.1 相对 +50 越上限钳制到 190（185+50→190），实际 " + V.mceRelTest);
+var r42f = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "abc", "number");
+assert(r42f.ok === false, "42.1 非数字拒绝（abc），实际 ok=" + r42f.ok);
+var r42g = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "+", "number");
+assert(r42g.ok === false, "42.1 只有符号无数字拒绝（+），实际 ok=" + r42g.ok);
+/* 特质数值可改块通道（traitWriteValue → cheatWriteValue）同样支持相对 */
+V.lifeTest = 30;
+var t42 = api.traitWriteValue({ name: "mceRelLife", text: "" }, V, "lifeTest", "+10");
+assert(t42.ok && V.lifeTest === 40, "42.1 特质数值通道相对 +10（30→40），实际 " + V.lifeTest);
+/* 原始状态恢复 */
+var r42u = api.undoCheatModValue("player-self", "t:rel");
+assert(r42u.ok && V.mceRelTest === 50, "42.1 相对写入同样留痕可回退（还原首次写入前 50），实际 " + V.mceRelTest);
+delete V.mceRelTest; delete V.lifeTest; delete V.mbCE_wrote;
+
+/* 42.2）v1.8.12 特质收藏（数据层）：toggle 往返 + key 规则 + 容错 */
+var favT = api.compileVanillaTraits().filter(function (x) { return x.name === "Pregnant"; })[0];
+assert(!!favT, "42.2 Pregnant 特质存在于静态表");
+var fk0 = api.getFavTraits(V);
+assert(Array.isArray(fk0) && fk0.length === 0, "42.2 初始无收藏");
+var ft1 = api.toggleFavTrait(favT, V);
+assert(ft1.ok && ft1.fav === true, "42.2 收藏 Fashionable 成功，实际 fav=" + ft1.fav);
+var fk1 = api.getFavTraits(V);
+assert(fk1.length === 1 && fk1[0] === api.favTraitKey(favT), "42.2 收藏数组含 key（cat\u0001name），实际 " + JSON.stringify(fk1));
+assert(api.isFavTrait(favT, V) === true, "42.2 isFavTrait 判定 true");
+var ft2 = api.toggleFavTrait(favT, V);
+assert(ft2.ok && ft2.fav === false && api.isFavTrait(favT, V) === false, "42.2 再次 toggle 取消收藏，fav=" + ft2.fav);
+var fk2 = api.getFavTraits(V);
+assert(fk2.length === 0, "42.2 取消后数组清空");
+/* 容错：V.mbCE_favTraits 缺失 / 非数组时读空数组、写自动创建 */
+delete V.mbCE_favTraits;
+assert(Array.isArray(api.getFavTraits(V)) && api.getFavTraits(V).length === 0, "42.2 缺失时读空数组");
+var ft3 = api.toggleFavTrait(favT, V);
+assert(ft3.ok && Array.isArray(V.mbCE_favTraits) && V.mbCE_favTraits.length === 1, "42.2 缺失时自动创建数组并写入");
+delete V.mbCE_favTraits;
+
+/* 42.3）v1.8.12 错误收集器数据层 + 面板状态持久化（内存态；无 localStorage 环境静默） */
+var e1 = api.mbCEPushError("测试错误A", "test.js:1", "stack-A");
+assert(e1 === undefined && api.mbCEErrors().length === 1, "42.3 推入 1 条错误，实际 " + api.mbCEErrors().length);
+api.mbCEPushError("测试错误B", "test.js:2", "stack-B");
+api.mbCEPushError("测试错误C", "test.js:3", "stack-C");
+var e3 = api.mbCEErrors();
+assert(e3.length === 3 && e3[0].msg === "测试错误A" && e3[2].msg === "测试错误C", "42.3 三条错误按序记录，实际 " + JSON.stringify(e3.map(function (x) { return x.msg; })));
+for (var i = 0; i < 60; i++) { api.mbCEPushError("批量" + i, "x.js", ""); }
+var eCap = api.mbCEErrors();
+assert(eCap.length === 50 && eCap[0].msg === "批量10" && eCap[49].msg === "批量59", "42.3 错误缓冲上限 50 条（环形截断），实际 " + eCap.length + " 首条=" + eCap[0].msg);
+/* 持久化内存态：保存页签 / 折叠 / 搜索词 */
+api.mbCEUiSave({ tab: "global" });
+var st1 = api.mbCEUiState();
+assert(st1.tab === "global", "42.3 mbCEUiSave 更新页签为 global，实际 " + st1.tab);
+api.mbCEUiSave({ filter: "受虐" });
+var st2 = api.mbCEUiState();
+assert(st2.filter === "受虐", "42.3 搜索词持久化，实际 " + st2.filter);
+api.mbCEUiCollapsed("性格特质", true);
+var st3 = api.mbCEUiState();
+assert(st3.collapsed["性格特质"] === 0, "42.3 展开状态记录为 0（open=true），实际 " + st3.collapsed["性格特质"]);
+api.mbCEUiCollapsed("性格特质", false);
+var st4 = api.mbCEUiState();
+assert(st4.collapsed["性格特质"] === 1, "42.3 收起状态记录为 1（open=false），实际 " + st4.collapsed["性格特质"]);
+/* 恢复：mbCEUiLoad 无 localStorage 时保持内存态不崩 */
+api.mbCEUiLoad();
+var st5 = api.mbCEUiState();
+assert(st5.tab === "global", "42.3 mbCEUiLoad 容错（无 localStorage 静默不崩），实际 " + st5.tab);
+api.mbCEUiSave({ tab: "char", filter: "" });
+
+/* 42.4）v1.8.12 能力项数据驱动重构：items 对象化（path/label/min/max/note）+ 范围钳制走数据表 */
+var ddAll = api.PANEL_QUICK_GROUPS.reduce(function (a, g) { return a.concat(g.items); }, []);
+assert(ddAll.length === 34, "42.4 数据表共 34 个能力项（9+6+10+4+5，含十巡新增资金），实际 " + ddAll.length);
+assert(ddAll.every(function (it) { return typeof it.path === "string" && typeof it.label === "string" && typeof it.min === "number" && typeof it.max === "number"; }), "42.4 每项均含 path/label/min/max（声明式数据表），缺失项 " + JSON.stringify(ddAll.filter(function (it) { return !(typeof it.path === "string" && typeof it.label === "string" && typeof it.min === "number" && typeof it.max === "number"); })[0]));
+var ddPurity = ddAll.filter(function (it) { return it.path === "purity"; })[0];
+assert(!!ddPurity && ddPurity.max === 2000 && ddPurity.min === 0, "42.4 purity 范围 0-2000（面板 0-100% 内部量纲），实际 " + ddPurity.min + "-" + ddPurity.max);
+var ddSkill = ddAll.filter(function (it) { return it.path === "skulduggery"; })[0];
+assert(!!ddSkill && ddSkill.max === 1000, "42.4 技能量纲 0-1000，实际 max=" + ddSkill.max);
+var ddProf = ddAll.filter(function (it) { return it.path === "prof.spray"; })[0];
+assert(!!ddProf && ddProf.max === 1000, "42.4 武器技能 0-1000，实际 max=" + ddProf.max);
+/* 钳制走数据表：超范围被 min/max 拦下 */
+var c1 = api.quickWrite("physique", 500);
+assert(c1.ok && V.physique === 500, "42.4 physique 写 500 成功（v1.8.19 起无上限，修复前被钳 100），实际 " + V.physique);
+var c1b = api.quickWrite("physique", 999999);
+assert(c1b.ok && V.physique === 999999, "42.4 physique 写 999999 成功（无上限仅防误输入），实际 " + V.physique);
+var c2 = api.quickWrite("skulduggery", -50);
+assert(c2.ok && V.skulduggery === 0, "42.4 skulduggery 写 -50 被钳制到 0，实际 " + V.skulduggery);
+var c3 = api.quickWrite("purity", 9999);
+assert(c3.ok && V.purity === 2000, "42.4 purity 写 9999 被钳制到 2000，实际 " + V.purity);
+
+/* 42.5）v1.8.12 适配器工作流审计：8 适配器全部健康，无错误/警告 */
+var aud = api.auditAdapters();
+assert(aud.total === 8, "42.5 审计覆盖 8 个适配器，实际 " + aud.total);
+assert(aud.healthy === 8, "42.5 全部适配器健康（注册键=entry.modId、项 key/name/varPath 完整、有 detect），实际 healthy=" + aud.healthy);
+assert(aud.errors.length === 0, "42.5 审计无错误，实际 " + JSON.stringify(aud.errors));
+assert(aud.warnings.length === 0, "42.5 审计无警告（无空适配器），实际 " + JSON.stringify(aud.warnings));
+assert(aud.healthy === aud.total, "42.5 healthy 与 total 一致（全部可渲染）");
+
+/* 42.6）十二巡：isnot 布尔条件满足/不满足值方向修复（模组特质 has 含 `$x isnot true/false` 时）
+   原版 "Broken Vow" 首条件即 $player.virginity.temple isnot true——修复前 grantTrait 写 true（条件仍不满足）、
+   revokeTrait 写 false（条件仍满足）。修复后：满足 isnot true → 写 false；移除 → 写 true。 */
+var tVow46 = api.compileVanillaTraits().filter(function (x) { return x.name === "Broken Vow"; })[0];
+assert(!!tVow46, "42.6 Broken Vow 特质存在于静态表");
+V.player = V.player || {};
+V.player.virginity = { temple: true };
+V.temple_rank = "initiate";
+assert(api.traitOwned(tVow46, V) === false, "42.6 前置：temple=true 时 Broken Vow 未拥有");
+var g46 = api.grantTrait(tVow46, V);
+assert(V.player.virginity.temple === false, "42.6 获取 Broken Vow：isnot true 满足值应写 false，实际 " + V.player.virginity.temple);
+assert(api.traitOwned(tVow46, V) === true, "42.6 获取后拥有判定 true（temple=false 满足 isnot true），实际 " + api.traitOwned(tVow46, V));
+var r46 = api.revokeTrait(tVow46, V);
+assert(V.player.virginity.temple === true, "42.6 移除 Broken Vow：isnot true 不满足值应写 true，实际 " + V.player.virginity.temple);
+assert(api.traitOwned(tVow46, V) === false, "42.6 移除后拥有判定 false（temple=true 不满足 isnot true）");
+/* isnot undefined 满足 → 写 1（非 undefined）；isnot N → 写 N-1 */
+var tI46 = { name: "测试isnot未定义", has: "$mce_isnot_test isnot undefined", text: "" };
+var g46b = api.grantTrait(tI46, V);
+assert(V.mce_isnot_test === 1, "42.6 isnot undefined 满足值写 1，实际 " + V.mce_isnot_test);
+var tI46n = { name: "测试isnot数字", has: "$mce_isnot_num isnot 10", text: "" };
+V.mce_isnot_num = 9;
+var g46c = api.grantTrait(tI46n, V);
+assert(V.mce_isnot_num === 9, "42.6 isnot 10 满足值写 9（N-1，当前已 9 不变），实际 " + V.mce_isnot_num);
+delete V.mce_isnot_test; delete V.mce_isnot_num;
+/* isnot false 满足 → 写 true */
+var tI46f = { name: "测试isnotfalse", has: "$mce_isnot_f isnot false", text: "" };
+V.mce_isnot_f = false;
+var g46d = api.grantTrait(tI46f, V);
+assert(V.mce_isnot_f === true, "42.6 isnot false 满足值写 true，实际 " + V.mce_isnot_f);
+delete V.mce_isnot_f; delete V.player.virginity; delete V.temple_rank; delete V.mbCE_wrote; delete V.mbCE_forcedTraits;
+
+/* ============ 第 43 节：v1.8.19 十三巡——播放结束自动清理 + 播放器内取消防困 + 体能无上限 + 新角色译名 ============ */
+/* 43.1）独立 eval：window 含 unfreezePlayerStats（原版函数）+ document mock（触发 init 注册 hook） */
+global.window = { unfreezePlayerStats: function () { unfreezeCalls43++; }, maplebirch: { npc: {}, get: function () { return undefined; } } };
+const dBody43 = mkNode("body"), dHead43 = mkNode("head");
+global.document = { body: dBody43, head: dHead43, createElement: mkNode, getElementById: () => null, addEventListener: () => {} };
+delete global.$;
+delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending; delete V.mbCE_queue; delete V.mbCE_wrote;
+V.passage = "Scene Viewer passages";
+let unfreezeCalls43 = 0;
+eval(js);
+const api43 = setup.mbStageCE;
+assert(typeof window.unfreezePlayerStats === "function" && window.__mbCEUnfreezeHooked === true, "43.1 unfreeze hook 已安装（__mbCEUnfreezeHooked 标记，原版函数被包装）");
+/* 43.2）MOD 固定触发重放中收到 unfreeze = 播放结束 → 自动清理队列 + 重放状态（修复"播放完不取消/重复播放"） */
+V.replayScene = { startPassage: "SV Test", exitpassage: "Bedroom" };
+V.mbCE_replayOnce = true; V.mbCE_replayPending = true;
+V.mbCE_queue = [ { key: "k43", name: "测试", startPassage: "SV Test", used: true } ];
+window.unfreezePlayerStats();
+assert(!V.replayScene && !V.mbCE_replayOnce && !V.mbCE_replayPending, "43.2 播放结束自动清理重放状态（修复前残留导致再次触发/拦截新固定）, 实际 replayScene=" + JSON.stringify(V.replayScene));
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 0, "43.2 队列 used 项自动清理（不再重复播放）, 实际 " + JSON.stringify(V.mbCE_queue));
+assert(unfreezeCalls43 === 1, "43.2 原版 unfreezePlayerStats 仍被调用（不破坏原版行为）, 实际 " + unfreezeCalls43);
+/* 43.3）原版手动重放（未走 MOD 通道）收 unfreeze → hook 不越权清理，保持原版行为 */
+unfreezeCalls43 = 0;
+V.replayScene = { startPassage: "SV Manual", exitpassage: "Bedroom" };
+delete V.mbCE_replayOnce; delete V.mbCE_replayPending;
+V.mbCE_queue = [ { key: "k43m", name: "手动", startPassage: "SV Manual", used: true } ];
+window.unfreezePlayerStats();
+assert(!!V.replayScene && unfreezeCalls43 === 1, "43.3 原版手动重放收 unfreeze 保持原版行为（不删 replayScene）, 实际 replayScene=" + JSON.stringify(V.replayScene));
+delete V.replayScene; delete V.mbCE_queue; delete V.mbCE_wrote;
+/* 43.4）播放器内取消固定（用户实测场景）：当前段落在原版播放器内 → 取消 → 跳回原位 exitpassage（不原地跳） */
+let played43 = null;
+global.Engine = { play: function (n, h) { played43 = n + ":" + !!h; } };
+V.passage = "Scene Viewer passages";
+V.replayScene = { startPassage: "SV Test2", exitpassage: "Bedroom" };
+V.mbCE_replayOnce = true; V.mbCE_replayPending = true;
+V.mbCE_queue = [ { key: "k43d", name: "测试2", startPassage: "SV Test2", used: false } ];
+V.sceneViewSwitch = "foo";
+const up43 = api43.unpinScene("k43d");
+assert(up43 === true, "43.4 播放器内取消返回 changed=true, 实际 " + up43);
+assert(played43 === "Bedroom:true", "43.4 播放器内取消 → 跳回原位（修复前 back=当前播放器段落原地跳 → 困在播放器）, 实际 " + played43);
+assert(!V.replayScene && !V.mbCE_replayOnce && !V.mbCE_replayPending, "43.4 取消后重放状态清空, 实际 " + JSON.stringify(V.replayScene));
+assert(!V.mbCE_queue || V.mbCE_queue.length === 0, "43.4 队列该项已移除, 实际 " + JSON.stringify(V.mbCE_queue));
+/* 43.5）back 为空（框架播放器取消）：不主动跳转、保留 replayScene → 播放器 Back 链接可用（unfreeze hook 兜底清理） */
+V.passage = "Scene Viewer passages";
+V.replayScene = { startPassage: "SV Test3", exitpassage: "" };
+V.mbCE_replayOnce = true; V.mbCE_replayPending = true;
+V.mbCE_queue = [ { key: "k43e", name: "测试3", startPassage: "SV Test3", used: false } ];
+played43 = null;
+const up43e = api43.unpinScene("k43e");
+assert(up43e === true, "43.5 back 空取消仍返回 changed=true, 实际 " + up43e);
+assert(played43 === null, "43.5 back 空不主动跳转（防原地跳/无源 Back 被困）, 实际 " + played43);
+assert(!!V.replayScene, "43.5 back 空保留 replayScene（原版 Back 链接可用，防被困）, 实际 " + JSON.stringify(V.replayScene));
+/* 43.6）体能无上限：quickWrite 写 500/999999 成功（修复前钳 100） */
+V.physique = 0;
+var ph43 = api43.quickWrite("physique", 500);
+assert(ph43.ok && V.physique === 500, "43.6 physique 写 500 成功（v1.8.19 无上限）, 实际 " + V.physique);
+var ph43b = api43.quickWrite("physique", 999999);
+assert(ph43b.ok && V.physique === 999999, "43.6 physique 写 999999 成功（仅防误输入）, 实际 " + V.physique);
+/* 43.7）新角色译名（用户实测角色页英文名 Seath/Alice/Liddell） */
+assert(api43.displayName("Seath") === "希斯", "43.7 Seath → 希斯, 实际 " + api43.displayName("Seath"));
+assert(api43.displayName("Alice") === "爱丽丝", "43.7 Alice → 爱丽丝, 实际 " + api43.displayName("Alice"));
+assert(api43.displayName("Liddell") === "利德尔", "43.7 Liddell → 利德尔, 实际 " + api43.displayName("Liddell"));
+/* 清理 43 节 */
+delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending; delete V.mbCE_queue; delete V.mbCE_wrote; delete V.physique; delete V.passage;
+delete global.Engine; delete global.document; delete global.window; delete global.$;
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

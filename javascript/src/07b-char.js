@@ -31,6 +31,7 @@
 			card.appendChild(stats);
 			card.addEventListener("click", function () {
 				curName = name;
+				mbCEUiSave({ curName: name }); /* v1.8.12 二轮优化：记住当前操作角色 */
 				switchOuterTab("stage");
 			});
 			grid.appendChild(card);

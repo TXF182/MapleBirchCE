@@ -2,6 +2,137 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.8.22（2026-10-21）
+
+**十六巡：自查优化收尾（README 版本表同步 + 条目文案去版本号依赖 + 模组注册名实证）**
+
+- **README.md 同步**：框架实测兼容 5.5.1→5.5.2；适配器一览表枯木逢春 2.4.2→2.4.3、归途之书 1.3.8→1.3.9、框架 5.5.1→5.5.2（API 6 项→8 项）；"其余适配模组无公开仓库，暂不纳入自动检测"（已过时）→"9 渠道全覆盖：8 个适配模组 + 框架本体"；兼容矩阵实测版本 5.5.1→5.5.2
+- **条目文案去版本号依赖**：`f_avery_refused` name「孤儿院 · 已拒绝艾弗里收养（2.4.2 新增）」→「（模组新增）」、note「2.4.2 新增：」→「模组 2.4.2 起提供：」（避免每次模组升版都要改 UI 文案，符合"断言/文案不写死版本号"原则）
+- **模组注册名实证（补十五巡验证盲区）**：枯木逢春 2.4.3 main.ts 确认 `maplebirch.get('DeadwoodReblooms')` 注册名保留；归途之书 1.3.9 main.ts 确认 `get('RobinTemple')/get('TempleChoir')/get('TempleDuties')` 保留——两适配器 detect 探测键在新版全部仍成立
+- 全链验证：全量回归 ALL TESTS PASSED（31.1/32.1 适配器声明断言 PASS）、功能 E2E 全 PASS、zip 正斜杠、verifier 4/4；安装包 145,654 B，SHA256=D3AFC885693A6983BEC8D3A0401A701EDB9B1E17611F2D6477E1B2A7D334B437
+
+## v1.8.21（2026-10-21）
+
+**十五巡：3 个第三方模组适配器跟随上游更新（枯木逢春 2.4.3 / 归途之书 1.3.9 / 框架 5.5.2）+ 更新检测脚本补全**
+
+- **适配器声明升版**：归途之书 modName v1.3.8 → v1.3.9；枯木逢春 modName 2.4.2 → 2.4.3
+- **键存活全量校验**：对两个适配器全部 59+43 条 varPath/skipVar/completeVar/progressVar 在新版源码中逐一验证——全部存活，无需删改（初检 MISS 系引用形态差异：模组以 `$X.Y.Z`/分段 get 引用，二次短键名探测确认均存在）
+- **新版内容甄别（不新增作弊键，理由实证）**：枯木逢春 2.4.3 将渡鸦神社/月羽从 MoreTransformations 拆为独立 DarkfeatherShrine 模块——存档键仍留在 `V.MoreTransformations.shrine.*`（stage/feeds/helped/donations/confessed 等 2.4.2 已有），拆包不改键；新增 Finance/ResidentBath（`real_estate.life.bath/days` 为复杂对象/字典，改坏易崩）、ParkBench（无持久键）、Robin/Savings（仅复用已有 reserve 键）；归途之书 1.3.9 新增 RobinTemple/Garden（`work_day` 为日期戳，非累计值，作弊语义混乱）。以上均不进面板
+- **框架 5.5.2 API 核对（check_framework_api.js）**：核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists / define / frameworkNotice）；`setup.MapleBirch` 缺失无害（仅 01-core.js resolveMB() 兜底分支，window.maplebirch 主路径存在时永不触发）、`maplebirch.patch` CE 零调用 → declOverride 5.5.1 → 5.5.2
+- **check_mod_updates.js 补 3 个缺失适配器渠道**：dol-optimization（ANLINSTUDIO/Degrees-of-Lewdity-DolOptimization）/ wraiths-reflection（Water2311/WraithsReflection）/ dolsims（MissedHeart/Degrees-of-Lewdity-DolSims）→ 6 渠道扩为 9 渠道；顺手修复版本提取正则不一致 bug（声明侧 `(\d+\.\d+(?:\.\d+)?)` 把 0.8.1.7 截成 0.8.1 导致 dolsims 误报"有更新"，统一为 `(\d+(?:\.\d+)+)` 与 tag 侧一致）
+- 测试：test_mce 31.1/32.1 版本断言同步（1.3.9 / 2.4.3）；分组计数断言不变（未增删条目）
+- 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED（含 31.1/32.1 新版断言、43.6 physique/43.7 译名回归）、功能 E2E 全 PASS；安装包 145,662 B，SHA256=D0D335E5E49AAC093814CE5ED6E2181D93B4443ED453CCF6945C70BC626F21D4
+- 备注：更新检测实跑 9 渠道 8 个实测全对（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraiths/DolSims 均无更新）；框架渠道当轮撞 GitHub API 60 次/小时限流（core 0/60，19:44 恢复），以本地 compareVersions 模拟确认 decl 5.5.2 == tag 5.5.2 判"无更新"，逻辑正确；定时任务每日 21:15 单次调用不撞限流
+
+## v1.8.20（2026-10-21）
+
+**十四巡：剧情页页首「使用提示」文案还原为固定触发原始说明全文（用户要求）**
+
+- 用户实测反馈固定剧情播放器问题（播放完不自动取消、手动取消后仍被困场景播放器）在 v1.8.19 机制修复后仍未解决，用户明确放弃该方向（"不需要你解决了"），要求还原提示文案
+- 还原：`renderScenes()` 页首 `mce-warn` 文本恢复为用户给定全文「使用提示：当你使用固定触发后，会一直循环。当出现退出场景时，回到此页面取消队列。之后你会被困在场景播放器中，请使用场景直达退出去。」
+- 同步更新 test_mce 第 30 节 WARN_TXT 常量与 30.1 断言名（固定触发原始说明全文）
+- 保留能力不动：v1.8.19 的 unfreeze hook 播放结束清理 / unpinScene 防困重构 / physique 无上限 / Seath·Alice·Liddell 译名，均不回滚
+- 全链验证：DOM 冒烟全 PASS（剧情页渲染可见还原文案）、全量回归 ALL TESTS PASSED（含 30.1 还原断言）、功能 E2E 全 PASS；安装包 145,662 B，SHA256=6E566F9A5DA5736DEDA4AEA3690784D26E1C7895BBB1354FDAA4637F79BCDF06
+
+## v1.8.19（2026-10-21）
+
+**十三巡：用户实测 3 处 bug 修复（播放结束自动清理 / 播放器内取消防困 / 体能无上限 / 角色译名补齐）**
+
+- **修复（真 bug）剧情播放完不自动取消、仍重新播放**：根因是结束判定只认 4 个硬编码段落名（Scene Viewer End / passages / exitpassage / Farm Work），而 Maplebirch 框架恋爱场景播放器（如「罗宾码头」场景）结束段落是框架自有名、不走原版 Scene Viewer 通道 → 队列 used 项永不清理 + `replayScene` 残留 → 下次推进剧情再次触发（循环）或拦截后续固定。修复：新增 `hookUnfreezePlayerStats()` 包装 `window.unfreezePlayerStats`——任何合法 unfreeze 调用（原版退出/框架播放器结束/mod 播放器结束都会解冻）即视为「场景播放结束」→ 自动清理队列 used 项 + 清 `replayScene`/重放标记；仅 MOD 重放（`mbCE_replayOnce`）生效，原版手动重放保持原版行为
+- **修复（真 bug）手动取消后仍被困场景播放器**：`unpinScene` 原逻辑 `back = exitpassage || currentPassageName()` 兜底会让「正处于播放器段落时取消」变成原地跳转（跳去当前播放器段落），且随后删 `replayScene` → 播放器 default 分支 Back 链接无源 → 退出按钮消失。重构为三分支：back 有效且不在播放器内 → 先删状态→解冻→跳回原位；back 有效且在播放器内 → 解冻→跳回原位（目标非播放器，安全）→删状态；back 为空（框架播放器）→ 保留 `replayScene` 不主动跳转（Back 链接可用，玩家手动退出后由 unfreeze hook 兜底清理）
+- **修复（用户点名）体能上限解除**：`physique` max 100 → 999999（无硬上限仅防误输入，与意志/意识/淫乱/暴露癖/异种癖同口径）
+- **修复（用户点名）角色页英文名中文化**：`DISPLAY_NAMES` 新增 Seath→希斯 / Alice→爱丽丝 / Liddell→利德尔（音译，可游戏内校对调整）
+- 测试：test_mce 新增第 43 节 17 断言（unfreeze hook 安装/播放结束清理/原版手动重放不越权/播放器内取消跳回原位/back 空保留不跳转/physique 无上限/新译名）；同步 42.4 physique 断言、40.1 译名断言
+- 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED、功能 E2E 全 PASS；安装包 145,666 B，SHA256=3FC9537ED2420D646C166B3997282682C50853D1CC75ED1B036AF49C8730D07C
+
+## v1.8.18（2026-10-21）
+
+**十二巡全源码深度自查（17 文件约 5500 行逐行审查至收敛，修复 3 处）**
+
+- **修复（真 bug）**：特质获取/移除对 `$x isnot true/false/undefined` 条件的满足值写反——`grantTrait` 对 `isnot true` 此前写 `true`（条件仍不满足）、`revokeTrait` 写 `false`（条件仍满足）。原版「破誓（Broken Vow）」首条件 `$player.virginity.temple isnot true` 直接命中。修复：满足 `isnot true`→写 `false`、`isnot false`→写 `true`、`isnot undefined`→写 `1`、`isnot N`→写 `N-1`；移除时反向写回使条件不满足
+- **修复（文案过时）**：剧情页顶部固定触发提示仍写「会一直循环/被困在场景播放器中」——与 v1.4.8 起的「一次性触发、播放完自动返回原位并停止」机制矛盾，误导用户。改为新机制说明（清空队列/单条回退恢复原版随机触发）
+- **修复（文档）**：`ORIGINAL_V_ROOT_KEYS` 注释键数 183 → 186（实测）
+- 其余 14 个文件逐行复核无问题（恋爱/转化/格威岚/场景直达/固定触发/Mod作弊 8 适配器/庄园维护/战斗终结/错误熔断/懒渲染/留痕裁剪/数值钳制 34 项/API 导出完整性）
+- 测试：test_mce 新增 42.6 节 8 断言（Broken Vow isnot true 获取写 false/移除写 true、isnot undefined 写 1、isnot N 写 N-1、isnot false 写 true）
+
+## v1.8.12（2026-10-21）
+
+**七项能力升级：收藏 / 错误收集 / 状态持久化 / 数据驱动 / 相对值 / 适配器审计 / 性能**
+
+- **功能1 特质搜索+收藏**：行首 ☆/★ 按钮一键收藏（数据存 `V.mbCE_favTraits`），收藏项置顶「★ 已收藏」组（原版+模组特质通用，key=`分类\u0001名称`）
+- **功能3 面板内错误收集器**：window error + console.error 劫持进面板（上限 50 条环形缓冲），header 红点数量徽标，点击展开堆栈列表 + 一键复制全部 + 清空（不吞错、不干扰游戏）
+- **功能5 面板状态持久化**：localStorage `mbCE_ui_state_v1` 记住页签 / 特质搜索词 / 各分类折叠状态，重启面板自动恢复
+- **功能6 能力项数据驱动重构**：属性快捷区 33 项升级为声明式数据表（path/label/min/max/note），purity 0-2000（面板 0-100%）、核心四维 0-100、技能/成绩/武器 0-1000；写入统一按表钳制
+- **功能9 数值相对值修改**：所有数值输入框支持 `+N / -N` 相对调整（相对当前值，钳制到合理范围后写入），placeholder/title 中文提示
+- **功能12 适配器工作流工具**：新增 `auditAdapters()` 运行时审计——注册键=entry.modId、分类项 key/name/varPath 完整、scenes 项用 skipVar/completeVar/progressVar、无空适配器、detect 存在；8 适配器全部健康
+- **功能13 面板性能优化**：passage 刷新节流（60ms 合并）、搜索输入防抖（250ms）、收藏集合局部缓存（一次扫描替代逐行 indexOf）
+- 测试：test_mce 新增 42.1-42.5 五节（相对值 12 / 收藏 8 / 错误+持久化 11 / 数据驱动 8 / 审计 5 断言），smoke_dom 新增收藏 6 + 错误收集 7 + 持久化 2 断言，全链回归 + 冒烟全绿
+
+**双轴审查后优化（同日）**：
+- **修复**：三处数值输入框 `type=number` → `text` + `inputmode=decimal`——number 框会拒绝 `+` 号导致相对语法 UI 层不可输入（数据层早已支持）；现 `+N / -N` 可直接键入
+- **修复**：特质分类折叠恢复时箭头文本不一致（渲染收尾统一补数量硬编码 `▸`，展开组也被重置）——现按 `data-collapsed` 实时定箭头 ▾/▸，持久化恢复与点击行为一致
+- **增强**：错误收集器补 `unhandledrejection`（未处理的 Promise 拒绝进面板）
+- **优化**：quickWrite 数据表路径索引（懒建一次，替代每次遍历 33 项）
+- 测试：smoke_dom 新增第 9 节 6 断言（UI 相对输入 +5/-1 实际写入、数值框 text 化、折叠恢复箭头、Promise 拒绝入收集器）
+
+**二轮体验优化（同日）**：
+- **角色记忆**：记住上次操作的角色（curName），切存档/重开面板自动回到该角色，失效回落首个角色
+- **内层页签记忆**：角色页「恋爱阶段/转化阶段」页签选择持久化恢复
+- **错误收集器**：同源错误 30 秒内合并计数（×N，防渲染循环刷屏淹没面板）；每行加 [HH:MM:SS] 时间戳；复制全部带计数
+- **折叠工具**：特质管理区新增「全部展开 / 全部收起」一键按钮（收藏组保持置顶在工具行之下）
+- **折叠状态自清理**：全量渲染时删除已不存在的分类残留键（搜索过滤下不清理，避免误删隐藏分类状态）
+- 测试：smoke_dom 新增第 10 节 5 断言（错误去重 ×3 / 全部展开收起 / 角色+内层页签往返 / 残留键清理 / 时间戳格式）
+
+**三巡性能修复：卡顿/闪退根因（DoLGameUI 等第三方特效层刷屏）**：
+- **错误风暴熔断**：同源错误 60 秒窗口合并计数（×N），单源 ≥20 次熔断忽略 60 秒；全局 ≥200 条/分钟全类熔断 30 秒——切断「第三方特效层每帧 console.error → 收集器高频 DOM 写 → 特效层再评估」的放大循环（DoLGameUI 的 spotlight/glow 每帧报错不再卡顿/闪退），熔断期红点提示 ⚠、错误列表显示熔断说明
+- **badge 更新节流**：200ms 内多次错误只写一次 DOM（清空等明确操作立即刷新）
+- **passage 自动刷新降频**：60ms → 300ms，降低面板打开时每 passage 全量重建对第三方特效层的触发频率
+- 测试：smoke_dom 新增第 11 节（同源 30 连发合并 1 条 + 熔断、异源 200 连发受 50 上限 + 全熔断后不再新增、badge 节流最终一致 + ⚠ 提示）
+
+**四巡内存/CPU 治理（"用多了闪退"累积根因）**：
+- **Mod作弊 页免 passage 自动刷新**：该页数据只由用户点击改变——长时间停在 Mod作弊 操作不再被每 passage 全量重建拖累（第三方特效层 DOM 扫描是卡顿/闪退主因）
+- **jQuery 事件绑定防重**：`:passageoverride` / `:passageinit` 改为命名空间 `.mbce` off+on——重载/重复注入不再累积 handler
+- **熔断计数表有界**：byKey >500 键丢弃最旧一半（防御错误源键无限变化的内存泄漏）；速率计数改为每分钟两桶 O(1)（替代时间戳数组）
+- **面板开关与 badge 写入解耦**：面板关闭时错误只记数据不写 DOM（省 CPU）；打开时立即刷新徽标
+- 测试：smoke_dom 11.3 补面板开关验证（关闭不更新 badge/重开即刷新、异源 300 连发受 50 上限）
+
+**五巡自查校验再优化**：
+- **Mod作弊 页操作局部行更新**：按钮点击后只刷新目标行回显（阶段下拉/能力勾选/数值输入），不再全量重建整个模组页——高频操作下 DOM churn 减少 95%+，进一步降低卡顿/闪退累积
+- **滚动位置保持**：模组详情页 / 玩家编辑页重建后恢复 pane.scrollTop——长列表底部操作不再跳回顶部
+- **badge force 立即写**：打开面板/清空错误时徽标同步刷新（此前 force 仍走 200ms 节流，重开面板徽标延迟）
+- 测试：smoke 12.1 移至非熔断期验证面板开关真实路径（关闭不写 badge / 重开立即刷新 3 vs 3）
+
+**六巡自查再优化（快速面板局部更新 + 测试补盲 + 兜底 bug 修复）**：
+- **快速面板局部行更新**：玩家编辑页数值操作只刷新目标行（输入框回显 + 当前值标签），不再全量重建 33 行 + 特质区；特质类操作（无 path）仍全量重建
+- **CSS.escape 兜底 bug 修复**：无全局 CSS 环境（node/eval）走兜底时漏拼 "quick:" 前缀 → 行查找失败静默回退全量重建（优化失效）；修复后与主分支等价，此坑已入错题本
+- 测试：smoke 第 13 节（mock 适配器局部行更新：阶段应用/能力勾选/数值相对修改后行数不变 + 回显更新）+ 13.2（快速面板 +10 局部回显）
+
+**v1.8.13 七巡（实测反馈：核心属性/模组数值上限被钳 + DoLGameUI 特效层错误 50 条刷屏）**：
+- **钳制上限修正**：核心属性数据表 max 配错（willpower/awareness/promiscuity/exhibitionism/deviancy 误配 100，应为内部值域 2000；beauty 误配 100，原版无硬上限 → 999999 防误输入）→ 应用大值不再被钳死
+- **模组数值上限放宽**：LostLamb doubt/fear/notice 100→1000；TempleDuties archive.roof 99→100、shelves 99→999（实测当前值 108 超原上限）
+- **错误噪音归一化**：DoLGameUI 特效层 4 种 layer 消息（spotlight/glow/linearGradient/flatColorOverlay）交替刷屏时各成独立源绕过单源熔断 → 归一为同一源，命中「单源 ≥20 熔断」；50 条风暴折叠为 0-1 条
+- 测试：smoke 13.3（意志 2000 / 容貌 50000 写入）+ 13.4（24 条特效层错误折叠 ≤1）
+
+**v1.8.14 八巡（用户指令：意志/意识/淫乱/暴露癖/异种癖改无上限 + 整体核查）**：
+- **5 属性无上限**：willpower/awareness/promiscuity/exhibitionism/deviancy 钳制上限 2000 → 999999（仅防误输入，非游戏上限）；purity（原版内部 0-2000）、physique（0-100）保持不变
+- **整体核查**：核心属性表 8 项 / 基础技能 6 项 / 性技能 10 项 / 成绩 4 项 / 武器 5 项 min-max 全表审计通过（技能与成绩 0-1000 百分比量纲）；8 适配器 80 处数值项审计通过（次数 999 / 进度 100 / 金钱 10 万+ / 开关 0-1，无异常钳制）
+- 测试：smoke 13.3 扩展（5 属性写入 5000 验证无上限）
+
+**v1.8.15 九巡（用户批准三项优化 1/2/3）**：
+- **① 特质区收起组懒渲染**：折叠分组初始不再建行（行闭包进组 pending），点击展开/全部展开时才补建——面板开合与切页 DOM 显著减少（特质区 124 行中收起组不再占 DOM）
+- **② 面板写入留痕有界化**：`V.mbCE_wrote` 条目数 > 400 时按时间戳升序裁剪最旧一半（5 个写入点统一调用 mbCEWroteTrim），防存档无限膨胀；被裁条目的回退窗口随之关闭
+- **③ 第三方噪音源折叠扩展**：除 DoLGameUI 特效层外，新增 DependenceChecker / TweeReplacer / Paperdoll+ ReplacePatcher / Terraria Expand Mod / Simple Frameworks ModOrderContainer 归一化（各归一同源，命中单源熔断，不再独立刷屏）
+- 测试：smoke 13.4b（5 种第三方噪音 25 条折叠 ≤6）+ 13.5（懒渲染：初始 33 行 <60、展开补建、全部展开 >100）+ 13.6（450 条留痕裁剪 ≤400 且保留最新）
+
+**v1.8.16 十巡（自查修复：懒渲染搜索边界）**：
+- **修复搜索被懒渲染吞掉**：搜索词命中但目标特质分类处于收起状态时，匹配行落在收起组里不可见（懒渲染 1.8.15 引入）。修复：搜索态（q 非空）强制所有组展开并建行（仅改 DOM 收起标记，不写持久化折叠状态，搜索结束恢复默认收起）
+- 测试：smoke 13.7（全部收起 + 搜索「童贞」→ 匹配行可见）
+
+**v1.8.17 十一巡（自查修复 + 快速面板补资金）**：
+- **修复留痕排序失效**：恋爱对象留痕条目缺 `t` 时间戳，trim 裁剪按时间升序时兜底 0 导致该条目永远被当成最旧、优先裁剪。补 `t: Date.now()`
+- **快速面板新增「资金」项**：V.money 直接读写（min 0 / max 100万，单位 £，建议整数），支持 +N/-N 相对调整与回退，走统一钳制与留痕
+- 测试：test_mce 42.4 数据表 33→34（9+6+10+4+5）
+
 ## v1.8.11（2026-10-20）
 
 **模组特质可直接获取：特质管理区对模组注入特质不再只读**
