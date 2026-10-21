@@ -35,10 +35,11 @@ DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.22**，已适配 8 个
 | 十五巡 | 3 模组适配器跟随上游更新：归途之书 modName v1.3.8→v1.3.9、枯木逢春 2.4.2→2.4.3（59+43 条 varPath 全量键存活校验，无删改）；框架 5.5.2 API 核对（核心 8 项全过，setup.MapleBirch/patch 缺失无害）→ declOverride 5.5.1→5.5.2；check_mod_updates.js 补 3 渠道（dol-optimization/wraiths-reflection/dolsims）6→9 渠道 + 修声明/tag 版本提取正则不一致（dolsims 0.8.1.7 误报"有更新"）；新版内容甄别（DarkfeatherShrine 拆包不改键、ResidentBath 复杂对象/ParkBench 无键/Savings 已覆盖/Garden 日期戳，均不新增作弊项）；test_mce 31.1/32.1 同步；升 1.8.21 | 145,662 B | D0D335E5E49AAC093814CE5ED6E2181D93B4443ED453CCF6945C70BC626F21D4 |
 | 十六巡 | 自查收尾：README 版本表同步（框架 5.5.2 / 枯木逢春 2.4.3 / 归途之书 1.3.9 / 9 渠道全覆盖声明）；f_avery_refused 条目文案去版本号依赖（2.4.2 新增→模组新增/模组 2.4.2 起提供）；模组注册名实证（dw243 main.ts get('DeadwoodReblooms')、rv139 main.ts get('RobinTemple'/'TempleChoir'/'TempleDuties') 均保留，detect 探测键在新版全部成立）；升 1.8.22 | 145,654 B | D3AFC885693A6983BEC8D3A0401A701EDB9B1E17611F2D6477E1B2A7D334B437 |
 
-## 4. git 状态（未提交 = v1.8.12 + v1.8.13 + ... + v1.8.22 全部内容）
-- HEAD = `e883b43`（v1.8.11 发布提交）
-- 未提交：CHANGELOG.md / README.md / boot.json / javascript/maplebirchce.js / src 的 01-core·02-romance·03-global·04-modcheat·05-modcheat-ui·06-traits·07a-shell·07b-char·07c-stage·07d-places·07e-scenes·07f-pins·07g-romance·07h-render·08-npc-traits·09-exports / tests/smoke_dom.js / tests/test_mce.js / tests/functional_e2e.js / tools/check_mod_updates.js / 记忆存档本文件
-- 远端 `https://github.com/TXF182/MapleBirchCE.git`；发布 v1.8.22 需先提交，参考 release_v1811.js
+## 4. git 状态（v1.8.12~v1.8.22 已提交并发布 ✅）
+- HEAD = `b38a225`（v1.8.22 整段提交：20 files, +2387/-220，pre-commit 全链验证通过）
+- 远端 `https://github.com/TXF182/MapleBirchCE.git` main 已同步（e883b43..b38a225）
+- **Release v1.8.22 已发布**（id=419496557，tag 远端/本地均指向 b38a225）：https://github.com/TXF182/MapleBirchCE/releases/tag/v1.8.22 ，资产 MapleBirchCE.mod.zip 145,654 B size 核对一致（SIZE_MATCH=1）
+- 发布脚本：`tools/release_v1822.js`（由 release_v1811.js 模板派生）；本地 tag v1.8.22 已打（v1.8.22）
 
 ## 5. 架构速览
 - 17 段 src 按面板分区拆分：01-core（版本/探测/API）/ 04-modcheat（适配器数据+通用写入执行器 cheatWriteValue）/ 05-modcheat-ui（渲染+局部行更新+PANEL_QUICK_GROUPS 数据表）/ 06-traits（特质区+滚动保持）/ 07a-shell（root/错误收集器 mbCEPushError+badge 同步写+熔断 mbCEFuse）/ 07b-char / 07c-stage / 07f-pins（命名空间防重绑定）/ 09-exports（open force + mods 页跳刷新 + mbCEPushError/mbCEErrors API）
@@ -72,9 +73,9 @@ DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.22**，已适配 8 个
 - 评分走六维雷达（doubao-visualization）；发布走 git credential + REST 成熟流程
 
 ## 11. 未决事项 / 候选
-1. **待办**：git 提交 + 发布 v1.8.22（release_v1811.js 模板）——v1.8.12~v1.8.22 全部改动未提交（HEAD=e883b43）
-2. **等用户实测**：v1.8.22 zip 已交付（README 同步 + 文案去版本号 + 注册名实证），等反馈
-3. **剩余候选（未实施）**：README 深度使用说明（评分 8.8 短板）；时间/声望快捷项（键结构复杂，未确定键名不猜）
+1. **已完成**：git 提交（b38a225）+ GitHub Release v1.8.22 发布（id=419496557，资产 size 核对一致）——v1.8.12~v1.8.22 全部并入
+2. **等用户实测**：v1.8.22（Release 与本地 zip 同源同 SHA256），等实机反馈
+3. **剩余候选（未实施）**：README 深度使用说明（评分 8.8 短板）；时间/声望快捷项（键结构复杂，未确定键名不猜）；ResidentBath 等 2.4.3 新增内容已甄别不纳入面板（用户确认不做）
 4. **错题本已记（十/十一巡新增）**：搜索态懒渲染边界；持久化 filter 只写不读恢复缺口；留痕条目缺 t 时间戳导致裁剪排序失效
 5. **十五巡备注**：GitHub API 60 次/小时限额（无 token），当轮实跑 8/9 渠道、框架渠道以本地 compareVersions 模拟验证（decl 5.5.2 == tag 5.5.2 判无更新）；定时任务每日 21:15 单次调用不撞限流
 
