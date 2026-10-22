@@ -1,23 +1,23 @@
 # MapleBirchCE 记忆存档（2026-10-21）
 
 > 用途：跨会话恢复上下文快照。任何新会话先读本文件，即可从干净状态续接，无需回溯整条历史。
-> 生成时间：2026-10-21（基于 git/版本/产物实况核对）；最后更新：v1.8.22 十六巡交付后
+> 生成时间：2026-10-21（基于 git/版本/产物实况核对）；最后更新：v1.8.23 十七巡交付后（2026-10-22）
 
 ## 1. 一句话定位
-DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.22**，已适配 8 个第三方模组；近期主线："操作卡顿/闪退"治理（已收效）→ 实测反馈修复（钳制上限、错误噪音折叠）→ 5 属性无上限 → 三项优化（特质懒渲染/留痕有界化/噪音折叠扩展）→ 十巡搜索边界修复 → 十一巡资金项+留痕时间戳修复 → 十二巡全源码逐行自查至收敛（修 isnot 布尔写反真 bug + 过时提示文案）→ 十三巡实测 3 bug 修复（播放结束自动清理 unfreeze hook / 播放器内取消防困 / 体能无上限 / Seath·Alice·Liddell 译名）→ 十四巡按用户要求把剧情页「使用提示」文案还原（播放器机制不再修复）→ 十五巡 3 个第三方模组适配器跟随上游更新（枯木逢春 2.4.3 / 归途之书 1.3.9 / 框架 5.5.2）+ 检测脚本补 3 渠道（9 渠道）+ 修 dolsims 版本提取误报 → **十六巡自查收尾（README 版本表同步 + 条目文案去版本号 + 模组注册名实证）**。
+DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.23**，已适配 8 个第三方模组；近期主线："操作卡顿/闪退"治理（已收效）→ 实测反馈修复（钳制上限、错误噪音折叠）→ 5 属性无上限 → 三项优化（特质懒渲染/留痕有界化/噪音折叠扩展）→ 十巡搜索边界修复 → 十一巡资金项+留痕时间戳修复 → 十二巡全源码逐行自查至收敛（修 isnot 布尔写反真 bug + 过时提示文案）→ 十三巡实测 3 bug 修复（播放结束自动清理 unfreeze hook / 播放器内取消防困 / 体能无上限 / Seath·Alice·Liddell 译名）→ 十四巡按用户要求把剧情页「使用提示」文案还原（播放器机制不再修复）→ 十五巡 3 个第三方模组适配器跟随上游更新（枯木逢春 2.4.3 / 归途之书 1.3.9 / 框架 5.5.2）+ 检测脚本补 3 渠道（9 渠道）+ 修 dolsims 版本提取误报 → 十六巡自查收尾（README 版本表同步 + 条目文案去版本号 + 模组注册名实证）→ **十七巡 3 模组适配器跟进新版（枯木逢春 2.4.4 / 归途之书 1.3.10 / 框架 5.5.3）+ 新增内容甄别补录 2 项（冷月港·泽菲尔线阶段 / 怨灵·项链已归还）**。
 
 ## 2. 路径与入口（唯一权威源）
 | 项 | 值 |
 |---|---|
 | 仓库根 | `C:\Users\27352\Doubao\chats\2026-10-13\new-chat-2\MapleBirchCE`（注意是 **new-chat-2**，不是当前会话目录） |
-| 版本双源 | `javascript/src/01-core.js` 的 `MCE_VERSION` + `boot.json` `version`，均为 1.8.22 |
+| 版本双源 | `javascript/src/01-core.js` 的 `MCE_VERSION` + `boot.json` `version`，均为 1.8.23 |
 | 源码真相源 | `javascript/src/*.js`（17 段），构建产物 `javascript/maplebirchce.js` 以 src 为准 |
 | 构建 | `node tools/build_js.js` |
 | 全链验证 | `powershell -NoProfile -ExecutionPolicy Bypass -File <abs>\tools\pack.ps1`（build→node --check→smoke_dom→test_mce→functional_e2e→打包→分隔符→verifier→SHA256；超 15s 转后台任务需 TaskOutput block 等待） |
 | 发布工具模板 | `tools/release_v1811.js`（可改造发布 v1.8.13） |
 | 每日模组检测定时任务 | 已建（每天 21:15，含 SmartPhone 渠道 + 盲区防误删提示） |
 
-## 3. 交付线（当前最新 = 十六巡）
+## 3. 交付线（当前最新 = 十七巡）
 | 轮次 | 内容 | zip | SHA256 |
 |---|---|---|---|
 | 三巡 | 错误风暴熔断（mbCEFuse） | 140,918 B | 5C4C1D70... |
@@ -34,6 +34,7 @@ DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.22**，已适配 8 个
 | 十四巡 | 按用户要求把剧情页页首「使用提示」还原为固定触发原始说明全文（播放器机制用户已放弃，不再修复）；同步 test_mce 第 30 节 WARN_TXT + 30.1 断言；v1.8.19 机制改动全部保留不回滚；升 1.8.20 | 145,662 B | 6E566F9A5DA5736DEDA4AEA3690784D26E1C7895BBB1354FDAA4637F79BCDF06 |
 | 十五巡 | 3 模组适配器跟随上游更新：归途之书 modName v1.3.8→v1.3.9、枯木逢春 2.4.2→2.4.3（59+43 条 varPath 全量键存活校验，无删改）；框架 5.5.2 API 核对（核心 8 项全过，setup.MapleBirch/patch 缺失无害）→ declOverride 5.5.1→5.5.2；check_mod_updates.js 补 3 渠道（dol-optimization/wraiths-reflection/dolsims）6→9 渠道 + 修声明/tag 版本提取正则不一致（dolsims 0.8.1.7 误报"有更新"）；新版内容甄别（DarkfeatherShrine 拆包不改键、ResidentBath 复杂对象/ParkBench 无键/Savings 已覆盖/Garden 日期戳，均不新增作弊项）；test_mce 31.1/32.1 同步；升 1.8.21 | 145,662 B | D0D335E5E49AAC093814CE5ED6E2181D93B4443ED453CCF6945C70BC626F21D4 |
 | 十六巡 | 自查收尾：README 版本表同步（框架 5.5.2 / 枯木逢春 2.4.3 / 归途之书 1.3.9 / 9 渠道全覆盖声明）；f_avery_refused 条目文案去版本号依赖（2.4.2 新增→模组新增/模组 2.4.2 起提供）；模组注册名实证（dw243 main.ts get('DeadwoodReblooms')、rv139 main.ts get('RobinTemple'/'TempleChoir'/'TempleDuties') 均保留，detect 探测键在新版全部成立）；升 1.8.22 | 145,654 B | D3AFC885693A6983BEC8D3A0401A701EDB9B1E17611F2D6477E1B2A7D334B437 |
+| 十七巡 | 3 模组适配器跟进新版：枯木逢春 2.4.3→**2.4.4**（新增冷月港区域线，补录「冷月港 · 泽菲尔线阶段」`MoreTransformations.harbour.zephyr.stage` 0-4）、归途之书 1.3.9→**1.3.10**（新增 WraithAftercare/WraithRecovery 取回+安抚线，补录「怨灵 · 项链已归还」`RBR.necklace.returned` 能力）、框架 5.5.2→**5.5.3**（release 资产解压 inject_early.js 核对核心 8 项全过 → declOverride 升版）；102 条声明路径键存活全量校验无删改；test_mce 19.1/21.1/21.2/21.10/31.1/31.11/32.1 同步；README/CHANGELOG 同步；升 1.8.23 | 145,944 B | 68F7DA825D59EED8A1BA105E3FB072AD11A64D0C94C1EBB79E438D00356B54A1 |
 
 ## 4. git 状态（v1.8.12~v1.8.22 已提交并发布 ✅）
 - HEAD = `b38a225`（v1.8.22 整段提交：20 files, +2387/-220，pre-commit 全链验证通过）

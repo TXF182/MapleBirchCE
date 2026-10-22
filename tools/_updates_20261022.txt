@@ -1,0 +1,12 @@
+===== MapleBirchCE 适配模组更新检测 2026-10-22T12:07:02.504Z =====
+[deadwood-reblooms] 2.4.3 / v2.4.4 → 有更新（最新 2.4.4 > 声明 2.4.3）
+[revelation-the-book-of-return] 1.3.9 / v1.3.10 → 有更新（最新 1.3.10 > 声明 1.3.9）
+[dom_robin] 0.0.8 / 0.08-for-dol-512 → 无更新（均为 0.0.8）
+[more_love_interests] 0.1.8.0 / More-Love-Interests-Mod-v0.1.8.0 → 无更新（均为 0.1.8.0）
+[smartphone] 0.3.91 / v0.3.91 → 无更新（均为 0.3.91）
+[dol-optimization] 1.1.2 / v1.1.2 → 无更新（均为 1.1.2）
+[wraiths-reflection] 1.3.4 / 1.3.4 → 无更新（均为 1.3.4）
+[dolsims] 0.8.1.7 / v0.8.1.7 → 无更新（均为 0.8.1.7）
+[maplebirch-framework] 5.5.2 / maplebirch-release-v5.5.3 → 有更新（最新 5.5.3 > 声明 5.5.2）
+UPDATES: 3
+exit=0

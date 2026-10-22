@@ -2,6 +2,21 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.8.23（2026-10-22）
+
+**十七巡：3 个模组适配器跟进新版（枯木逢春 2.4.4 / 归途之书 1.3.10 / 框架 5.5.3）+ 新增内容甄别补录 2 项**
+
+- **检测与下载**：9 渠道检测 → 3 个更新；codeload 下载解压（dw244.zip 24.8 MB / rv140.zip 865 KB / fw553.zip 890 KB）到 `tools\_modcache\`
+- **键存活全量校验（`_check_keys.js`/`_check_keys2.js`）**：rv140 59 条 + dw244 43 条声明路径全部存活——初检 10 条 MISS 均为引用形态差异（分段 `$A.B.C`/get 链/类实例），二次短键探测 + 源码上下文确认：faith_band/candidates/rite_round、fish_grill/balloon_wins、`RobinExpansion.doctor.count`（2.4.4 constants/robin.ts doctor 结构实证）、`StreetLife.races.wins/completed`（Races.ts RacesState defaults 实证）、`LifeSimulation.school.duties.completed` 全部存活，**无删改**
+- **目录 diff**：两模组均无文件删除。枯木逢春 2.4.4 新增 `compat/DoLX/{Boot,Finance,Passages}.ts` + `script/ColdmoonHarbour.ts` + `twee/ColdmoonHarbour/{Combat,Encounter,Main,Widgets,Zephyr}.twee`（冷月港区域线）；归途之书 1.3.10 新增 `twee/WraithAftercare.twee`（怨灵安抚线）+ `twee/WraithRecovery.twee`（怨灵项链取回线）
+- **新增内容甄别 + 补录 2 项**（按既有标准：只收持久化、语义清晰、改动安全、有作弊价值的键）：
+  - 枯木逢春补录**「冷月港 · 泽菲尔线阶段」**（`MoreTransformations.harbour.zephyr.stage`，数字阶段 0-4：未开始/已问起/已谈交易/已找回货物/已付酬完成）——冷月港区域主进度，干净数字枚举，一键推进 2.4.4 新剧情线；其余 harbour.scene/event/mist/voice/spoke/exchanged/fighting 为流程中间态/布尔标记不入面板；`harbour.relics`（打捞旧物数）语义弱不收；ResidentBath 类（用户已明确不做）不重提
+  - 归途之书补录**「怨灵 · 项链已归还」**（`RBR.necklace.returned`，能力开关）——1.3.10 取回/安抚线主开关（RBR.necklace 为 1.3.9 已有对象，本次扩展为完整归还→取回→安抚循环）；aftercare/stage/attemptDay/confidants/dreamChoice/retaken 为流程状态机/日期戳/数组，写入易被条件重置，不收
+- **框架 5.5.3 API 核对（check_framework_api.js）**：源码 zip 无 inject_early.js → 照 5.5.2 先例从 release 资产下载 mod zip（383,752 B，size 核对一致）解压 `dist/inject_early.js` 核对——核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists / define / frameworkNotice）；`setup.MapleBirch` / `maplebirch.patch` 缺失与 5.5.2 同因无害（CE 0 次调用 patch；setup.MapleBirch 仅 resolveMB() 兜底，主路径存在时不触发）→ declOverride 5.5.2 → 5.5.3
+- **适配器声明**：归途之书 modName v1.3.9 → v1.3.10（abilities 21→22）；枯木逢春 modName 2.4.3 → 2.4.4（stages 8→9）；两处 note 标注新内容来源
+- **测试同步**：test_mce 19.1（能力 22）/21.1（阶段 9）/31.1（1.3.10）/32.1（2.4.4）+ 21.2 根键白名单 + MoreTransformations + 新增 21.10（泽菲尔阶段写入 4/越界钳制）/31.11（项链归还启用/禁用）断言
+- 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED、功能 E2E 全 PASS、zip 正斜杠 4/4、verifier 4/4；安装包 145,944 B，SHA256=68F7DA825D59EED8A1BA105E3FB072AD11A64D0C94C1EBB79E438D00356B54A1
+
 ## v1.8.22（2026-10-21）
 
 **十六巡：自查优化收尾（README 版本表同步 + 条目文案去版本号依赖 + 模组注册名实证）**

@@ -1,0 +1,13 @@
+﻿===== MapleBirchCE 框架 API 兼容性核对：C:\Users\27352\Doubao\chats\2026-10-13\new-chat-2\MapleBirchCE\tools\_modcache\fw553rel_inject_early_extracted.js =====
+[有] window.maplebirch 全局导出
+[有] maplebirch.get 模块状态读取
+[有] maplebirch.npc 注册池
+[有] npc.data Map 结构
+[有] maplebirch.temporary 命名空间
+[有] traitLists 注入表
+[缺] setup.MapleBirch 回退  ← 需人工确认
+[有] maplebirch.define 模块注册
+[缺] maplebirch.patch 修补  ← 需人工确认
+[有] maplebirchFrameworkNotice 框架标识
+核对完成：8 项存在 / 2 项缺失
+结论：存在缺失项，先人工确认再更新 declOverride

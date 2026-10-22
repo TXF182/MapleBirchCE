@@ -37,12 +37,12 @@ const CHANNELS = [
     /* 框架本体（非适配器）：declOverride = 本地实测兼容版本。升版前必须跑
        `node tools/check_framework_api.js <新版 inject_early.js>` 核对 CE 依赖的
        API（maplebirch.get / .npc / .temporary.traitLists / window.maplebirch）
-       全部保留后再更新此值。5.5.2 已核对兼容（2026-10-21，v1.8.21 十五巡）：
+       全部保留后再更新此值。5.5.3 已核对兼容（2026-10-22，v1.8.23 十七巡）：
        核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists /
        define / frameworkNotice），setup.MapleBirch / maplebirch.patch 缺失均为
        非 CE 依赖（CE 0 次调用 patch；setup.MapleBirch 仅 01-core.js resolveMB()
        的兜底分支，window.maplebirch 主路径存在时永不触发），缺失无害。 */
-    declOverride: "5.5.2" }
+    declOverride: "5.5.3" }
 ];
 
 function declaredVersion(modId) {

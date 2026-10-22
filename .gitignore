@@ -7,3 +7,5 @@ tests/mce_script.js
 
 # 安装包
 *.zip
+
+tools/_modcache/

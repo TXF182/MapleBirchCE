@@ -984,7 +984,7 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:")
 global.window = { maplebirch: { get: function (n) { return (n === "RobinTemple" || n === "TempleChoir" || n === "LostLamb" || n === "TempleDuties") ? {} : undefined; } } };
 var rbr = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
 assert(rbr && rbr.declared === true, "19.1 探测命中：归途之书自动识别");
-assert(rbr.stages.length === 17 && rbr.abilities.length === 21 && rbr.scenes.length === 1 && rbr.values.length === 18, "19.1 分组齐全 阶段17/能力21/剧情1/数值18（v1.6.0 补录 LostLamb+TempleDuties）, 实际 " + rbr.stages.length + "/" + rbr.abilities.length + "/" + rbr.scenes.length + "/" + rbr.values.length);
+assert(rbr.stages.length === 17 && rbr.abilities.length === 22 && rbr.scenes.length === 1 && rbr.values.length === 18, "19.1 分组齐全 阶段17/能力22/剧情1/数值18（v1.8.23 补 1.3.10 项链归还能力）, 实际 " + rbr.stages.length + "/" + rbr.abilities.length + "/" + rbr.scenes.length + "/" + rbr.values.length);
 // 19.2) 隔离：适配器只声明模组自建键，不含原版神殿变量路径
 var allPaths = [];
 rbr.stages.concat(rbr.abilities).concat(rbr.values).forEach(function (it) { allPaths.push(it.varPath); });
@@ -1138,14 +1138,14 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:do
 global.window = { maplebirch: { get: function (n) { return n === "DeadwoodReblooms" ? {} : undefined; } } };
 var dwd = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
 assert(dwd && dwd.declared === true, "21.1 探测命中：枯木逢春自动识别");
-assert(dwd.stages.length === 8 && dwd.abilities.length === 15 && dwd.values.length === 20, "21.1 分组齐全 阶段8/能力15/数值20（v1.8.7 补 2.4.2 新增的拒绝收养能力）, 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
+assert(dwd.stages.length === 9 && dwd.abilities.length === 15 && dwd.values.length === 20, "21.1 分组齐全 阶段9/能力15/数值20（v1.8.23 补 2.4.4 新增冷月港·泽菲尔线阶段）, 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
 // 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus），
 //        不碰原版顶层键（rebellion/victories/self_rent/both_rent/rent_separated 等原版同名键均不声明）
 var dwdPaths = [];
 dwd.stages.concat(dwd.abilities).concat(dwd.values).forEach(function (it) { dwdPaths.push(it.varPath); });
 var dwdRoots = [];
 dwdPaths.forEach(function (p) { if (dwdRoots.indexOf(p.split(".")[0]) === -1) { dwdRoots.push(p.split(".")[0]); } });
-assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance"].indexOf(r) !== -1; }),
+assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations"].indexOf(r) !== -1; }),
 	"21.2 声明根键均为模组模块状态, 实际 [" + dwdRoots + "]");
 // 隔离补充：一级键全为模组模块根（V.RobinExpansion 等），绝不落到原版顶层键上；
 // rebellion/victories/self_rent 等在模组里只是 RobinExpansion 对象内的自建副本（模组从不读写原版顶层同名键，已 grep 实证）
@@ -1205,6 +1205,12 @@ assert(V.RobinExpansion.shop_stage === "none", "21.8 回退还原 none, 实际 "
 //       校服存放 / 借款 / 周收入（源码 School.ts SchoolState + constants/robin.ts 实证）
 api.setCheatStage("deadwood-reblooms", "dress_active", "free");
 assert(V.LifeSimulation.school.dress.active === "free", "21.9 着装规范写入 free（自由着装）, 实际 " + V.LifeSimulation.school.dress.active);
+// 21.10) v1.8.23 新增 2.4.4 冷月港·泽菲尔线阶段：写入 4 + 越界拒绝
+V.MoreTransformations = { harbour: { zephyr: { stage: 0 } } };
+var cmOk = api.setCheatStage("deadwood-reblooms", "cm_zephyr", 4);
+assert(cmOk.ok && V.MoreTransformations.harbour.zephyr.stage === 4, "21.10 泽菲尔线阶段写入 4, 实际 " + V.MoreTransformations.harbour.zephyr.stage);
+var cmBad = api.setCheatStage("deadwood-reblooms", "cm_zephyr", 9);
+assert(V.MoreTransformations.harbour.zephyr.stage === 4, "21.10 阶段越界 9 钳制到最高 4（原值 4 保持）, 实际 " + V.MoreTransformations.harbour.zephyr.stage);
 api.setCheatStage("deadwood-reblooms", "dress_highest", "revealing");
 assert(V.LifeSimulation.school.dress.highest === "revealing", "21.9 最高着装政策写入 revealing, 实际 " + V.LifeSimulation.school.dress.highest);
 var dwdDressBad = api.setCheatStage("deadwood-reblooms", "dress_active", "bogus");
@@ -1711,12 +1717,13 @@ delete V.mbCE_wrote;
 V.LostLamb = { recalled: false, active: false, scene: "", doubt: 0, fear: 10, notice: 0, ending: "", talkVow: "", known: { bishop: false, gwylan: false, auriga: false } };
 V.TempleDuties = { enrolled: false, review: false, duties: 0, oath: "", bishop: "none", manor: "none", declaration: "private", watch: { phase: "threshold" }, case: { stage: "field" }, archive: { roof: -1, shelves: -1, sorted: 0 }, candidates: { Robin: { agreed: false }, Sydney: { agreed: false } } };
 var r31 = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
-assert(r31 && r31.modName.indexOf("归途之书") !== -1 && r31.modName.indexOf("1.3.9") !== -1, "31.1 适配器声明升级 1.3.9, 实际 " + (r31 && r31.modName));
+assert(r31 && r31.modName.indexOf("归途之书") !== -1 && r31.modName.indexOf("1.3.10") !== -1, "31.1 适配器声明升级 1.3.10, 实际 " + (r31 && r31.modName));
 assert(r31.stages.filter(function (s) { return s.key === "ll_vow"; }).length === 1 && r31.stages.filter(function (s) { return s.key === "td_oath"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.watch.phase"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·守夜·案件阶段已收录");
 assert(r31.abilities.filter(function (a) { return a.varPath === "LostLamb.known.bishop"; }).length === 1 &&
-       r31.abilities.filter(function (a) { return a.varPath === "TempleDuties.candidates.Robin.agreed"; }).length === 1, "31.1 秘密/候选能力已收录");
+       r31.abilities.filter(function (a) { return a.varPath === "TempleDuties.candidates.Robin.agreed"; }).length === 1 &&
+       r31.abilities.filter(function (a) { return a.varPath === "RBR.necklace.returned"; }).length === 1, "31.1 秘密/候选/项链归还能力已收录");
 // 31.2) LostLamb 阶段写入读回
 var rll = api.setCheatStage("revelation-the-book-of-return", "ll_vow", "sealed");
 assert(rll.ok && V.LostLamb.talkVow === "sealed", "31.2 LostLamb 誓约写入 sealed, 实际 " + V.LostLamb.talkVow);
@@ -1763,6 +1770,12 @@ api.undoCheatModValue("revelation-the-book-of-return", "value_set:td_duties");
 assert(V.TempleDuties.duties === 0, "31.9 值勤次数回退到 0, 实际 " + V.TempleDuties.duties);
 api.undoCheatModValue("revelation-the-book-of-return", "value_set:ll_fear");
 assert(V.LostLamb.fear === 10, "31.9 恐惧回退到初始 10");
+// 31.11) v1.8.23 新增 1.3.10 项链归还能力（RBR.necklace.returned 主开关）
+V.RBR = { necklace: { returned: false } };
+var nkl = api.toggleCheatAbility("revelation-the-book-of-return", "nkl_returned", true);
+assert(nkl.ok && V.RBR.necklace.returned === true, "31.11 项链归还能力启用, 实际 " + V.RBR.necklace.returned);
+api.toggleCheatAbility("revelation-the-book-of-return", "nkl_returned", false);
+assert(V.RBR.necklace.returned === false, "31.11 项链归还能力禁用");
 // 31.10) 原版键隔离：不暴露 temple_rank/templePromised
 assert(r31.values.filter(function (v) { return v.varPath === "temple_rank" || v.varPath.indexOf("temple_rank") !== -1 || v.varPath.indexOf("templePromised") !== -1; }).length === 0 &&
        r31.stages.filter(function (s) { return s.varPath === "temple_rank" || s.varPath.indexOf("temple_rank") !== -1; }).length === 0, "31.10 原版神殿变量未暴露");
@@ -1772,9 +1785,10 @@ delete V.LostLamb; delete V.TempleDuties; delete V.mbCE_wrote;
 V.RobinExpansion = { shop_stage: "none", asylum: { status: "home" } };
 V.VanillaPlus = { attitudes: { ironWill: true, sadomasochist: false } };
 var dw32 = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
-assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && dw32.modName.indexOf("2.4.3") !== -1, "32.1 适配器声明升级 2.4.3, 实际 " + (dw32 && dw32.modName));
+assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && dw32.modName.indexOf("2.4.4") !== -1, "32.1 适配器声明升级 2.4.4, 实际 " + (dw32 && dw32.modName));
 assert(dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.ironWill"; }).length === 1 &&
-       dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.sadomasochist"; }).length === 1, "32.1 铁意志/受虐狂能力已收录");
+       dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.sadomasochist"; }).length === 1 &&
+       dw32.stages.filter(function (s) { return s.varPath === "MoreTransformations.harbour.zephyr.stage"; }).length === 1, "32.1 铁意志/受虐狂能力 + 冷月港·泽菲尔线阶段已收录");
 // 32.2) attitudes 能力读写
 api.toggleCheatAbility("deadwood-reblooms", "vp_sadomaso", true);
 assert(V.VanillaPlus.attitudes.sadomasochist === true, "32.2 受虐狂特质启用");
