@@ -36,11 +36,11 @@ DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.23**，已适配 8 个
 | 十六巡 | 自查收尾：README 版本表同步（框架 5.5.2 / 枯木逢春 2.4.3 / 归途之书 1.3.9 / 9 渠道全覆盖声明）；f_avery_refused 条目文案去版本号依赖（2.4.2 新增→模组新增/模组 2.4.2 起提供）；模组注册名实证（dw243 main.ts get('DeadwoodReblooms')、rv139 main.ts get('RobinTemple'/'TempleChoir'/'TempleDuties') 均保留，detect 探测键在新版全部成立）；升 1.8.22 | 145,654 B | D3AFC885693A6983BEC8D3A0401A701EDB9B1E17611F2D6477E1B2A7D334B437 |
 | 十七巡 | 3 模组适配器跟进新版：枯木逢春 2.4.3→**2.4.4**（新增冷月港区域线，补录「冷月港 · 泽菲尔线阶段」`MoreTransformations.harbour.zephyr.stage` 0-4）、归途之书 1.3.9→**1.3.10**（新增 WraithAftercare/WraithRecovery 取回+安抚线，补录「怨灵 · 项链已归还」`RBR.necklace.returned` 能力）、框架 5.5.2→**5.5.3**（release 资产解压 inject_early.js 核对核心 8 项全过 → declOverride 升版）；102 条声明路径键存活全量校验无删改；test_mce 19.1/21.1/21.2/21.10/31.1/31.11/32.1 同步；README/CHANGELOG 同步；升 1.8.23 | 145,944 B | 68F7DA825D59EED8A1BA105E3FB072AD11A64D0C94C1EBB79E438D00356B54A1 |
 
-## 4. git 状态（v1.8.12~v1.8.22 已提交并发布 ✅）
-- HEAD = `b38a225`（v1.8.22 整段提交：20 files, +2387/-220，pre-commit 全链验证通过）
-- 远端 `https://github.com/TXF182/MapleBirchCE.git` main 已同步（e883b43..b38a225）
+## 4. git 状态（v1.8.12~v1.8.22 已提交并发布 ✅；v1.8.23 十七巡已提交，main 已同步）
+- 本地 HEAD = v1.8.23 十七巡提交（`git log --oneline -1` 查看，含 CHANGELOG/README/记忆存档/适配器/测试/工具归档）
+- **远端 main 已同步**（Git Data API 通道：github.com:443 被断，`tools/push_api_v1823.js` 全量 blobs→tree→commit→PATCH refs）→ 远端 main = `6c0f96fb7ee5e8fc21bfa67a47de7f1cae122c4a`（API 重建 commit，内容树与本地一致但 SHA 不同；网络恢复后需 `git fetch` + `git reset --hard origin/main` 对齐本地）
 - **Release v1.8.22 已发布**（id=419496557，tag 远端/本地均指向 b38a225）：https://github.com/TXF182/MapleBirchCE/releases/tag/v1.8.22 ，资产 MapleBirchCE.mod.zip 145,654 B size 核对一致（SIZE_MATCH=1）
-- 发布脚本：`tools/release_v1822.js`（由 release_v1811.js 模板派生）；本地 tag v1.8.22 已打（v1.8.22）
+- 发布脚本：`tools/release_v1822.js`（v1.8.22）；API push 脚本：`tools/push_api_v1823.js`（v1.8.23，github.com:443 断时通道）；本地 tag v1.8.22 已打
 
 ## 5. 架构速览
 - 17 段 src 按面板分区拆分：01-core（版本/探测/API）/ 04-modcheat（适配器数据+通用写入执行器 cheatWriteValue）/ 05-modcheat-ui（渲染+局部行更新+PANEL_QUICK_GROUPS 数据表）/ 06-traits（特质区+滚动保持）/ 07a-shell（root/错误收集器 mbCEPushError+badge 同步写+熔断 mbCEFuse）/ 07b-char / 07c-stage / 07f-pins（命名空间防重绑定）/ 09-exports（open force + mods 页跳刷新 + mbCEPushError/mbCEErrors API）
@@ -74,11 +74,14 @@ DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.23**，已适配 8 个
 - 评分走六维雷达（doubao-visualization）；发布走 git credential + REST 成熟流程
 
 ## 11. 未决事项 / 候选
-1. **已完成**：git 提交（b38a225）+ GitHub Release v1.8.22 发布（id=419496557，资产 size 核对一致）——v1.8.12~v1.8.22 全部并入
-2. **等用户实测**：v1.8.22（Release 与本地 zip 同源同 SHA256），等实机反馈
-3. **剩余候选（未实施）**：README 深度使用说明（评分 8.8 短板）；时间/声望快捷项（键结构复杂，未确定键名不猜）；ResidentBath 等 2.4.3 新增内容已甄别不纳入面板（用户确认不做）
-4. **错题本已记（十/十一巡新增）**：搜索态懒渲染边界；持久化 filter 只写不读恢复缺口；留痕条目缺 t 时间戳导致裁剪排序失效
-5. **十五巡备注**：GitHub API 60 次/小时限额（无 token），当轮实跑 8/9 渠道、框架渠道以本地 compareVersions 模拟验证（decl 5.5.2 == tag 5.5.2 判无更新）；定时任务每日 21:15 单次调用不撞限流
+1. **已完成**：git 提交 v1.8.23（本地）+ Git Data API 推送 main（远端 6c0f96fb，内容一致）；v1.8.22 Release 已发布（id=419496557）
+2. **等用户实测**：v1.8.23（zip 145,944 B / SHA256=68F7DA82...B54A1）；v1.8.22 Release 实机反馈
+3. **未发布 Release v1.8.23**：用户本次指令为"继续适配"未点名发布；需发布时用 release_v1822.js 模板改 TAG 与文案（注意 github.com:443 断 → release 走 api.github.com + uploads.github.com，asset 下载走 assets 端点）
+4. **本地/远端 commit SHA 分叉**：API 重建 commit 与本地不同，网络恢复后 `git fetch` + `git reset --hard origin/main` 对齐
+5. **剩余候选（未实施）**：README 深度使用说明（评分 8.8 短板）；时间/声望快捷项（键结构复杂，未确定键名不猜）；ResidentBath 等 2.4.3 新增内容已甄别不纳入面板（用户确认不做）
+6. **错题本已记（十/十一巡新增）**：搜索态懒渲染边界；持久化 filter 只写不读恢复缺口；留痕条目缺 t 时间戳导致裁剪排序失效
+7. **十五巡备注**：GitHub API 60 次/小时限额（无 token），当轮实跑 8/9 渠道、框架渠道以本地 compareVersions 模拟验证（decl 5.5.2 == tag 5.5.2 判无更新）；定时任务每日 21:15 单次调用不撞限流
+8. **十七巡新坑已入错题本候选**：git ls-files 对含空格文件名输出引号转义 → 必须 `-z` NUL 分隔（push_api_v1823.js 实测）；框架 release 资产无独立 inject_early.js → 下载整个 mod zip 解压 dist/inject_early.js
 
 ## 12. 其他产物
 - `MapleBirchCE-新模组适配计划-2026-10-20.md`（仓库根，5 模组计划书，纯分析）
