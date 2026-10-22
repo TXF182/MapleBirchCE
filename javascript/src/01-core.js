@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.8.23";
+	var MCE_VERSION = "1.9.0";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -137,7 +137,144 @@
 			var st = getV().maplebirch && getV().maplebirch.npc;
 			if (st && typeof st === "object") { Object.keys(st).forEach(push); }
 		} catch (e) {}
+		/* v1.9.0 持久 NPC（per_npc 注册表实证枚举：只在存档已生成时出现） */
+		try {
+			var per = getV().per_npc;
+			if (per && typeof per === "object") {
+				Object.keys(per).forEach(function (k) {
+					if (isPerNpcRole(k) && per[k] && typeof per[k] === "object") { push(k); }
+				});
+			}
+		} catch (e) {}
 		return names;
+	}
+
+	/* ============ v1.9.0 角色分类：模组/恋爱/普通/持久NPC（按类型拆角色页子页面） ============ */
+	/* 原版 32 个命名 NPC（setup.NPCNameList 运行时优先；此为兜底/测试基准，来源：DoL 0.5.12.13 原版） */
+	var VANILLA_NPC_NAMES = [
+		"Avery", "Bailey", "Briar", "Charlie", "Darryl", "Doren", "Eden", "Gwylan",
+		"Harper", "Jordan", "Kylar", "Landry", "Leighton", "Mason", "Morgan", "River",
+		"Robin", "Sam", "Sirris", "Whitney", "Winter", "Black Wolf", "Niki", "Quinn",
+		"Remy", "Alex", "Great Hawk", "Wren", "Sydney", "Ivory Wraith", "Zephyr", "Night Monster"
+	];
+	/* 原版官方恋人清单（setup.loveInterestNpc 兜底） */
+	var VANILLA_LOVE_INTERESTS = ["Robin", "Whitney", "Kylar", "Sydney", "Eden", "Avery", "Black Wolf", "Great Hawk", "Alex", "Gwylan"];
+	/* 持久 NPC 角色键（原版 allowed_npcs 注册表；守卫/囚犯/坐骑为角色族，变体名以 _<键> 结尾） */
+	var PER_NPC_ROLES = ["steed", "guard", "inmate", "panty_thief", "school_nurse", "pinch", "black_dog", "hacker", "bishop", "bishop_right_hand", "bishop_left_hand", "manager", "alexs_parent1", "alexs_parent2", "whitneys_auncle", "whitney_parent_flat"];
+	var PER_NPC_CN = {
+		"manager": "经理", "hacker": "黑客·米奇", "school_nurse": "校医", "bishop": "主教",
+		"bishop_right_hand": "主教右侍", "bishop_left_hand": "主教左侍", "black_dog": "黑狗",
+		"pinch": "皮奇", "steed": "坐骑", "panty_thief": "内衣贼",
+		"alexs_parent1": "艾利克斯父母", "alexs_parent2": "艾利克斯父母",
+		"whitneys_auncle": "惠特尼姑/叔", "whitney_parent_flat": "惠特尼父母公寓",
+		"guard": "守卫", "inmate": "囚犯"
+	};
+	function vanillaNPCList() {
+		try {
+			var st = getSetup();
+			if (st && Array.isArray(st.NPCNameList) && st.NPCNameList.length) {
+				return st.NPCNameList.map(function (n) { return String(n).toLowerCase(); });
+			}
+		} catch (e) {}
+		return VANILLA_NPC_NAMES.map(function (n) { return String(n).toLowerCase(); });
+	}
+	function vanillaLoveInterests() {
+		try {
+			var st = getSetup();
+			if (st && Array.isArray(st.loveInterestNpc) && st.loveInterestNpc.length) {
+				return st.loveInterestNpc.map(function (n) { return String(n).toLowerCase(); });
+			}
+		} catch (e) {}
+		return VANILLA_LOVE_INTERESTS.map(function (n) { return String(n).toLowerCase(); });
+	}
+	function isVanillaNPC(name) {
+		return vanillaNPCList().indexOf(String(name || "").trim().toLowerCase()) !== -1;
+	}
+	function isVanillaLoveInterest(name) {
+		return vanillaLoveInterests().indexOf(String(name || "").trim().toLowerCase()) !== -1;
+	}
+	/* 持久 NPC 判定：精确键 或 角色族变体（xxx_guard / xxx_inmate / saddled_steed）；"guardian" 这类前缀不误判 */
+	function isPerNpcRole(name) {
+		var k = String(name || "").trim().toLowerCase();
+		for (var i = 0; i < PER_NPC_ROLES.length; i++) {
+			var r = PER_NPC_ROLES[i].toLowerCase();
+			if (k === r || (k.length > r.length + 1 && k.lastIndexOf("_" + r) === k.length - r.length - 1)) { return true; }
+		}
+		return false;
+	}
+	/* 恋爱角色判定：官方恋人清单 或 框架恋爱条件 或 框架 loveInterest 标记（原版恋爱阶段另算） */
+	function isLoveCharacter(name) {
+		if (isVanillaLoveInterest(name)) { return true; }
+		try {
+			if (getRomanceList(name).length > 0) { return true; }
+		} catch (e) {}
+		try {
+			var mb = resolveMB();
+			if (mb && mb.npc && mb.npc.data instanceof Map) {
+				var k2 = String(name).toLowerCase();
+				var hit = null;
+				mb.npc.data.forEach(function (v, key) {
+					if (!hit && String(key).toLowerCase() === k2) { hit = v; }
+				});
+				var d = hit;
+				if (d && d.Config && d.Config.loveInterest === true) { return true; }
+			}
+		} catch (e) {}
+		return false;
+	}
+	/* 角色分类（优先级：持久NPC > 模组 > 恋爱 > 普通） */
+	function charCategory(name) {
+		if (isPerNpcRole(name)) { return "pernpc"; }
+		if (!isVanillaNPC(name)) { return "mod"; }
+		if (isLoveCharacter(name)) { return "love"; }
+		return "normal";
+	}
+	/* 持久 NPC 显示名：类型中文 + （随机名）；黑客 name_known=1 时用 V.mickeyName（原版 perName 逻辑）；
+	   角色族变体键（xxx_guard / xxx_inmate / saddled_steed）回退显示族中文名，不再裸显英文键名 */
+	function perNpcDisplayName(key) {
+		var base = PER_NPC_CN[key];
+		if (!base) {
+			var k = String(key || "").trim().toLowerCase();
+			var fam = null;
+			for (var fi = 0; fi < PER_NPC_ROLES.length; fi++) {
+				var r = PER_NPC_ROLES[fi].toLowerCase();
+				if (k.length > r.length + 1 && k.lastIndexOf("_" + r) === k.length - r.length - 1) {
+					fam = PER_NPC_CN[PER_NPC_ROLES[fi]] || PER_NPC_ROLES[fi];
+					break;
+				}
+			}
+			base = fam || displayName(key) || key;
+		}
+		try {
+			var Vx = getV();
+			var p = Vx.per_npc && Vx.per_npc[key];
+			if (p && typeof p === "object" && typeof p.name === "string" && p.name) {
+				var n = p.name;
+				if (String(key).toLowerCase() === "hacker" && p.name_known === 1 && Vx.mickeyName) { n = Vx.mickeyName; }
+				return base + "（" + n + "）";
+			}
+		} catch (e) {}
+		return base;
+	}
+	function displayNameEx(name) {
+		if (isPerNpcRole(name)) { return perNpcDisplayName(name); }
+		return displayName(name);
+	}
+	/* 运行时 NPC 对象扩展：findNpc 未命中时查 per_npc（持久 NPC 卡数值读写通道） */
+	function findNpcEx(name) {
+		var n = findNpc(name);
+		if (n) { return n; }
+		try {
+			var per = getV().per_npc;
+			if (per && typeof per === "object") {
+				var k = String(name).toLowerCase();
+				var pk = Object.keys(per);
+				for (var i = 0; i < pk.length; i++) {
+					if (pk[i].toLowerCase() === k && per[pk[i]] && typeof per[pk[i]] === "object") { return per[pk[i]]; }
+				}
+			}
+		} catch (e) {}
+		return null;
 	}
 
 	/* 运行时 NPC 对象（DoL V.NPCName，按名不区分大小写匹配） */

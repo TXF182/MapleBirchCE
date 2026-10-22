@@ -2,7 +2,7 @@
 		/* v1.4.5：非恋爱候选角色不显示恋爱阶段（角色本身保留在角色一览）——
 		   只有能进恋人卡槽的角色才展示恋爱阶段与"恋人卡槽"条件 */
 		if (!isLoveCandidate(curName)) {
-			pane.appendChild(el("div", "mce-hint", "「" + displayName(curName) + "」不是可确立恋人关系的角色，无可解锁的恋爱阶段。"));
+			pane.appendChild(el("div", "mce-hint", "「" + displayNameEx(curName) + "」不是可确立恋人关系的角色，无可解锁的恋爱阶段。"));
 			return;
 		}
 		var stages = getRomanceStages(curName);
@@ -56,7 +56,7 @@
 		/* 原版恋爱阶段（格威岚 7 阶段，来自游戏原版 gwylanStatusCheck 体系） */
 		var vanilla = getVanillaStages(curName);
 		if (vanilla.length) {
-			pane.appendChild(el("div", "mce-section", "原版恋爱阶段（" + displayName(curName) + "）"));
+			pane.appendChild(el("div", "mce-section", "原版恋爱阶段（" + displayNameEx(curName) + "）"));
 			var vbox = el("div", "mce-stages");
 			vanilla.forEach(function (s) {
 				var row = el("div", "mce-stage " + (s.ok ? "mce-pass" : "mce-fail"));
@@ -70,7 +70,7 @@
 					vbtn.addEventListener("click", function () {
 						var r = completeVanillaStage(curName, s.key);
 						renderStagePane();
-						setStatus(r.ok ? "「" + displayName(curName) + "」" + s.label + " 已达成" : r.message, r.ok ? "mce-ok" : "mce-err");
+						setStatus(r.ok ? "「" + displayNameEx(curName) + "」" + s.label + " 已达成" : r.message, r.ok ? "mce-ok" : "mce-err");
 					});
 					head.appendChild(vbtn);
 				} else {

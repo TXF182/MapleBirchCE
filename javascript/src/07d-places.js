@@ -121,9 +121,195 @@
 			return { group: g, items: items };
 		});
 	}
+	/* ============ v1.9.0 场景页双层子界面：场景直达 / 地点（地点阶段任务作弊区） ============ */
 	function renderPlaces() {
 		var pane = root.querySelector('[data-pane="places"]');
+		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* 重建后保持滚动位置（五巡一致） */
 		pane.textContent = "";
+		var inner = el("div", "mce-inner");
+		var bDirect = el("button", mbCEUiState.placesTab !== "stage" ? "mce-active" : "", "场景直达");
+		bDirect.type = "button";
+		bDirect.setAttribute("data-place", "direct");
+		bDirect.title = "特殊场景一键直达（阁楼/庄园/神殿/公寓等）";
+		bDirect.addEventListener("click", function () {
+			mbCEUiState.placesTab = "direct";
+			mbCEUiSave({ placesTab: "direct" });
+			renderPlaces();
+		});
+		var bStage = el("button", mbCEUiState.placesTab === "stage" ? "mce-active" : "", "地点");
+		bStage.type = "button";
+		bStage.setAttribute("data-place", "stage");
+		bStage.title = "地点阶段任务作弊（市政改造/农场/公寓/机构等原版阶段变量直改，全部留痕可回退）";
+		bStage.addEventListener("click", function () {
+			mbCEUiState.placesTab = "stage";
+			mbCEUiSave({ placesTab: "stage" });
+			renderPlaces();
+		});
+		inner.appendChild(bDirect);
+		inner.appendChild(bStage);
+		pane.appendChild(inner);
+		if (mbCEUiState.placesTab === "stage") { renderPlacesStage(pane); }
+		else { renderPlacesDirect(pane); }
+		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; }
+	}
+
+	/* ---- 地点阶段任务数据表（max 来自 DoL 0.5.12.13 原版阈值实证扫描；town_projects 为嵌套宿主） ---- */
+	var PLACE_STAGE_GROUPS = [
+		{ name: "市政改造（市政府 town_projects）", note: "原版路过事件自动升级；此处可一键推进各项目阶段（0-5）", items: [
+			{ key: "road", name: "道路", path: "town_projects.road", max: 5, note: "市政道路工程（≥4 解锁森林深路/回城快速路）" },
+			{ key: "diving", name: "潜水考古", path: "town_projects.diving", max: 5, note: "潜水考古项目（≥3 关联博物馆项链，≥4 解锁 Winter 考古营地）" },
+			{ key: "thicket", name: "灌木丛", path: "town_projects.thicket", max: 5, note: "灌木丛清理工程（改变触手森林场景）" },
+			{ key: "bridge", name: "桥梁", path: "town_projects.bridge", max: 5, note: "桥梁工程（≥4 解锁穿桥去 Flats 公寓区）" },
+			{ key: "green", name: "绿地", path: "town_projects.green", max: 5, note: "绿地工程（≥4 解锁绿地社交场景）" }
+		]},
+		{ name: "农场（亚历克斯线）", note: "亚历克斯农场主线阶段系统", items: [
+			{ key: "farm_stage", name: "农场阶段", path: "farm_stage", max: 12, note: "亚历克斯农场主线阶段（≥7 满足恋人条件）" },
+			{ key: "farm_phase", name: "农场进程", path: "farm_phase", max: 1, note: "农场当季进程（0/1 二态）" }
+		]},
+		{ name: "城市与公寓", note: "公寓区/商店/阁楼/妓院地点阶段", items: [
+			{ key: "flats", name: "公寓区进度", path: "flats_progress", max: 2, note: "Flats 公寓区进度（与市政桥梁工程联动解锁）" },
+			{ key: "adultshop", name: "成人用品店", path: "adultshopprogress", max: 22, note: "成人用品店性玩具区解锁进度" },
+			{ key: "loft", name: "阁楼升级", path: "loft_upgrade", max: 7, note: "孤儿院阁楼房间升级计数（原版无硬性阈值，每次房间升级 +1）" },
+			{ key: "brothel", name: "妓院机械维修", path: "brothel_machine_repair", max: 4, note: "妓院地下机械维修进度" }
+		]},
+		{ name: "机构与学校", note: "修道院/精神病院/学校地点阶段", items: [
+			{ key: "temple_cloister", name: "修道院回廊", path: "temple_cloister_progress", max: 1, note: "修道院回廊进度（0/1 二态）" },
+			{ key: "temple_arcade", name: "修道院街机线", path: "temple_arcade_phase", max: 4, note: "修道院街机线阶段（0-4）" },
+			{ key: "asylum", name: "精神病院评估", path: "asylumassessmentprogress", max: 4, note: "精神病院评估进度（0-4）" },
+			{ key: "asylum_puzzle", name: "精神病院谜题", path: "asylumPuzzleProgress", max: 5, note: "精神病院谜题进度（0-5）" },
+			{ key: "science", name: "学校科学项目", path: "scienceprogression", max: 4, note: "学校科学项目进度（0-4）" },
+			{ key: "terrarium", name: "学校生态箱", path: "scienceterrariumprogression", max: 4, note: "学校生态箱进度（0-4）" }
+		]}
+	];
+	/* 地点阶段读取（safe：任何层级缺失 → 0） */
+	function placeStageRead(path) {
+		try {
+			var Vp = getV();
+			var parts = String(path || "").split(".");
+			var cur = Vp;
+			for (var i = 0; i < parts.length; i++) {
+				if (cur == null) { return 0; }
+				cur = cur[parts[i]];
+			}
+			var n = Number(cur);
+			return Number.isFinite(n) ? Math.round(n) : 0;
+		} catch (e) { return 0; }
+	}
+	/* 地点阶段写入：绕过原版变量黑名单直接写（五面板专用通道），保留 before 留痕可回退。
+	   嵌套宿主：仅 town_projects 允许自动建壳（原版事件直接读写各字段）；其余缺失宿主拒绝。 */
+	function placeStageWrite(path, target, min, max) {
+		try {
+			var Vp = getV();
+			if (!Vp) { return { ok: false, message: "存档变量不可用" }; }
+			var parts = String(path || "").split(".");
+			if (!parts.length || !parts[0]) { return { ok: false, message: "路径无效" }; }
+			var cur = Vp, i;
+			for (i = 0; i < parts.length - 1; i++) {
+				if (cur[parts[i]] == null || typeof cur[parts[i]] !== "object") {
+					if (parts[i] === "town_projects") { cur[parts[i]] = {}; }
+					else { return { ok: false, message: "宿主不存在（" + parts.slice(0, i + 1).join(".") + "），请先推进剧情或检查版本" }; }
+				}
+				cur = cur[parts[i]];
+			}
+			var leaf = parts[parts.length - 1];
+			var before = cur[leaf];
+			var prev = Vp.mbCE_wrote && Vp.mbCE_wrote["place:" + path];
+			/* 留痕语义：before 始终保留「首次写入前」状态（含 undefined=原本无字段）——
+			   用 in 判断，避免二次写入把 before 覆盖成当前值，导致回退丢失"删除字段"语义 */
+			if (prev && "before" in prev) { before = prev.before; }
+			var lo = Number.isFinite(Number(min)) ? Number(min) : 0;
+			var hi = Number.isFinite(Number(max)) ? Number(max) : Infinity;
+			var final = Math.max(lo, Math.min(hi, Math.round(Number(target) || 0)));
+			cur[leaf] = final;
+			if (!Vp.mbCE_wrote || typeof Vp.mbCE_wrote !== "object") { Vp.mbCE_wrote = {}; }
+			Vp.mbCE_wrote["place:" + path] = { type: "place", path: path, before: before, after: final, t: Date.now() };
+			mbCEWroteTrim(Vp);
+			return { ok: true, message: "已写入 " + path + " = " + final, before: before, after: final };
+		} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+	}
+	/* 地点阶段回退：还原首次写入前状态（before 为 undefined → 删除字段） */
+	function placeStageUndo(path) {
+		try {
+			var Vp = getV();
+			if (!Vp || !Vp.mbCE_wrote || !Vp.mbCE_wrote["place:" + path]) { return { ok: false, message: "无该写入留痕（不可回退）" }; }
+			var rec = Vp.mbCE_wrote["place:" + path];
+			var parts = String(path || "").split(".");
+			var cur = Vp, i;
+			for (i = 0; i < parts.length - 1; i++) {
+				if (cur[parts[i]] == null || typeof cur[parts[i]] !== "object") { return { ok: false, message: "宿主已被清除，无法回退" }; }
+				cur = cur[parts[i]];
+			}
+			var leaf = parts[parts.length - 1];
+			if (rec.before === undefined) { delete cur[leaf]; }
+			else { cur[leaf] = rec.before; }
+			delete Vp.mbCE_wrote["place:" + path];
+			return { ok: true, message: "已回退 " + path + " 到写入前状态" };
+		} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+	}
+	function renderPlacesStage(pane) {
+		pane.appendChild(el("div", "mce-hint", "地点阶段任务（原版 $变量 直改，全部留痕可回退）："));
+		PLACE_STAGE_GROUPS.forEach(function (g) {
+			var block = el("div", "mce-grp");
+			var head = el("div", "mce-grp-t", g.name);
+			head.title = g.note;
+			block.appendChild(head);
+			block.appendChild(el("div", "mce-stage-note", g.note));
+			g.items.forEach(function (it) {
+				var cur = placeStageRead(it.path);
+				var row = el("div", "mce-row");
+				row.setAttribute("data-stagekey", it.key);
+				row.title = it.note + "（当前 " + cur + " / 上限 " + it.max + "）";
+				var lbl = el("span", "mce-row-lbl", it.name + "　");
+				var val = el("span", "mce-value", cur + " / " + it.max);
+				lbl.appendChild(val);
+				row.appendChild(lbl);
+				var mDec = el("button", "mce-btn", "−1");
+				mDec.type = "button";
+				mDec.setAttribute("data-op", "dec");
+				mDec.addEventListener("click", function () {
+					placeStageWrite(it.path, placeStageRead(it.path) - 1, 0, it.max);
+					renderPlaces();
+				});
+				var mInc = el("button", "mce-btn", "+1");
+				mInc.type = "button";
+				mInc.setAttribute("data-op", "inc");
+				mInc.addEventListener("click", function () {
+					placeStageWrite(it.path, placeStageRead(it.path) + 1, 0, it.max);
+					renderPlaces();
+				});
+				var mMax = el("button", "mce-btn mce-gold", "拉满");
+				mMax.type = "button";
+				mMax.setAttribute("data-op", "max");
+				mMax.addEventListener("click", function () {
+					placeStageWrite(it.path, it.max, 0, it.max);
+					renderPlaces();
+				});
+				row.appendChild(mDec);
+				row.appendChild(mInc);
+				row.appendChild(mMax);
+				/* 有留痕才显示回退（还原首次写入前状态） */
+				try {
+					var Vp = getV();
+					if (Vp && Vp.mbCE_wrote && Vp.mbCE_wrote["place:" + it.path]) {
+						var mUndo = el("button", "mce-btn mce-red", "回退");
+						mUndo.type = "button";
+						mUndo.setAttribute("data-op", "undo");
+						mUndo.addEventListener("click", function () {
+							var r = placeStageUndo(it.path);
+							renderPlaces();
+							setStatus(r.message || "", r.ok ? "mce-ok" : "mce-err");
+						});
+						row.appendChild(mUndo);
+					}
+				} catch (e) {}
+				block.appendChild(row);
+			});
+			pane.appendChild(block);
+		});
+		pane.appendChild(el("div", "mce-hint", "拉满 = 置为原版上限值；「−1/+1」逐步推进；写入记录在 V.mbCE_wrote（place: 前缀）可回退。"));
+	}
+
+	function renderPlacesDirect(pane) {
 		var groups = listPlaceGroups();
 		var total = 0;
 		var V = getV();

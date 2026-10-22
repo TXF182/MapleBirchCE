@@ -2,6 +2,25 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.0（2026-10-22）
+
+**新功能：角色页按类型拆子页面（模组/恋爱/普通/持久NPC）+ 场景页新增「地点」子界面（地点阶段任务作弊区）+ 持久 NPC 收录（经理/校医/守卫囚犯等）**
+
+- **角色页精细化（按类型命名子页面，全部按钮展开/收起，默认收起）**：模组角色 / 恋爱角色 / 普通角色 / 持久NPC 四组折叠区块（标题带数量，▸/▾ 点击展开收起，状态记忆持久化）。分类依据：持久NPC > 模组 > 恋爱 > 普通——持久 NPC 按 `allowed_npcs` 注册表实证判定（精确键或 `xxx_guard`/`xxx_inmate`/`saddled_steed` 角色族变体，"guardian" 前缀不误判）；原版命名 NPC 取 `setup.NPCNameList` 运行时清单（兜底内置 DoL 0.5.12.13 实证 32 人）；恋爱角色 = 官方恋人清单 `setup.loveInterestNpc`（10 人）+ 框架恋爱条件 + 框架 loveInterest 标记
+- **持久 NPC 收录**：V.per_npc 实证枚举（只在存档已生成时出现）——经理（随机名显示"经理（Helen）"）、校医、黑客·米奇（name_known=1 用 V.mickeyName）、主教/左右侍、守卫四变体、囚犯、黑狗、皮奇、坐骑、内衣贼、艾利克斯父母、惠特尼姑/叔、惠特尼父母公寓；卡片显示爱意/支配/情欲/警戒（findNpcEx 直读 per_npc），阶段页数值 ±10/一键补齐走 per_npc 对象
+- **场景页双层子界面**：「场景直达」/「地点」内层页签（状态持久化）。「地点」= 地点阶段任务作弊区，17 项原版阶段变量直改（max 全部来自 0.5.12.13 原版阈值实证扫描）：
+  - 市政改造 5 项：town_projects.{road,diving,thicket,bridge,green}（0-5，宿主缺失自动建壳）
+  - 农场：farm_stage（0-12，≥7 满足亚历克斯恋人条件）/ farm_phase（0-1）
+  - 城市与公寓：flats_progress（0-2）/ adultshopprogress（0-22）/ loft_upgrade（0-7）/ brothel_machine_repair（0-4）
+  - 机构与学校：temple_cloister_progress（0-1）/ temple_arcade_phase（0-4）/ asylumassessmentprogress（0-4）/ asylumPuzzleProgress（0-5）/ scienceprogression（0-4）/ scienceterrariumprogression（0-4）
+  - 每行 −1 / +1 / 拉满（钳制 min/max），写入留痕 `V.mbCE_wrote["place:<path>"]` 可回退（还原首次写入前状态，before 为 undefined 则删字段）
+- **数据层**：`placeStageWrite` 为五面板专用通道，绕过原版变量黑名单直写原版阶段键（farm_stage 等），嵌套宿主仅 town_projects 允许自动建壳
+- **对外 API 新增**：charCategory / isVanillaNPC / isVanillaLoveInterest / isPerNpcRole / isLoveCharacter / perNpcDisplayName / displayNameEx / findNpcEx / renderCards / renderPlaces / PLACE_STAGE_GROUPS / placeStageRead / placeStageWrite / placeStageUndo
+- **测试扩展（第 44 节 44.1-44.5）**：分类纯函数、持久 NPC 枚举、地点写入（建壳/钳制/黑名单绕过/留痕/回退）、DOM 四区块默认收起+点击展开+经理卡、场景页双层页签+道路拉满=5；同步修正 mkNode mock 的 textContent 语义（真实 DOM：设置 textContent 替换全部子节点）
+- 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED、功能 E2E 全 PASS、zip 正斜杠、verifier 4/4；安装包与 SHA 见交付
+- **（同日自查优化，不升版本）**：① 修复留痕语义 bug——`placeStageWrite` 二次写入把 before 覆盖为当前值，导致「建壳字段多次写入后回退」还原成上次值而非删除字段；改用 `"before" in prev` 保留首次写入前状态（44.7 新增断言覆盖：两次 +1 后 undo 删字段、既有值 3→5 后 undo 还原 3）；② 滚动保持补齐——renderCards/renderPlaces 重建后恢复 pane.scrollTop（对齐五巡 mods/特质区行为，长列表点击不跳顶）；③ 持久 NPC 变体键（saddled_steed/stray_guard）显示族中文名（坐骑/守卫），不再裸显英文键名；④ 测试补盲 44.6（地点步进 +1/−1 钳制、建壳回退删字段、placesTab localStorage 持久化恢复、变体名、空档不枚举 per_npc）+ jsdom 冒烟补角色页折叠/场景页双层页签真实 DOM 语义断言（按钮重渲染后重新查询，修正旧引用断言）
+- **（第二轮自查优化，不升版本）**：⑤ 修复 cheatWriteValue/cheatWriteListValue 留痕语义——与地点通道同源的 before 覆盖 bug（叶子字段原本不存在时，二次写入把 before 覆盖成当前值，回退残留而非删除）；统一改为 `"before" in prev` 保留首次面板写入前状态（traitWriteValue 通道同源受益）；18.8 旧断言原依赖 bug 行为（score 首次不存在却期望还原 5）→ 修正为正确语义并补 18.8b 既有值还原；新增 44.8 测试覆盖 cheat 通道两次写入后 undo 删字段 + 既有值还原。17 个源码文件全量精读一遍，全链 5/5 绿
+
 ## v1.8.23（2026-10-22）
 
 **十七巡：3 个模组适配器跟进新版（枯木逢春 2.4.4 / 归途之书 1.3.10 / 框架 5.5.3）+ 新增内容甄别补录 2 项**

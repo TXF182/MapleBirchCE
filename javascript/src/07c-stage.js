@@ -10,7 +10,7 @@
 			pane.appendChild(el("div", "mce-hint", "无角色可选。"));
 			return;
 		}
-		var npc = findNpc(curName);
+		var npc = findNpcEx(curName);
 		var st = getNpcState(curName);
 		var active = st.state !== "dismissed";
 
@@ -19,13 +19,13 @@
 		var top = el("div", "mce-section", "角色：");
 		card.appendChild(top);
 		var head = el("div", "mce-stage-head");
-		head.appendChild(el("span", "mce-stage-name", displayName(curName)));
+		head.appendChild(el("span", "mce-stage-name", displayNameEx(curName)));
 		var badge = el("span", "mce-badge " + (active ? "mce-on" : "mce-off"), active ? "活跃" : "停用");
 		badge.title = "state: " + st.state;
 		head.appendChild(badge);
 		card.appendChild(head);
 		if (st.found) { card.appendChild(el("div", "mce-hint", "游戏状态 state = " + stateCN(st.state))); }
-		if (!npc) { card.appendChild(el("div", "mce-hint", "未在 V.NPCName 中找到该角色的运行时对象（仅注册池存在）。")); }
+		if (!npc) { card.appendChild(el("div", "mce-hint", "未在 V.NPCName / V.per_npc 中找到该角色的运行时对象（仅注册池存在）。")); }
 
 		/* 数值行（含 ±10） */
 		var defs = statDefsFor(curName);
@@ -57,21 +57,21 @@
 		fillBtn.addEventListener("click", function () {
 			var n = fillStats(npc, curName);
 			renderStagePane();
-			setStatus("已补齐「" + displayName(curName) + "」" + n + " 项数值", "mce-ok");
+			setStatus("已补齐「" + displayNameEx(curName) + "」" + n + " 项数值", "mce-ok");
 		});
 		var romBtn = el("button", "mce-btn mce-gold", "一键解锁全部恋爱阶段");
 		romBtn.type = "button";
 		romBtn.addEventListener("click", function () {
 			var r = unlockAllRomance(curName);
 			renderStagePane();
-			setStatus("「" + displayName(curName) + "」恋爱阶段：新解锁 " + r.fixed + " / " + r.total, r.fixed > 0 ? "mce-ok" : "mce-err");
+			setStatus("「" + displayNameEx(curName) + "」恋爱阶段：新解锁 " + r.fixed + " / " + r.total, r.fixed > 0 ? "mce-ok" : "mce-err");
 		});
 		var tfBtn = el("button", "mce-btn mce-gold", "一键解锁全部转化阶段");
 		tfBtn.type = "button";
 		tfBtn.addEventListener("click", function () {
 			var n = unlockAllTransform(curName);
 			renderStagePane();
-			setStatus("「" + displayName(curName) + "」转化阶段解锁 " + n + " 个类型", "mce-ok");
+			setStatus("「" + displayNameEx(curName) + "」转化阶段解锁 " + n + " 个类型", "mce-ok");
 		});
 		actions.appendChild(fillBtn);
 		actions.appendChild(romBtn);

@@ -180,12 +180,35 @@ function clickTabSafe(name) {
 }
 let ptxt = clickTabSafe("char");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "角色页渲染不崩，实际 " + ptxt.slice(0, 50));
+/* v1.9.0 角色页四分类折叠：jsdom 真实 querySelector + data-collapsed 点击切换 */
+const perGrp = document.querySelector('.mce-grp[data-tcat="持久NPC"]');
+const perBody = perGrp && perGrp.querySelector(".mce-grp-body");
+assert(!!perGrp && !!perBody, "角色页「持久NPC」分组存在（jsdom）");
+assert(perBody.getAttribute("data-collapsed") === "1", "持久NPC分组默认收起 data-collapsed=1（jsdom）");
+const perHead = perGrp.querySelector(".mce-grp-t");
+perHead.click();
+assert(perBody.getAttribute("data-collapsed") === "0", "点击标题 → 持久NPC分组展开 data-collapsed=0（jsdom）");
+const loveGrp = document.querySelector('.mce-grp[data-tcat="恋爱角色"]');
+assert(!!loveGrp && loveGrp.textContent.indexOf("罗宾") !== -1, "恋爱角色分组含 罗宾（jsdom），实际 " + (loveGrp ? loveGrp.textContent.slice(0, 60) : "无"));
 ptxt = clickTabSafe("stage");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "阶段页渲染不崩，实际 " + ptxt.slice(0, 50));
 ptxt = clickTabSafe("scenes");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "剧情页渲染不崩，实际 " + ptxt.slice(0, 50));
 ptxt = clickTabSafe("places");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "场景直达页渲染不崩，实际 " + ptxt.slice(0, 50));
+/* v1.9.0 场景页双层页签：真实 jsdom classList/内容切换（mock 层盲区，jsdom 层验证真实 DOM 语义） */
+const placesPane = document.querySelector('[data-pane="places"]');
+const placeStageBtn = placesPane.querySelector('.mce-inner button[data-place="stage"]');
+assert(!!placeStageBtn, "场景页「地点」子页签按钮存在（jsdom）");
+placeStageBtn.click();
+assert(placesPane.textContent.indexOf("市政改造") !== -1 && placesPane.textContent.indexOf("拉满") !== -1, "点击「地点」页签 → 地点阶段任务区渲染（jsdom），实际 " + placesPane.textContent.slice(0, 80));
+/* renderPlaces 重建 pane 子节点 → 按钮被替换，需重新查询（旧引用 classList 不更新） */
+const stageBtnNew = placesPane.querySelector('.mce-inner button[data-place="stage"]');
+assert(!!stageBtnNew && stageBtnNew.classList.contains("mce-active"), "「地点」页签 classList 含 mce-active（真实 classList.toggle 语义）");
+const placeDirectBtn = placesPane.querySelector('.mce-inner button[data-place="direct"]');
+placeDirectBtn.click();
+const directBtnNew = placesPane.querySelector('.mce-inner button[data-place="direct"]');
+assert(!!directBtnNew && directBtnNew.classList.contains("mce-active") && placesPane.textContent.indexOf("场景直达") !== -1, "切回「场景直达」页签激活（jsdom）");
 ptxt = clickTabSafe("global");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "全局页渲染不崩，实际 " + ptxt.slice(0, 50));
 /* v1.8.8 全局页新区：战斗终结（学 CombatTerminator）+ 庄园自动维护（学 AutoClean） */

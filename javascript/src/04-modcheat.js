@@ -573,7 +573,9 @@
 			}
 			var before = r.parent[r.leaf];
 			var prev = V.mbCE_wrote && V.mbCE_wrote["cheat:" + modId + ":" + itemKey];
-			if (prev && prev.before !== undefined) { before = prev.before; } /* 保留首次面板写入前状态 */
+			/* 留痕语义与地点通道一致：before 始终保留「首次面板写入前」状态（含 undefined=原本无字段），
+			   用 in 判断避免二次写入把 before 覆盖成当前值、回退丢失删除语义 */
+			if (prev && "before" in prev) { before = prev.before; }
 			r.parent[r.leaf] = val;
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: val, t: Date.now() };
@@ -606,7 +608,7 @@
 			if (!on && idx !== -1) { arr.splice(idx, 1); }
 			var before = Array.isArray(cur) ? cur.slice() : undefined;
 			var prev = V.mbCE_wrote && V.mbCE_wrote["cheat:" + modId + ":" + itemKey];
-			if (prev && prev.before !== undefined) { before = prev.before; }
+			if (prev && "before" in prev) { before = prev.before; }
 			r.parent[r.leaf] = arr;
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: arr.slice(), t: Date.now() };

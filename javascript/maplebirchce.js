@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.8.23";
+	var MCE_VERSION = "1.9.0";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -251,7 +251,144 @@
 			var st = getV().maplebirch && getV().maplebirch.npc;
 			if (st && typeof st === "object") { Object.keys(st).forEach(push); }
 		} catch (e) {}
+		/* v1.9.0 持久 NPC（per_npc 注册表实证枚举：只在存档已生成时出现） */
+		try {
+			var per = getV().per_npc;
+			if (per && typeof per === "object") {
+				Object.keys(per).forEach(function (k) {
+					if (isPerNpcRole(k) && per[k] && typeof per[k] === "object") { push(k); }
+				});
+			}
+		} catch (e) {}
 		return names;
+	}
+
+	/* ============ v1.9.0 角色分类：模组/恋爱/普通/持久NPC（按类型拆角色页子页面） ============ */
+	/* 原版 32 个命名 NPC（setup.NPCNameList 运行时优先；此为兜底/测试基准，来源：DoL 0.5.12.13 原版） */
+	var VANILLA_NPC_NAMES = [
+		"Avery", "Bailey", "Briar", "Charlie", "Darryl", "Doren", "Eden", "Gwylan",
+		"Harper", "Jordan", "Kylar", "Landry", "Leighton", "Mason", "Morgan", "River",
+		"Robin", "Sam", "Sirris", "Whitney", "Winter", "Black Wolf", "Niki", "Quinn",
+		"Remy", "Alex", "Great Hawk", "Wren", "Sydney", "Ivory Wraith", "Zephyr", "Night Monster"
+	];
+	/* 原版官方恋人清单（setup.loveInterestNpc 兜底） */
+	var VANILLA_LOVE_INTERESTS = ["Robin", "Whitney", "Kylar", "Sydney", "Eden", "Avery", "Black Wolf", "Great Hawk", "Alex", "Gwylan"];
+	/* 持久 NPC 角色键（原版 allowed_npcs 注册表；守卫/囚犯/坐骑为角色族，变体名以 _<键> 结尾） */
+	var PER_NPC_ROLES = ["steed", "guard", "inmate", "panty_thief", "school_nurse", "pinch", "black_dog", "hacker", "bishop", "bishop_right_hand", "bishop_left_hand", "manager", "alexs_parent1", "alexs_parent2", "whitneys_auncle", "whitney_parent_flat"];
+	var PER_NPC_CN = {
+		"manager": "经理", "hacker": "黑客·米奇", "school_nurse": "校医", "bishop": "主教",
+		"bishop_right_hand": "主教右侍", "bishop_left_hand": "主教左侍", "black_dog": "黑狗",
+		"pinch": "皮奇", "steed": "坐骑", "panty_thief": "内衣贼",
+		"alexs_parent1": "艾利克斯父母", "alexs_parent2": "艾利克斯父母",
+		"whitneys_auncle": "惠特尼姑/叔", "whitney_parent_flat": "惠特尼父母公寓",
+		"guard": "守卫", "inmate": "囚犯"
+	};
+	function vanillaNPCList() {
+		try {
+			var st = getSetup();
+			if (st && Array.isArray(st.NPCNameList) && st.NPCNameList.length) {
+				return st.NPCNameList.map(function (n) { return String(n).toLowerCase(); });
+			}
+		} catch (e) {}
+		return VANILLA_NPC_NAMES.map(function (n) { return String(n).toLowerCase(); });
+	}
+	function vanillaLoveInterests() {
+		try {
+			var st = getSetup();
+			if (st && Array.isArray(st.loveInterestNpc) && st.loveInterestNpc.length) {
+				return st.loveInterestNpc.map(function (n) { return String(n).toLowerCase(); });
+			}
+		} catch (e) {}
+		return VANILLA_LOVE_INTERESTS.map(function (n) { return String(n).toLowerCase(); });
+	}
+	function isVanillaNPC(name) {
+		return vanillaNPCList().indexOf(String(name || "").trim().toLowerCase()) !== -1;
+	}
+	function isVanillaLoveInterest(name) {
+		return vanillaLoveInterests().indexOf(String(name || "").trim().toLowerCase()) !== -1;
+	}
+	/* 持久 NPC 判定：精确键 或 角色族变体（xxx_guard / xxx_inmate / saddled_steed）；"guardian" 这类前缀不误判 */
+	function isPerNpcRole(name) {
+		var k = String(name || "").trim().toLowerCase();
+		for (var i = 0; i < PER_NPC_ROLES.length; i++) {
+			var r = PER_NPC_ROLES[i].toLowerCase();
+			if (k === r || (k.length > r.length + 1 && k.lastIndexOf("_" + r) === k.length - r.length - 1)) { return true; }
+		}
+		return false;
+	}
+	/* 恋爱角色判定：官方恋人清单 或 框架恋爱条件 或 框架 loveInterest 标记（原版恋爱阶段另算） */
+	function isLoveCharacter(name) {
+		if (isVanillaLoveInterest(name)) { return true; }
+		try {
+			if (getRomanceList(name).length > 0) { return true; }
+		} catch (e) {}
+		try {
+			var mb = resolveMB();
+			if (mb && mb.npc && mb.npc.data instanceof Map) {
+				var k2 = String(name).toLowerCase();
+				var hit = null;
+				mb.npc.data.forEach(function (v, key) {
+					if (!hit && String(key).toLowerCase() === k2) { hit = v; }
+				});
+				var d = hit;
+				if (d && d.Config && d.Config.loveInterest === true) { return true; }
+			}
+		} catch (e) {}
+		return false;
+	}
+	/* 角色分类（优先级：持久NPC > 模组 > 恋爱 > 普通） */
+	function charCategory(name) {
+		if (isPerNpcRole(name)) { return "pernpc"; }
+		if (!isVanillaNPC(name)) { return "mod"; }
+		if (isLoveCharacter(name)) { return "love"; }
+		return "normal";
+	}
+	/* 持久 NPC 显示名：类型中文 + （随机名）；黑客 name_known=1 时用 V.mickeyName（原版 perName 逻辑）；
+	   角色族变体键（xxx_guard / xxx_inmate / saddled_steed）回退显示族中文名，不再裸显英文键名 */
+	function perNpcDisplayName(key) {
+		var base = PER_NPC_CN[key];
+		if (!base) {
+			var k = String(key || "").trim().toLowerCase();
+			var fam = null;
+			for (var fi = 0; fi < PER_NPC_ROLES.length; fi++) {
+				var r = PER_NPC_ROLES[fi].toLowerCase();
+				if (k.length > r.length + 1 && k.lastIndexOf("_" + r) === k.length - r.length - 1) {
+					fam = PER_NPC_CN[PER_NPC_ROLES[fi]] || PER_NPC_ROLES[fi];
+					break;
+				}
+			}
+			base = fam || displayName(key) || key;
+		}
+		try {
+			var Vx = getV();
+			var p = Vx.per_npc && Vx.per_npc[key];
+			if (p && typeof p === "object" && typeof p.name === "string" && p.name) {
+				var n = p.name;
+				if (String(key).toLowerCase() === "hacker" && p.name_known === 1 && Vx.mickeyName) { n = Vx.mickeyName; }
+				return base + "（" + n + "）";
+			}
+		} catch (e) {}
+		return base;
+	}
+	function displayNameEx(name) {
+		if (isPerNpcRole(name)) { return perNpcDisplayName(name); }
+		return displayName(name);
+	}
+	/* 运行时 NPC 对象扩展：findNpc 未命中时查 per_npc（持久 NPC 卡数值读写通道） */
+	function findNpcEx(name) {
+		var n = findNpc(name);
+		if (n) { return n; }
+		try {
+			var per = getV().per_npc;
+			if (per && typeof per === "object") {
+				var k = String(name).toLowerCase();
+				var pk = Object.keys(per);
+				for (var i = 0; i < pk.length; i++) {
+					if (pk[i].toLowerCase() === k && per[pk[i]] && typeof per[pk[i]] === "object") { return per[pk[i]]; }
+				}
+			}
+		} catch (e) {}
+		return null;
 	}
 
 	/* 运行时 NPC 对象（DoL V.NPCName，按名不区分大小写匹配） */
@@ -1959,7 +2096,9 @@
 			}
 			var before = r.parent[r.leaf];
 			var prev = V.mbCE_wrote && V.mbCE_wrote["cheat:" + modId + ":" + itemKey];
-			if (prev && prev.before !== undefined) { before = prev.before; } /* 保留首次面板写入前状态 */
+			/* 留痕语义与地点通道一致：before 始终保留「首次面板写入前」状态（含 undefined=原本无字段），
+			   用 in 判断避免二次写入把 before 覆盖成当前值、回退丢失删除语义 */
+			if (prev && "before" in prev) { before = prev.before; }
 			r.parent[r.leaf] = val;
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: val, t: Date.now() };
@@ -1992,7 +2131,7 @@
 			if (!on && idx !== -1) { arr.splice(idx, 1); }
 			var before = Array.isArray(cur) ? cur.slice() : undefined;
 			var prev = V.mbCE_wrote && V.mbCE_wrote["cheat:" + modId + ":" + itemKey];
-			if (prev && prev.before !== undefined) { before = prev.before; }
+			if (prev && "before" in prev) { before = prev.before; }
 			r.parent[r.leaf] = arr;
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: arr.slice(), t: Date.now() };
@@ -3674,7 +3813,7 @@ function renderPlayerEdit() {
 	}
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
-	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance" };
+	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct" };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
 	function mbCEUiLoad() {
 		try {
@@ -3688,6 +3827,8 @@ function renderPlayerEdit() {
 				/* v1.8.12 二轮优化：记住上次操作角色与角色页内层页签（切存档/重开面板免重新找） */
 				if (typeof obj.curName === "string") { mbCEUiState.curName = obj.curName; }
 				if (obj.innerTab === "romance" || obj.innerTab === "transform") { mbCEUiState.innerTab = obj.innerTab; curInnerTab = obj.innerTab; }
+				/* v1.9.0 场景页子页签持久化（场景直达/地点） */
+				if (obj.placesTab === "stage" || obj.placesTab === "direct") { mbCEUiState.placesTab = obj.placesTab; }
 			}
 		} catch (e) {}
 	}
@@ -3699,6 +3840,7 @@ function renderPlayerEdit() {
 				if (partial.collapsed) { mbCEUiState.collapsed = partial.collapsed; }
 				if (typeof partial.curName === "string") { mbCEUiState.curName = partial.curName; }
 				if (partial.innerTab === "romance" || partial.innerTab === "transform") { mbCEUiState.innerTab = partial.innerTab; }
+				if (partial.placesTab === "stage" || partial.placesTab === "direct") { mbCEUiState.placesTab = partial.placesTab; }
 			}
 			if (typeof localStorage !== "undefined" && localStorage) {
 				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));
@@ -3892,9 +4034,18 @@ function renderPlayerEdit() {
 		} catch (e) {}
 	}
 
-	/* ---- 角色一览卡片 ---- */
+	/* ---- 角色一览卡片（v1.9.0：按类型拆子页面，按钮展开/收起） ---- */
+	/* 分类顺序：模组角色 / 恋爱角色 / 普通角色 / 持久NPC（子页面名称按角色类型命名） */
+	var CHAR_CATEGORIES = [
+		{ cat: "mod", title: "模组角色", desc: "非原版角色池的角色（MOD 注入/框架注册）" },
+		{ cat: "love", title: "恋爱角色", desc: "官方恋人清单 + 框架恋爱条件角色" },
+		{ cat: "normal", title: "普通角色", desc: "原版普通命名 NPC" },
+		{ cat: "pernpc", title: "持久NPC", desc: "经理/校医/黑客/主教/守卫/囚犯等持久特殊 NPC" }
+	];
+	function charSectionKey(cat) { return "角色:" + cat; }
 	function renderCards() {
 		var pane = root.querySelector('[data-pane="char"]');
+		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* 重建后保持滚动位置（五巡一致） */
 		pane.textContent = "";
 		if (!frameworkReady()) {
 			pane.appendChild(el("div", "mce-err", "未检测到 Maplebirch 框架（window.maplebirch / setup.MapleBirch）。"));
@@ -3905,35 +4056,63 @@ function renderPlayerEdit() {
 			pane.appendChild(el("div", "mce-hint", "注册池为空：未枚举到任何角色。"));
 			return;
 		}
-		var grid = el("div", "mce-cards");
-		chars.forEach(function (name) {
-			var npc = findNpc(name);
-			var st = getNpcState(name);
-			var active = st.state !== "dismissed";
-			var card = el("div", "mce-card" + (name === curName ? " mce-sel" : ""));
-			var top = el("div", "mce-card-top");
-			top.appendChild(el("span", "mce-card-name", displayName(name)));
-			var badge = el("span", "mce-badge " + (active ? "mce-on" : "mce-off"), active ? "活跃" : "停用");
-			badge.title = "state: " + st.state;
-			top.appendChild(badge);
-			card.appendChild(top);
-			var stats = el("div", "mce-card-stats");
-			stats.appendChild(el("span", "", "爱意 <b>" + statValue(npc, name, STAT_DEFS[0]) + "</b>"));
-			stats.appendChild(el("span", "", "支配 <b>" + statValue(npc, name, STAT_DEFS[2]) + "</b>"));
-			stats.appendChild(el("span", "", "情欲 <b>" + statValue(npc, name, STAT_DEFS[1]) + "</b>"));
-			stats.appendChild(el("span", "", "警戒 <b>" + statValue(npc, name, STAT_DEFS[5]) + "</b>"));
-			card.appendChild(stats);
-			card.addEventListener("click", function () {
-				curName = name;
-				mbCEUiSave({ curName: name }); /* v1.8.12 二轮优化：记住当前操作角色 */
-				switchOuterTab("stage");
+		pane.appendChild(el("div", "mce-hint", "共 " + chars.length + " 个角色（自动枚举：本体 + 全部 MOD + 持久 NPC），按类型分组收起，点击分组标题展开。"));
+		CHAR_CATEGORIES.forEach(function (group) {
+			var members = chars.filter(function (n) { return charCategory(n) === group.cat; });
+			var block = el("div", "mce-grp");
+			block.setAttribute("data-tcat", group.title);
+			var head = el("div", "mce-grp-t mce-collapse-head");
+			head.title = group.desc + "——点击展开/收起";
+			var stored = mbCEUiState.collapsed && mbCEUiState.collapsed[charSectionKey(group.cat)] != null
+				? Number(mbCEUiState.collapsed[charSectionKey(group.cat)]) : 1;
+			var open = stored === 0;
+			head.textContent = (open ? "▾ " : "▸ ") + group.title + "（" + members.length + "）";
+			block.appendChild(head);
+			var body = el("div", "mce-grp-body");
+			body.setAttribute("data-collapsed", open ? "0" : "1");
+			if (members.length) {
+				var grid = el("div", "mce-cards");
+				members.forEach(function (name) {
+					var npc = findNpcEx(name);
+					var st = getNpcState(name);
+					var active = st.state !== "dismissed";
+					var card = el("div", "mce-card" + (name === curName ? " mce-sel" : ""));
+					var top = el("div", "mce-card-top");
+					top.appendChild(el("span", "mce-card-name", displayNameEx(name)));
+					var badge = el("span", "mce-badge " + (active ? "mce-on" : "mce-off"), active ? "活跃" : "停用");
+					badge.title = "state: " + st.state;
+					top.appendChild(badge);
+					card.appendChild(top);
+					var stats = el("div", "mce-card-stats");
+					stats.appendChild(el("span", "", "爱意 <b>" + statValue(npc, name, STAT_DEFS[0]) + "</b>"));
+					stats.appendChild(el("span", "", "支配 <b>" + statValue(npc, name, STAT_DEFS[2]) + "</b>"));
+					stats.appendChild(el("span", "", "情欲 <b>" + statValue(npc, name, STAT_DEFS[1]) + "</b>"));
+					stats.appendChild(el("span", "", "警戒 <b>" + statValue(npc, name, STAT_DEFS[5]) + "</b>"));
+					card.appendChild(stats);
+					card.addEventListener("click", function () {
+						curName = name;
+						mbCEUiSave({ curName: name }); /* v1.8.12 二轮优化：记住当前操作角色 */
+						switchOuterTab("stage");
+					});
+					grid.appendChild(card);
+				});
+				body.appendChild(grid);
+			} else {
+				body.appendChild(el("div", "mce-hint", "（该分类暂无角色）"));
+			}
+			block.appendChild(body);
+			head.addEventListener("click", function () {
+				var nowOpen = body.getAttribute("data-collapsed") === "0";
+				body.setAttribute("data-collapsed", nowOpen ? "1" : "0");
+				head.textContent = (nowOpen ? "▸ " : "▾ ") + group.title + "（" + members.length + "）";
+				mbCEUiState.collapsed = mbCEUiState.collapsed || {};
+				mbCEUiState.collapsed[charSectionKey(group.cat)] = nowOpen ? 1 : 0;
+				mbCEUiSave({ collapsed: mbCEUiState.collapsed });
 			});
-			grid.appendChild(card);
+			pane.appendChild(block);
 		});
-		pane.appendChild(grid);
-		pane.appendChild(el("div", "mce-hint", "共 " + chars.length + " 个角色（自动枚举：本体 + 全部 MOD），点击卡片查看阶段。"));
+		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; }
 	}
-
 	/* ---- 阶段页：数据卡 + 双层内层标签 ---- */
 	function renderStagePane() {
 		var pane = root.querySelector('[data-pane="stage"]');
@@ -3946,7 +4125,7 @@ function renderPlayerEdit() {
 			pane.appendChild(el("div", "mce-hint", "无角色可选。"));
 			return;
 		}
-		var npc = findNpc(curName);
+		var npc = findNpcEx(curName);
 		var st = getNpcState(curName);
 		var active = st.state !== "dismissed";
 
@@ -3955,13 +4134,13 @@ function renderPlayerEdit() {
 		var top = el("div", "mce-section", "角色：");
 		card.appendChild(top);
 		var head = el("div", "mce-stage-head");
-		head.appendChild(el("span", "mce-stage-name", displayName(curName)));
+		head.appendChild(el("span", "mce-stage-name", displayNameEx(curName)));
 		var badge = el("span", "mce-badge " + (active ? "mce-on" : "mce-off"), active ? "活跃" : "停用");
 		badge.title = "state: " + st.state;
 		head.appendChild(badge);
 		card.appendChild(head);
 		if (st.found) { card.appendChild(el("div", "mce-hint", "游戏状态 state = " + stateCN(st.state))); }
-		if (!npc) { card.appendChild(el("div", "mce-hint", "未在 V.NPCName 中找到该角色的运行时对象（仅注册池存在）。")); }
+		if (!npc) { card.appendChild(el("div", "mce-hint", "未在 V.NPCName / V.per_npc 中找到该角色的运行时对象（仅注册池存在）。")); }
 
 		/* 数值行（含 ±10） */
 		var defs = statDefsFor(curName);
@@ -3993,21 +4172,21 @@ function renderPlayerEdit() {
 		fillBtn.addEventListener("click", function () {
 			var n = fillStats(npc, curName);
 			renderStagePane();
-			setStatus("已补齐「" + displayName(curName) + "」" + n + " 项数值", "mce-ok");
+			setStatus("已补齐「" + displayNameEx(curName) + "」" + n + " 项数值", "mce-ok");
 		});
 		var romBtn = el("button", "mce-btn mce-gold", "一键解锁全部恋爱阶段");
 		romBtn.type = "button";
 		romBtn.addEventListener("click", function () {
 			var r = unlockAllRomance(curName);
 			renderStagePane();
-			setStatus("「" + displayName(curName) + "」恋爱阶段：新解锁 " + r.fixed + " / " + r.total, r.fixed > 0 ? "mce-ok" : "mce-err");
+			setStatus("「" + displayNameEx(curName) + "」恋爱阶段：新解锁 " + r.fixed + " / " + r.total, r.fixed > 0 ? "mce-ok" : "mce-err");
 		});
 		var tfBtn = el("button", "mce-btn mce-gold", "一键解锁全部转化阶段");
 		tfBtn.type = "button";
 		tfBtn.addEventListener("click", function () {
 			var n = unlockAllTransform(curName);
 			renderStagePane();
-			setStatus("「" + displayName(curName) + "」转化阶段解锁 " + n + " 个类型", "mce-ok");
+			setStatus("「" + displayNameEx(curName) + "」转化阶段解锁 " + n + " 个类型", "mce-ok");
 		});
 		actions.appendChild(fillBtn);
 		actions.appendChild(romBtn);
@@ -4175,9 +4354,195 @@ function renderPlayerEdit() {
 			return { group: g, items: items };
 		});
 	}
+	/* ============ v1.9.0 场景页双层子界面：场景直达 / 地点（地点阶段任务作弊区） ============ */
 	function renderPlaces() {
 		var pane = root.querySelector('[data-pane="places"]');
+		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* 重建后保持滚动位置（五巡一致） */
 		pane.textContent = "";
+		var inner = el("div", "mce-inner");
+		var bDirect = el("button", mbCEUiState.placesTab !== "stage" ? "mce-active" : "", "场景直达");
+		bDirect.type = "button";
+		bDirect.setAttribute("data-place", "direct");
+		bDirect.title = "特殊场景一键直达（阁楼/庄园/神殿/公寓等）";
+		bDirect.addEventListener("click", function () {
+			mbCEUiState.placesTab = "direct";
+			mbCEUiSave({ placesTab: "direct" });
+			renderPlaces();
+		});
+		var bStage = el("button", mbCEUiState.placesTab === "stage" ? "mce-active" : "", "地点");
+		bStage.type = "button";
+		bStage.setAttribute("data-place", "stage");
+		bStage.title = "地点阶段任务作弊（市政改造/农场/公寓/机构等原版阶段变量直改，全部留痕可回退）";
+		bStage.addEventListener("click", function () {
+			mbCEUiState.placesTab = "stage";
+			mbCEUiSave({ placesTab: "stage" });
+			renderPlaces();
+		});
+		inner.appendChild(bDirect);
+		inner.appendChild(bStage);
+		pane.appendChild(inner);
+		if (mbCEUiState.placesTab === "stage") { renderPlacesStage(pane); }
+		else { renderPlacesDirect(pane); }
+		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; }
+	}
+
+	/* ---- 地点阶段任务数据表（max 来自 DoL 0.5.12.13 原版阈值实证扫描；town_projects 为嵌套宿主） ---- */
+	var PLACE_STAGE_GROUPS = [
+		{ name: "市政改造（市政府 town_projects）", note: "原版路过事件自动升级；此处可一键推进各项目阶段（0-5）", items: [
+			{ key: "road", name: "道路", path: "town_projects.road", max: 5, note: "市政道路工程（≥4 解锁森林深路/回城快速路）" },
+			{ key: "diving", name: "潜水考古", path: "town_projects.diving", max: 5, note: "潜水考古项目（≥3 关联博物馆项链，≥4 解锁 Winter 考古营地）" },
+			{ key: "thicket", name: "灌木丛", path: "town_projects.thicket", max: 5, note: "灌木丛清理工程（改变触手森林场景）" },
+			{ key: "bridge", name: "桥梁", path: "town_projects.bridge", max: 5, note: "桥梁工程（≥4 解锁穿桥去 Flats 公寓区）" },
+			{ key: "green", name: "绿地", path: "town_projects.green", max: 5, note: "绿地工程（≥4 解锁绿地社交场景）" }
+		]},
+		{ name: "农场（亚历克斯线）", note: "亚历克斯农场主线阶段系统", items: [
+			{ key: "farm_stage", name: "农场阶段", path: "farm_stage", max: 12, note: "亚历克斯农场主线阶段（≥7 满足恋人条件）" },
+			{ key: "farm_phase", name: "农场进程", path: "farm_phase", max: 1, note: "农场当季进程（0/1 二态）" }
+		]},
+		{ name: "城市与公寓", note: "公寓区/商店/阁楼/妓院地点阶段", items: [
+			{ key: "flats", name: "公寓区进度", path: "flats_progress", max: 2, note: "Flats 公寓区进度（与市政桥梁工程联动解锁）" },
+			{ key: "adultshop", name: "成人用品店", path: "adultshopprogress", max: 22, note: "成人用品店性玩具区解锁进度" },
+			{ key: "loft", name: "阁楼升级", path: "loft_upgrade", max: 7, note: "孤儿院阁楼房间升级计数（原版无硬性阈值，每次房间升级 +1）" },
+			{ key: "brothel", name: "妓院机械维修", path: "brothel_machine_repair", max: 4, note: "妓院地下机械维修进度" }
+		]},
+		{ name: "机构与学校", note: "修道院/精神病院/学校地点阶段", items: [
+			{ key: "temple_cloister", name: "修道院回廊", path: "temple_cloister_progress", max: 1, note: "修道院回廊进度（0/1 二态）" },
+			{ key: "temple_arcade", name: "修道院街机线", path: "temple_arcade_phase", max: 4, note: "修道院街机线阶段（0-4）" },
+			{ key: "asylum", name: "精神病院评估", path: "asylumassessmentprogress", max: 4, note: "精神病院评估进度（0-4）" },
+			{ key: "asylum_puzzle", name: "精神病院谜题", path: "asylumPuzzleProgress", max: 5, note: "精神病院谜题进度（0-5）" },
+			{ key: "science", name: "学校科学项目", path: "scienceprogression", max: 4, note: "学校科学项目进度（0-4）" },
+			{ key: "terrarium", name: "学校生态箱", path: "scienceterrariumprogression", max: 4, note: "学校生态箱进度（0-4）" }
+		]}
+	];
+	/* 地点阶段读取（safe：任何层级缺失 → 0） */
+	function placeStageRead(path) {
+		try {
+			var Vp = getV();
+			var parts = String(path || "").split(".");
+			var cur = Vp;
+			for (var i = 0; i < parts.length; i++) {
+				if (cur == null) { return 0; }
+				cur = cur[parts[i]];
+			}
+			var n = Number(cur);
+			return Number.isFinite(n) ? Math.round(n) : 0;
+		} catch (e) { return 0; }
+	}
+	/* 地点阶段写入：绕过原版变量黑名单直接写（五面板专用通道），保留 before 留痕可回退。
+	   嵌套宿主：仅 town_projects 允许自动建壳（原版事件直接读写各字段）；其余缺失宿主拒绝。 */
+	function placeStageWrite(path, target, min, max) {
+		try {
+			var Vp = getV();
+			if (!Vp) { return { ok: false, message: "存档变量不可用" }; }
+			var parts = String(path || "").split(".");
+			if (!parts.length || !parts[0]) { return { ok: false, message: "路径无效" }; }
+			var cur = Vp, i;
+			for (i = 0; i < parts.length - 1; i++) {
+				if (cur[parts[i]] == null || typeof cur[parts[i]] !== "object") {
+					if (parts[i] === "town_projects") { cur[parts[i]] = {}; }
+					else { return { ok: false, message: "宿主不存在（" + parts.slice(0, i + 1).join(".") + "），请先推进剧情或检查版本" }; }
+				}
+				cur = cur[parts[i]];
+			}
+			var leaf = parts[parts.length - 1];
+			var before = cur[leaf];
+			var prev = Vp.mbCE_wrote && Vp.mbCE_wrote["place:" + path];
+			/* 留痕语义：before 始终保留「首次写入前」状态（含 undefined=原本无字段）——
+			   用 in 判断，避免二次写入把 before 覆盖成当前值，导致回退丢失"删除字段"语义 */
+			if (prev && "before" in prev) { before = prev.before; }
+			var lo = Number.isFinite(Number(min)) ? Number(min) : 0;
+			var hi = Number.isFinite(Number(max)) ? Number(max) : Infinity;
+			var final = Math.max(lo, Math.min(hi, Math.round(Number(target) || 0)));
+			cur[leaf] = final;
+			if (!Vp.mbCE_wrote || typeof Vp.mbCE_wrote !== "object") { Vp.mbCE_wrote = {}; }
+			Vp.mbCE_wrote["place:" + path] = { type: "place", path: path, before: before, after: final, t: Date.now() };
+			mbCEWroteTrim(Vp);
+			return { ok: true, message: "已写入 " + path + " = " + final, before: before, after: final };
+		} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+	}
+	/* 地点阶段回退：还原首次写入前状态（before 为 undefined → 删除字段） */
+	function placeStageUndo(path) {
+		try {
+			var Vp = getV();
+			if (!Vp || !Vp.mbCE_wrote || !Vp.mbCE_wrote["place:" + path]) { return { ok: false, message: "无该写入留痕（不可回退）" }; }
+			var rec = Vp.mbCE_wrote["place:" + path];
+			var parts = String(path || "").split(".");
+			var cur = Vp, i;
+			for (i = 0; i < parts.length - 1; i++) {
+				if (cur[parts[i]] == null || typeof cur[parts[i]] !== "object") { return { ok: false, message: "宿主已被清除，无法回退" }; }
+				cur = cur[parts[i]];
+			}
+			var leaf = parts[parts.length - 1];
+			if (rec.before === undefined) { delete cur[leaf]; }
+			else { cur[leaf] = rec.before; }
+			delete Vp.mbCE_wrote["place:" + path];
+			return { ok: true, message: "已回退 " + path + " 到写入前状态" };
+		} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+	}
+	function renderPlacesStage(pane) {
+		pane.appendChild(el("div", "mce-hint", "地点阶段任务（原版 $变量 直改，全部留痕可回退）："));
+		PLACE_STAGE_GROUPS.forEach(function (g) {
+			var block = el("div", "mce-grp");
+			var head = el("div", "mce-grp-t", g.name);
+			head.title = g.note;
+			block.appendChild(head);
+			block.appendChild(el("div", "mce-stage-note", g.note));
+			g.items.forEach(function (it) {
+				var cur = placeStageRead(it.path);
+				var row = el("div", "mce-row");
+				row.setAttribute("data-stagekey", it.key);
+				row.title = it.note + "（当前 " + cur + " / 上限 " + it.max + "）";
+				var lbl = el("span", "mce-row-lbl", it.name + "　");
+				var val = el("span", "mce-value", cur + " / " + it.max);
+				lbl.appendChild(val);
+				row.appendChild(lbl);
+				var mDec = el("button", "mce-btn", "−1");
+				mDec.type = "button";
+				mDec.setAttribute("data-op", "dec");
+				mDec.addEventListener("click", function () {
+					placeStageWrite(it.path, placeStageRead(it.path) - 1, 0, it.max);
+					renderPlaces();
+				});
+				var mInc = el("button", "mce-btn", "+1");
+				mInc.type = "button";
+				mInc.setAttribute("data-op", "inc");
+				mInc.addEventListener("click", function () {
+					placeStageWrite(it.path, placeStageRead(it.path) + 1, 0, it.max);
+					renderPlaces();
+				});
+				var mMax = el("button", "mce-btn mce-gold", "拉满");
+				mMax.type = "button";
+				mMax.setAttribute("data-op", "max");
+				mMax.addEventListener("click", function () {
+					placeStageWrite(it.path, it.max, 0, it.max);
+					renderPlaces();
+				});
+				row.appendChild(mDec);
+				row.appendChild(mInc);
+				row.appendChild(mMax);
+				/* 有留痕才显示回退（还原首次写入前状态） */
+				try {
+					var Vp = getV();
+					if (Vp && Vp.mbCE_wrote && Vp.mbCE_wrote["place:" + it.path]) {
+						var mUndo = el("button", "mce-btn mce-red", "回退");
+						mUndo.type = "button";
+						mUndo.setAttribute("data-op", "undo");
+						mUndo.addEventListener("click", function () {
+							var r = placeStageUndo(it.path);
+							renderPlaces();
+							setStatus(r.message || "", r.ok ? "mce-ok" : "mce-err");
+						});
+						row.appendChild(mUndo);
+					}
+				} catch (e) {}
+				block.appendChild(row);
+			});
+			pane.appendChild(block);
+		});
+		pane.appendChild(el("div", "mce-hint", "拉满 = 置为原版上限值；「−1/+1」逐步推进；写入记录在 V.mbCE_wrote（place: 前缀）可回退。"));
+	}
+
+	function renderPlacesDirect(pane) {
 		var groups = listPlaceGroups();
 		var total = 0;
 		var V = getV();
@@ -5166,7 +5531,7 @@ function renderPlayerEdit() {
 		/* v1.4.5：非恋爱候选角色不显示恋爱阶段（角色本身保留在角色一览）——
 		   只有能进恋人卡槽的角色才展示恋爱阶段与"恋人卡槽"条件 */
 		if (!isLoveCandidate(curName)) {
-			pane.appendChild(el("div", "mce-hint", "「" + displayName(curName) + "」不是可确立恋人关系的角色，无可解锁的恋爱阶段。"));
+			pane.appendChild(el("div", "mce-hint", "「" + displayNameEx(curName) + "」不是可确立恋人关系的角色，无可解锁的恋爱阶段。"));
 			return;
 		}
 		var stages = getRomanceStages(curName);
@@ -5220,7 +5585,7 @@ function renderPlayerEdit() {
 		/* 原版恋爱阶段（格威岚 7 阶段，来自游戏原版 gwylanStatusCheck 体系） */
 		var vanilla = getVanillaStages(curName);
 		if (vanilla.length) {
-			pane.appendChild(el("div", "mce-section", "原版恋爱阶段（" + displayName(curName) + "）"));
+			pane.appendChild(el("div", "mce-section", "原版恋爱阶段（" + displayNameEx(curName) + "）"));
 			var vbox = el("div", "mce-stages");
 			vanilla.forEach(function (s) {
 				var row = el("div", "mce-stage " + (s.ok ? "mce-pass" : "mce-fail"));
@@ -5234,7 +5599,7 @@ function renderPlayerEdit() {
 					vbtn.addEventListener("click", function () {
 						var r = completeVanillaStage(curName, s.key);
 						renderStagePane();
-						setStatus(r.ok ? "「" + displayName(curName) + "」" + s.label + " 已达成" : r.message, r.ok ? "mce-ok" : "mce-err");
+						setStatus(r.ok ? "「" + displayNameEx(curName) + "」" + s.label + " 已达成" : r.message, r.ok ? "mce-ok" : "mce-err");
 					});
 					head.appendChild(vbtn);
 				} else {
@@ -6006,6 +6371,23 @@ function renderPlayerEdit() {
 				refresh: render,
 				listCharacters: listCharacters,
 				findNpc: findNpc,
+				/* v1.9.0 角色分类 + 持久NPC */
+				charCategory: charCategory,
+				isVanillaNPC: isVanillaNPC,
+				isVanillaLoveInterest: isVanillaLoveInterest,
+				isPerNpcRole: isPerNpcRole,
+				isLoveCharacter: isLoveCharacter,
+				perNpcDisplayName: perNpcDisplayName,
+				displayNameEx: displayNameEx,
+				findNpcEx: findNpcEx,
+				CHAR_CATEGORIES: CHAR_CATEGORIES,
+				renderCards: renderCards,
+				/* v1.9.0 场景页地点子界面 */
+				renderPlaces: renderPlaces,
+				PLACE_STAGE_GROUPS: PLACE_STAGE_GROUPS,
+				placeStageRead: placeStageRead,
+				placeStageWrite: placeStageWrite,
+				placeStageUndo: placeStageUndo,
 				getRomanceStages: getRomanceStages,
 				completeRomanceStage: completeRomanceStage,
 				unlockAllRomance: unlockAllRomance,

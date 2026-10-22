@@ -924,9 +924,14 @@ assert(V.mliState.flagB === false, "18.6 0 → false");
 api.applyCheatModValue("cheatTestA", "score", 4);
 var rec = V.mbCE_wrote && V.mbCE_wrote["cheat:cheatTestA:value_set:score"];
 assert(rec && rec.type === "cheat" && rec.modId === "cheatTestA" && rec.op === "value_set" && rec.path === "mliState.score" && rec.after === 4, "18.7 留痕含 modId/op/path/after, 实际 " + JSON.stringify(rec && { modId: rec.modId, op: rec.op, path: rec.path, after: rec.after }));
-// 18.8) 回退：还原首次写入前状态；二次回退无痕迹
+// 18.8) 回退：还原首次写入前状态（score 首次写入前不存在 → 回退删除字段）；二次回退无痕迹
 api.undoCheatModValue("cheatTestA", "value_set:score");
-assert(V.mliState.score === 5, "18.8 回退还原 before=5, 实际 " + V.mliState.score);
+assert(("score" in V.mliState) === false, "18.8 回退还原首次写入前状态（score 原本不存在 → 删除）, 存在=" + ("score" in V.mliState));
+// 18.8b) 既有值场景：score=5 → 写入 → 回退还原 5（44.8 亦有同类断言）
+V.mliState.score = 5;
+api.applyCheatModValue("cheatTestA", "score", 4);
+api.undoCheatModValue("cheatTestA", "value_set:score");
+assert(V.mliState.score === 5, "18.8b 既有值回退还原原值 5, 实际 " + V.mliState.score);
 var rU2 = api.undoCheatModValue("cheatTestA", "value_set:score");
 assert(rU2.ok === false && /无可撤销痕迹/.test(rU2.message), "18.8 二次回退拒绝（" + rU2.message + "）");
 // 18.9) 任务：跳过 / 直接完成；未声明标记 → 拒绝
@@ -1987,7 +1992,8 @@ assert(api.zhType("number") === "数值" && api.zhType("boolean") === "布尔" &
 function mkNode(tag) {
 	const n = {
 		tagName: tag, children: [], _text: "", className: "", type: "", value: "", checked: false, step: "", id: "", title: "", listeners: {},
-		set textContent(v) { this._text = String(v); },
+		/* 真实 DOM 语义：设置 textContent 会替换全部子节点（清空用 ""） */
+		set textContent(v) { this._text = String(v); this.children = []; },
 		get textContent() { let s = this._text; this.children.forEach(function (c) { s += c.textContent; }); return s; },
 		appendChild(c) { this.children.push(c); c.parentNode = this; return c; },
 		setAttribute(k, v) { this["attr_" + k] = v; },
@@ -2606,6 +2612,224 @@ assert(api43.displayName("Liddell") === "利德尔", "43.7 Liddell → 利德尔
 /* 清理 43 节 */
 delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending; delete V.mbCE_queue; delete V.mbCE_wrote; delete V.physique; delete V.passage;
 delete global.Engine; delete global.document; delete global.window; delete global.$;
+
+/* ============ 第 44 节：v1.9.0 角色分类子页（模组/恋爱/普通/持久NPC）+ 场景"地点"子界面 ============ */
+/* 44.0）环境：权威原版清单（setup.NPCNameList 32 / setup.loveInterestNpc 10）+ per_npc 持久角色 mock + DOM mock 重载 */
+setup.NPCNameList = ["Avery","Bailey","Briar","Charlie","Darryl","Doren","Eden","Gwylan","Harper","Jordan","Kylar","Landry","Leighton","Mason","Morgan","River","Robin","Sam","Sirris","Whitney","Winter","Black Wolf","Niki","Quinn","Remy","Alex","Great Hawk","Wren","Sydney","Ivory Wraith","Zephyr","Night Monster"];
+setup.loveInterestNpc = ["Robin","Whitney","Kylar","Sydney","Eden","Avery","Black Wolf","Great Hawk","Alex","Gwylan"];
+V.per_npc = {
+  "manager": { name: "Helen", love: 42, lust: 3, dom: 10, wary: 0, name_known: 1 },
+  "school_nurse": { love: 0, lust: 0 },
+  "anxious_guard": { name: "Mark", name_known: 1, love: 7 }
+};
+V.mickeyName = "米奇";
+delete V.town_projects; delete V.farm_stage; delete V.flats_progress; delete V.mbCE_wrote;
+V.NPCName = [mkNpc("Robin"), mkNpc("Bailey")];
+V.maplebirch.npc = {};
+global.window = {
+  maplebirch: { npc: {
+    data: new Map([
+      ["Robin", { Data: { nam: "Robin" }, Config: {}, Patch: {} }],
+      ["Bailey", { Data: { nam: "Bailey" }, Config: {}, Patch: {} }],
+      ["tsukihan", { Data: { nam: "tsukihan" }, Config: {}, Patch: {} }],
+      ["Zephyr", { Data: { nam: "Zephyr" }, Config: { loveInterest: true }, Patch: {} }]
+    ]),
+    NPCNameList: setup.NPCNameList,
+    romanceConditions: { Robin: [() => true] },
+    customStats: {},
+    type: { loveInterestNpcs: [], importantNPCs: [], specialNPCs: [] }
+  } }
+};
+const dBody44 = mkNode("body"), dHead44 = mkNode("head");
+global.document = { body: dBody44, head: dHead44, createElement: mkNode, getElementById: () => null, addEventListener: () => {} };
+/* 44.6 需要：面板状态持久化走 localStorage（mbCEUiLoad/mbCEUiSave），注入内存 mock */
+const localStorage44 = {
+	store: {},
+	setItem: function (k, v) { this.store[k] = String(v); },
+	getItem: function (k) { return this.store[k] != null ? this.store[k] : null; },
+	removeItem: function (k) { delete this.store[k]; }
+};
+global.localStorage = localStorage44;
+delete global.$;
+eval(js);
+const api44 = setup.mbStageCE;
+const root44 = dBody44.children.filter(c => c.id === "mce-root")[0];
+assert(!!root44, "44.0 ensureDom 重建面板根节点");
+
+/* 44.1）纯函数分类：isVanillaNPC / isPerNpcRole / charCategory / perNpcDisplayName / displayNameEx / findNpcEx */
+assert(api44.isVanillaNPC("robin") === true, "44.1 robin 原版判定 true, 实际 " + api44.isVanillaNPC("robin"));
+assert(api44.isVanillaNPC("Black Wolf") === true, "44.1 Black Wolf 原版判定 true, 实际 " + api44.isVanillaNPC("Black Wolf"));
+assert(api44.isVanillaNPC("tsukihan") === false, "44.1 tsukihan 非原版（模组角色）, 实际 " + api44.isVanillaNPC("tsukihan"));
+assert(api44.isPerNpcRole("manager") === true, "44.1 manager 持久NPC判定, 实际 " + api44.isPerNpcRole("manager"));
+assert(api44.isPerNpcRole("anxious_guard") === true, "44.1 anxious_guard 持久NPC判定（守卫变体）, 实际 " + api44.isPerNpcRole("anxious_guard"));
+assert(api44.isPerNpcRole("saddled_steed") === true, "44.1 saddled_steed 持久NPC判定（坐骑变体）, 实际 " + api44.isPerNpcRole("saddled_steed"));
+assert(api44.isPerNpcRole("guardian") === false, "44.1 guardian 前缀误判防死（不以 _guard 结尾）, 实际 " + api44.isPerNpcRole("guardian"));
+assert(api44.isPerNpcRole("robin") === false, "44.1 robin 非持久NPC, 实际 " + api44.isPerNpcRole("robin"));
+assert(api44.charCategory("manager") === "pernpc", "44.1 经理→持久NPC类, 实际 " + api44.charCategory("manager"));
+assert(api44.charCategory("tsukihan") === "mod", "44.1 tsukihan→模组类, 实际 " + api44.charCategory("tsukihan"));
+assert(api44.charCategory("robin") === "love", "44.1 罗宾→恋爱类, 实际 " + api44.charCategory("robin"));
+assert(api44.charCategory("bailey") === "normal", "44.1 贝利→普通类, 实际 " + api44.charCategory("bailey"));
+assert(api44.charCategory("zephyr") === "love", "44.1 泽菲尔→恋爱类（框架 loveInterest 标记）, 实际 " + api44.charCategory("zephyr"));
+assert(api44.perNpcDisplayName("manager") === "经理（Helen）", "44.1 经理显示名=经理（随机名）, 实际 " + api44.perNpcDisplayName("manager"));
+assert(api44.perNpcDisplayName("school_nurse") === "校医", "44.1 校医显示名兜底（无随机名）, 实际 " + api44.perNpcDisplayName("school_nurse"));
+assert(api44.displayNameEx("manager") === "经理（Helen）", "44.1 displayNameEx 经理, 实际 " + api44.displayNameEx("manager"));
+assert(api44.displayNameEx("robin") === "罗宾", "44.1 displayNameEx 罗宾（沿用原显示名）, 实际 " + api44.displayNameEx("robin"));
+const npcM44 = api44.findNpcEx("manager");
+assert(!!npcM44 && npcM44 === V.per_npc.manager, "44.1 findNpcEx 命中 per_npc.manager, 实际 " + (npcM44 ? "命中" : "未命中"));
+assert(npcM44.love === 42, "44.1 findNpcEx 返回的经理对象 love=42, 实际 " + npcM44.love);
+
+/* 44.2）listCharacters 收录已生成持久NPC（V.per_npc 实证枚举），未生成的不出现 */
+var lc44 = api44.listCharacters();
+assert(lc44.indexOf("manager") !== -1 && lc44.indexOf("school_nurse") !== -1 && lc44.indexOf("anxious_guard") !== -1, "44.2 listCharacters 含已生成持久NPC（manager/校医/守卫）, 实际 " + JSON.stringify(lc44.filter(function (n) { return api44.isPerNpcRole(n); })));
+assert(lc44.indexOf("bishop") === -1, "44.2 未生成的持久NPC 不出现（bishop 不在 per_npc）, 实际含 " + (lc44.indexOf("bishop") !== -1 ? "bishop" : "无"));
+assert(lc44.indexOf("Robin") !== -1 && lc44.indexOf("tsukihan") !== -1, "44.2 原版+模组角色照常枚举（保留注册原名 Robin/tsukihan）, 实际 " + JSON.stringify(lc44.slice(0, 8)));
+
+/* 44.3）地点阶段写入（placeStageWrite）：宿主缺失建壳 / 钳制 / 绕过原版黑名单 / 留痕 / 回退 */
+delete V.town_projects;
+var ps1 = api44.placeStageWrite("town_projects.road", 4, 0, 5);
+assert(ps1.ok && V.town_projects && V.town_projects.road === 4, "44.3 宿主缺失自动建壳+写 road=4, 实际 " + JSON.stringify(V.town_projects));
+assert(V.mbCE_wrote && !!V.mbCE_wrote["place:town_projects.road"], "44.3 留痕 place:town_projects.road 存在");
+var ps2 = api44.placeStageWrite("town_projects.road", 99, 0, 5);
+assert(ps2.ok && V.town_projects.road === 5, "44.3 写 99 钳制到 max=5, 实际 " + V.town_projects.road);
+var ps3 = api44.placeStageWrite("farm_stage", 7, 0, 12);
+assert(ps3.ok && V.farm_stage === 7, "44.3 farm_stage 写 7（绕过原版变量黑名单直写）, 实际 " + V.farm_stage);
+var ps4 = api44.placeStageWrite("farm_stage", -5, 0, 12);
+assert(ps4.ok && V.farm_stage === 0, "44.3 farm_stage 负值钳到 0, 实际 " + V.farm_stage);
+var ps5 = api44.placeStageWrite("flats_progress", 3, 0, 2);
+assert(ps5.ok && V.flats_progress === 2, "44.3 flats_progress 写 3 钳到 2, 实际 " + V.flats_progress);
+var ps6 = api44.placeStageWrite("no.such.deep.path", 1, 0, 9);
+assert(ps6.ok === false, "44.3 嵌套宿主缺失且非 town_projects 拒绝, ok=" + ps6.ok);
+var psU = api44.placeStageUndo("town_projects.road");
+assert(psU.ok && !V.mbCE_wrote["place:town_projects.road"], "44.3 回退清留痕, 实际留痕=" + (V.mbCE_wrote && V.mbCE_wrote["place:town_projects.road"]));
+delete V.town_projects; delete V.farm_stage; delete V.flats_progress; delete V.mbCE_wrote;
+
+/* 44.4）DOM：角色页四分类区块（恋爱/普通/模组/持久NPC），默认收起、点击展开 */
+api44.renderCards();
+let secLove44 = root44.querySelector('[data-tcat="恋爱角色"]');
+let secNormal44 = root44.querySelector('[data-tcat="普通角色"]');
+let secMod44 = root44.querySelector('[data-tcat="模组角色"]');
+let secPer44 = root44.querySelector('[data-tcat="持久NPC"]');
+assert(!!secLove44 && !!secNormal44 && !!secMod44 && !!secPer44, "44.4 角色页四个分类区块全部生成（恋爱/普通/模组/持久NPC）, 实际 love=" + !!secLove44 + " normal=" + !!secNormal44 + " mod=" + !!secMod44 + " per=" + !!secPer44);
+assert(secLove44.children[0].textContent.indexOf("恋爱角色") !== -1 && secLove44.children[0].textContent.indexOf("11") !== -1, "44.4 恋爱角色标题带数量（官方10+泽菲尔=11）, 实际 " + secLove44.children[0].textContent.slice(0, 40));
+assert(secPer44.children[0].textContent.indexOf("持久NPC") !== -1, "44.4 持久NPC区块标题（按类型命名）, 实际 " + secPer44.children[0].textContent.slice(0, 40));
+assert(secLove44.children[1].getAttribute("data-collapsed") === "1", "44.4 恋爱角色默认收起（data-collapsed=1）");
+assert(secPer44.children[1].getAttribute("data-collapsed") === "1", "44.4 持久NPC默认收起（data-collapsed=1）");
+secPer44.children[0].listeners.click[0]();
+assert(secPer44.children[1].getAttribute("data-collapsed") === "0", "44.4 点击标题展开持久NPC（data-collapsed=0）");
+let perTxt44 = secPer44.children[1].textContent;
+assert(perTxt44.indexOf("经理（Helen）") !== -1, "44.4 持久NPC卡含 经理（Helen）, 实际 " + perTxt44.slice(0, 80));
+assert(perTxt44.indexOf("校医") !== -1, "44.4 持久NPC卡含 校医, 实际 " + perTxt44.slice(0, 80));
+assert(perTxt44.indexOf("42") !== -1, "44.4 经理卡爱意显示 42（per_npc.manager.love）, 实际 " + perTxt44.slice(0, 80));
+secMod44.children[0].listeners.click[0]();
+assert(secMod44.children[1].textContent.indexOf("月半") !== -1, "44.4 模组角色卡含 月半（tsukihan）, 实际 " + secMod44.children[1].textContent.slice(0, 60));
+secLove44.children[0].listeners.click[0]();
+assert(secLove44.children[1].textContent.indexOf("罗宾") !== -1, "44.4 恋爱角色卡含 罗宾, 实际 " + secLove44.children[1].textContent.slice(0, 60));
+
+/* 44.5）DOM：场景页新增"地点"子界面（场景直达/地点 双层页签；市政改造+农场等阶段任务行；拉满直写） */
+api44.renderPlaces();
+let paneP44 = root44.querySelector('[data-pane="places"]');
+assert(paneP44.textContent.indexOf("场景直达") !== -1 && paneP44.textContent.indexOf("地点") !== -1, "44.5 场景页含子页签 场景直达/地点, 实际 " + paneP44.textContent.slice(0, 80));
+let tabStage44 = paneP44.querySelector('[data-place="stage"]');
+assert(!!tabStage44, "44.5 地点页签按钮存在");
+tabStage44.listeners.click[0]();
+let txtP44 = paneP44.textContent;
+assert(txtP44.indexOf("市政改造") !== -1 && txtP44.indexOf("农场") !== -1, "44.5 地点子界面含市政改造+农场分区, 实际 " + txtP44.slice(0, 120));
+assert(txtP44.indexOf("道路") !== -1 && txtP44.indexOf("潜水") !== -1 && txtP44.indexOf("拉满") !== -1, "44.5 地点含 道路/潜水/拉满, 实际 " + txtP44.slice(0, 160));
+let roadRow44 = paneP44.querySelector('[data-stagekey="road"]');
+assert(!!roadRow44, "44.5 道路行存在（data-stagekey=road）");
+let fillRoad44 = roadRow44.querySelector('[data-op="max"]');
+assert(!!fillRoad44, "44.5 道路行拉满按钮存在（data-op=max）");
+delete V.town_projects;
+fillRoad44.listeners.click[0]();
+assert(V.town_projects && V.town_projects.road === 5, "44.5 道路拉满 → town_projects.road=5, 实际 " + (V.town_projects && V.town_projects.road));
+let farmRow44 = paneP44.querySelector('[data-stagekey="farm_stage"]');
+assert(!!farmRow44 && farmRow44.querySelector('[data-op="max"]'), "44.5 农场阶段行+拉满按钮存在");
+/* 页签状态持久化：切回场景直达后重渲染仍记住地点页签 */
+let tabDirect44 = paneP44.querySelector('[data-place="direct"]');
+assert(!!tabDirect44 && paneP44.querySelector('[data-place="stage"]').className.indexOf("mce-active") !== -1, "44.5 地点页签为当前激活态");
+delete V.town_projects; delete V.mbCE_wrote; delete V.per_npc; delete V.mickeyName;
+
+/* 44.6）自查优化补盲：地点 +1/−1 步进、undo 删字段回退、placesTab 持久化恢复、变体守卫名、空档不枚举 */
+/* 步进：flats_progress 缺失 → +1 建宿主并写 1，再 +1 → 2（钳到 max=2），−1 → 1 */
+api44.renderPlaces();
+paneP44 = root44.querySelector('[data-pane="places"]');
+paneP44.querySelector('[data-place="stage"]').listeners.click[0]();
+let flatsRow44 = paneP44.querySelector('[data-stagekey="flats"]');
+assert(!!flatsRow44, "44.6 公寓区进度行存在");
+let incFlats44 = flatsRow44.querySelector('[data-op="inc"]');
+let decFlats44 = flatsRow44.querySelector('[data-op="dec"]');
+delete V.flats_progress;
+incFlats44.listeners.click[0]();
+assert(V.flats_progress === 1, "44.6 公寓区 +1 → 1, 实际 " + V.flats_progress);
+paneP44.querySelector('[data-stagekey="flats"]').querySelector('[data-op="inc"]').listeners.click[0]();
+assert(V.flats_progress === 2, "44.6 公寓区再 +1 → 2（钳到 max=2）, 实际 " + V.flats_progress);
+paneP44.querySelector('[data-stagekey="flats"]').querySelector('[data-op="dec"]').listeners.click[0]();
+assert(V.flats_progress === 1, "44.6 公寓区 −1 → 1, 实际 " + V.flats_progress);
+/* undo：town_projects 缺失建壳写入 road=3 → 回退删字段（before 为 undefined 时 delete） */
+delete V.town_projects;
+let roadRowB44 = paneP44.querySelector('[data-stagekey="road"]');
+roadRowB44.querySelector('[data-op="inc"]').listeners.click[0]();
+assert(V.town_projects && V.town_projects.road === 1, "44.6 道路 +1（宿主缺失自动建壳）→ 1, 实际 " + (V.town_projects && V.town_projects.road));
+let undoRoad44 = paneP44.querySelector('[data-stagekey="road"]').querySelector('[data-op="undo"]');
+assert(!!undoRoad44, "44.6 有留痕时显示回退按钮");
+undoRoad44.listeners.click[0]();
+assert(("road" in (V.town_projects || {})) === false, "44.6 回退删字段（before=undefined → delete）, road 存在=" + ("road" in (V.town_projects || {})));
+delete V.town_projects; delete V.flats_progress;
+/* placesTab 持久化恢复：模拟 localStorage 存 stage → mbCEUiLoad 恢复 → renderPlaces 仍激活地点页签 */
+localStorage44.setItem("mbCE_ui_state_v1", JSON.stringify({ placesTab: "stage" }));
+api44.mbCEUiLoad();
+delete V.town_projects;
+api44.renderPlaces();
+paneP44 = root44.querySelector('[data-pane="places"]');
+assert(paneP44.querySelector('[data-place="stage"]').className.indexOf("mce-active") !== -1 && paneP44.textContent.indexOf("市政改造") !== -1, "44.6 placesTab 持久化恢复（localStorage → 地点页签激活且渲染市政改造）");
+localStorage44.setItem("mbCE_ui_state_v1", JSON.stringify({ placesTab: "direct" }));
+api44.mbCEUiLoad();
+/* 变体守卫/坐骑键显示族中文名（不再裸显英文键名） */
+assert(api44.perNpcDisplayName("saddled_steed") === "坐骑", "44.6 变体坐骑键显示族中文名, 实际 " + api44.perNpcDisplayName("saddled_steed"));
+assert(api44.perNpcDisplayName("stray_guard") === "守卫", "44.6 变体守卫键显示族中文名, 实际 " + api44.perNpcDisplayName("stray_guard"));
+/* 空存档（无 per_npc）不枚举持久 NPC：listCharacters 不含 manager */
+V.per_npc = undefined;
+let namesNoPer44 = api44.listCharacters();
+assert(namesNoPer44.indexOf("manager") === -1, "44.6 无 per_npc 时角色池不含持久NPC键, 实际 " + namesNoPer44.slice(0, 40));
+V.per_npc = { manager: { name: "Helen", love: 42 } };
+/* 切回地点子界面（44.6 末尾 mbCEUiLoad 已恢复 placesTab=direct，需先点回 stage 再验证留痕语义） */
+paneP44.querySelector('[data-place="stage"]').listeners.click[0]();
+paneP44 = root44.querySelector('[data-pane="places"]');
+/* 留痕语义：建壳字段两次写入后再回退，仍还原首次写入前状态（删除字段，而非留在上次值） */
+delete V.town_projects;
+let roadW44 = paneP44.querySelector('[data-stagekey="road"]');
+roadW44.querySelector('[data-op="inc"]').listeners.click[0]();
+roadW44 = paneP44.querySelector('[data-stagekey="road"]');
+roadW44.querySelector('[data-op="inc"]').listeners.click[0]();
+assert(V.town_projects && V.town_projects.road === 2, "44.7 两次 +1 → road=2, 实际 " + (V.town_projects && V.town_projects.road));
+roadW44 = paneP44.querySelector('[data-stagekey="road"]');
+roadW44.querySelector('[data-op="undo"]').listeners.click[0]();
+assert(("road" in (V.town_projects || {})) === false, "44.7 两次写入后回退仍删字段（before 保留首次 undefined）, road 存在=" + ("road" in (V.town_projects || {})));
+delete V.town_projects; delete V.mbCE_wrote;
+/* 回退到非 undefined 原值：既有 town_projects.road=3 → 写入 5 → 回退还原 3 */
+V.town_projects = { road: 3 };
+let roadE44 = paneP44.querySelector('[data-stagekey="road"]');
+roadE44.querySelector('[data-op="max"]').listeners.click[0]();
+assert(V.town_projects.road === 5, "44.7 既有 road=3 拉满 → 5, 实际 " + V.town_projects.road);
+paneP44.querySelector('[data-stagekey="road"]').querySelector('[data-op="undo"]').listeners.click[0]();
+assert(V.town_projects.road === 3, "44.7 回退还原原值 3（非删除）, 实际 " + V.town_projects.road);
+delete V.town_projects; delete V.mbCE_wrote;
+/* 44.8）cheatWriteValue 留痕语义（与地点通道同源修复）：叶子缺失两次写入后回退仍删除字段；既有值回退还原首次前值 */
+delete V.mbCE_wrote;
+V.modtest = {};
+let cw1 = api44.cheatWriteValue("t", "k1", "value_set", "modtest.myval", "5", "number", 0, 100);
+assert(cw1.ok && V.modtest.myval === 5, "44.8 首次写入 modtest.myval=5, 实际 " + (V.modtest && V.modtest.myval));
+let cw2 = api44.cheatWriteValue("t", "k1", "value_set", "modtest.myval", "7", "number", 0, 100);
+assert(cw2.ok && V.modtest.myval === 7, "44.8 二次写入 modtest.myval=7, 实际 " + V.modtest.myval);
+let cw3 = api44.undoCheatModValue("t", "k1");
+assert(cw3.ok && ("myval" in V.modtest) === false, "44.8 两次写入后回退仍删除字段（before 保留首次 undefined）, 存在=" + ("myval" in V.modtest));
+V.modtest.exist = 3;
+api44.cheatWriteValue("t", "k2", "value_set", "modtest.exist", "8", "number", 0, 100);
+api44.cheatWriteValue("t", "k2", "value_set", "modtest.exist", "9", "number", 0, 100);
+assert(V.modtest.exist === 9, "44.8 既有值两次写入 exist=9, 实际 " + V.modtest.exist);
+api44.undoCheatModValue("t", "k2");
+assert(V.modtest.exist === 3, "44.8 既有值回退还原首次前值 3, 实际 " + V.modtest.exist);
+delete V.modtest; delete V.mbCE_wrote;
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);
