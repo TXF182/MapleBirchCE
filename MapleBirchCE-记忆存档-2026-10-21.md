@@ -39,8 +39,9 @@ DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.23**，已适配 8 个
 ## 4. git 状态（v1.8.12~v1.8.22 已提交并发布 ✅；v1.8.23 十七巡已提交，main 已同步）
 - 本地 HEAD = v1.8.23 十七巡提交（`git log --oneline -1` 查看，含 CHANGELOG/README/记忆存档/适配器/测试/工具归档）
 - **远端 main 已同步**（Git Data API 通道：github.com:443 被断，`tools/push_api_v1823.js` 全量 blobs→tree→commit→PATCH refs）→ 远端 main = `6c0f96fb7ee5e8fc21bfa67a47de7f1cae122c4a`（API 重建 commit，内容树与本地一致但 SHA 不同；网络恢复后需 `git fetch` + `git reset --hard origin/main` 对齐本地）
-- **Release v1.8.22 已发布**（id=419496557，tag 远端/本地均指向 b38a225）：https://github.com/TXF182/MapleBirchCE/releases/tag/v1.8.22 ，资产 MapleBirchCE.mod.zip 145,654 B size 核对一致（SIZE_MATCH=1）
-- 发布脚本：`tools/release_v1822.js`（v1.8.22）；API push 脚本：`tools/push_api_v1823.js`（v1.8.23，github.com:443 断时通道）；本地 tag v1.8.22 已打
+- **Release v1.8.23 已发布**（id=**420710932**，tag v1.8.23）：https://github.com/TXF182/MapleBirchCE/releases/tag/v1.8.23 ，资产 MapleBirchCE.mod.zip **146,010 B** size 核对一致（SIZE_MATCH=1），SHA256=5F7E81202EBCB888AD6E27ABA5267EA2F9E668EE992229588E4FF7C90C1986A3；本地 tag v1.8.23 已打（指向本地 e314d5c）
+- **Release v1.8.22 已发布**（id=419496557，tag v1.8.22）：https://github.com/TXF182/MapleBirchCE/releases/tag/v1.8.22 ，资产 MapleBirchCE.mod.zip 145,654 B size 核对一致（SIZE_MATCH=1）
+- 发布脚本：`tools/release_v1823.js`（v1.8.23，release_v1822.js 派生）；API push 脚本：`tools/push_api_v1823.js`（github.com:443 断时通道）；本地 tag v1.8.22/v1.8.23 已打
 
 ## 5. 架构速览
 - 17 段 src 按面板分区拆分：01-core（版本/探测/API）/ 04-modcheat（适配器数据+通用写入执行器 cheatWriteValue）/ 05-modcheat-ui（渲染+局部行更新+PANEL_QUICK_GROUPS 数据表）/ 06-traits（特质区+滚动保持）/ 07a-shell（root/错误收集器 mbCEPushError+badge 同步写+熔断 mbCEFuse）/ 07b-char / 07c-stage / 07f-pins（命名空间防重绑定）/ 09-exports（open force + mods 页跳刷新 + mbCEPushError/mbCEErrors API）
@@ -74,14 +75,14 @@ DoL + Maplebirch 框架作弊面板模组，当前 **v1.8.23**，已适配 8 个
 - 评分走六维雷达（doubao-visualization）；发布走 git credential + REST 成熟流程
 
 ## 11. 未决事项 / 候选
-1. **已完成**：git 提交 v1.8.23（本地）+ Git Data API 推送 main（远端 6c0f96fb，内容一致）；v1.8.22 Release 已发布（id=419496557）
-2. **等用户实测**：v1.8.23（zip 145,944 B / SHA256=68F7DA82...B54A1）；v1.8.22 Release 实机反馈
-3. **未发布 Release v1.8.23**：用户本次指令为"继续适配"未点名发布；需发布时用 release_v1822.js 模板改 TAG 与文案（注意 github.com:443 断 → release 走 api.github.com + uploads.github.com，asset 下载走 assets 端点）
+1. **已完成**：git 提交 v1.8.23（本地 e314d5c + 自查修正）+ Git Data API 推送 main（远端 6eb26865，内容一致）+ **Release v1.8.23 发布**（id=420710932，zip 146,010 B SIZE_MATCH=1）
+2. **等用户实测**：v1.8.23（Release 与本地 zip 同源同 SHA256，146,010 B / 5F7E8120...）；重点实测新加的 2 项作弊（冷月港·泽菲尔线阶段、怨灵·项链已归还）
+3. **未发布 Release**：v1.8.23 已发布（本轮用户点名发布）；后续版本按用户规则「未点名发布不发布」
 4. **本地/远端 commit SHA 分叉**：API 重建 commit 与本地不同，网络恢复后 `git fetch` + `git reset --hard origin/main` 对齐
 5. **剩余候选（未实施）**：README 深度使用说明（评分 8.8 短板）；时间/声望快捷项（键结构复杂，未确定键名不猜）；ResidentBath 等 2.4.3 新增内容已甄别不纳入面板（用户确认不做）
 6. **错题本已记（十/十一巡新增）**：搜索态懒渲染边界；持久化 filter 只写不读恢复缺口；留痕条目缺 t 时间戳导致裁剪排序失效
 7. **十五巡备注**：GitHub API 60 次/小时限额（无 token），当轮实跑 8/9 渠道、框架渠道以本地 compareVersions 模拟验证（decl 5.5.2 == tag 5.5.2 判无更新）；定时任务每日 21:15 单次调用不撞限流
-8. **十七巡新坑已入错题本候选**：git ls-files 对含空格文件名输出引号转义 → 必须 `-z` NUL 分隔（push_api_v1823.js 实测）；框架 release 资产无独立 inject_early.js → 下载整个 mod zip 解压 dist/inject_early.js
+8. **十七巡新坑已入错题本候选**：git ls-files 对含空格文件名输出引号转义 → 必须 `-z` NUL 分隔（push_api_v1823.js 实测）；框架 release 资产无独立 inject_early.js → 下载整个 mod zip 解压 dist/inject_early.js；冷月港 zephyr.stage 写 4 跳过结算发钱（note 已如实标注，属剧情内结算依赖）
 
 ## 12. 其他产物
 - `MapleBirchCE-新模组适配计划-2026-10-20.md`（仓库根，5 模组计划书，纯分析）
