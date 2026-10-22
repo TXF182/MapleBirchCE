@@ -1139,7 +1139,7 @@ global.window = { maplebirch: { get: function (n) { return n === "DeadwoodRebloo
 var dwd = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
 assert(dwd && dwd.declared === true, "21.1 探测命中：枯木逢春自动识别");
 assert(dwd.stages.length === 9 && dwd.abilities.length === 15 && dwd.values.length === 20, "21.1 分组齐全 阶段9/能力15/数值20（v1.8.23 补 2.4.4 新增冷月港·泽菲尔线阶段）, 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
-// 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus），
+// 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus/Finance/MoreTransformations），
 //        不碰原版顶层键（rebellion/victories/self_rent/both_rent/rent_separated 等原版同名键均不声明）
 var dwdPaths = [];
 dwd.stages.concat(dwd.abilities).concat(dwd.values).forEach(function (it) { dwdPaths.push(it.varPath); });
@@ -1205,7 +1205,7 @@ assert(V.RobinExpansion.shop_stage === "none", "21.8 回退还原 none, 实际 "
 //       校服存放 / 借款 / 周收入（源码 School.ts SchoolState + constants/robin.ts 实证）
 api.setCheatStage("deadwood-reblooms", "dress_active", "free");
 assert(V.LifeSimulation.school.dress.active === "free", "21.9 着装规范写入 free（自由着装）, 实际 " + V.LifeSimulation.school.dress.active);
-// 21.10) v1.8.23 新增 2.4.4 冷月港·泽菲尔线阶段：写入 4 + 越界拒绝
+// 21.10) v1.8.23 新增 2.4.4 冷月港·泽菲尔线阶段：写入 4 + 数字阶段越界钳制到最高（对齐 18.10/19.5 既有语义）
 V.MoreTransformations = { harbour: { zephyr: { stage: 0 } } };
 var cmOk = api.setCheatStage("deadwood-reblooms", "cm_zephyr", 4);
 assert(cmOk.ok && V.MoreTransformations.harbour.zephyr.stage === 4, "21.10 泽菲尔线阶段写入 4, 实际 " + V.MoreTransformations.harbour.zephyr.stage);

@@ -242,7 +242,7 @@
 				{ key: "cm_zephyr", name: "冷月港 · 泽菲尔线阶段", varPath: "MoreTransformations.harbour.zephyr.stage",
 				  levels: [0, 1, 2, 3, 4],
 				  labels: ["未开始", "已问起", "已谈交易", "已找回货物", "已付酬完成"],
-				  note: "2.4.4 新增冷月港区域线：阶段 4 = 泽菲尔收到打捞货物并结清 8000/12000 酬金" }
+				  note: "2.4.4 新增冷月港区域线：阶段 4 = 泽菲尔线完成态（对话与酬金结算需船 harbour.ship 与泽菲尔登场 Zephyr.init 前提，写 4 仅推进阶段、不代发酬金）" }
 			],
 			abilities: [
 				{ key: "r_rebellion", name: "罗宾 · 反抗贝利路线", varPath: "RobinExpansion.rebellion", type: "boolean" },

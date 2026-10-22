@@ -14,6 +14,7 @@
   - 归途之书补录**「怨灵 · 项链已归还」**（`RBR.necklace.returned`，能力开关）——1.3.10 取回/安抚线主开关（RBR.necklace 为 1.3.9 已有对象，本次扩展为完整归还→取回→安抚循环）；aftercare/stage/attemptDay/confidants/dreamChoice/retaken 为流程状态机/日期戳/数组，写入易被条件重置，不收
 - **框架 5.5.3 API 核对（check_framework_api.js）**：源码 zip 无 inject_early.js → 照 5.5.2 先例从 release 资产下载 mod zip（383,752 B，size 核对一致）解压 `dist/inject_early.js` 核对——核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists / define / frameworkNotice）；`setup.MapleBirch` / `maplebirch.patch` 缺失与 5.5.2 同因无害（CE 0 次调用 patch；setup.MapleBirch 仅 resolveMB() 兜底，主路径存在时不触发）→ declOverride 5.5.2 → 5.5.3
 - **适配器声明**：归途之书 modName v1.3.9 → v1.3.10（abilities 21→22）；枯木逢春 modName 2.4.3 → 2.4.4（stages 8→9）；两处 note 标注新内容来源
+- **（同日自查，不升版本）**：cm_zephyr note 文案修正——原「阶段 4 = 泽菲尔收到打捞货物并结清 8000/12000 酬金」经 2.4.4 源码实证不实（酬金在结算 passage 内发放，写 4 跳过发钱；泽菲尔对话入口需 `harbour.ship` 船 + `Zephyr.init` 前提）→ 改为「阶段 4 = 泽菲尔线完成态（对话与酬金结算需船 harbour.ship 与泽菲尔登场 Zephyr.init 前提，写 4 仅推进阶段、不代发酬金）」；21.10 注释「越界拒绝」→「越界钳制」（对齐断言实际语义）；21.2 注释补 Finance/MoreTransformations 根键；另核 nkl_returned 语义正确（等效原版 Wraith.twee:180 归还动作，梦线/倾诉线入口开放，`_ivorySafe` 前提与 CE 父级写入前提一致；1.3.10 五模块同捆注册，探测无盲区）
 - **测试同步**：test_mce 19.1（能力 22）/21.1（阶段 9）/31.1（1.3.10）/32.1（2.4.4）+ 21.2 根键白名单 + MoreTransformations + 新增 21.10（泽菲尔阶段写入 4/越界钳制）/31.11（项链归还启用/禁用）断言
 - 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED、功能 E2E 全 PASS、zip 正斜杠 4/4、verifier 4/4；安装包 145,944 B，SHA256=68F7DA825D59EED8A1BA105E3FB072AD11A64D0C94C1EBB79E438D00356B54A1
 
