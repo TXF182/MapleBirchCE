@@ -23,6 +23,18 @@
 - **（第三轮自查优化，不升版本）**：⑥ 角色页收起组懒渲染——收起的分组不再全量渲染角色卡片 DOM（buildCharCards 收起不建卡片、展开补建、防重复补建），长角色列表收起状态下 DOM 开销归零；⑦ 模组特质数值可改——discoverModTraits 为字符串 has 模组特质生成 values（数字比较变量 gte/is/gt 非 NaN，仿原版编译逻辑），renderTraitRow 放开 isMod 限制，模组注入特质行同样渲染「改数值 / 回退」控件（写入走 player-self 留痕通道，traitWriteValue/undoCheatModValue 数据层零改动）；⑧ tools 目录卫生——55 个临时日志（_*.log / _head_blob*）清理不入库，scan_dol_vanilla 系列 / debug_dom44 / release_v190 / push_api_v190 共 19 个工具脚本按惯例归档进 git
 - **测试扩展（第三轮）**：37.3c 数据层断言（模组特质 values 生成 / 数值写入 2000 / undo 还原 1000 / 相对值 +500 → 1500 再还原）+ E2E D3 点击级断言（模组特质行改数值按钮 / 输入框 / 点击写入 / 回退还原）；全链 build→syntax→smoke→regression→E2E 5/5 绿
 - **（第四轮自查优化，不升版本）**：⑨ 修复 gt（严格大于）条件特质「获取后判定未获得」——traitWriteSatisfy 对 gt 与 gte/is 共用分支写 num，写后 `x > num` 恒 false，获取按钮显示已写但 traitOwned 仍 false（原版受影响：Purity Boost `$featsPurityBoost gt 0`、Bratty `$submissive lte 850 and gt 500`）；改为 gt 写 num+1 满足严格大于。新增 37.3d 断言（Purity Boost 获取写 1 + 判定已拥有 / 移除写 0 + 判定未获得 / Bratty 复合条件获取后已拥有）；全链 5/5 绿。另：git fetch 被断（github.com:443 网络波动），3 个本地 commit 仍未推送，待网络窗口
+- **（第五轮自查优化，不升版本）**：⑩ 修复 gt 条件「改数值」默认值与获取通道不一致——discoverModTraits/compileVanillaTraits 对 gt 生成 values.val=num（如 gt 0 → 0），与 traitWriteSatisfy 的 num+1 语义矛盾：改数值输入框默认 0，不输入直接点「改数值」写 0 恒不满足。统一 gt values.val=num+1。新增 E2E D4 点击级断言 11 条（模组 gt 特质「纯洁增幅（模组）」获取写 1 判定已拥有 / 改数值默认值=满足值 1 / 移除归 0）；全链 5/5 绿。同轮核对：快捷编辑区 6 项 999999 上限与实测截图一致、unfreezePlayerStats hook 幂等 guard 无重复包装
+
+## v1.9.1（2026-10-22）
+
+**新功能：玩家自己页「性别切换」（男 / 女 / 双性）+ 资金上限放开**
+
+- **性别切换**：玩家自己页快捷编辑区下方新增「性别切换」区——男 / 女 / 双性 三按钮一键切换，当前性别高亮 ✓。原版权威键实证（0.5.12.13 源码）：`V.player.penisExist` / `V.player.vaginaExist` / `V.player.penissize`（0-6，0=N/A）/ `V.player.gender_body`（"m"=男 "f"=女 "a"=双性外观）。男=阴茎保留+无阴道；女=无阴茎（penissize 置 0）+有阴道；双性=两者兼有；`V.player` 缺失时建壳兜底不崩，未知参数返回 FAIL 不写坏。导出 `getPlayerGender` / `applyPlayerGender`
+- **（自查轮修复，同版本）**：性别切换首版只写 4 键，遗漏原版权威键——深查 0.5.12.13 实证玩家性别实际是 **7 键**体系：`V.player.sex`（"m"/"f"/"h"=herm，生殖器性别权威键，isGenitalMismatch/crossdressing 判定/服装分型/成就 "Being a Boy" 都读它）、`V.player.gender`（社会性别，新游戏预设 herm=gender"h"）、`V.player.ballsExist`（新游戏预设男/女 false、双性 true）。漏写后果：切女后 sex 仍 "m" → 原版 genital 显示错乱（`sex==="f"?parasite:...`）、`gender!==sex` 被误判 crossdressing、服装按男分型；切双性后无 herm 判定。现补全三态七键写入，对齐新游戏预设（男：gender=m/gender_body=m/sex=m/ballsExist=false；女：gender=f/gender_body=f/sex=f/ballsExist=false；双性：gender=h/gender_body=a/sex=h/ballsExist=true）；`getPlayerGender` 改为优先读 sex 推断；gender_appearance 由引擎 genderappearancecheck 按 sex 自动重算，不手写。37.4/D5 断言升级为七键校验，全链 5/5 绿
+- **（集成测试，同版本）**：新增 `tests/integration_gender.js`——**不用 mock**：运行时从原版 Degrees of Lewdity.html 抽取真实性别判定函数（isGenitalMismatch / isCrossdressing / isHermOrCrossdresser / 服装分型 / 战斗性器官分型），注入构建产物的 applyPlayerGender/getPlayerGender，用切换后的玩家状态直接跑原版真实逻辑断言。21 条断言：三态七键写入 + 原版判定（切男/女/双性后 mismatch/crossdressing/herm 判定全部正确、服装分型 male/female 正确、双性 gender_body=a 时 breastsize≤3→male / ≥4→female、战斗性器官切女=parasite）+ 回归护栏（模拟旧实现只写四键 → 原版服装仍 male、性器官显示 herm，实证修复必要性）。原版文件缺失时显式 SKIP 不误报
+- **资金上限放开**：快捷编辑区「资金」上限 1,000,000 → 99,999,999（仅防误输入，实际无上限；`cheatWriteValue` 对 max 非 number 不钳制，故保留极高上限兜底）
+- **测试扩展**：37.4 数据层 12 条（三态七键写入 / getPlayerGender 推断 / 幂等不重置 penissize / V.player 缺壳兜底 / 未知性别 FAIL）+ E2E D5 点击级 8 条（性别区渲染 / 初始男高亮 / 点击女写七键 / 重渲染高亮 / 点击双性 / 点击男保留阴茎）；资金上限经 PANEL_QUICK_GROUPS 数据表核对（1000000→99999999）
+- 全链 build→syntax→smoke→regression→E2E 5/5 绿；版本双源 `01-core.js` MCE_VERSION + `boot.json` version 同步 1.9.1；未发布（等用户实测拍板）
 
 ## v1.8.23（2026-10-22）
 

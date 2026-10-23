@@ -2127,6 +2127,26 @@ V.submissive = 500;
 let w37e = api37.grantTrait(brattyTrait, V, null);
 assert(api37.traitOwned(brattyTrait, V, null) === true, "37.3d 复合 gt+lte 条件获取后判定已拥有（实际 submissive=" + V.submissive + " " + JSON.stringify(w37e) + "）");
 delete V.featsPurityBoost; delete V.submissive;
+/* 37.4) v1.9.1 性别切换（玩家自己页）：applyPlayerGender 三态写七键正确 + getPlayerGender 推断正确 + 幂等 + 缺壳兜底 */
+V.player = { money: 500, name: "X", virginity: { temple: true, vaginal: true, penile: true }, penisExist: true, vaginaExist: false, penissize: 2, gender_body: "m", gender: "m", sex: "m", ballsExist: false };
+assert(api37.getPlayerGender(V) === "m", "37.4 初始推断男, 实际 " + api37.getPlayerGender(V));
+let r37g = api37.applyPlayerGender(V, "f");
+assert(r37g.indexOf("FAIL") === -1 && V.player.penisExist === false && V.player.penissize === 0 && V.player.vaginaExist === true && V.player.gender_body === "f" && V.player.gender === "f" && V.player.sex === "f" && V.player.ballsExist === false, "37.4 切女 → 七键正确（penisExist=false/penissize=0/vaginaExist=true/gender=f/gender_body=f/sex=f/ballsExist=false）, 实际 " + r37g);
+assert(api37.getPlayerGender(V) === "f", "37.4 切女后推断女, 实际 " + api37.getPlayerGender(V));
+r37g = api37.applyPlayerGender(V, "a");
+assert(r37g.indexOf("FAIL") === -1 && V.player.penisExist === true && V.player.penissize >= 1 && V.player.vaginaExist === true && V.player.gender === "h" && V.player.gender_body === "a" && V.player.sex === "h" && V.player.ballsExist === true, "37.4 切双性 → 两者存在 + gender=h/gender_body=a/sex=h/ballsExist=true + penissize 补 1, 实际 " + r37g);
+assert(api37.getPlayerGender(V) === "a", "37.4 切双性后推断双性, 实际 " + api37.getPlayerGender(V));
+r37g = api37.applyPlayerGender(V, "m");
+assert(r37g.indexOf("FAIL") === -1 && V.player.penisExist === true && V.player.vaginaExist === false && V.player.gender === "m" && V.player.gender_body === "m" && V.player.sex === "m" && V.player.ballsExist === false && V.player.penissize >= 1, "37.4 切男 → 阴茎保留 + 无阴道 + gender=m/sex=m/ballsExist=false, 实际 " + r37g);
+const ps37 = V.player.penissize;
+api37.applyPlayerGender(V, "m");
+assert(V.player.penissize === ps37 && V.player.penisExist === true, "37.4 幂等：重复切男不重置 penissize, 实际 " + V.player.penissize);
+const V37b = {};
+const r37b = api37.applyPlayerGender(V37b, "f");
+assert(r37b.indexOf("FAIL") === -1 && V37b.player.vaginaExist === true && V37b.player.penisExist === false && V37b.player.gender_body === "f" && V37b.player.sex === "f", "37.4 边界：V.player 缺失时建壳写女不崩, 实际 " + r37b);
+const r37c = api37.applyPlayerGender(V, "x");
+assert(r37c.indexOf("FAIL") !== -1, "37.4 边界：未知性别返回 FAIL, 实际 " + r37c);
+delete V.player;
 // 37.4) 特质写值仍用原键名：traitWriteValue 写 temple_burden（中文显示不影响写入路径）
 let w37 = api37.traitWriteValue(api37.compileVanillaTraits().filter(t => t.name === "Temple Burden: $temple_burden%")[0] || { name: "?" }, V, "temple_burden", "30");
 assert(w37.ok && V.temple_burden === 30, "37.4 特质写值 temple_burden=30 成功, 实际 " + V.temple_burden);

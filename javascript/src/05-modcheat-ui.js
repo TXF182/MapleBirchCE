@@ -443,7 +443,7 @@
 			{ path: "promiscuity", label: "淫乱", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
 			{ path: "exhibitionism", label: "暴露癖", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
 			{ path: "deviancy", label: "异种癖", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "money", label: "资金", min: 0, max: 1000000, note: "单位 £，建议输入整数" }
+			{ path: "money", label: "资金", min: 0, max: 99999999, note: "单位 £，建议输入整数；上限已放开（防误输入）" }
 		] },
 		{ title: "基础技能", items: [
 			{ path: "skulduggery", label: "诡术", min: 0, max: 1000 },

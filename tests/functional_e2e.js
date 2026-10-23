@@ -69,7 +69,8 @@ window.maplebirch = {
   temporary: { traitLists: [
     { title: "Book Traits", traits: [
       { name: "命运之轮", has: function () { return false; }, text: "转吧，命运之神。" },
-      { name: "Acceptance: Small Penis", has: "$acceptance_penis_small gte 1000", text: "You're proud of your small penis." }
+      { name: "Acceptance: Small Penis", has: "$acceptance_penis_small gte 1000", text: "You're proud of your small penis." },
+      { name: "Purity Boost", has: "$featsPurityBoost gt 0", text: "You are gaining purity daily." }
     ] }
   ] }
 };
@@ -231,6 +232,61 @@ if (accRow3 && accInp) {
   assert(!!uBtn, "D3. 重新渲染后模组特质行仍有「回退」按钮");
   if (uBtn) { uBtn.click(); }
   assert(V.acceptance_penis_small === 0, "D3. 点击回退 → 还原写入前值 0，实际 " + V.acceptance_penis_small);
+}
+/* D4. 五巡自查：gt（严格大于）条件特质点击级覆盖——获取写 num+1 判定已拥有；
+   改数值默认值 = 满足值 1（此前 values 对 gt 生成 0，点「改数值」写 0 恒不满足）；移除归 0 */
+V.featsPurityBoost = 0;
+api.renderPlayerEdit();
+let pRow4 = findTraitRow("纯洁增幅（模组）");
+assert(!!pRow4, "D4. gt 特质行（Purity Boost）渲染");
+if (pRow4) {
+  assert(pRow4.textContent.indexOf("●") === -1, "D4. 初始无已拥有标记 ●（未获得）, 实际 " + pRow4.textContent.slice(-40));
+  const gBtn4 = [].slice.call(pRow4.querySelectorAll("button")).filter(function (b) { return b.textContent === "获取"; })[0];
+  assert(!!gBtn4, "D4. gt 特质行有「获取」按钮");
+  if (gBtn4) { gBtn4.click(); }
+  assert(V.featsPurityBoost === 1, "D4. 点击获取 → featsPurityBoost=1（gt 0 写 num+1），实际 " + V.featsPurityBoost);
+  api.renderPlayerEdit();
+  pRow4 = findTraitRow("纯洁增幅（模组）");
+  assert(!!pRow4 && pRow4.textContent.indexOf("●") !== -1, "D4. 重新渲染后显示 ● 已拥有");
+  if (pRow4) {
+    const inp4 = pRow4.querySelector("input.mce-inp");
+    assert(!!inp4 && inp4.value === "1", "D4. 改数值默认值 = 满足值 1（gt values 已随 satisfy 改 num+1），实际 " + (inp4 ? inp4.value : "(无输入框)"));
+    const sBtn4 = [].slice.call(pRow4.querySelectorAll("button")).filter(function (b) { return b.textContent === "改数值"; })[0];
+    assert(!!sBtn4, "D4. gt 特质行有「改数值」按钮");
+    if (sBtn4) { sBtn4.click(); }
+    assert(V.featsPurityBoost === 1, "D4. 点击改数值（默认值 1）→ 写 1 条件满足，实际 " + V.featsPurityBoost);
+    api.renderPlayerEdit();
+    pRow4 = findTraitRow("纯洁增幅（模组）");
+    const rBtn4 = pRow4 && [].slice.call(pRow4.querySelectorAll("button")).filter(function (b) { return b.textContent === "移除"; })[0];
+    assert(!!rBtn4, "D4. 重新渲染后有「移除」按钮");
+    if (rBtn4) { rBtn4.click(); }
+    assert(V.featsPurityBoost === 0, "D4. 点击移除 → featsPurityBoost=0（不满足 gt 0），实际 " + V.featsPurityBoost);
+    api.renderPlayerEdit();
+    pRow4 = findTraitRow("纯洁增幅（模组）");
+    assert(!!pRow4 && pRow4.textContent.indexOf("●") === -1, "D4. 移除后重新渲染无已拥有标记 ●（未获得）");
+  }
+}
+/* D5. v1.9.1 性别切换（玩家自己页）：性别区三按钮 + 当前高亮；点击写七键 + 重渲染高亮正确 */
+V.player = { money: 500, name: "X", penisExist: true, vaginaExist: false, penissize: 2, gender_body: "m", gender: "m", sex: "m", ballsExist: false };
+api.renderPlayerEdit();
+let gBox5 = document.querySelector('[data-mce-gender]');
+assert(!!gBox5, "D5. 性别区渲染（data-mce-gender）");
+if (gBox5) {
+  assert(gBox5.getAttribute("data-mce-gender") === "m" && gBox5.textContent.indexOf("男 ✓") !== -1, "D5. 初始男高亮, 实际 " + gBox5.textContent.slice(0, 60));
+  const btnF5 = gBox5.querySelector('button[data-gender="f"]');
+  assert(!!btnF5, "D5. 女按钮存在");
+  if (btnF5) { btnF5.click(); }
+  assert(V.player.vaginaExist === true && V.player.penisExist === false && V.player.penissize === 0 && V.player.gender_body === "f" && V.player.gender === "f" && V.player.sex === "f" && V.player.ballsExist === false, "D5. 点击女 → 七键写入正确, 实际 " + JSON.stringify({ pe: V.player.penisExist, ve: V.player.vaginaExist, ps: V.player.penissize, gb: V.player.gender_body, g: V.player.gender, s: V.player.sex, b: V.player.ballsExist }));
+  gBox5 = document.querySelector('[data-mce-gender]');
+  assert(!!gBox5 && gBox5.getAttribute("data-mce-gender") === "f" && gBox5.textContent.indexOf("女 ✓") !== -1, "D5. 重渲染后女高亮");
+  const btnA5 = gBox5 && gBox5.querySelector('button[data-gender="a"]');
+  if (btnA5) { btnA5.click(); }
+  assert(V.player.penisExist === true && V.player.vaginaExist === true && V.player.gender === "h" && V.player.gender_body === "a" && V.player.sex === "h" && V.player.ballsExist === true && V.player.penissize >= 1, "D5. 点击双性 → 七键写入正确（herm 预设）, 实际 " + JSON.stringify({ pe: V.player.penisExist, ve: V.player.vaginaExist, g: V.player.gender, gb: V.player.gender_body, s: V.player.sex, b: V.player.ballsExist }));
+  gBox5 = document.querySelector('[data-mce-gender]');
+  assert(!!gBox5 && gBox5.getAttribute("data-mce-gender") === "a" && gBox5.textContent.indexOf("双性 ✓") !== -1, "D5. 重渲染后双性高亮");
+  const btnM5 = gBox5.querySelector('button[data-gender="m"]');
+  if (btnM5) { btnM5.click(); }
+  assert(V.player.penisExist === true && V.player.vaginaExist === false && V.player.gender === "m" && V.player.gender_body === "m" && V.player.sex === "m" && V.player.ballsExist === false && V.player.penissize >= 1, "D5. 点击男 → 七键写入正确, 实际 " + JSON.stringify({ pe: V.player.penisExist, ve: V.player.vaginaExist, g: V.player.gender, gb: V.player.gender_body, s: V.player.sex, b: V.player.ballsExist }));
 }
 
 /* ---------- E. 全局页：战斗终结（8 按钮）+ 庄园自动维护（6 按钮）全部真实点击 ---------- */

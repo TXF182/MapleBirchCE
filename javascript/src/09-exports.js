@@ -329,6 +329,9 @@
 				quickReadValue: quickReadValue,
 				quickWrite: quickWrite,
 				ensureProfShell: ensureProfShell,
+				/* v1.9.0 性别切换（玩家自己页）：原版键 penisExist/vaginaExist/penissize/gender_body */
+				getPlayerGender: getPlayerGender,
+				applyPlayerGender: applyPlayerGender,
 				/* v1.8.12 错误收集器 + 面板状态持久化 */
 				mbCEPushError: mbCEPushError,
 				mbCEErrors: function () { return mbCEErrors.slice(); },
