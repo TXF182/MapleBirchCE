@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.1";
+	var MCE_VERSION = "1.9.2";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1530,7 +1530,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.3.10",
+			modName: "默示录：归途之书 v1.3.11",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -1735,7 +1735,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.4.4",
+			modName: "枯木逢春 · Deadwood Reblooms 2.4.5",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -1785,7 +1785,13 @@
 				{ key: "vp_sadomaso", name: "原版增强 · 受虐狂特质", varPath: "VanillaPlus.attitudes.sadomasochist", type: "boolean",
 				  note: "2.2.7 新增特质：勾选直接获得，影响原版受虐狂相关判定" },
 				{ key: "f_avery_refused", name: "孤儿院 · 已拒绝艾弗里收养（模组新增）", varPath: "Finance.orphanage.avery_adoption_refused", type: "boolean",
-				  note: "模组 2.4.2 起提供：勾选视为已拒绝艾弗里收养，孤儿院收养剧情将跳过" }
+				  note: "模组 2.4.2 起提供：勾选视为已拒绝艾弗里收养，孤儿院收养剧情将跳过" },
+				{ key: "cc_found", name: "金币洞穴 · 已发现洞窟（2.4.5 新增）", varPath: "MoreTransformations.treasure.found", type: "boolean",
+				  note: "2.4.5 新增金币洞穴线：发现前置要求岛屿探索 100 次（$island.explore_count gte 100），勾选直接标记已发现，跳过探索门槛" },
+				{ key: "cc_appraised", name: "金币洞穴 · 温特已记录纹饰（2.4.5 新增）", varPath: "MoreTransformations.treasure.appraised", type: "boolean",
+				  note: "2.4.5 新增：博物馆对话让温特记录金币纹饰后的状态，勾选视为已完成记录" },
+				{ key: "cc_agreed", name: "金币洞穴 · 泽菲尔已同意同行（2.4.5 新增）", varPath: "MoreTransformations.treasure.agreed", type: "boolean",
+				  note: "2.4.5 新增：泽菲尔答应将船长份额一并带回后的状态，勾选可跳过对话" }
 			],
 			scenes: [],
 			values: [
@@ -1808,7 +1814,23 @@
 				{ key: "ls_corruption", name: "校园 · 腐败值", varPath: "LifeSimulation.school.corruption", type: "number", min: 0, max: 100 },
 				{ key: "duties_completed", name: "校园 · 已完成值勤次数", varPath: "LifeSimulation.school.duties.completed", type: "number", min: 0, max: 999 },
 				{ key: "pc_loan", name: "罗宾 · 尚欠你的借款（英镑）", varPath: "RobinExpansion.pc_loan", type: "number", min: 0, max: 1000000 },
-				{ key: "weekly_income", name: "罗宾 · 上周结算收入（英镑）", varPath: "RobinExpansion.weekly_income", type: "number", min: 0, max: 1000000 }
+				{ key: "weekly_income", name: "罗宾 · 上周结算收入（英镑）", varPath: "RobinExpansion.weekly_income", type: "number", min: 0, max: 1000000 },
+				{ key: "cc_torch", name: "金币洞穴 · 火把数（2.4.5 新增）", varPath: "MoreTransformations.treasure.torch", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：洞窟探索消耗的火把储备（消费时 Math.max(0, torch - n)）" },
+				{ key: "cc_coins", name: "金币洞穴 · 携带金币数（2.4.5 新增）", varPath: "MoreTransformations.treasure.coins", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：玩家从石匣取出的被诅咒金币，博物馆借展会转移为 museumCoins" },
+				{ key: "cc_museum_coins", name: "金币洞穴 · 博物馆借展金币（2.4.5 新增）", varPath: "MoreTransformations.treasure.museumCoins", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：借给温特展览的金币数；与 crewCoins/zephyrCoins 一并归零即凑齐全部金币" },
+				{ key: "cc_crew_coins", name: "金币洞穴 · 船员分得金币（2.4.5 新增）", varPath: "MoreTransformations.treasure.crewCoins", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：泽菲尔赏给见习水手的金币数，需船长在船舱或酒馆收回" },
+				{ key: "cc_zephyr_coins", name: "金币洞穴 · 泽菲尔持有金币（2.4.5 新增）", varPath: "MoreTransformations.treasure.zephyrCoins", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：泽菲尔手中的金币数，其同意归还后计入凑齐进度" },
+				{ key: "sy_angel_build", name: "悉尼 · 天使转化点数（2.4.5 新增）", varPath: "maplebirch.npc.sydney.transformation.angel.build", type: "number", min: 0, max: 50,
+				  note: "2.4.5 新增 NPC 转化系统：天使等级门槛 25/30/35/40/45/50，点数 50 达满级 6；写此键只推进转化进度，外观与受孕判定由模组结算" },
+				{ key: "sy_fallen_build", name: "悉尼 · 堕天转化点数（2.4.5 新增）", varPath: "maplebirch.npc.sydney.transformation.fallen.build", type: "number", min: 0, max: 31,
+				  note: "2.4.5 新增：堕天等级门槛 1/21/31，点数 31 达满级 3（堕落羽翼）" },
+				{ key: "sy_demon_build", name: "悉尼 · 恶魔转化点数（2.4.5 新增）", varPath: "maplebirch.npc.sydney.transformation.demon.build", type: "number", min: 0, max: 100,
+				  note: "2.4.5 新增：恶魔等级门槛 5/10/15/20/25/30 上限 100，≥30 满级 6；level≥6 且 build≥90 时自愿场景受孕判定改强制（源码 demon.level<6||build<90 判定）" }
 			]
 		}
 	};
@@ -1873,7 +1895,7 @@
 		},
 		entry: {
 			modId: "dol-optimization",
-			modName: "原版优化 Dol-Optimization v1.1.2",
+			modName: "原版优化 Dol-Optimization v1.1.2.1",
 			tasks: [],
 			stages: [
 				{ key: "opt_ui_bar", name: "导航栏开关美化", varPath: "options.opt.UiBarToggle",
@@ -1890,7 +1912,7 @@
 			],
 			scenes: [],
 			values: [
-				{ key: "opt_needmeet", name: "Needmeet 好感（0-100，≥80 解锁恋爱线）", varPath: "needmeet_romance", type: "number", min: 0, max: 100,
+				{ key: "opt_needmeet", name: "尼德米特 好感（0-100，≥80 解锁恋爱线）", varPath: "needmeet_romance", type: "number", min: 0, max: 100,
 				  note: "≥50 信赖，≥80 解锁 loveInterest/恋爱线；面板写 V 侧，运行时副本在 C.npc.Needmeet.love" },
 				{ key: "opt_hymen", name: "处女膜修复剩余天数（每日递减）", varPath: "hymenreconstructioncount", type: "number", min: 0, max: 30 },
 				{ key: "opt_hair", name: "发质（0-100）", varPath: "hairtexture", type: "number", min: 0, max: 100,
@@ -2373,6 +2395,13 @@
 		pane.appendChild(list);
 	}
 	/* ---- 渲染：模组子页面（四分组通用控件，严格隔离：只渲染归属模组的项） ---- */
+	/* v1.9.1（DoL-Game-UI 冲突排查）：子页四分组默认收起 + 懒渲染——
+	   用户实测「滑动卡住截断 / 展开过多卡住闪退」，根因链：子页一次全量建数百行
+	   （枯木逢春 9 阶段+18 能力+3 场景+28 数值）+ DoL-Game-UI 每帧 rAF 全量扫描抢占主线程 →
+	   移动 WebView 滚动丢帧 / 长任务 ANR。
+	   改为：组头常驻、组体默认收起（data-collapsed=1）、行闭包进 pending 点击展开才建
+	   （学 06-traits 九巡懒渲染模式）；展开状态经 mbCEUiCollapsed 持久化
+	   （key "mods:<modId>:<组名>"），重建后按持久化恢复。 */
 	function renderModCheatDetail(modId) {
 		var pane = root.querySelector('[data-pane="mods"]');
 		if (!pane) { return; }
@@ -2389,170 +2418,251 @@
 		pane.appendChild(back);
 		pane.appendChild(el("div", "mce-hint", "【" + m.modName + "】作弊控制"));
 		pane.appendChild(el("div", "mce-hint", "所有操作仅作用于 " + m.modName + " 的新增内容，不会改动游戏本体与其他模组数据。"));
+		/* 折叠工具行：全部展开 / 全部收起（懒渲染下组体行按需补建） */
+		var toolRow = el("div", "mce-row");
+		toolRow.appendChild(el("span", "mce-row-lbl", "折叠工具："));
+		var bAllOpen = el("button", "", "全部展开"); bAllOpen.type = "button";
+		bAllOpen.setAttribute("data-mce-tool", "mods-open");
+		bAllOpen.addEventListener("click", function () {
+			Object.keys(groups).forEach(function (k) {
+				var g = groups[k];
+				g.body.setAttribute("data-collapsed", "0");
+				g.head.textContent = g.head.textContent.replace(/^▸\s*/, "▾ ");
+				buildModGrpRows(g);
+				mbCEUiCollapsed("mods:" + modId + ":" + k, true);
+			});
+		});
+		var bAllClose = el("button", "", "全部收起"); bAllClose.type = "button";
+		bAllClose.setAttribute("data-mce-tool", "mods-close");
+		bAllClose.addEventListener("click", function () {
+			Object.keys(groups).forEach(function (k) {
+				var g = groups[k];
+				g.body.setAttribute("data-collapsed", "1");
+				g.head.textContent = g.head.textContent.replace(/^▾\s*/, "▸ ");
+				mbCEUiCollapsed("mods:" + modId + ":" + k, false);
+			});
+		});
+		toolRow.appendChild(bAllOpen); toolRow.appendChild(bAllClose);
+		pane.appendChild(toolRow);
+		/* 分组容器：gkey -> { head, body, count, pending }（渲染过程局部缓存） */
+		var groups = {};
+		function grpFor(gkey, title) {
+			if (groups[gkey]) { return groups[gkey]; }
+			var grp = el("div", "mce-grp");
+			grp.setAttribute("data-gkey", gkey);
+			var restoreOpen = mbCEUiState.collapsed["mods:" + modId + ":" + gkey] === 0;
+			var head = el("div", "mce-grp-t mce-collapse-head", (restoreOpen ? "▾ " : "▸ ") + title);
+			head.setAttribute("data-mce-head", gkey);
+			var body = el("div", "mce-grp-body");
+			body.setAttribute("data-collapsed", restoreOpen ? "0" : "1");
+			/* 分组对象先建（闭包引用 g 而非 DOM 节点 grp：计数/懒渲染 pending 都在 g 上） */
+			var g = { head: head, body: body, count: 0, pending: [] };
+			groups[gkey] = g;
+			head.addEventListener("click", function () {
+				var open = body.getAttribute("data-collapsed") !== "1";
+				body.setAttribute("data-collapsed", open ? "1" : "0");
+				head.textContent = (open ? "▸ " : "▾ ") + title + "（" + g.count + "）";
+				/* 懒渲染：点击前收起（open=false）→ 点击后展开 → 补建行 */
+				if (!open) { buildModGrpRows(g); }
+				mbCEUiCollapsed("mods:" + modId + ":" + gkey, !open);
+			});
+			grp.appendChild(head); grp.appendChild(body);
+			pane.appendChild(grp);
+			return g;
+		}
+		function buildModGrpRows(grp) {
+			if (!grp || !grp.pending || !grp.pending.length) { return; }
+			var pend = grp.pending;
+			grp.pending = [];
+			var failed = 0;
+			/* 行闭包返回 node 或 node 数组；组体收起时 append 无布局成本，展开时批量插入 */
+			pend.forEach(function (fn) {
+				try {
+					var n = fn();
+					if (!n) { return; }
+					if (n.length) { for (var i2 = 0; i2 < n.length; i2++) { grp.body.appendChild(n[i2]); } }
+					else { grp.body.appendChild(n); }
+				} catch (e) { failed++; }
+			});
+			if (failed) {
+				grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
+			}
+		}
 		var any = false;
-		if (m.tasks.length) { any = true; renderCheatTasks(pane, m); }
-		if (m.stages.length || m.abilities.length) { any = true; renderCheatStages(pane, m); }
-		if (m.scenes.length) { any = true; renderCheatScenes(pane, m); }
-		if (m.values.length) { any = true; renderCheatValues(pane, m); }
+		if (m.tasks.length) { any = true; renderCheatTasks(m, grpFor, buildModGrpRows); }
+		if (m.stages.length || m.abilities.length) { any = true; renderCheatStages(m, grpFor, buildModGrpRows); }
+		if (m.scenes.length) { any = true; renderCheatScenes(m, grpFor, buildModGrpRows); }
+		if (m.values.length) { any = true; renderCheatValues(m, grpFor, buildModGrpRows); }
 		if (!any) {
 			pane.appendChild(el("div", "mce-hint", "该模组已识别但未声明可操控项（任务/阶段/剧情/数值均为空）。"));
 		}
+		/* 组头统一补计数 + 展开态初始建行（与 06-traits 一致：收起的组保持空，等点击展开才建） */
+		Object.keys(groups).forEach(function (k) {
+			var g = groups[k];
+			var open = g.body.getAttribute("data-collapsed") !== "1";
+			g.head.textContent = (open ? "▾ " : "▸ ") + g.head.textContent.replace(/^[▸▾]\s*/, "") + "（" + g.count + "）";
+			if (open) { buildModGrpRows(g); }
+		});
 		pane.scrollTop = st; /* 五巡：恢复滚动位置 */
 	}
-	function renderCheatTasks(pane, m) {
-		var g = el("div", "mce-grp");
-		g.appendChild(el("div", "mce-grp-t", "1. 模组新增任务"));
+	/* 行构建抽为独立小函数（返回 node，懒渲染闭包内执行；data-mce-key 与事件保持五巡局部刷新兼容） */
+	function buildCheatTaskRow(m, t) {
+		var row = el("div", "mce-row");
+		row.setAttribute("data-mce-key", "tasks:" + t.key);
+		row.appendChild(el("span", "mce-row-lbl", t.name || t.key));
+		var b1 = el("button", "", "跳过任务"); b1.type = "button";
+		b1.addEventListener("click", function () { actCheat(skipCheatTask(m.modId, t.key), m.modId, "tasks:" + t.key); });
+		var b2 = el("button", "", "直接完成任务"); b2.type = "button";
+		b2.addEventListener("click", function () { actCheat(completeCheatTask(m.modId, t.key), m.modId, "tasks:" + t.key); });
+		row.appendChild(b1); row.appendChild(b2);
+		return row;
+	}
+	function renderCheatTasks(m, grpFor, buildRows) {
+		var g = grpFor("tasks", "1. 模组新增任务");
 		m.tasks.forEach(function (t) {
-			var row = el("div", "mce-row");
-			/* 五巡：行带 data-mce-key——操作后 actCheat 局部刷新该行，不再全量重建整个模组页 */
-			row.setAttribute("data-mce-key", "tasks:" + t.key);
-			row.appendChild(el("span", "mce-row-lbl", t.name || t.key));
-			var b1 = el("button", "", "跳过任务"); b1.type = "button";
-			b1.addEventListener("click", function () { actCheat(skipCheatTask(m.modId, t.key), m.modId, "tasks:" + t.key); });
-			var b2 = el("button", "", "直接完成任务"); b2.type = "button";
-			b2.addEventListener("click", function () { actCheat(completeCheatTask(m.modId, t.key), m.modId, "tasks:" + t.key); });
-			row.appendChild(b1); row.appendChild(b2);
-			g.appendChild(row);
+			g.count++;
+			g.pending.push(function () { return buildCheatTaskRow(m, t); });
 		});
-		pane.appendChild(g);
 	}
-	function renderCheatStages(pane, m) {
-		var g = el("div", "mce-grp");
-		g.appendChild(el("div", "mce-grp-t", "2. 模组新增阶段 & 能力"));
-		m.stages.forEach(function (s) {
-			var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
-			var labels = Array.isArray(s.labels) && s.labels.length ? s.labels : levels.map(function (lv) { return String(lv); });
-			var row = el("div", "mce-row");
-			row.setAttribute("data-mce-key", "stages:" + s.key);
-			row.appendChild(el("span", "mce-row-lbl", "阶段 · " + (s.name || s.key)));
-			var sel = el("select", "mce-sel");
-			levels.forEach(function (lv, i) {
-				var opt = el("option", "", labels[i] !== undefined ? labels[i] : String(lv));
-				opt.value = String(lv);
-				sel.appendChild(opt);
-			});
-			/* v1.4.4：回显当前阶段值（字符串枚举/数字枚举均按值匹配），应用后局部刷新立即可见生效 */
-			reflectStageSelect(sel, s, m.modId);
-			var bSet = el("button", "", "应用"); bSet.type = "button";
-			bSet.addEventListener("click", function () { actCheat(setCheatStage(m.modId, s.key, sel.value), m.modId, "stages:" + s.key); });
-			var bMax = el("button", "", "跳至最高"); bMax.type = "button";
-			bMax.addEventListener("click", function () { actCheat(jumpCheatStageMax(m.modId, s.key), m.modId, "stages:" + s.key); });
-			var bMin = el("button", "", "回退初始"); bMin.type = "button";
-			bMin.addEventListener("click", function () { actCheat(resetCheatStage(m.modId, s.key), m.modId, "stages:" + s.key); });
-			row.appendChild(sel); row.appendChild(bSet); row.appendChild(bMax); row.appendChild(bMin);
-			g.appendChild(row);
+	function buildCheatStageRow(m, s) {
+		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
+		var labels = Array.isArray(s.labels) && s.labels.length ? s.labels : levels.map(function (lv) { return String(lv); });
+		var row = el("div", "mce-row");
+		row.setAttribute("data-mce-key", "stages:" + s.key);
+		row.appendChild(el("span", "mce-row-lbl", "阶段 · " + (s.name || s.key)));
+		var sel = el("select", "mce-sel");
+		levels.forEach(function (lv, i) {
+			var opt = el("option", "", labels[i] !== undefined ? labels[i] : String(lv));
+			opt.value = String(lv);
+			sel.appendChild(opt);
 		});
-		m.abilities.forEach(function (a) {
-			var row = el("div", "mce-row");
-			row.setAttribute("data-mce-key", "abilities:" + a.key);
-			var box = el("input", "");
-			box.type = "checkbox";
-			box.checked = !!cheatReadSafe(m.modId, a.varPath);
-			box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId, "abilities:" + a.key); });
-			row.appendChild(box);
-			row.appendChild(el("span", "mce-row-lbl", "能力 · " + (a.name || a.key) + (a.varPath ? "（" + a.varPath + "）" : "")));
-			/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
-			var det = el("details", "mce-ab-detail");
-			det.appendChild(el("summary", "mce-ab-sum", "说明"));
-			var body = el("div", "mce-ab-body");
-			if (a.varPath) { body.appendChild(el("div", "", "写入路径：" + a.varPath)); }
-			body.appendChild(el("div", "", "类型：" + (a.type || "boolean")));
-			if (a.type === "number" && (a.min !== undefined || a.max !== undefined)) {
-				body.appendChild(el("div", "", "钳制范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
+		/* v1.4.4：回显当前阶段值（字符串枚举/数字枚举均按值匹配），应用后局部刷新立即可见生效 */
+		reflectStageSelect(sel, s, m.modId);
+		var bSet = el("button", "", "应用"); bSet.type = "button";
+		bSet.addEventListener("click", function () { actCheat(setCheatStage(m.modId, s.key, sel.value), m.modId, "stages:" + s.key); });
+		var bMax = el("button", "", "跳至最高"); bMax.type = "button";
+		bMax.addEventListener("click", function () { actCheat(jumpCheatStageMax(m.modId, s.key), m.modId, "stages:" + s.key); });
+		var bMin = el("button", "", "回退初始"); bMin.type = "button";
+		bMin.addEventListener("click", function () { actCheat(resetCheatStage(m.modId, s.key), m.modId, "stages:" + s.key); });
+		row.appendChild(sel); row.appendChild(bSet); row.appendChild(bMax); row.appendChild(bMin);
+		return row;
+	}
+	function buildCheatAbilityRow(m, a) {
+		var row = el("div", "mce-row");
+		row.setAttribute("data-mce-key", "abilities:" + a.key);
+		var box = el("input", "");
+		box.type = "checkbox";
+		box.checked = !!cheatReadSafe(m.modId, a.varPath);
+		box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId, "abilities:" + a.key); });
+		row.appendChild(box);
+		row.appendChild(el("span", "mce-row-lbl", "能力 · " + (a.name || a.key) + (a.varPath ? "（" + a.varPath + "）" : "")));
+		/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
+		var det = el("details", "mce-ab-detail");
+		det.appendChild(el("summary", "mce-ab-sum", "说明"));
+		var body = el("div", "mce-ab-body");
+		if (a.varPath) { body.appendChild(el("div", "", "写入路径：" + a.varPath)); }
+		body.appendChild(el("div", "", "类型：" + (a.type || "boolean")));
+		if (a.type === "number" && (a.min !== undefined || a.max !== undefined)) {
+			body.appendChild(el("div", "", "钳制范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
+		}
+		if (a.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + a.note)); }
+		det.appendChild(body);
+		row.appendChild(det);
+		return row;
+	}
+	function renderCheatStages(m, grpFor, buildRows) {
+		var g = grpFor("stages", "2. 模组新增阶段 & 能力");
+		m.stages.forEach(function (s) { g.count++; g.pending.push(function () { return buildCheatStageRow(m, s); }); });
+		m.abilities.forEach(function (a) { g.count++; g.pending.push(function () { return buildCheatAbilityRow(m, a); }); });
+	}
+	function buildCheatSceneRow(m, s) {
+		var row = el("div", "mce-row");
+		row.setAttribute("data-mce-key", "scenes:" + s.key);
+		row.appendChild(el("span", "mce-row-lbl", s.name || s.key));
+		var b1 = el("button", "", "跳过此段剧情"); b1.type = "button";
+		b1.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_skip"), m.modId, "scenes:" + s.key); });
+		var b2 = el("button", "", "强制完成剧情"); b2.type = "button";
+		b2.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_force"), m.modId, "scenes:" + s.key); });
+		var b3 = el("button", "", "重置剧情进度"); b3.type = "button";
+		b3.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_reset"), m.modId, "scenes:" + s.key); });
+		row.appendChild(b1); row.appendChild(b2); row.appendChild(b3);
+		return row;
+	}
+	function renderCheatScenes(m, grpFor, buildRows) {
+		var g = grpFor("scenes", "3. 模组自定义剧情");
+		m.scenes.forEach(function (s) { g.count++; g.pending.push(function () { return buildCheatSceneRow(m, s); }); });
+	}
+	function buildCheatValueRow(m, it) {
+		if (it.type === "list") {
+			var opts = Array.isArray(it.options) ? it.options : [];
+			var curArr = cheatReadSafe(m.modId, it.varPath);
+			var arr = Array.isArray(curArr) ? curArr : [];
+			var rows = [];
+			if (!opts.length) {
+				rows.push(el("div", "mce-hint", (it.name || it.key) + "：未声明候选值（options 为空）。"));
 			}
-			if (a.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + a.note)); }
-			det.appendChild(body);
-			row.appendChild(det);
-			g.appendChild(row);
-		});
-		pane.appendChild(g);
-	}
-	function renderCheatScenes(pane, m) {
-		var g = el("div", "mce-grp");
-		g.appendChild(el("div", "mce-grp-t", "3. 模组自定义剧情"));
-		m.scenes.forEach(function (s) {
-			var row = el("div", "mce-row");
-			row.setAttribute("data-mce-key", "scenes:" + s.key);
-			row.appendChild(el("span", "mce-row-lbl", s.name || s.key));
-			var b1 = el("button", "", "跳过此段剧情"); b1.type = "button";
-			b1.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_skip"), m.modId, "scenes:" + s.key); });
-			var b2 = el("button", "", "强制完成剧情"); b2.type = "button";
-			b2.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_force"), m.modId, "scenes:" + s.key); });
-			var b3 = el("button", "", "重置剧情进度"); b3.type = "button";
-			b3.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_reset"), m.modId, "scenes:" + s.key); });
-			row.appendChild(b1); row.appendChild(b2); row.appendChild(b3);
-			g.appendChild(row);
-		});
-		pane.appendChild(g);
-	}
-	function renderCheatValues(pane, m) {
-		var g = el("div", "mce-grp");
-		g.appendChild(el("div", "mce-grp-t", "4. 自定义数值修改"));
-		m.values.forEach(function (it) {
-			if (it.type === "list") {
-				var opts = Array.isArray(it.options) ? it.options : [];
-				var curArr = cheatReadSafe(m.modId, it.varPath);
-				var arr = Array.isArray(curArr) ? curArr : [];
-				if (!opts.length) {
-					g.appendChild(el("div", "mce-hint", (it.name || it.key) + "：未声明候选值（options 为空）。"));
-				}
-				opts.forEach(function (opt) {
-					var brow = el("div", "mce-row");
-					brow.setAttribute("data-mce-key", "values:" + it.key + ":" + opt);
-					var box = el("input", "");
-					box.type = "checkbox";
-					box.checked = arr.indexOf(opt) !== -1;
-					box.addEventListener("change", function () {
-						actCheat(applyCheatModValue(m.modId, it.key, { value: opt, on: box.checked }), m.modId, "values:" + it.key + ":" + opt);
-					});
-					brow.appendChild(box);
-					brow.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt + "（" + it.varPath + "）"));
-					var und = el("button", "", "回退"); und.type = "button";
-					und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key + ":" + opt), m.modId, "values:" + it.key + ":" + opt); });
-					brow.appendChild(und);
-					g.appendChild(brow);
+			opts.forEach(function (opt) {
+				var brow = el("div", "mce-row");
+				brow.setAttribute("data-mce-key", "values:" + it.key + ":" + opt);
+				var box = el("input", "");
+				box.type = "checkbox";
+				box.checked = arr.indexOf(opt) !== -1;
+				box.addEventListener("change", function () {
+					actCheat(applyCheatModValue(m.modId, it.key, { value: opt, on: box.checked }), m.modId, "values:" + it.key + ":" + opt);
 				});
-				return;
-			}
-			var row = el("div", "mce-row");
-			row.setAttribute("data-mce-key", "values:" + it.key);
-			row.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + "（" + it.varPath + "）"));
-			var inp = el("input", "mce-inp");
-			inp.type = it.type === "boolean" ? "checkbox" : "text";
-			if (it.type !== "boolean") {
-				/* v1.8.12 功能9+优化：text 输入使 +N / -N 相对语法可输入（number 输入框会拒绝 + 号），
-				   数值合法性由 cheatWriteValue 校验兜底 */
-				inp.inputmode = "decimal";
-				inp.placeholder = "+N / -N 相对";
-				inp.title = "支持相对调整：输入 +100 表示在当前值上加 100，-20 表示减 20；直接输入数字为绝对值（受钳制范围约束）";
-			}
-			var cur = cheatReadSafe(m.modId, it.varPath);
-			if (it.type === "boolean") { inp.checked = !!cur; }
-			else if (cur !== undefined && cur !== null) { inp.value = String(cur); }
-			var b = el("button", "", "应用修改"); b.type = "button";
-			b.addEventListener("click", function () {
-				var raw = it.type === "boolean" ? inp.checked : inp.value;
-				actCheat(applyCheatModValue(m.modId, it.key, raw), m.modId, "values:" + it.key);
+				brow.appendChild(box);
+				brow.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt + "（" + it.varPath + "）"));
+				var und = el("button", "", "回退"); und.type = "button";
+				und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key + ":" + opt), m.modId, "values:" + it.key + ":" + opt); });
+				brow.appendChild(und);
+				rows.push(brow);
 			});
-			row.appendChild(inp); row.appendChild(b);
-			var und = el("button", "", "回退"); und.type = "button";
-			und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key), m.modId, "values:" + it.key); });
-			row.appendChild(und);
-			/* v1.8.7 数值项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
-			var det = el("details", "mce-ab-detail");
-			det.appendChild(el("summary", "mce-ab-sum", "说明"));
-			var body = el("div", "mce-ab-body");
-			if (it.varPath) { body.appendChild(el("div", "", "写入路径：" + it.varPath)); }
-			body.appendChild(el("div", "", "类型：" + (it.type || "number")));
-			if (typeof it.min === "number" || typeof it.max === "number") {
-				body.appendChild(el("div", "", "钳制范围：" + (typeof it.min === "number" ? it.min : "-∞") + " ~ " + (typeof it.max === "number" ? it.max : "∞")));
-			}
-			if (it.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + it.note)); }
-			det.appendChild(body);
-			row.appendChild(det);
-			g.appendChild(row);
+			return rows;
+		}
+		var row = el("div", "mce-row");
+		row.setAttribute("data-mce-key", "values:" + it.key);
+		row.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + "（" + it.varPath + "）"));
+		var inp = el("input", "mce-inp");
+		inp.type = it.type === "boolean" ? "checkbox" : "text";
+		if (it.type !== "boolean") {
+			/* v1.8.12 功能9+优化：text 输入使 +N / -N 相对语法可输入（number 输入框会拒绝 + 号），
+			   数值合法性由 cheatWriteValue 校验兜底 */
+			inp.inputmode = "decimal";
+			inp.placeholder = "+N / -N 相对";
+			inp.title = "支持相对调整：输入 +100 表示在当前值上加 100，-20 表示减 20；直接输入数字为绝对值（受钳制范围约束）";
+		}
+		var cur = cheatReadSafe(m.modId, it.varPath);
+		if (it.type === "boolean") { inp.checked = !!cur; }
+		else if (cur !== undefined && cur !== null) { inp.value = String(cur); }
+		var b = el("button", "", "应用修改"); b.type = "button";
+		b.addEventListener("click", function () {
+			var raw = it.type === "boolean" ? inp.checked : inp.value;
+			actCheat(applyCheatModValue(m.modId, it.key, raw), m.modId, "values:" + it.key);
 		});
-		pane.appendChild(g);
+		row.appendChild(inp); row.appendChild(b);
+		var und = el("button", "", "回退"); und.type = "button";
+		und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key), m.modId, "values:" + it.key); });
+		row.appendChild(und);
+		/* v1.8.7 数值项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
+		var det = el("details", "mce-ab-detail");
+		det.appendChild(el("summary", "mce-ab-sum", "说明"));
+		var body = el("div", "mce-ab-body");
+		if (it.varPath) { body.appendChild(el("div", "", "写入路径：" + it.varPath)); }
+		body.appendChild(el("div", "", "类型：" + (it.type || "number")));
+		if (typeof it.min === "number" || typeof it.max === "number") {
+			body.appendChild(el("div", "", "钳制范围：" + (typeof it.min === "number" ? it.min : "-∞") + " ~ " + (typeof it.max === "number" ? it.max : "∞")));
+		}
+		if (it.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + it.note)); }
+		det.appendChild(body);
+		row.appendChild(det);
+		return row;
+	}
+	function renderCheatValues(m, grpFor, buildRows) {
+		var g = grpFor("values", "4. 自定义数值修改");
+		m.values.forEach(function (it) {
+			g.count++;
+			g.pending.push(function () { return buildCheatValueRow(m, it); });
+		});
 	}
 	function actCheat(res, modId, key) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
@@ -3788,7 +3898,7 @@ function renderPlayerEdit() {
 		".mce-tabs button{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;" +
 		"color:#b9b9b9;padding:9px 0;cursor:pointer;font-size:14px;font-family:inherit}" +
 		".mce-tabs button.mce-active{color:#d4a73c;border-bottom-color:#d4a73c}" +
-		".mce-body{flex:1;overflow-y:auto;padding:10px;min-height:120px}" +
+		".mce-body{flex:1;overflow-y:auto;padding:10px;min-height:120px;overscroll-behavior:contain}" +
 		".mce-pane{display:none}.mce-pane.mce-active{display:block}" +
 		/* 角色卡片 */
 		".mce-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}" +
@@ -3840,7 +3950,9 @@ function renderPlayerEdit() {
 		".mce-type{display:inline-block;background:#1a1a1a;color:#ccc;border:1px solid #3c3c3c;border-radius:2px;padding:2px 8px;font-size:11px;margin:2px}" +
 		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:4px 0}" +
 		/* v1.4.0 Mod作弊页面 */
-		".mce-grp{border:1px solid #2a2a2a;border-radius:3px;margin:8px 0;padding:8px;background:#0f0f0f}" +
+		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，
+		   减少大列表下（如枯木逢春 28 数值项展开）对 DoL-Game-UI 每帧 rAF 全量扫描的主线程叠加压力 */
+		".mce-grp{border:1px solid #2a2a2a;border-radius:3px;margin:8px 0;padding:8px;background:#0f0f0f;contain:content}" +
 		".mce-grp-t{color:#d4a73c;font-weight:700;font-size:13px;margin-bottom:6px}" +
 		".mce-collapse-head{cursor:pointer;user-select:none}" +
 		".mce-collapse-head:hover{color:#f0d070}" +

@@ -32,7 +32,7 @@
 		".mce-tabs button{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;" +
 		"color:#b9b9b9;padding:9px 0;cursor:pointer;font-size:14px;font-family:inherit}" +
 		".mce-tabs button.mce-active{color:#d4a73c;border-bottom-color:#d4a73c}" +
-		".mce-body{flex:1;overflow-y:auto;padding:10px;min-height:120px}" +
+		".mce-body{flex:1;overflow-y:auto;padding:10px;min-height:120px;overscroll-behavior:contain}" +
 		".mce-pane{display:none}.mce-pane.mce-active{display:block}" +
 		/* 角色卡片 */
 		".mce-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}" +
@@ -84,7 +84,9 @@
 		".mce-type{display:inline-block;background:#1a1a1a;color:#ccc;border:1px solid #3c3c3c;border-radius:2px;padding:2px 8px;font-size:11px;margin:2px}" +
 		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:4px 0}" +
 		/* v1.4.0 Mod作弊页面 */
-		".mce-grp{border:1px solid #2a2a2a;border-radius:3px;margin:8px 0;padding:8px;background:#0f0f0f}" +
+		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，
+		   减少大列表下（如枯木逢春 28 数值项展开）对 DoL-Game-UI 每帧 rAF 全量扫描的主线程叠加压力 */
+		".mce-grp{border:1px solid #2a2a2a;border-radius:3px;margin:8px 0;padding:8px;background:#0f0f0f;contain:content}" +
 		".mce-grp-t{color:#d4a73c;font-weight:700;font-size:13px;margin-bottom:6px}" +
 		".mce-collapse-head{cursor:pointer;user-select:none}" +
 		".mce-collapse-head:hover{color:#f0d070}" +

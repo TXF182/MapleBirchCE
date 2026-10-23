@@ -2,6 +2,27 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.2（2026-10-23 · 四模组适配跟进 + DoL-Game-UI 冲突修复）
+
+**四模组适配更新（枯木逢春 2.4.5 / 归途之书 1.3.11 / Dol-Optimization 1.1.2.1 / 框架 5.5.4）**
+
+- **枯木逢春 2.4.5 甄别新增 12 个作弊项**（release 文件级 diff：625→640 文件，新增 3 系统）：
+  - **金币洞穴 CoinCave**：`cc_found`（treasure.found，一键跳过岛屿探索 ≥100 次入口门槛）、`cc_appraised`/`cc_agreed`（跳过归还对话）；火把/携带金币/借展金币/船员金币/泽菲尔金币 5 数值（max 99，金币集齐 + 温特归还 + 泽菲尔收回 = 完成）；
+  - **悉尼 NPC 转化（框架 5.5.4 `$maplebirch.npc.sydney.transformation.<type>.build` 实证）**：天使点数（max 50 = 满级 6 门槛 25-50）/ 堕天点数（max 31 = 满分 3 门槛 1/21/31）/ 恶魔点数（max 100 = 满级 6 门槛 5-30；≥6 且 ≥90 触发原版受孕强化判定）；
+  - 寒月港船袭（harbour.raid.*）为随机事件、价值低，未加；
+- **归途之书 1.3.11 / Dol-Optimization 1.1.2.1**：纯修复版（src 0 增删 / 快速存档+处女膜冲突修复），无新作弊点，仅版本声明同步；
+- **框架 5.5.4**：declOverride 同步（check_framework_api 8/10，缺失 2 项 CE 均不依赖）；
+- **精确性全量核查**：3 适配器 111 条 varPath 逐一在新版源码验证全部存活（枯木逢春 44 / 归途之书 57 / Dol-Opt 10）；新增通用校验脚本 `tools/_check_keys_mod.js`；
+- **角色名中文化**：修复唯一不一致 Needmeet→尼德米特（04-modcheat.js 204 个 name 字段全量核对，新增脚本 `tools/_check_char_names.py`）；模组注册 NPC（月半/阿德里安/罗文/马洛/格威岚/尼德米特）与 CE 映射全部一致；
+
+**DoL-Game-UI 冲突修复（滑动卡住截断 / 展开过多卡顿闪退）**
+
+- **根因**：Mod作弊子页一次性全量建数百行 + DoL-Game-UI 每帧 rAF 全量样式扫描抢主线程 → 移动 WebView 滚动丢帧、长任务 ANR；
+- **修复**：子页四分组默认收起（组头常驻、行闭包进 pending 点击展开才建，学 06-traits 九巡懒渲染）、展开态持久化（重建后恢复）、新增「全部展开/全部收起」折叠工具行；`.mce-grp` 加 `contain:content`（限制组内重排/重绘扩散）、`.mce-body` 加 `overscroll-behavior:contain`（防滚动链冒泡）；
+- **自查补充**：行构建失败不再静默吞错——失败计数后组内显示「N 行加载失败（适配器数据异常）已跳过」提示；组头点击闭包修复（引用分组对象而非 DOM 节点）；
+- **测试扩展**：test_mce 45.x 懒渲染回归段 8 断言（收起不建行/点击补建/计数/工具行/持久化恢复/不重复建行/contain 注入）+ smoke_dom/E2E 同步（进子页先展开分组再断言）；修 mock 选择器对 `data-mce-*` 连字符属性名的支持；
+- 全链 build→syntax→smoke→regression→E2E 5/5 绿；zip 内 JS 与 build 产物 SHA 一致；未 git 提交、未发布（等实测拍板）
+
 ## v1.9.0（2026-10-22）
 
 **新功能：角色页按类型拆子页面（模组/恋爱/普通/持久NPC）+ 场景页新增「地点」子界面（地点阶段任务作弊区）+ 持久 NPC 收录（经理/校医/守卫囚犯等）**
@@ -35,6 +56,7 @@
 - **资金上限放开**：快捷编辑区「资金」上限 1,000,000 → 99,999,999（仅防误输入，实际无上限；`cheatWriteValue` 对 max 非 number 不钳制，故保留极高上限兜底）
 - **测试扩展**：37.4 数据层 12 条（三态七键写入 / getPlayerGender 推断 / 幂等不重置 penissize / V.player 缺壳兜底 / 未知性别 FAIL）+ E2E D5 点击级 8 条（性别区渲染 / 初始男高亮 / 点击女写七键 / 重渲染高亮 / 点击双性 / 点击男保留阴茎）；资金上限经 PANEL_QUICK_GROUPS 数据表核对（1000000→99999999）
 - 全链 build→syntax→smoke→regression→E2E 5/5 绿；版本双源 `01-core.js` MCE_VERSION + `boot.json` version 同步 1.9.1；未发布（等用户实测拍板）
+- **（发布）**：已发布 v1.9.1 到 GitHub Release（2026-10-23，tag=v1.9.1，资产 `MapleBirchCE.mod.zip` 155,413 B / SHA256=7EAA5DDF...，下载回读比对一致）；git 经 Git Data API 推送（github.com:443 被断，远端 main=cb12625f，内容树与本地 80f14fa+813660f 一致，SHA 不同属预期，网络恢复后 fetch+reset 对齐）；归档 `tools/release_v191.js` + `tools/push_api_v191.js`；坑位沉淀 3 条（Node fetch IPv6 优先假象 / PowerShell git credential fill 交互挂起用 Node 通道 / here-string 中文 body PATCH 400）
 
 ## v1.8.23（2026-10-22）
 

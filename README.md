@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.0**（完整版本线见 [CHANGELOG.md](CHANGELOG.md)）
+**当前版本：v1.9.2**（完整版本线见 [CHANGELOG.md](CHANGELOG.md)）
 
 ## 安装（快速开始）
 
@@ -57,19 +57,19 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.9.0）
+## Mod作弊 适配器一览（v1.9.2）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.4.4 | 阶段 9 / 能力 15 / 数值 20 | `maplebirch.get("DeadwoodReblooms")` |
-| 归途之书 · Revelation | 1.3.10 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
+| 枯木逢春 · Deadwood Reblooms | 2.4.5 | 阶段 9 / 能力 18 / 数值 28 | `maplebirch.get("DeadwoodReblooms")` |
+| 归途之书 · Revelation | 1.3.11 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
 | DomRobin | 0.0.8 | 阶段 1 / 能力 12 / 数值 3 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
-| 原版优化 Dol-Optimization | 1.1.2 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
+| 原版优化 Dol-Optimization | 1.1.2.1 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
 | Wraith'sReflection · 幽灵的倒影 | 1.3.4 | 阶段 4 / 能力 4 / 数值 2 | `V` 自有根并集（WraithsReflection/HelpAsk/项链系） |
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
-| maplebirch 框架本体 | 5.5.3 | 兼容性核对（API 8 项） | `window.maplebirch` |
+| maplebirch 框架本体 | 5.5.4 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
 > 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**9 渠道全覆盖**：8 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims）+ 框架本体。
 
@@ -95,6 +95,10 @@
 
 ## 版本说明
 
+- **v1.9.2（2026-10-23 · 四模组适配跟进 + DoL-Game-UI 冲突修复）**：
+  - **适配更新**：枯木逢春 2.4.5（新增 12 作弊项：金币洞穴 CoinCave 3 标记 + 5 数值、悉尼天使/堕天/恶魔转化 3 数值，恶魔 ≥90 触发原版受孕强化判定）、归途之书 1.3.11、Dol-Optimization 1.1.2.1、框架 5.5.4；3 适配器 111 条 varPath 全量存活核验；Needmeet→尼德米特；
+  - **DGU 冲突修复**：Mod作弊子页四分组默认收起 + 懒渲染（点击展开才建行，学角色页九巡模式）+ 展开态持久化 + 「全部展开/全部收起」工具行；`.mce-grp` contain:content、`.mce-body` overscroll-behavior:contain——解决「滑动卡住截断 / 展开过多卡顿闪退」；
+  - **验证**：全量回归新增 45.x 懒渲染段 8 断言全 PASS，smoke/E2E 同步后全链 5/5 绿；zip 内 JS 与 build 产物 SHA 一致；
 - **v1.9.0（2026-10-22 · 角色页按类型拆 4 子页面 + 持久 NPC 入池 + 场景页「地点」子界面）**：
   - **角色页 4 子页面**：模组角色 / 恋爱角色 / 普通角色 / 持久NPC 各一组，按钮展开/收起，折叠状态持久化；模组角色独立子页、恋爱角色独立子页、普通角色独立子页、持久 NPC（经理/校医/黑客/主教/守卫/坐骑族等 16 键注册表）按类型命名独立子页；
   - **场景页新增「地点」子界面**：双层页签「场景直达 / 地点」；地点页为原版地点阶段任务作弊区——市政改造（道路/潜水/灌木/桥梁/绿地）、农场、公寓/商店/阁楼/妓院、修道院/精神病院/学校机构阶段，全部「−1/+1/拉满/回退」逐步推进、全留痕可回退；

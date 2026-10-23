@@ -1143,14 +1143,15 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:do
 global.window = { maplebirch: { get: function (n) { return n === "DeadwoodReblooms" ? {} : undefined; } } };
 var dwd = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
 assert(dwd && dwd.declared === true, "21.1 探测命中：枯木逢春自动识别");
-assert(dwd.stages.length === 9 && dwd.abilities.length === 15 && dwd.values.length === 20, "21.1 分组齐全 阶段9/能力15/数值20（v1.8.23 补 2.4.4 新增冷月港·泽菲尔线阶段）, 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
-// 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus/Finance/MoreTransformations），
-//        不碰原版顶层键（rebellion/victories/self_rent/both_rent/rent_separated 等原版同名键均不声明）
+assert(dwd.stages.length === 9 && dwd.abilities.length === 18 && dwd.values.length === 28, "21.1 分组齐全 阶段9/能力18/数值28（v1.9.1 后适配轮补 2.4.5：CoinCave 金币洞穴 3 标记 + 5 数值 + 悉尼转化 3 数值）, 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
+// 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus/Finance/MoreTransformations/maplebirch），
+//        不碰原版顶层键（rebellion/victories/self_rent/both_rent/rent_separated 等原版同名键均不声明）；
+//        maplebirch 为框架 NPC 转化存档命名空间（$maplebirch.npc.<名>.transformation.<type>，2.4.5 悉尼转化作弊项，见 NPCTransformation.ts ensure/read）
 var dwdPaths = [];
 dwd.stages.concat(dwd.abilities).concat(dwd.values).forEach(function (it) { dwdPaths.push(it.varPath); });
 var dwdRoots = [];
 dwdPaths.forEach(function (p) { if (dwdRoots.indexOf(p.split(".")[0]) === -1) { dwdRoots.push(p.split(".")[0]); } });
-assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations"].indexOf(r) !== -1; }),
+assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "maplebirch"].indexOf(r) !== -1; }),
 	"21.2 声明根键均为模组模块状态, 实际 [" + dwdRoots + "]");
 // 隔离补充：一级键全为模组模块根（V.RobinExpansion 等），绝不落到原版顶层键上；
 // rebellion/victories/self_rent 等在模组里只是 RobinExpansion 对象内的自建副本（模组从不读写原版顶层同名键，已 grep 实证）
@@ -1722,7 +1723,7 @@ delete V.mbCE_wrote;
 V.LostLamb = { recalled: false, active: false, scene: "", doubt: 0, fear: 10, notice: 0, ending: "", talkVow: "", known: { bishop: false, gwylan: false, auriga: false } };
 V.TempleDuties = { enrolled: false, review: false, duties: 0, oath: "", bishop: "none", manor: "none", declaration: "private", watch: { phase: "threshold" }, case: { stage: "field" }, archive: { roof: -1, shelves: -1, sorted: 0 }, candidates: { Robin: { agreed: false }, Sydney: { agreed: false } } };
 var r31 = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
-assert(r31 && r31.modName.indexOf("归途之书") !== -1 && r31.modName.indexOf("1.3.10") !== -1, "31.1 适配器声明升级 1.3.10, 实际 " + (r31 && r31.modName));
+assert(r31 && r31.modName.indexOf("归途之书") !== -1 && r31.modName.indexOf("1.3.11") !== -1, "31.1 适配器声明升级 1.3.11, 实际 " + (r31 && r31.modName));
 assert(r31.stages.filter(function (s) { return s.key === "ll_vow"; }).length === 1 && r31.stages.filter(function (s) { return s.key === "td_oath"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.watch.phase"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·守夜·案件阶段已收录");
@@ -1790,7 +1791,7 @@ delete V.LostLamb; delete V.TempleDuties; delete V.mbCE_wrote;
 V.RobinExpansion = { shop_stage: "none", asylum: { status: "home" } };
 V.VanillaPlus = { attitudes: { ironWill: true, sadomasochist: false } };
 var dw32 = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
-assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && dw32.modName.indexOf("2.4.4") !== -1, "32.1 适配器声明升级 2.4.4, 实际 " + (dw32 && dw32.modName));
+assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && dw32.modName.indexOf("2.4.5") !== -1, "32.1 适配器声明升级 2.4.5, 实际 " + (dw32 && dw32.modName));
 assert(dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.ironWill"; }).length === 1 &&
        dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.sadomasochist"; }).length === 1 &&
        dw32.stages.filter(function (s) { return s.varPath === "MoreTransformations.harbour.zephyr.stage"; }).length === 1, "32.1 铁意志/受虐狂能力 + 冷月港·泽菲尔线阶段已收录");
@@ -1805,6 +1806,40 @@ assert(dwBad.ok === false, "32.3 旧声明阶段越界拒绝仍有效（2.2.7 �
 var dwAsy = api.setCheatStage("deadwood-reblooms", "r_asylum", "admitted");
 assert(dwAsy.ok && V.RobinExpansion.asylum.status === "admitted", "32.3 收容所阶段写入 admitted（2.2.7 兼容）, 实际 " + JSON.stringify(V.RobinExpansion.asylum));
 delete V.RobinExpansion; delete V.VanillaPlus; delete V.mbCE_wrote;
+// 32.4) 2.4.5 新增 CoinCave 金币洞穴：声明 + 布尔/数值写入（入口源码：Widgets.twee _coinCave=$MoreTransformations.treasure；found 跳过岛屿探索 100 次门槛）
+V.MoreTransformations = { treasure: { torch: 0, coins: 0, museumCoins: 0, crewCoins: 0, zephyrCoins: 0 } };
+var dw32b = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
+assert(dw32b.abilities.filter(function (a) { return a.varPath === "MoreTransformations.treasure.found"; }).length === 1 &&
+       dw32b.abilities.filter(function (a) { return a.varPath === "MoreTransformations.treasure.appraised"; }).length === 1 &&
+       dw32b.abilities.filter(function (a) { return a.varPath === "MoreTransformations.treasure.agreed"; }).length === 1,
+       "32.4 CoinCave 3 个布尔能力已收录（found/appraised/agreed）");
+assert(dw32b.values.filter(function (v) { return v.varPath === "MoreTransformations.treasure.torch"; }).length === 1 &&
+       dw32b.values.filter(function (v) { return v.varPath === "MoreTransformations.treasure.coins"; }).length === 1 &&
+       dw32b.values.filter(function (v) { return v.varPath === "MoreTransformations.treasure.museumCoins"; }).length === 1 &&
+       dw32b.values.filter(function (v) { return v.varPath === "MoreTransformations.treasure.crewCoins"; }).length === 1 &&
+       dw32b.values.filter(function (v) { return v.varPath === "MoreTransformations.treasure.zephyrCoins"; }).length === 1,
+       "32.4 CoinCave 5 个数值已收录（torch/coins/museum/crew/zephyr）");
+api.toggleCheatAbility("deadwood-reblooms", "cc_found", true);
+assert(V.MoreTransformations.treasure.found === true, "32.4 found 勾选 → 已发现洞窟");
+api.applyCheatModValue("deadwood-reblooms", "cc_torch", 30);
+assert(V.MoreTransformations.treasure.torch === 30, "32.4 火把写 30, 实际 " + V.MoreTransformations.treasure.torch);
+api.applyCheatModValue("deadwood-reblooms", "cc_torch", 200);
+assert(V.MoreTransformations.treasure.torch === 99, "32.4 火把越上限钳制到 99");
+// 32.5) 2.4.5 新增悉尼 NPC 转化（框架 $maplebirch.npc.sydney.transformation.<type>.build，level 由 build 派生：angel 25..50 / fallen 1/21/31 / demon 5..30 max 100）
+var _mb32Before = V.maplebirch;
+V.maplebirch = { npc: { sydney: { transformation: { angel: { build: 0 }, fallen: { build: 0 }, demon: { build: 0 } } } } };
+assert(dw32b.values.filter(function (v) { return v.varPath === "maplebirch.npc.sydney.transformation.angel.build"; }).length === 1 &&
+       dw32b.values.filter(function (v) { return v.varPath === "maplebirch.npc.sydney.transformation.fallen.build"; }).length === 1 &&
+       dw32b.values.filter(function (v) { return v.varPath === "maplebirch.npc.sydney.transformation.demon.build"; }).length === 1,
+       "32.5 悉尼三形态转化数值已收录（angel/fallen/demon）");
+api.applyCheatModValue("deadwood-reblooms", "sy_angel_build", 50);
+assert(V.maplebirch.npc.sydney.transformation.angel.build === 50, "32.5 天使点数写 50（满级 6）, 实际 " + V.maplebirch.npc.sydney.transformation.angel.build);
+api.applyCheatModValue("deadwood-reblooms", "sy_demon_build", 90);
+assert(V.maplebirch.npc.sydney.transformation.demon.build === 90, "32.5 恶魔点数写 90（触发原版受孕强化判定门槛）, 实际 " + V.maplebirch.npc.sydney.transformation.demon.build);
+api.applyCheatModValue("deadwood-reblooms", "sy_demon_build", 500);
+assert(V.maplebirch.npc.sydney.transformation.demon.build === 100, "32.5 恶魔点数越上限钳制到 100");
+if (_mb32Before !== undefined) { V.maplebirch = _mb32Before; } else { delete V.maplebirch; }
+delete V.MoreTransformations; delete V.mbCE_wrote;
 
 // ============ 第 33 节：v1.6.0 SmartPhone Alpha 0.3.91 新增适配（V.Phone 探测 + 0/1 数字语义） ============
 V.Phone = { Owned: [], photography: 0, TaskDanger: 0, FengMeeet: 0, MetFengGiveup: 0, SecondShopKnown: 0, FengAcceptExposed: 0, SydneySexLiveCompanion: 0, FengLine: 0 };
@@ -2017,7 +2052,8 @@ function mkNode(tag) {
 }
 function qsSel37(node, sel) {
 	if (!node || !node.children) { return null; }
-	const m = sel.match(/^\[data-(\w+)="([^"]+)"\]$/);
+	/* v1.9.1：属性名允许连字符（data-mce-head / data-mce-tool 等） */
+	const m = sel.match(/^\[data-([\w-]+)="([^"]+)"\]$/);
 	for (let i = 0; i < node.children.length; i++) {
 		const c = node.children[i];
 		if (m && c.getAttribute && c.getAttribute("data-" + m[1]) === m[2]) { return c; }
@@ -2028,8 +2064,8 @@ function qsSel37(node, sel) {
 }
 function qsAll37(node, sel, out) {
 	if (!node || !node.children) { return; }
+	const m = sel.match(/^\[data-([\w-]+)="([^"]+)"\]$/);
 	node.children.forEach(function (c) {
-		const m = sel.match(/^\[data-(\w+)="([^"]+)"\]$/);
 		if (m && c.getAttribute && c.getAttribute("data-" + m[1]) === m[2]) { out.push(c); }
 		qsAll37(c, sel, out);
 	});
@@ -2877,6 +2913,64 @@ assert(V.modtest.exist === 9, "44.8 既有值两次写入 exist=9, 实际 " + V.
 api44.undoCheatModValue("t", "k2");
 assert(V.modtest.exist === 3, "44.8 既有值回退还原首次前值 3, 实际 " + V.modtest.exist);
 delete V.modtest; delete V.mbCE_wrote;
+
+/* 45.x）v1.9.1（DoL-Game-UI 冲突排查）：Mod作弊 子页四分组默认收起 + 懒渲染——
+   用户实测「滑动卡住截断 / 展开过多卡住闪退」：子页一次全量建数百行 + DGU 每帧 rAF 扫描抢主线程。
+   修复 = 组头常驻、组体默认收起、行闭包进 pending 点击展开才建（学 06-traits 九巡）；展开态持久化。 */
+const pane45 = root44.querySelector('[data-pane="mods"]');
+/* 44 段环境无 window.maplebirch.get（枯木逢春探测不命中）→ 用注册制测试模组覆盖四分组 */
+setup.mbCE_modCheats = [{
+  modId: "mockmod45", modName: "懒渲染测试模组",
+  tasks: [{ key: "t1", name: "测试任务" }],
+  stages: [{ key: "s1", name: "阶段S", varPath: "mock45_stage", levels: [0, 1, 2], labels: ["零", "一", "二"] }],
+  abilities: [{ key: "a1", name: "能力A", varPath: "mock45_ability" }],
+  scenes: [{ key: "sc1", name: "剧情X" }],
+  values: [{ key: "v1", name: "数值V", varPath: "mock45_value", min: 0, max: 100 },
+           { key: "v2", name: "列表L", type: "list", varPath: "mock45_list", options: ["a", "b"] }]
+}];
+V.mock45_stage = 0; V.mock45_ability = false; V.mock45_value = 10;
+api44.renderModCheatDetail("mockmod45");
+/* 45.1 默认渲染：四组头存在 + 组体收起 + 不建行 */
+const hTasks45 = pane45.querySelector('[data-mce-head="tasks"]'), hStages45 = pane45.querySelector('[data-mce-head="stages"]'),
+	hScenes45 = pane45.querySelector('[data-mce-head="scenes"]'), hValues45 = pane45.querySelector('[data-mce-head="values"]');
+assert(!!hTasks45 && !!hStages45 && !!hScenes45 && !!hValues45, "45.1 子页四分组组头齐全（任务/阶段能力/剧情/数值）");
+const gTasks45 = pane45.querySelector('[data-gkey="tasks"]'), gStages45 = pane45.querySelector('[data-gkey="stages"]'),
+	gScenes45 = pane45.querySelector('[data-gkey="scenes"]'), gValues45 = pane45.querySelector('[data-gkey="values"]');
+assert(!!gTasks45 && !!gStages45 && !!gScenes45 && !!gValues45, "45.1 四分组容器存在（data-gkey）");
+assert(gValues45.children[1].getAttribute("data-collapsed") === "1", "45.1 数值组默认收起（data-collapsed=1）");
+assert(gValues45.children[1].children.length === 0, "45.1 收起组不建行（懒渲染）, 行数 " + gValues45.children[1].children.length);
+/* 45.2 组头文本含计数（values 组 2 项：数值V+列表L） */
+assert(gValues45.children[0].textContent.indexOf("（2）") !== -1, "45.2 组头计数含 （2）, 实际 " + gValues45.children[0].textContent);
+/* 45.3 点击组头展开 → 补建行（数值V 1 行 + 列表L 2 选项 = 3 行） */
+gValues45.children[0].listeners.click[0]();
+assert(gValues45.children[1].getAttribute("data-collapsed") === "0", "45.3 点击展开 → data-collapsed=0");
+assert(gValues45.children[1].children.length === 3, "45.3 展开后补建行（数值V+列表L 3 行）, 行数 " + gValues45.children[1].children.length);
+/* 45.4 展开后行内控件可用（数值行有输入框 + 应用修改按钮） */
+const valRow45 = gValues45.children[1].children[0];
+assert(!!valRow45 && valRow45.getAttribute("data-mce-key") === "values:v1", "45.4 行带 data-mce-key（局部刷新寻址）, key=" + (valRow45 ? valRow45.getAttribute("data-mce-key") : "null"));
+assert(!!valRow45.querySelector('[data-mce-key]') === false, "45.4 行内不含嵌套 data-mce-key（无重复寻址）");
+/* 45.5 全部展开工具行 → 其余组也补建行 */
+const openAll45 = pane45.querySelector('[data-mce-tool="mods-open"]');
+assert(!!openAll45, "45.5 折叠工具行「全部展开」存在");
+openAll45.listeners.click[0]();
+assert(gTasks45.children[1].getAttribute("data-collapsed") === "0" && gTasks45.children[1].children.length === 1, "45.5 全部展开后任务组补建行（1 行）, 行数 " + gTasks45.children[1].children.length);
+assert(gStages45.children[1].children.length === 2 && gScenes45.children[1].children.length === 1, "45.5 阶段/剧情组均补建行（2/1）, 实际 " + gStages45.children[1].children.length + "/" + gScenes45.children[1].children.length);
+/* 45.6 展开态持久化：重建子页后恢复展开并补建行 */
+api44.renderModCheatDetail("mockmod45");
+const gValues45b = pane45.querySelector('[data-gkey="values"]');
+assert(gValues45b.children[1].getAttribute("data-collapsed") === "0" && gValues45b.children[1].children.length === 3, "45.6 重建后按持久化恢复展开并补建行, 行数 " + gValues45b.children[1].children.length);
+/* 45.7 收起工具行 → 组体收起（行保留，等下次展开时 pending 已空不再重复建） */
+const closeAll45 = pane45.querySelector('[data-mce-tool="mods-close"]');
+closeAll45.listeners.click[0]();
+assert(gValues45b.children[1].getAttribute("data-collapsed") === "1", "45.7 全部收起 → data-collapsed=1");
+const rowsBefore45 = gValues45b.children[1].children.length;
+gValues45b.children[0].listeners.click[0]();
+assert(gValues45b.children[1].children.length === rowsBefore45, "45.7 收起→展开不重复建行（pending 已清空）, 行数 " + gValues45b.children[1].children.length);
+delete V.mbCE_wrote; delete V.mock45_stage; delete V.mock45_ability; delete V.mock45_value;
+/* 45.8 contain 样式注入（.mce-grp 限制组内重排范围，降低 DGU 每帧 rAF 扫描下的主线程压力） */
+const css45 = dHead44.children.filter(c => c.id === "mce-style")[0].textContent;
+assert(css45.indexOf("contain:content") !== -1, "45.8 .mce-grp contain:content 已注入");
+assert(css45.indexOf("overscroll-behavior:contain") !== -1, "45.8 .mce-body overscroll-behavior:contain 已注入");
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

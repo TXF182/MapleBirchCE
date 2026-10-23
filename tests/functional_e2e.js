@@ -117,6 +117,10 @@ mods.forEach(function (mod) {
   try {
     api.renderModCheatDetail(mod.modId);
     const pane = document.querySelector('[data-pane="mods"]');
+    /* v1.9.1（DoL-Game-UI 冲突排查）：子页四分组默认收起 + 懒渲染 → 先展开全部分组，
+       后续行断言 / DOM 点击才能命中（对齐 D 段「全部展开」模式） */
+    const modHeads = [].slice.call(pane.querySelectorAll(".mce-collapse-head"));
+    modHeads.forEach(function (h) { try { h.click(); } catch (e) {} });
     const t = pane.textContent;
     assert(t.length > 0 && t.indexOf("THREW") === -1, "C. " + mod.modId + " 子页渲染不崩，实际 " + t.slice(0, 40));
     /* DOM 点击：第一个「跳至最高」（若该模组有阶段） */
@@ -319,6 +323,37 @@ if (farmGrp) {
   assert(V.edengarden === 4 && V.edenshrooms === 4 && V.edenspring === 4, "E. 伊甸维护 → 3 键锁 4，实际 " + V.edengarden + "/" + V.edenshrooms + "/" + V.edenspring);
   assert(V.soap === 10 && V.salve === 10, "E. 补给 → soap/salve=10，实际 " + V.soap + "/" + V.salve);
 }
+
+/* ---------- M. v1.9.2 自查补盲：values list 型端到端链路（apply → 局部刷新回显 → 取消 → 回退 → 重渲染） ----------
+   C 段注释曾误标「list 型走 DOM checkbox 已覆盖」——实际 firstVal 过滤掉了 list，能力 checkbox 也不走 values。
+   真实链路：list 行 checkbox 点击 → applyCheatModValue(list 分支) → actCheat → refreshModRow(list 分支) 回显。 */
+const mockListMod = {
+  modId: "mocklist", modName: "自查 list 链路测试模组",
+  tasks: [], stages: [], abilities: [], scenes: [],
+  values: [{ key: "tags", name: "标签列表", varPath: "mocklist_tags", type: "list", options: ["alpha", "beta", "gamma"] }]
+};
+setup.mbCE_modCheats = [mockListMod];
+V.mocklist_tags = [];
+clickTabSafe("mods");
+api.renderModCheatDetail("mocklist");
+const paneM = document.querySelector('[data-pane="mods"]');
+[].slice.call(paneM.querySelectorAll(".mce-collapse-head")).forEach(function (h) { try { h.click(); } catch (e) {} });
+const listRowsM = [].slice.call(paneM.querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-mce-key") === "values:tags:alpha"; });
+assert(listRowsM.length === 1, "M. list 行渲染（values:tags:alpha）, 实际 " + listRowsM.length + " 行");
+const boxM = listRowsM[0] && listRowsM[0].querySelector('input[type="checkbox"]');
+assert(!!boxM && boxM.checked === false, "M. list 行初始未勾选");
+if (boxM) { boxM.click(); }
+assert(Array.isArray(V.mocklist_tags) && V.mocklist_tags.indexOf("alpha") !== -1, "M. 勾选 alpha → 写入数组, 实际 " + JSON.stringify(V.mocklist_tags));
+assert(listRowsM[0].querySelector('input[type="checkbox"]').checked === true, "M. 局部刷新回显勾选态（refreshModRow list 分支）");
+const undM = [].slice.call(listRowsM[0].querySelectorAll("button")).filter(function (b) { return b.textContent === "回退"; })[0];
+assert(!!undM, "M. list 行回退按钮存在");
+if (undM) { undM.click(); }
+assert(Array.isArray(V.mocklist_tags) && V.mocklist_tags.indexOf("alpha") === -1, "M. 回退 → 移除 alpha, 实际 " + JSON.stringify(V.mocklist_tags));
+api.renderModCheatDetail("mocklist");
+[].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll(".mce-collapse-head")).forEach(function (h) { try { h.click(); } catch (e) {} });
+const listRowsM2 = [].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-mce-key") === "values:tags:alpha"; });
+assert(!!listRowsM2[0] && listRowsM2[0].querySelector('input[type="checkbox"]').checked === false, "M. 重渲染后回显未勾选");
+delete V.mocklist_tags; setup.mbCE_modCheats = [];
 
 /* ---------- 收尾 ---------- */
 console.log(failures === 0 ? "\nFUNCTIONAL E2E ALL PASSED" : "\nFUNCTIONAL E2E " + failures + " FAILURES");

@@ -7,7 +7,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.3.10",
+			modName: "默示录：归途之书 v1.3.11",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -212,7 +212,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.4.4",
+			modName: "枯木逢春 · Deadwood Reblooms 2.4.5",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -262,7 +262,13 @@
 				{ key: "vp_sadomaso", name: "原版增强 · 受虐狂特质", varPath: "VanillaPlus.attitudes.sadomasochist", type: "boolean",
 				  note: "2.2.7 新增特质：勾选直接获得，影响原版受虐狂相关判定" },
 				{ key: "f_avery_refused", name: "孤儿院 · 已拒绝艾弗里收养（模组新增）", varPath: "Finance.orphanage.avery_adoption_refused", type: "boolean",
-				  note: "模组 2.4.2 起提供：勾选视为已拒绝艾弗里收养，孤儿院收养剧情将跳过" }
+				  note: "模组 2.4.2 起提供：勾选视为已拒绝艾弗里收养，孤儿院收养剧情将跳过" },
+				{ key: "cc_found", name: "金币洞穴 · 已发现洞窟（2.4.5 新增）", varPath: "MoreTransformations.treasure.found", type: "boolean",
+				  note: "2.4.5 新增金币洞穴线：发现前置要求岛屿探索 100 次（$island.explore_count gte 100），勾选直接标记已发现，跳过探索门槛" },
+				{ key: "cc_appraised", name: "金币洞穴 · 温特已记录纹饰（2.4.5 新增）", varPath: "MoreTransformations.treasure.appraised", type: "boolean",
+				  note: "2.4.5 新增：博物馆对话让温特记录金币纹饰后的状态，勾选视为已完成记录" },
+				{ key: "cc_agreed", name: "金币洞穴 · 泽菲尔已同意同行（2.4.5 新增）", varPath: "MoreTransformations.treasure.agreed", type: "boolean",
+				  note: "2.4.5 新增：泽菲尔答应将船长份额一并带回后的状态，勾选可跳过对话" }
 			],
 			scenes: [],
 			values: [
@@ -285,7 +291,23 @@
 				{ key: "ls_corruption", name: "校园 · 腐败值", varPath: "LifeSimulation.school.corruption", type: "number", min: 0, max: 100 },
 				{ key: "duties_completed", name: "校园 · 已完成值勤次数", varPath: "LifeSimulation.school.duties.completed", type: "number", min: 0, max: 999 },
 				{ key: "pc_loan", name: "罗宾 · 尚欠你的借款（英镑）", varPath: "RobinExpansion.pc_loan", type: "number", min: 0, max: 1000000 },
-				{ key: "weekly_income", name: "罗宾 · 上周结算收入（英镑）", varPath: "RobinExpansion.weekly_income", type: "number", min: 0, max: 1000000 }
+				{ key: "weekly_income", name: "罗宾 · 上周结算收入（英镑）", varPath: "RobinExpansion.weekly_income", type: "number", min: 0, max: 1000000 },
+				{ key: "cc_torch", name: "金币洞穴 · 火把数（2.4.5 新增）", varPath: "MoreTransformations.treasure.torch", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：洞窟探索消耗的火把储备（消费时 Math.max(0, torch - n)）" },
+				{ key: "cc_coins", name: "金币洞穴 · 携带金币数（2.4.5 新增）", varPath: "MoreTransformations.treasure.coins", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：玩家从石匣取出的被诅咒金币，博物馆借展会转移为 museumCoins" },
+				{ key: "cc_museum_coins", name: "金币洞穴 · 博物馆借展金币（2.4.5 新增）", varPath: "MoreTransformations.treasure.museumCoins", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：借给温特展览的金币数；与 crewCoins/zephyrCoins 一并归零即凑齐全部金币" },
+				{ key: "cc_crew_coins", name: "金币洞穴 · 船员分得金币（2.4.5 新增）", varPath: "MoreTransformations.treasure.crewCoins", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：泽菲尔赏给见习水手的金币数，需船长在船舱或酒馆收回" },
+				{ key: "cc_zephyr_coins", name: "金币洞穴 · 泽菲尔持有金币（2.4.5 新增）", varPath: "MoreTransformations.treasure.zephyrCoins", type: "number", min: 0, max: 99,
+				  note: "2.4.5 新增：泽菲尔手中的金币数，其同意归还后计入凑齐进度" },
+				{ key: "sy_angel_build", name: "悉尼 · 天使转化点数（2.4.5 新增）", varPath: "maplebirch.npc.sydney.transformation.angel.build", type: "number", min: 0, max: 50,
+				  note: "2.4.5 新增 NPC 转化系统：天使等级门槛 25/30/35/40/45/50，点数 50 达满级 6；写此键只推进转化进度，外观与受孕判定由模组结算" },
+				{ key: "sy_fallen_build", name: "悉尼 · 堕天转化点数（2.4.5 新增）", varPath: "maplebirch.npc.sydney.transformation.fallen.build", type: "number", min: 0, max: 31,
+				  note: "2.4.5 新增：堕天等级门槛 1/21/31，点数 31 达满级 3（堕落羽翼）" },
+				{ key: "sy_demon_build", name: "悉尼 · 恶魔转化点数（2.4.5 新增）", varPath: "maplebirch.npc.sydney.transformation.demon.build", type: "number", min: 0, max: 100,
+				  note: "2.4.5 新增：恶魔等级门槛 5/10/15/20/25/30 上限 100，≥30 满级 6；level≥6 且 build≥90 时自愿场景受孕判定改强制（源码 demon.level<6||build<90 判定）" }
 			]
 		}
 	};
@@ -350,7 +372,7 @@
 		},
 		entry: {
 			modId: "dol-optimization",
-			modName: "原版优化 Dol-Optimization v1.1.2",
+			modName: "原版优化 Dol-Optimization v1.1.2.1",
 			tasks: [],
 			stages: [
 				{ key: "opt_ui_bar", name: "导航栏开关美化", varPath: "options.opt.UiBarToggle",
@@ -367,7 +389,7 @@
 			],
 			scenes: [],
 			values: [
-				{ key: "opt_needmeet", name: "Needmeet 好感（0-100，≥80 解锁恋爱线）", varPath: "needmeet_romance", type: "number", min: 0, max: 100,
+				{ key: "opt_needmeet", name: "尼德米特 好感（0-100，≥80 解锁恋爱线）", varPath: "needmeet_romance", type: "number", min: 0, max: 100,
 				  note: "≥50 信赖，≥80 解锁 loveInterest/恋爱线；面板写 V 侧，运行时副本在 C.npc.Needmeet.love" },
 				{ key: "opt_hymen", name: "处女膜修复剩余天数（每日递减）", varPath: "hymenreconstructioncount", type: "number", min: 0, max: 30 },
 				{ key: "opt_hair", name: "发质（0-100）", varPath: "hairtexture", type: "number", min: 0, max: 100,

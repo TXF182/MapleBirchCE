@@ -149,6 +149,9 @@ api.renderModCheats();
 const listTxt = document.querySelector('[data-pane="mods"]').textContent;
 assert(listTxt.indexOf("枯木逢春") !== -1, "Mod作弊主容器显示 枯木逢春");
 api.renderModCheatDetail("deadwood-reblooms");
+/* v1.9.1（DoL-Game-UI 冲突排查）：子页四分组默认收起 + 懒渲染 → 先展开全部分组，控件断言才能命中 */
+const modHeadsSmoke = [].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll(".mce-collapse-head"));
+modHeadsSmoke.forEach(function (h) { try { h.click(); } catch (e) {} });
 const detailTxt = document.querySelector('[data-pane="mods"]').textContent;
 assert(detailTxt.indexOf("店铺开办阶段") !== -1, "枯木逢春子页面渲染阶段控件，实际 " + detailTxt.slice(0, 200));
 const dSelects = document.querySelector('[data-pane="mods"]').querySelectorAll("select");
@@ -424,6 +427,8 @@ setTimeout(function () {
   V.mock_stage = 0; V.mock_ability = false; V.mock_value = 10;
   api.renderModCheatDetail("mockmod");
   const mpane = document.querySelector('[data-pane="mods"]');
+  /* v1.9.1（DoL-Game-UI 冲突排查）：子页分组默认收起 → 展开全部分组再操作 */
+  [].slice.call(mpane.querySelectorAll(".mce-collapse-head")).forEach(function (h) { try { h.click(); } catch (e) {} });
   const rowsBefore = mpane.querySelectorAll(".mce-row").length;
   const msel = mpane.querySelector("select");
   msel.value = "2";
