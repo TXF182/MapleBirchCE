@@ -7,6 +7,35 @@
 		{ cat: "pernpc", title: "持久NPC", desc: "经理/校医/黑客/主教/守卫/囚犯等持久特殊 NPC" }
 	];
 	function charSectionKey(cat) { return "角色:" + cat; }
+	/* v1.9.0 自查优化：分组卡片构建（懒渲染——收起组不建行，展开时补建；与九巡 mods 页特质区同款语义） */
+	function buildCharCards(body, group, members) {
+		var grid = el("div", "mce-cards");
+		members.forEach(function (name) {
+			var npc = findNpcEx(name);
+			var st = getNpcState(name);
+			var active = st.state !== "dismissed";
+			var card = el("div", "mce-card" + (name === curName ? " mce-sel" : ""));
+			var top = el("div", "mce-card-top");
+			top.appendChild(el("span", "mce-card-name", displayNameEx(name)));
+			var badge = el("span", "mce-badge " + (active ? "mce-on" : "mce-off"), active ? "活跃" : "停用");
+			badge.title = "state: " + st.state;
+			top.appendChild(badge);
+			card.appendChild(top);
+			var stats = el("div", "mce-card-stats");
+			stats.appendChild(el("span", "", "爱意 <b>" + statValue(npc, name, STAT_DEFS[0]) + "</b>"));
+			stats.appendChild(el("span", "", "支配 <b>" + statValue(npc, name, STAT_DEFS[2]) + "</b>"));
+			stats.appendChild(el("span", "", "情欲 <b>" + statValue(npc, name, STAT_DEFS[1]) + "</b>"));
+			stats.appendChild(el("span", "", "警戒 <b>" + statValue(npc, name, STAT_DEFS[5]) + "</b>"));
+			card.appendChild(stats);
+			card.addEventListener("click", function () {
+				curName = name;
+				mbCEUiSave({ curName: name }); /* v1.8.12 二轮优化：记住当前操作角色 */
+				switchOuterTab("stage");
+			});
+			grid.appendChild(card);
+		});
+		body.appendChild(grid);
+	}
 	function renderCards() {
 		var pane = root.querySelector('[data-pane="char"]');
 		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* 重建后保持滚动位置（五巡一致） */
@@ -35,32 +64,8 @@
 			var body = el("div", "mce-grp-body");
 			body.setAttribute("data-collapsed", open ? "0" : "1");
 			if (members.length) {
-				var grid = el("div", "mce-cards");
-				members.forEach(function (name) {
-					var npc = findNpcEx(name);
-					var st = getNpcState(name);
-					var active = st.state !== "dismissed";
-					var card = el("div", "mce-card" + (name === curName ? " mce-sel" : ""));
-					var top = el("div", "mce-card-top");
-					top.appendChild(el("span", "mce-card-name", displayNameEx(name)));
-					var badge = el("span", "mce-badge " + (active ? "mce-on" : "mce-off"), active ? "活跃" : "停用");
-					badge.title = "state: " + st.state;
-					top.appendChild(badge);
-					card.appendChild(top);
-					var stats = el("div", "mce-card-stats");
-					stats.appendChild(el("span", "", "爱意 <b>" + statValue(npc, name, STAT_DEFS[0]) + "</b>"));
-					stats.appendChild(el("span", "", "支配 <b>" + statValue(npc, name, STAT_DEFS[2]) + "</b>"));
-					stats.appendChild(el("span", "", "情欲 <b>" + statValue(npc, name, STAT_DEFS[1]) + "</b>"));
-					stats.appendChild(el("span", "", "警戒 <b>" + statValue(npc, name, STAT_DEFS[5]) + "</b>"));
-					card.appendChild(stats);
-					card.addEventListener("click", function () {
-						curName = name;
-						mbCEUiSave({ curName: name }); /* v1.8.12 二轮优化：记住当前操作角色 */
-						switchOuterTab("stage");
-					});
-					grid.appendChild(card);
-				});
-				body.appendChild(grid);
+				/* v1.9.0 自查优化：懒渲染——默认收起的组不建卡片 DOM，展开时才补建（head 点击回调内） */
+				if (open) { buildCharCards(body, group, members); }
 			} else {
 				body.appendChild(el("div", "mce-hint", "（该分类暂无角色）"));
 			}
@@ -69,6 +74,10 @@
 				var nowOpen = body.getAttribute("data-collapsed") === "0";
 				body.setAttribute("data-collapsed", nowOpen ? "1" : "0");
 				head.textContent = (nowOpen ? "▸ " : "▾ ") + group.title + "（" + members.length + "）";
+				/* 收起 → 展开：补建卡片（懒渲染）；open=点击前状态，点击后=!open */
+				if (!nowOpen && members.length && !body.querySelector(".mce-cards")) {
+					buildCharCards(body, group, members);
+				}
 				mbCEUiState.collapsed = mbCEUiState.collapsed || {};
 				mbCEUiState.collapsed[charSectionKey(group.cat)] = nowOpen ? 1 : 0;
 				mbCEUiSave({ collapsed: mbCEUiState.collapsed });

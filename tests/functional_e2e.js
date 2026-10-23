@@ -214,6 +214,24 @@ if (accRow) {
   }
   assert(V.acceptance_penis_small === 0, "D2. 点击移除 → 主变量写回不满足 0，实际 " + V.acceptance_penis_small);
 }
+/* D3. 双巡优化①：模组特质行出现「改数值」数值控件；点击写入生效；回退还原（D2 结束时值为 0） */
+api.renderPlayerEdit();
+let accRow3 = findTraitRow("Small Penis");
+assert(!!accRow3 && [].slice.call(accRow3.querySelectorAll("button")).some(function (b) { return b.textContent === "改数值"; }), "D3. 字符串型模组特质行有「改数值」按钮（数值可改放开）");
+const accInp = accRow3 && accRow3.querySelector("input.mce-inp");
+assert(!!accInp, "D3. 模组特质行有数值输入框 input.mce-inp");
+if (accRow3 && accInp) {
+  accInp.value = "2000";
+  const sBtn = [].slice.call(accRow3.querySelectorAll("button")).filter(function (b) { return b.textContent === "改数值"; })[0];
+  sBtn.click();
+  assert(V.acceptance_penis_small === 2000, "D3. 点击改数值 → 写入 2000，实际 " + V.acceptance_penis_small);
+  api.renderPlayerEdit();
+  accRow3 = findTraitRow("Small Penis");
+  const uBtn = accRow3 && [].slice.call(accRow3.querySelectorAll("button")).filter(function (b) { return b.textContent === "回退"; })[0];
+  assert(!!uBtn, "D3. 重新渲染后模组特质行仍有「回退」按钮");
+  if (uBtn) { uBtn.click(); }
+  assert(V.acceptance_penis_small === 0, "D3. 点击回退 → 还原写入前值 0，实际 " + V.acceptance_penis_small);
+}
 
 /* ---------- E. 全局页：战斗终结（8 按钮）+ 庄园自动维护（6 按钮）全部真实点击 ---------- */
 clickTabSafe("global");

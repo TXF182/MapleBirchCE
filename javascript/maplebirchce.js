@@ -3210,6 +3210,10 @@ function traitWriteSatisfy(V, path, op, valRaw) {
 	if (isNaN(num)) { setPathVal(V, path, String(valRaw).replace(/["']/g, "")); return path + "=" + String(valRaw).replace(/["']/g, ""); }
 	if (op === "lte") { setPathVal(V, path, num); return path + "=" + num; }
 	if (op === "lt") { setPathVal(V, path, num - 1); return path + "=" + (num - 1); }
+	/* 四巡自查修复：gt（严格大于）条件满足值必须是 num+1——此前与 gte/is 共用写 num，
+	   写后 "x > num" 恒 false → 获取按钮显示已写但判定仍「未获得」
+	   （原版受影响特质：Purity Boost $featsPurityBoost gt 0、Bratty $submissive lte 850 and gt 500） */
+	if (op === "gt") { setPathVal(V, path, num + 1); return path + "=" + (num + 1); }
 	setPathVal(V, path, num); return path + "=" + num;
 }
 function traitWriteUnsatisfy(V, path, op, valRaw) {
@@ -3269,14 +3273,27 @@ function discoverModTraits() {
 			if (!cat || !Array.isArray(cat.traits)) { return; }
 			cat.traits.forEach(function (t) {
 				if (!t || !t.name) { return; }
+				var hasStr = (typeof t.has === "string") ? t.has : "";
+				var parsed = parseTraitHas(hasStr);
+				/* 双巡优化①：模组特质数字比较变量同样生成「可改数值」清单（仿 compileVanillaTraits），
+				   使模组注入特质的数字条件也能直接改数值/回退——数据层 traitWriteValue/undo 已通用 */
+				var values = [];
+				parsed.vars.forEach(function (v) {
+					var num = parseFloat(String(v.val).replace(/["']/g, ""));
+					if (!isNaN(num) && (v.op === "gte" || v.op === "is" || v.op === "gt")) {
+						values.push({ path: v.path, op: v.op, val: num });
+					}
+				});
 				out.push({
 					cat: String(cat.title || "模组特质"),
 					name: (typeof t.name === "function") ? t.name() : String(t.name),
 					text: (typeof t.text === "function") ? String(t.text()) : String(t.text || ""),
 					/* v1.8.11：保留 has 字符串——字符串判定可复用 grant/revoke 写变量直接获得/移除；
 					   函数判定保留 hasFn，走强制获得标记路径 */
-					has: (typeof t.has === "string") ? t.has : "",
+					has: hasStr,
 					hasFn: (typeof t.has === "function") ? t.has : null,
+					parsed: parsed,
+					values: values,
 					mod: true
 				});
 			});
@@ -3553,28 +3570,27 @@ function renderTraitRow(grp, t, V, C, isMod) {
 		actPlayer(res);
 	});
 	row.appendChild(bG);
-	/* 数值可改（数字比较变量）：写入走 player-self 留痕通道 + 回退（仅原版特质有数值清单） */
-	if (!isMod) {
-		t.values.forEach(function (v) {
-			var cur = safeGetObj(V, v.path);
-			var num = (typeof cur === "number") ? cur : 0;
-			var inp = el("input", "mce-inp");
-			inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(num);
-			inp.placeholder = "+N / -N 相对";
-			inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值";
-			var bS = el("button", "", "改数值"); bS.type = "button";
-			bS.addEventListener("click", function () {
-				var res = traitWriteValue(t, V, v.path, inp.value);
-				actPlayer(res);
-			});
-			var bU = el("button", "", "回退"); bU.type = "button";
-			bU.addEventListener("click", function () {
-				var res = undoCheatModValue("player-self", "trait:" + v.path);
-				actPlayer(res);
-			});
-			row.appendChild(inp); row.appendChild(bS); row.appendChild(bU);
+	/* 数值可改（数字比较变量）：写入走 player-self 留痕通道 + 回退
+	   （原版与模组注入特质均可用——discoverModTraits 已为模组特质生成 values 清单） */
+	t.values.forEach(function (v) {
+		var cur = safeGetObj(V, v.path);
+		var num = (typeof cur === "number") ? cur : 0;
+		var inp = el("input", "mce-inp");
+		inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(num);
+		inp.placeholder = "+N / -N 相对";
+		inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值";
+		var bS = el("button", "", "改数值"); bS.type = "button";
+		bS.addEventListener("click", function () {
+			var res = traitWriteValue(t, V, v.path, inp.value);
+			actPlayer(res);
 		});
-	}
+		var bU = el("button", "", "回退"); bU.type = "button";
+		bU.addEventListener("click", function () {
+			var res = undoCheatModValue("player-self", "trait:" + v.path);
+			actPlayer(res);
+		});
+		row.appendChild(inp); row.appendChild(bS); row.appendChild(bU);
+	});
 	grp.appendChild(row);
 }
 /* v1.8.12 特质收藏（数据层）：V.mbCE_favTraits 数组，key=cat\u0001name，收藏项渲染置顶 */
@@ -4043,6 +4059,35 @@ function renderPlayerEdit() {
 		{ cat: "pernpc", title: "持久NPC", desc: "经理/校医/黑客/主教/守卫/囚犯等持久特殊 NPC" }
 	];
 	function charSectionKey(cat) { return "角色:" + cat; }
+	/* v1.9.0 自查优化：分组卡片构建（懒渲染——收起组不建行，展开时补建；与九巡 mods 页特质区同款语义） */
+	function buildCharCards(body, group, members) {
+		var grid = el("div", "mce-cards");
+		members.forEach(function (name) {
+			var npc = findNpcEx(name);
+			var st = getNpcState(name);
+			var active = st.state !== "dismissed";
+			var card = el("div", "mce-card" + (name === curName ? " mce-sel" : ""));
+			var top = el("div", "mce-card-top");
+			top.appendChild(el("span", "mce-card-name", displayNameEx(name)));
+			var badge = el("span", "mce-badge " + (active ? "mce-on" : "mce-off"), active ? "活跃" : "停用");
+			badge.title = "state: " + st.state;
+			top.appendChild(badge);
+			card.appendChild(top);
+			var stats = el("div", "mce-card-stats");
+			stats.appendChild(el("span", "", "爱意 <b>" + statValue(npc, name, STAT_DEFS[0]) + "</b>"));
+			stats.appendChild(el("span", "", "支配 <b>" + statValue(npc, name, STAT_DEFS[2]) + "</b>"));
+			stats.appendChild(el("span", "", "情欲 <b>" + statValue(npc, name, STAT_DEFS[1]) + "</b>"));
+			stats.appendChild(el("span", "", "警戒 <b>" + statValue(npc, name, STAT_DEFS[5]) + "</b>"));
+			card.appendChild(stats);
+			card.addEventListener("click", function () {
+				curName = name;
+				mbCEUiSave({ curName: name }); /* v1.8.12 二轮优化：记住当前操作角色 */
+				switchOuterTab("stage");
+			});
+			grid.appendChild(card);
+		});
+		body.appendChild(grid);
+	}
 	function renderCards() {
 		var pane = root.querySelector('[data-pane="char"]');
 		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* 重建后保持滚动位置（五巡一致） */
@@ -4071,32 +4116,8 @@ function renderPlayerEdit() {
 			var body = el("div", "mce-grp-body");
 			body.setAttribute("data-collapsed", open ? "0" : "1");
 			if (members.length) {
-				var grid = el("div", "mce-cards");
-				members.forEach(function (name) {
-					var npc = findNpcEx(name);
-					var st = getNpcState(name);
-					var active = st.state !== "dismissed";
-					var card = el("div", "mce-card" + (name === curName ? " mce-sel" : ""));
-					var top = el("div", "mce-card-top");
-					top.appendChild(el("span", "mce-card-name", displayNameEx(name)));
-					var badge = el("span", "mce-badge " + (active ? "mce-on" : "mce-off"), active ? "活跃" : "停用");
-					badge.title = "state: " + st.state;
-					top.appendChild(badge);
-					card.appendChild(top);
-					var stats = el("div", "mce-card-stats");
-					stats.appendChild(el("span", "", "爱意 <b>" + statValue(npc, name, STAT_DEFS[0]) + "</b>"));
-					stats.appendChild(el("span", "", "支配 <b>" + statValue(npc, name, STAT_DEFS[2]) + "</b>"));
-					stats.appendChild(el("span", "", "情欲 <b>" + statValue(npc, name, STAT_DEFS[1]) + "</b>"));
-					stats.appendChild(el("span", "", "警戒 <b>" + statValue(npc, name, STAT_DEFS[5]) + "</b>"));
-					card.appendChild(stats);
-					card.addEventListener("click", function () {
-						curName = name;
-						mbCEUiSave({ curName: name }); /* v1.8.12 二轮优化：记住当前操作角色 */
-						switchOuterTab("stage");
-					});
-					grid.appendChild(card);
-				});
-				body.appendChild(grid);
+				/* v1.9.0 自查优化：懒渲染——默认收起的组不建卡片 DOM，展开时才补建（head 点击回调内） */
+				if (open) { buildCharCards(body, group, members); }
 			} else {
 				body.appendChild(el("div", "mce-hint", "（该分类暂无角色）"));
 			}
@@ -4105,6 +4126,10 @@ function renderPlayerEdit() {
 				var nowOpen = body.getAttribute("data-collapsed") === "0";
 				body.setAttribute("data-collapsed", nowOpen ? "1" : "0");
 				head.textContent = (nowOpen ? "▸ " : "▾ ") + group.title + "（" + members.length + "）";
+				/* 收起 → 展开：补建卡片（懒渲染）；open=点击前状态，点击后=!open */
+				if (!nowOpen && members.length && !body.querySelector(".mce-cards")) {
+					buildCharCards(body, group, members);
+				}
 				mbCEUiState.collapsed = mbCEUiState.collapsed || {};
 				mbCEUiState.collapsed[charSectionKey(group.cat)] = nowOpen ? 1 : 0;
 				mbCEUiSave({ collapsed: mbCEUiState.collapsed });

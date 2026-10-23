@@ -2099,7 +2099,34 @@ const g37f = api37.grantTrait(fnTrait37, V, null);
 assert(Array.isArray(V.mbCE_forcedTraits) && V.mbCE_forcedTraits.length === 1 && api37.traitOwned(fnTrait37, V, null) === true, "37.3b 函数型模组特质强制获得标记 + 拥有判定 true, 实际 " + JSON.stringify(V.mbCE_forcedTraits));
 const r37f = api37.revokeTrait(fnTrait37, V, null);
 assert(!Array.isArray(V.mbCE_forcedTraits) || V.mbCE_forcedTraits.length === 0, "37.3b 函数型移除 → 强制标记清除");
+// 37.3c) 双巡优化①：模组特质数字比较变量生成「可改数值」清单（仿原版编译），写入/回退走通用留痕通道
+assert(Array.isArray(strTrait37.values) && strTrait37.values.length === 1 && strTrait37.values[0].path === "acceptance_penis_small" && strTrait37.values[0].op === "gte" && strTrait37.values[0].val === 1000, "37.3c 字符串型模组特质生成可改数值清单 {acceptance_penis_small, gte, 1000}, 实际 " + JSON.stringify(strTrait37.values));
+assert(Array.isArray(fnTrait37.values) && fnTrait37.values.length === 0, "37.3c 函数型模组特质无可解析数值变量（values 空数组）, 实际 " + JSON.stringify(fnTrait37.values));
+V.acceptance_penis_small = 1000; /* 重新置位（37.3b 已移除为 0）作为写入前值 */
+let w37m = api37.traitWriteValue(strTrait37, V, "acceptance_penis_small", "2000");
+assert(w37m.ok && V.acceptance_penis_small === 2000, "37.3c 模组特质数值写入 acceptance_penis_small=2000, 实际 " + V.acceptance_penis_small);
+let w37mu = api37.undoCheatModValue("player-self", "trait:acceptance_penis_small");
+assert(w37mu && w37mu.ok && V.acceptance_penis_small === 1000, "37.3c 模组特质数值回退还原 1000, 实际 " + V.acceptance_penis_small);
+V.acceptance_penis_small = 1000;
+let w37mr = api37.traitWriteValue(strTrait37, V, "acceptance_penis_small", "+500");
+assert(w37mr.ok && V.acceptance_penis_small === 1500, "37.3c 模组特质相对写入 +500 → 1500, 实际 " + V.acceptance_penis_small);
+let w37mru = api37.undoCheatModValue("player-self", "trait:acceptance_penis_small");
+assert(w37mru && w37mru.ok && V.acceptance_penis_small === 1000, "37.3c 相对写入回退还原 1000, 实际 " + V.acceptance_penis_small);
 delete V.acceptance_penis_small; delete V.mbCE_forcedTraits;
+/* 37.3d) 四巡自查修复：gt（严格大于）条件满足值 = num+1——
+   Purity Boost（$featsPurityBoost gt 0）获取后必须判定已拥有；Bratty（$submissive lte 850 and gt 500）复合条件同理 */
+const gtTrait = { cat: "General Traits", name: "Purity Boost", has: "$featsPurityBoost gt 0" };
+V.featsPurityBoost = 0;
+let w37d = api37.grantTrait(gtTrait, V, null);
+assert(w37d.indexOf("featsPurityBoost=1") !== -1 && V.featsPurityBoost === 1, "37.3d gt 满足值写 num+1（featsPurityBoost=1，0 不满足 gt 0）, 实际 " + V.featsPurityBoost + " " + JSON.stringify(w37d));
+assert(api37.traitOwned(gtTrait, V, null) === true, "37.3d gt 条件获取后判定已拥有（此前写 0 恒未获得）");
+let r37d = api37.revokeTrait(gtTrait, V, null);
+assert(V.featsPurityBoost === 0 && api37.traitOwned(gtTrait, V, null) === false, "37.3d gt 移除写 0（不满足）且判定未获得, 实际 " + V.featsPurityBoost);
+const brattyTrait = { cat: "General Traits", name: "Bratty", has: "$submissive lte 850 and $submissive gt 500" };
+V.submissive = 500;
+let w37e = api37.grantTrait(brattyTrait, V, null);
+assert(api37.traitOwned(brattyTrait, V, null) === true, "37.3d 复合 gt+lte 条件获取后判定已拥有（实际 submissive=" + V.submissive + " " + JSON.stringify(w37e) + "）");
+delete V.featsPurityBoost; delete V.submissive;
 // 37.4) 特质写值仍用原键名：traitWriteValue 写 temple_burden（中文显示不影响写入路径）
 let w37 = api37.traitWriteValue(api37.compileVanillaTraits().filter(t => t.name === "Temple Burden: $temple_burden%")[0] || { name: "?" }, V, "temple_burden", "30");
 assert(w37.ok && V.temple_burden === 30, "37.4 特质写值 temple_burden=30 成功, 实际 " + V.temple_burden);

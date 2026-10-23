@@ -189,7 +189,11 @@ const perHead = perGrp.querySelector(".mce-grp-t");
 perHead.click();
 assert(perBody.getAttribute("data-collapsed") === "0", "点击标题 → 持久NPC分组展开 data-collapsed=0（jsdom）");
 const loveGrp = document.querySelector('.mce-grp[data-tcat="恋爱角色"]');
-assert(!!loveGrp && loveGrp.textContent.indexOf("罗宾") !== -1, "恋爱角色分组含 罗宾（jsdom），实际 " + (loveGrp ? loveGrp.textContent.slice(0, 60) : "无"));
+assert(!!loveGrp, "角色页「恋爱角色」分组存在（jsdom）");
+/* 懒渲染（v1.9.0 自查）：默认收起组不建卡片 DOM，textContent 无角色名——先点击展开再断言 */
+const loveBody = loveGrp.querySelector(".mce-grp-body");
+if (loveBody && loveBody.getAttribute("data-collapsed") === "1") { loveGrp.querySelector(".mce-grp-t").click(); }
+assert(loveGrp.textContent.indexOf("罗宾") !== -1, "恋爱角色分组展开后含 罗宾（jsdom），实际 " + loveGrp.textContent.slice(0, 60));
 ptxt = clickTabSafe("stage");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "阶段页渲染不崩，实际 " + ptxt.slice(0, 50));
 ptxt = clickTabSafe("scenes");
