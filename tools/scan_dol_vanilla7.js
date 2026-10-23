@@ -2,7 +2,7 @@
 /* 深扫 7：Helen 注册 + 全量命名 NPC 池提取 + MCE 缺失甄别 */
 "use strict";
 const fs = require("fs");
-const FILE = "C:\\Users\\27352\\Desktop\\DoL-ModLoader-0.5.12.13-v2.101.1\\Degrees of Lewdity.html";
+const FILE = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
 const html = fs.readFileSync(FILE, "utf8");
 
 function ctxAround(key, before, after, limit) {

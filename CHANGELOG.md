@@ -2,7 +2,37 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v1.9.2（2026-10-23 · 四模组适配跟进 + DoL-Game-UI 冲突修复）
+## v1.9.4（2026-10-24 · 未发布）
+
+**今晚十点后批次（2026-10-23 22:00 后 ～ 10-24）：模组角色分区细分 + 剧情页 MOD 区懒渲染 + 注释/图谱一致性**
+
+- **模组角色分区内细分**（10-23 深夜）：`buildModSubGroups` 按 `isLoveCharacter` 把模组角色拆为「模组·恋爱角色 / 模组·普通角色」两个子组（子标题 `mce-stage-head mce-line-head`，组内懒渲染复用 `buildCharCards`）；根因修复：`isVanillaNPC` 改读固定 32 NPC 清单、恋人固定 10 清单，不再读运行时 `setup.NPCNameList`（MOD 会扩展该清单导致模组角色被误判为原版）；测试：smoke 16 节 5 条 DOM 断言 + test_mce 27.13 数据层断言（恋爱细分因 MB 模块级缓存坑移入 smoke，见错题本 ERR-20261023-003）；
+- **剧情页 MOD 场景区懒渲染折叠**：MOD 场景区默认收起只建标题，展开时才构建全部 MOD 场景控件（`mce-grp/mce-grp-t/mce-grp-body` 折叠语义）——MOD 场景多时不再每次切剧情页全量建 DOM（对应历史痛点：展开过多卡住/闪退）；原版区按角色分组不受影响；
+- **注释一致性**：`01-core.js` 原版 32 NPC / 10 恋人清单注释由「运行时优先、此为兜底」修正为「固定清单」并注明 v1.9.2 污染根因；
+- **图谱同步**：`codegraph sync` 已跑（15 变更文件 / 1076 节点），impact 确认 `vanillaNPCList`/`charCategory` 波及面仅角色页渲染链路；
+- **测试同步**：smoke 13/15 节 MOD 断言改为「默认收起（data-collapsed=1 且场景键未渲染）→ 点击展开 → 断言渲染」，新增 4 条懒渲染断言（smoke 总计 169 PASS/0 FAIL）；
+- **独立场景标题渲染 bug 修复（用户实测发现）**：`el()` 第三参数收到 element 时 `String(text)` 拼成 `[object HTMLSpanElement]`——剧情页「独立场景（未聚合成线）」标题整行变乱码；改为两段 append，并全仓搜索同类误用（仅此一处）；
+- **剧情进度块汉化 + 剧情归属标注（用户实测要求）**：凯拉尔组行名汉化（爱意（kylar.timer.love）/ 被侵犯（kylar.raped）/ 谜题（kylar.riddle）/ 成名阶段（kylar.fameStage））；「已看剧情标记补全」的 8 个英文标记全部汉化并标注归属剧情——悉尼写作(sydneyWriting)·悉尼线 / 表白(saidLove)·主线 / 突击队(commando)·绑架线 / 冬季喷泉(fountainWinter)·冬季 / 喷泉初遇(fountainIntro)·初遇 / 聊天初遇(chatIntro)·初遇 / 食堂(canteen)·校园 / 地下室(basement)·绑架；
+- **角色/地点分组默认收起 + 懒渲染（用户要求：按所属合在一起，不要全部平铺太长）**：剧情页原版区 16 个角色/地点组（亚历克斯/伊甸/哈珀/艾弗里/罗宾/惠特尼/凯拉尔/黑狼/神殿/监狱/学校/成人店/厨师/米奇/噩梦梦境/其他）全部改为默认收起只建组标题「▸ 名称（N 场景）」，点击展开才懒渲染该组场景与剧情进度块——剧情页不再整屏平铺；
+- smoke 13/15 节断言适配折叠（stageOf 兼容 .mce-grp + expandGrp 展开后断言），新增折叠断言 → **smoke 总计 176 PASS/0 FAIL**；
+- **折叠状态持久化 + 滚动保持（自查发现：剧情页每次操作后全量重建 → 展开状态丢失 + 滚动复位）**：折叠组展开/收起状态持久化到 `mbCEUiState.collapsed` 的「剧情:<组名>」键（与角色页「角色:<cat>」同语义、互不冲突），固定触发/回退/一键完成/切 tab 重建后展开的组保持展开、懒渲染内容仍在；`renderScenes()` 重建后恢复 `pane.scrollTop`，不再跳回页面顶部；smoke 新增「展开状态持久化：切 tab 重建后 MOD 区仍展开 + 懒渲染内容保留」断言；
+- smoke 追加 5 条断言（无 [object HTMLSpanElement] / 独立场景标题正常 / 悉尼写作·悉尼线 / 被侵犯行名 / 表白+地下室归属）→ **smoke 总计 174 PASS/0 FAIL**；
+- 全链 6 步全绿 + `dev.ps1` 打包装进 game（166,321 B，SHA=`01122542...`）；未 git 提交、未发布（等实测拍板）。
+
+## v1.9.3（2026-10-23 · 未发布）
+
+**性别切换盲区修复（实测路径=测试路径）+ 操作反馈 + 集成测试入全链**（10-23 22:00 前批次）
+
+- **盲区修复**：`applyPlayerGender` 写完七键后立即触发原版引擎收敛 `exposedcheck(true)`——原版 `gender_appearance` 由 `exposure()`→`exposedcheck()` 在场景更新时重算，此前切完性别外观性别要等下一场景才同步；现同场景立即生效（战斗内也强制收敛；环境无引擎函数时静默跳过，不影响七键结果）；
+- **测试补强**：`tests/integration_gender.js` 注入 fake `exposedcheck`，三态（男/女/双性）各加「立即触发收敛」断言；修正测试中原版 HTML 路径指向不存在的 `Desktop\DoL-ModLoader-...`（此前该集成测试永远 SKIP）→ 改为 `game\Degrees of Lewdity.html`；
+- **集成测试入全链**：`tools/run_all.ps1` 新增 [6/6] 性别集成测试步骤（原版 HTML 缺失时 SKIP 不误报）；
+- **操作反馈**：性别切换按钮点击后 `setStatus` 提示成功（「性别已切换为 X」）/失败原因（mce-err），不再静默无反馈；
+- 全链 build→syntax→smoke→regression→E2E→integration_gender 全绿；未 git 提交、未发布（等实测拍板）。
+
+## v1.9.2（2026-10-23 · 已发布 Release）
+
+**四模组适配跟进 + DoL-Game-UI 冲突修复**——本版全部内容见下（含 2026-10-23 发布后补充：list 链路测试 M 段 8 断言 + _modcache 旧对照清理）。发布提交：远端 main=`6870dfdb`（Git Data API 重建），资产 158,563 B SHA=`83476F98...`。
+
 
 **四模组适配更新（枯木逢春 2.4.5 / 归途之书 1.3.11 / Dol-Optimization 1.1.2.1 / 框架 5.5.4）**
 

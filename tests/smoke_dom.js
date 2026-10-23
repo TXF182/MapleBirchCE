@@ -170,7 +170,19 @@ assert(!!r && V.purity === 15, "quickWrite 改纯洁 purity=15，实际 " + V.pu
 
 /* ---------- 7. 其余外层标签冒烟（角色/阶段/剧情/场景/全局） ---------- */
 /* 之前只覆盖 mods（玩家页 + Mod作弊页）；这里模拟点击外层标签，逐个验证剩余 5 页 DOM 渲染不崩 */
-V.NPCName = [{ nam: "Robin" }, { nam: "Whitney" }];
+V.NPCName = [{ nam: "Robin" }, { nam: "Whitney" }, { nam: "Alice" }, { nam: "Liddell" }, { nam: "Seath" }, { nam: "TestNPC" }];
+/* v1.9.2 自查：模拟真实 MOD 环境——框架注册恋爱标记（Alice/Liddell/Seath）+
+   原版角色池扩展污染（MOD 把新角色名加进 setup.NPCNameList，旧版 isVanillaNPC 会误判为原版） */
+window.maplebirch.npc = {
+  data: new Map([
+    ["Alice", { Config: { loveInterest: true } }],
+    ["Liddell", { Config: { loveInterest: true } }],
+    ["Seath", { Config: { loveInterest: true } }],
+    ["TestNPC", { Config: { loveInterest: false } }]
+  ]),
+  NPCNameList: [], romanceConditions: {}, type: {}
+};
+global.setup.NPCNameList = (global.setup.NPCNameList || []).concat(["Alice", "Liddell", "Seath", "TestNPC"]);
 const tabBtns = document.querySelectorAll('.mce-tabs button[data-tab]');
 assert(tabBtns.length >= 6, "外层标签按钮 >=6，实际 " + tabBtns.length);
 function clickTabSafe(name) {
@@ -197,10 +209,58 @@ assert(!!loveGrp, "角色页「恋爱角色」分组存在（jsdom）");
 const loveBody = loveGrp.querySelector(".mce-grp-body");
 if (loveBody && loveBody.getAttribute("data-collapsed") === "1") { loveGrp.querySelector(".mce-grp-t").click(); }
 assert(loveGrp.textContent.indexOf("罗宾") !== -1, "恋爱角色分组展开后含 罗宾（jsdom），实际 " + loveGrp.textContent.slice(0, 60));
+/* v1.9.2 自查：MOD 角色必须全部进「模组角色」分区（即使 setup.NPCNameList 被 MOD 扩展污染），
+   且分区内细分为「模组·恋爱角色 / 模组·普通角色」 */
+const modGrp = document.querySelector('.mce-grp[data-tcat="模组角色"]');
+assert(!!modGrp, "角色页「模组角色」分组存在（jsdom）");
+assert(modGrp.querySelector(".mce-grp-t").textContent.indexOf("模组角色（4）") !== -1, "模组角色分区计数 = 4（Alice/Liddell/Seath/TestNPC），实际 " + modGrp.querySelector(".mce-grp-t").textContent);
+const modBody16 = modGrp.querySelector(".mce-grp-body");
+if (modBody16 && modBody16.getAttribute("data-collapsed") === "1") { modGrp.querySelector(".mce-grp-t").click(); }
+assert(modBody16.textContent.indexOf("模组·恋爱角色（3）") !== -1, "模组分区内细分「模组·恋爱角色（3）」，实际 " + modBody16.textContent.slice(0, 120));
+assert(modBody16.textContent.indexOf("模组·普通角色（1）") !== -1, "模组分区内细分「模组·普通角色（1）」，实际 " + modBody16.textContent.slice(0, 120));
+assert(modBody16.textContent.indexOf("爱丽丝") !== -1 && modBody16.textContent.indexOf("利德尔") !== -1 && modBody16.textContent.indexOf("希斯") !== -1, "恋爱子组含汉化名 爱丽丝/利德尔/希斯，实际 " + modBody16.textContent.slice(0, 200));
+assert(modBody16.textContent.indexOf("TestNPC") !== -1, "普通子组含 TestNPC，实际 " + modBody16.textContent.slice(0, 240));
 ptxt = clickTabSafe("stage");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "阶段页渲染不崩，实际 " + ptxt.slice(0, 50));
+/* v1.9.2 剧情页分区真实验证：注入含「原版键 + MOD 键」的 scenes widget 段落，
+   renderScenes 必须产出 原版剧情（按角色分组）/ MOD 剧情 两区，键各归其位 */
+global.Story.passages = [{
+	name: "scenes",
+	text: '<<widget "scenes">> <<set $scenes to {"RobinCrossdressing1": { startPassage: "RobinCrossdressing1", name: "原版-罗宾变装", unlocked: "true" }, "AveryHelicopter": { startPassage: "AveryHelicopter", name: "原版-艾弗里直升机", unlocked: "true" }, "TestModNewScene": { startPassage: "TestModNewScene", name: "MOD-测试新场景", unlocked: "true" }}>><</widget>>'
+}];
 ptxt = clickTabSafe("scenes");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "剧情页渲染不崩，实际 " + ptxt.slice(0, 50));
+assert(ptxt.indexOf("原版剧情") !== -1 && ptxt.indexOf("MOD 剧情") !== -1, "剧情页含「原版剧情 / MOD 剧情」两区标题，实际 " + ptxt.slice(0, 80));
+assert(ptxt.indexOf("罗宾 Robin") !== -1, "原版区含「罗宾 Robin」角色分组，实际 " + ptxt.slice(0, 120));
+assert(ptxt.indexOf("艾弗里 Avery") !== -1, "原版区含「艾弗里 Avery」角色分组，实际 " + ptxt.slice(0, 120));
+/* v1.9.4：角色/地点分组默认收起——展开罗宾/艾弗里组再断言原版键渲染 */
+const sc13b = document.querySelector('[data-pane="scenes"]');
+["罗宾 Robin", "艾弗里 Avery"].forEach(function (r) {
+  const rg = sc13b.querySelector('.mce-grp[data-tcat="' + r + '"]');
+  if (rg) {
+    const rb = rg.querySelector(".mce-grp-body");
+    if (rb && rb.getAttribute("data-collapsed") === "1") { rg.querySelector(".mce-grp-t").click(); }
+  }
+});
+ptxt = sc13b.textContent;
+assert(ptxt.indexOf("原版-罗宾变装") !== -1 && ptxt.indexOf("原版-艾弗里直升机") !== -1, "原版键渲染进原版角色组（罗宾变装/艾弗里直升机），实际 " + ptxt.slice(0, 160));
+/* v1.9.2 自查：MOD 场景区懒渲染折叠——断言前先展开 MOD 区 */
+const scPane13 = document.querySelector('[data-pane="scenes"]');
+const modRegion13 = scPane13.querySelector('.mce-grp[data-tcat="MOD 场景"]');
+if (modRegion13) {
+  const mb13 = modRegion13.querySelector(".mce-grp-body");
+  if (mb13 && mb13.getAttribute("data-collapsed") === "1") { modRegion13.querySelector(".mce-grp-t").click(); }
+}
+/* v1.9.4：角色/地点分组默认收起——展开艾弗里组再断言剧情进度块 */
+const averyRegion13 = scPane13.querySelector('.mce-grp[data-tcat="艾弗里 Avery"]');
+if (averyRegion13) {
+  const ab13 = averyRegion13.querySelector(".mce-grp-body");
+  if (ab13 && ab13.getAttribute("data-collapsed") === "1") { averyRegion13.querySelector(".mce-grp-t").click(); }
+}
+ptxt = scPane13.textContent;
+assert(ptxt.indexOf("MOD-测试新场景") !== -1, "MOD 键渲染进 MOD 区，实际 " + ptxt.slice(0, 160));
+assert(ptxt.indexOf("剧情进度") !== -1 && ptxt.indexOf("高塔建造进度") !== -1, "艾弗里组渲染「剧情进度」块（高塔建造进度控件），实际 " + ptxt.slice(0, 260));
+global.Story.passages = [];
 ptxt = clickTabSafe("places");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "场景直达页渲染不崩，实际 " + ptxt.slice(0, 50));
 /* v1.9.0 场景页双层页签：真实 jsdom classList/内容切换（mock 层盲区，jsdom 层验证真实 DOM 语义） */
@@ -553,6 +613,168 @@ setTimeout(function () {
   const spane = document.querySelector('[data-pane="mods"]');
   assert(spane.textContent.indexOf("○ 童贞") !== -1 || spane.textContent.indexOf("● 童贞") !== -1, "搜索「童贞」时收起组的匹配行可见（懒渲染搜索边界），实际前 120 字 " + spane.textContent.slice(0, 120));
   api.mbCEUiSave({ filter: "" });
+  /* ---------- 15. v1.9.2 玩家真实路径自查：本体 111 键全量渲染 + 剧情进度控件真实点击 + 救星三按钮真实点击 ---------- */
+  try {
+    const GAME_HTML = "C:/Users/27352/Doubao/chats/2026-10-19/new-chat/DoL-Project/game/Degrees of Lewdity.html";
+    if (fs.existsSync(GAME_HTML)) {
+      const html = fs.readFileSync(GAME_HTML, "utf8");
+      const rePD = /<tw-passagedata[^>]*name="([^"]*)"[^>]*>(.*?)<\/tw-passagedata>/gs;
+      let pm, widgetText = "";
+      while ((pm = rePD.exec(html)) !== null) {
+        const t = pm[2].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+        if (t.indexOf('<<widget "scenes">>') !== -1) { widgetText = t; break; }
+      }
+      assert(!!widgetText && widgetText.length > 50000, "15 本体 scenes widget 已提取（长度 " + (widgetText || "").length + "）");
+      /* 与运行时相同定位：把 MOD 键注入到 <<set $scenes to { ... } 对象体内（parseScenesFromText 只解析该对象体） */
+      function injectIntoScenesObj(w) {
+        var m = w.match(/<<set\s+\$scenes\s+to\s+\{/);
+        if (!m) { m = w.match(/\$scenes\s+to\s+\{/); }
+        if (!m) { return w; }
+        var start = m.index + m[0].length - 1, depth = 0, i = start, end = -1, inStr = false;
+        for (; i < w.length; i++) {
+          var c = w.charAt(i);
+          if (inStr) { if (c === "\\") { i++; } else if (c === '"') { inStr = false; } }
+          else if (c === '"') { inStr = true; }
+          else if (c === "{") { depth++; }
+          else if (c === "}") { depth--; if (depth === 0) { end = i; break; } }
+        }
+        if (end < 0) { return w; }
+        var key = ', "TestModAddedScene": { startPassage: "TestModAddedScene", name: "MOD-注入新场景", unlocked: "true" }';
+        return w.slice(0, end) + key + w.slice(end);
+      }
+      const widget2 = injectIntoScenesObj(widgetText);
+      /* 同时模拟 MOD 运行时注入（Object.assign($scenes,...)）：键只存在于 V.scenes 缓存 */
+      V.scenes = { TestModRuntimeScene: { name: "MOD-运行时新场景", startPassage: "TestModRuntimeScene", passages: [], unlocked: true } };
+      global.Story.passages = [{ name: "scenes", text: widget2 }];
+      /* v1.9.4：折叠状态持久化到 mbCEUiState.collapsed（13 节展开过会污染）——重置后验证默认收起 */
+      api.mbCEUiSave({ collapsed: {} });
+      const sptxt = clickTabSafe("scenes");
+      assert(sptxt.indexOf("THREW") === -1, "15 本体 111 键全量渲染不崩（THREW 检测）");
+      assert(sptxt.indexOf("原版剧情（游戏本体注册，111 场景）") !== -1, "15 原版区计数 = 111，实际 " + sptxt.slice(sptxt.indexOf("原版剧情"), sptxt.indexOf("原版剧情") + 60));
+      assert(sptxt.indexOf("MOD 剧情（第三方模组注册，2 场景）") !== -1, "15 MOD 区计数 = 2（widget 注入 1 + 运行时注入 1），实际 " + sptxt.slice(sptxt.indexOf("MOD 剧情"), sptxt.indexOf("MOD 剧情") + 60));
+      /* v1.9.2 自查：MOD 场景区懒渲染折叠——收起时场景键不渲染，点击标题展开后才补建 */
+      const scPane = document.querySelector('[data-pane="scenes"]');
+      const modRegion = scPane.querySelector('.mce-grp[data-tcat="MOD 场景"]');
+      assert(!!modRegion, "15 MOD 场景折叠组存在（懒渲染）");
+      assert(modRegion.querySelector(".mce-grp-body").getAttribute("data-collapsed") === "1", "15 MOD 场景组默认收起 data-collapsed=1（懒渲染）");
+      assert(scPane.textContent.indexOf("MOD-注入新场景") === -1, "15 收起时 MOD 场景键未渲染（懒渲染生效）");
+      modRegion.querySelector(".mce-grp-t").click();
+      assert(modRegion.querySelector(".mce-grp-body").getAttribute("data-collapsed") === "0", "15 点击标题 → MOD 场景组展开 data-collapsed=0");
+      const sptxt2 = scPane.textContent;
+      assert(sptxt2.indexOf("MOD-注入新场景") !== -1 && sptxt2.indexOf("MOD-运行时新场景") !== -1, "15 展开后两条注入键渲染在 MOD 区");
+      /* v1.9.4：展开状态持久化——切 tab 重建（tab 回调 renderScenes）后展开组保持展开 */
+      clickTabSafe("char");
+      clickTabSafe("scenes");
+      const scPaneB = document.querySelector('[data-pane="scenes"]');
+      const modRegionB = scPaneB.querySelector('.mce-grp[data-tcat="MOD 场景"]');
+      assert(!!modRegionB && modRegionB.querySelector(".mce-grp-body").getAttribute("data-collapsed") === "0", "15 展开状态持久化：重建后 MOD 区仍展开 data-collapsed=0");
+      assert(modRegionB.querySelector(".mce-grp-body").textContent.indexOf("MOD-注入新场景") !== -1, "15 重建后展开组懒渲染内容保留（MOD-注入新场景）");
+      delete V.scenes;
+      assert(sptxt.indexOf("惠特尼 Whitney（14 场景）") !== -1, "15 惠特尼组 14 场景（含修复后的 HalloweenWhitney），实际 " + (sptxt.match(/惠特尼 Whitney（(\d+) 场景）/) ? sptxt.match(/惠特尼 Whitney（(\d+) 场景）/)[1] : "无"));
+      function findBtnIn(scope, txt) {
+        const btns = [].slice.call((scope || document).querySelectorAll("button"));
+        return btns.filter(function (b) { return b.textContent.indexOf(txt) !== -1; })[0] || null;
+      }
+      function stageOf(scope, headTxt) {
+        /* v1.9.4：角色组改为折叠组（.mce-grp + .mce-grp-t 标题），兼容旧 .mce-stage 结构 */
+        const all = [].slice.call((scope || document).querySelectorAll(".mce-grp, .mce-stage"));
+        return all.filter(function (s) {
+          const h = s.querySelector(".mce-grp-t") || s.querySelector(".mce-stage-head");
+          return h && h.textContent.indexOf(headTxt) !== -1;
+        })[0] || null;
+      }
+      function expandGrp(stage) {
+        const t = stage && stage.querySelector(".mce-grp-t");
+        if (t && t.textContent.indexOf("▸") !== -1) { t.click(); }
+      }
+      function rowOf(stage, nameTxt) {
+        const rows = [].slice.call(stage.querySelectorAll(".mce-row"));
+        return rows.filter(function (r) { return r.textContent.indexOf(nameTxt) !== -1; })[0] || null;
+      }
+      /* 剧情进度控件真实点击：艾弗里高塔进度 */
+      const averyStage = stageOf(scPane, "艾弗里 Avery");
+      assert(!!averyStage, "15 艾弗里角色组存在（剧情页）");
+      if (averyStage) { expandGrp(averyStage); }
+      if (averyStage) {
+        const towerRow = rowOf(averyStage, "高塔建造进度");
+        assert(!!towerRow, "15 艾弗里组含「高塔建造进度」控件行");
+        if (towerRow) {
+          const inp = towerRow.querySelector("input.mce-inp");
+          assert(!!inp, "15 高塔进度 input 存在");
+          if (inp) { inp.value = "85"; }
+          const applyT = findBtnIn(towerRow, "应用");
+          assert(!!applyT, "15 高塔进度应用按钮存在");
+          if (applyT) { applyT.click(); }
+          assert(V.avery_tower && V.avery_tower.progress === 85, "15 点击应用 → V.avery_tower.progress=85，实际 " + (V.avery_tower && V.avery_tower.progress));
+        }
+        const pgBtn = findBtnIn(averyStage, "派对来宾区域补全");
+        assert(!!pgBtn, "15 派对来宾补全按钮存在");
+        if (pgBtn) { pgBtn.click(); }
+        assert(Array.isArray(V.avery_party.guests) && V.avery_party.guests.length === 5, "15 点按钮 → guests 补全 5 区域，实际 " + (V.avery_party.guests || []).length);
+      }
+      /* 罗宾债务事件阶段 */
+      const robinStage = stageOf(scPane, "罗宾 Robin");
+      assert(!!robinStage, "15 罗宾角色组存在（剧情页）");
+      if (robinStage) { expandGrp(robinStage); }
+      if (robinStage) {
+        const debRow = rowOf(robinStage, "债务事件阶段");
+        assert(!!debRow, "15 罗宾组含「债务事件阶段」控件行");
+        if (debRow) {
+          const sel = debRow.querySelector("select");
+          assert(!!sel, "15 债务事件 select 存在");
+          if (sel) { sel.value = "7"; }
+          const applyD = findBtnIn(debRow, "应用");
+          if (applyD) { applyD.click(); }
+          assert(V.robindebtevent === 7, "15 点击应用 → V.robindebtevent=7，实际 " + V.robindebtevent);
+        }
+      }
+      /* 凯拉尔剧情标记补全 */
+      const kylarStage = stageOf(scPane, "凯拉尔 Kylar");
+      assert(!!kylarStage, "15 凯拉尔角色组存在（剧情页）");
+      if (kylarStage) { expandGrp(kylarStage); }
+      if (kylarStage) {
+        const kylarTxt = kylarStage.textContent;
+        assert(kylarTxt.indexOf("[object HTMLSpanElement]") === -1, "15 凯拉尔组无 [object HTMLSpanElement]（独立场景标题渲染 bug 已修），实际 " + kylarTxt.slice(0, 60));
+        assert(kylarTxt.indexOf("独立场景（未聚合成线）") !== -1, "15 独立场景标题正常显示（非 [object...]）");
+        assert(kylarTxt.indexOf("悉尼写作(sydneyWriting)·悉尼线") !== -1, "15 凯拉尔标记汉化：悉尼写作·悉尼线（标明剧情归属）");
+        assert(kylarTxt.indexOf("被侵犯（kylar.raped）") !== -1, "15 凯拉尔行名汉化：被侵犯（kylar.raped）");
+        assert(kylarTxt.indexOf("表白(saidLove)·主线") !== -1 && kylarTxt.indexOf("地下室(basement)·绑架") !== -1, "15 凯拉尔标记汉化：表白·主线 / 地下室·绑架");
+        const seenBtn = findBtnIn(kylarStage, "已看剧情标记补全");
+        assert(!!seenBtn, "15 凯拉尔标记补全按钮存在");
+        if (seenBtn) { seenBtn.click(); }
+        assert(Array.isArray(V.kylarSeen) && V.kylarSeen.length === 8, "15 点按钮 → kylarSeen 补全 8 标记，实际 " + (V.kylarSeen || []).length);
+      }
+      /* 救星三按钮真实点击（全局页） */
+      delete V.avery_fate; delete V.mceAveryShelter; delete V.mceAveryFateSnapshot;
+      const gptxt = clickTabSafe("global");
+      assert(gptxt.indexOf("THREW") === -1, "15 全局页渲染不崩");
+      const gPane = document.querySelector('[data-pane="global"]');
+      const bSaved = findBtnIn(gPane, "获取（原版线）");
+      assert(!!bSaved, "15 救星「获取（原版线）」按钮存在（未拥有态）");
+      if (bSaved) { bSaved.click(); }
+      assert(V.avery_fate === "saved", "15 点击原版线 → V.avery_fate=saved，实际 " + V.avery_fate);
+      /* 点击后 renderGlobal 重建 → 重新查找撤回按钮 */
+      const r1 = findBtnIn(document.querySelector('[data-pane="global"]'), "撤回（恢复操作前状态）");
+      assert(!!r1, "15 拥有态出现「撤回」按钮");
+      if (r1) { r1.click(); }
+      assert(V.avery_fate === undefined && V.mceAveryShelter === undefined, "15 撤回 → fate/shelter 还原，实际 fate=" + V.avery_fate + " shelter=" + V.mceAveryShelter);
+      const bShelter = findBtnIn(document.querySelector('[data-pane="global"]'), "获取（庇护模式）");
+      assert(!!bShelter, "15 撤回后回到未拥有态（庇护按钮出现）");
+      if (bShelter) { bShelter.click(); }
+      assert(V.mceAveryShelter === true && V.avery_fate === undefined, "15 点庇护 → shelter=true 且 fate 未动，实际 shelter=" + V.mceAveryShelter + " fate=" + V.avery_fate);
+      const r2 = findBtnIn(document.querySelector('[data-pane="global"]'), "撤回（恢复操作前状态）");
+      if (r2) { r2.click(); }
+      assert(V.mceAveryShelter === undefined && V.avery_fate === undefined, "15 撤回庇护 → 全部还原，实际 shelter=" + V.mceAveryShelter);
+      /* 清理注入态 */
+      delete V.avery_tower; delete V.avery_party; delete V.robindebtevent; delete V.robinmissing; delete V.robin; delete V.kylarSeen;
+      global.Story.passages = [];
+    } else {
+      console.log("WARN: 15 本体 HTML 缺失，跳过玩家路径测试");
+    }
+  } catch (e15) {
+    failures++;
+    console.error("FAIL: 15 玩家路径测试异常：" + (e15 && e15.message ? e15.message : e15));
+  }
   console.log(failures === 0 ? "\nSMOKE ALL PASSED" : "\nSMOKE " + failures + " FAILURES");
   process.exitCode = failures === 0 ? 0 : 1;
-}, 350);
+}, 20000);

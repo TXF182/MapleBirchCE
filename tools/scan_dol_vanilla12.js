@@ -2,7 +2,7 @@
 /* 深扫 12：office_manager 宏定义 + manager NPC 注册机制 + manager 数据键 */
 "use strict";
 const fs = require("fs");
-const FILE = "C:\\Users\\27352\\Desktop\\DoL-ModLoader-0.5.12.13-v2.101.1\\Degrees of Lewdity.html";
+const FILE = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
 const html = fs.readFileSync(FILE, "utf8");
 
 function ctxAround(key, before, after, limit) {

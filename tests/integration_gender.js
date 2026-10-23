@@ -9,7 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const VM = require("vm");
 
-const DOL_HTML = "C:\\Users\\27352\\Desktop\\DoL-ModLoader-0.5.12.13-v2.101.1\\Degrees of Lewdity.html";
+const DOL_HTML = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
 const MCE_JS = path.join(__dirname, "..", "javascript", "maplebirchce.js");
 
 let passed = 0, failed = 0;
@@ -63,6 +63,10 @@ sandbox.setup = {};
 sandbox.window.setup = sandbox.setup;
 sandbox.window.maplebirch = { get: function () { return null; }, npc: {} };
 sandbox.window.SugarCube = undefined;
+/* 盲区修复验证（实测路径=测试路径）：注入 fake 引擎收敛函数，
+   断言 applyPlayerGender 写完七键后立即触发一次 exposedcheck(true) */
+sandbox.window.__mceExposedcheckCalls = 0;
+sandbox.window.exposedcheck = function () { sandbox.window.__mceExposedcheckCalls++; };
 VM.createContext(sandbox);
 VM.runInContext(mceSrc, sandbox);
 const api = sandbox.setup.mbStageCE;
@@ -97,6 +101,7 @@ function playerAfter(g) {
 /* ================= 断言 ================= */
 console.log("== 切男（m） ==");
 {
+  const before = sandbox.window.__mceExposedcheckCalls;
   const pl = playerAfter("m");
   const r = genderSandbox(pl, pl.gender_appearance);
   assert(pl.sex === "m" && pl.gender === "m" && pl.gender_body === "m" && pl.ballsExist === false, "七键：男", JSON.stringify({ s: pl.sex, g: pl.gender, gb: pl.gender_body, b: pl.ballsExist }));
@@ -105,9 +110,11 @@ console.log("== 切男（m） ==");
   assert(r.isHermOrCrossdresser() === false, "原版 isHermOrCrossdresser → false", r.isHermOrCrossdresser());
   assert(r.clothesTypeOf() === "male", "原版服装分型 → male", r.clothesTypeOf());
   assert(api.getPlayerGender({ player: pl }) === "m", "getPlayerGender → 男");
+  assert(sandbox.window.__mceExposedcheckCalls === before + 1, "切男后立即触发引擎收敛（exposedcheck）", "calls=" + sandbox.window.__mceExposedcheckCalls);
 }
 console.log("== 切女（f） ==");
 {
+  const before = sandbox.window.__mceExposedcheckCalls;
   const pl = playerAfter("f");
   const r = genderSandbox(pl, pl.gender_appearance);
   assert(pl.sex === "f" && pl.gender === "f" && pl.gender_body === "f" && pl.ballsExist === false && pl.penissize === 0, "七键：女", JSON.stringify({ s: pl.sex, g: pl.gender, gb: pl.gender_body, b: pl.ballsExist, ps: pl.penissize }));
@@ -116,9 +123,11 @@ console.log("== 切女（f） ==");
   assert(r.isHermOrCrossdresser() === false, "原版 isHermOrCrossdresser → false", r.isHermOrCrossdresser());
   assert(r.clothesTypeOf() === "female", "原版服装分型 → female（修复前 gender=m 会走 male）", r.clothesTypeOf());
   assert(api.getPlayerGender({ player: pl }) === "f", "getPlayerGender → 女");
+  assert(sandbox.window.__mceExposedcheckCalls === before + 1, "切女后立即触发引擎收敛（exposedcheck）", "calls=" + sandbox.window.__mceExposedcheckCalls);
 }
 console.log("== 切双性（h） ==");
 {
+  const before = sandbox.window.__mceExposedcheckCalls;
   const pl = playerAfter("a");
   const r = genderSandbox(pl, pl.gender_appearance);
   assert(pl.sex === "h" && pl.gender === "h" && pl.gender_body === "a" && pl.ballsExist === true && pl.penissize >= 1, "七键：双性", JSON.stringify({ s: pl.sex, g: pl.gender, gb: pl.gender_body, b: pl.ballsExist, ps: pl.penissize }));
@@ -128,6 +137,7 @@ console.log("== 切双性（h） ==");
   pl.breastsize = 4;
   assert(genderSandbox(pl, pl.gender_appearance).clothesTypeOf() === "female", "原版服装分型（gender_body=a 且 breastsize=4）→ female", genderSandbox(pl, pl.gender_appearance).clothesTypeOf());
   assert(api.getPlayerGender({ player: pl }) === "a", "getPlayerGender → 双性");
+  assert(sandbox.window.__mceExposedcheckCalls === before + 1, "切双性后立即触发引擎收敛（exposedcheck）", "calls=" + sandbox.window.__mceExposedcheckCalls);
 }
 console.log("== 回归护栏：修复前旧实现（只写四键）确实会导致原版误判 ==");
 {

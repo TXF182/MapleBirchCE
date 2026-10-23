@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.2";
+	var MCE_VERSION = "1.9.4";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -150,14 +150,15 @@
 	}
 
 	/* ============ v1.9.0 角色分类：模组/恋爱/普通/持久NPC（按类型拆角色页子页面） ============ */
-	/* 原版 32 个命名 NPC（setup.NPCNameList 运行时优先；此为兜底/测试基准，来源：DoL 0.5.12.13 原版） */
+	/* 原版 32 个命名 NPC（固定清单，来源：DoL 0.5.12.13 原版。v1.9.2 起不再读运行时 setup.NPCNameList——
+	   它会随 MOD 扩展而污染"是否原版"判定，见 vanillaNPCList 注释） */
 	var VANILLA_NPC_NAMES = [
 		"Avery", "Bailey", "Briar", "Charlie", "Darryl", "Doren", "Eden", "Gwylan",
 		"Harper", "Jordan", "Kylar", "Landry", "Leighton", "Mason", "Morgan", "River",
 		"Robin", "Sam", "Sirris", "Whitney", "Winter", "Black Wolf", "Niki", "Quinn",
 		"Remy", "Alex", "Great Hawk", "Wren", "Sydney", "Ivory Wraith", "Zephyr", "Night Monster"
 	];
-	/* 原版官方恋人清单（setup.loveInterestNpc 兜底） */
+	/* 原版官方恋人清单（固定清单，同理不读运行时 loveInterestNpc） */
 	var VANILLA_LOVE_INTERESTS = ["Robin", "Whitney", "Kylar", "Sydney", "Eden", "Avery", "Black Wolf", "Great Hawk", "Alex", "Gwylan"];
 	/* 持久 NPC 角色键（原版 allowed_npcs 注册表；守卫/囚犯/坐骑为角色族，变体名以 _<键> 结尾） */
 	var PER_NPC_ROLES = ["steed", "guard", "inmate", "panty_thief", "school_nurse", "pinch", "black_dog", "hacker", "bishop", "bishop_right_hand", "bishop_left_hand", "manager", "alexs_parent1", "alexs_parent2", "whitneys_auncle", "whitney_parent_flat"];
@@ -169,22 +170,13 @@
 		"whitneys_auncle": "惠特尼姑/叔", "whitney_parent_flat": "惠特尼父母公寓",
 		"guard": "守卫", "inmate": "囚犯"
 	};
+	/* v1.9.2 自查修复：不再读运行时 setup.NPCNameList/loveInterestNpc——MOD 会把新角色名
+	   扩展进这两个清单（原版角色池扩展机制），导致 MOD 角色被误判为原版而分进恋爱/普通区。
+	   锁定 DoL 0.5.12.13 固定清单判定，MOD 扩展不影响"是否原版"分类。 */
 	function vanillaNPCList() {
-		try {
-			var st = getSetup();
-			if (st && Array.isArray(st.NPCNameList) && st.NPCNameList.length) {
-				return st.NPCNameList.map(function (n) { return String(n).toLowerCase(); });
-			}
-		} catch (e) {}
 		return VANILLA_NPC_NAMES.map(function (n) { return String(n).toLowerCase(); });
 	}
 	function vanillaLoveInterests() {
-		try {
-			var st = getSetup();
-			if (st && Array.isArray(st.loveInterestNpc) && st.loveInterestNpc.length) {
-				return st.loveInterestNpc.map(function (n) { return String(n).toLowerCase(); });
-			}
-		} catch (e) {}
 		return VANILLA_LOVE_INTERESTS.map(function (n) { return String(n).toLowerCase(); });
 	}
 	function isVanillaNPC(name) {

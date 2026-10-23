@@ -3,7 +3,7 @@
  * 目标：列出相关 passage 名、变量键、NPC 引用，供适配甄别。 */
 "use strict";
 const fs = require("fs");
-const FILE = "C:\\Users\\27352\\Desktop\\DoL-ModLoader-0.5.12.13-v2.101.1\\Degrees of Lewdity.html";
+const FILE = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
 const html = fs.readFileSync(FILE, "utf8");
 console.log("HTML 大小: " + (html.length / 1048576).toFixed(1) + " MB");
 

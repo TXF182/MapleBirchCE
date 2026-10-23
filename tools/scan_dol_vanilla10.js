@@ -3,7 +3,7 @@
 "use strict";
 const fs = require("fs");
 const files = {
-  "原版": "C:\\Users\\27352\\Desktop\\DoL-ModLoader-0.5.12.13-v2.101.1\\Degrees of Lewdity.html",
+  "原版": "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html",
   "Lyra": "C:\\Users\\27352\\Downloads\\DoL-0.5.12.13-Lyra-1.0.1a-goose-1004.1\\Degrees of Lewdity.html"
 };
 for (const [tag, FILE] of Object.entries(files)) {

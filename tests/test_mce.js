@@ -1615,14 +1615,90 @@ V.location = "town";
 var gk = api24.grantNpcTrait("stockholm_kylar");
 assert(gk.ok && V.syndromekylar === 1, "27.6 获取凯拉尔：syndromekylar=1, 实际 " + V.syndromekylar);
 assert(gk.message.indexOf("在监狱") !== -1 && global.C.npc.Kylar.state === "prison", "27.6 凯拉尔在监狱：提示暂不显示且 NPC 状态未改, 实际 " + gk.message);
-// 27.7) 获取艾弗里的救星：avery_fate=saved
+// 27.7) 获取艾弗里的救星：avery_fate=saved（默认原版线，向后兼容）
 var ga = api24.grantNpcTrait("avery_saviour");
 assert(ga.ok && V.avery_fate === "saved", "27.7 获取艾弗里救星：avery_fate=saved, 实际 " + V.avery_fate);
+// 27.7b) 撤回救星（原版线）：avery_fate 按快照还原为操作前（未定义）
+var gv = api24.revertNpcTrait("avery_saviour");
+assert(gv.ok && V.avery_fate === undefined, "27.7b 撤回救星（原版线）：avery_fate 还原未定义, 实际 " + V.avery_fate);
+assert(api24.listNpcTraits().filter(function (t) { return t.key === "avery_saviour"; })[0].owned === false, "27.7b 撤回后 owned=false");
+// 27.7c) 庇护模式：不碰 avery_fate，仅挂 mceAveryShelter 标记，owned=true
+delete V.avery_fate; delete V.mceAveryShelter; delete V.mceAveryFateSnapshot;
+var gs = api24.grantNpcTrait("avery_saviour", "shelter");
+assert(gs.ok && V.avery_fate === undefined && V.mceAveryShelter === true, "27.7c 庇护模式：avery_fate 未改动且 mceAveryShelter=true, 实际 fate=" + V.avery_fate + " shelter=" + V.mceAveryShelter);
+assert(api24.listNpcTraits().filter(function (t) { return t.key === "avery_saviour"; })[0].owned === true, "27.7c 庇护模式 owned=true（大楼保留建造进度）");
+// 27.7d) 撤回庇护：清除标记，fate 保持未定义
+var gd = api24.revertNpcTrait("avery_saviour");
+assert(gd.ok && V.mceAveryShelter === undefined && V.avery_fate === undefined, "27.7d 撤回庇护：标记清除且 fate 保持, 实际 shelter=" + V.mceAveryShelter + " fate=" + V.avery_fate);
+// 27.7e) saved 线快照还原：模拟获取后手动改值，撤回恢复快照
+V.avery_fate = "saved"; V.mceAveryFateSnapshot = "undefined";
+var ge = api24.revertNpcTrait("avery_saviour");
+assert(ge.ok && V.avery_fate === undefined, "27.7e 撤回 saved 线：fate 还原未定义, 实际 " + V.avery_fate);
+// 27.7f) 操作前 fate=fallen：获取后快照 fallen，撤回恢复 fallen（不丢原状态）
+delete V.avery_fate; delete V.mceAveryShelter; delete V.mceAveryFateSnapshot;
+V.avery_fate = "fallen";
+var gf2 = api24.grantNpcTrait("avery_saviour");
+assert(gf2.ok && V.avery_fate === "saved" && V.mceAveryFateSnapshot === "fallen", "27.7f 获取：fate=saved 且快照 fallen, 实际 fate=" + V.avery_fate + " 快照=" + V.mceAveryFateSnapshot);
+var gr2 = api24.revertNpcTrait("avery_saviour");
+assert(gr2.ok && V.avery_fate === "fallen", "27.7f 撤回：fate 恢复 fallen（快照值）, 实际 " + V.avery_fate);
+// 27.10) v1.9.2 剧情页分区：原版场景键索引 + 角色映射（VANILLA_SCENE_KEYS 提取自本体 111 键）
+var sk1 = api24.isVanillaSceneKey("RobinCrossdressing1");
+assert(sk1 === true, "27.10 RobinCrossdressing1 属原版场景, 实际 " + sk1);
+var sk2 = api24.isVanillaSceneKey("SomeModNewScene");
+assert(sk2 === false, "27.10 非原版键判为 MOD 场景, 实际 " + sk2);
+assert(api24.VANILLA_SCENE_KEYS.length === 111, "27.10 原版场景键索引 111 条, 实际 " + api24.VANILLA_SCENE_KEYS.length);
+assert(api24.sceneRoleOf("AveryHelicopter") === "艾弗里 Avery", "27.10 AveryHelicopter → 艾弗里分组, 实际 " + api24.sceneRoleOf("AveryHelicopter"));
+assert(api24.sceneRoleOf("TempleVigil") === "神殿 Temple", "27.10 TempleVigil → 神殿分组, 实际 " + api24.sceneRoleOf("TempleVigil"));
+assert(api24.sceneRoleOf("RobinUndergroundDice") === "罗宾 Robin", "27.10 RobinUndergroundDice → 罗宾分组, 实际 " + api24.sceneRoleOf("RobinUndergroundDice"));
+assert(api24.sceneRoleOf("NightmareWraith") === "噩梦梦境 Nightmare", "27.10 NightmareWraith → 噩梦分组, 实际 " + api24.sceneRoleOf("NightmareWraith"));
+assert(api24.sceneRoleOf("MickeyPubFameIntro") === "米奇 Mickey", "27.10 MickeyPubFameIntro → 米奇分组, 实际 " + api24.sceneRoleOf("MickeyPubFameIntro"));
+// 27.11) 任务三：非场景剧情进度控制（按角色收纳，配置真实变量 + 点路径写入 + 动作）
+var pl1 = api24.getRolePlots("艾弗里 Avery");
+assert(!!pl1 && pl1.items.length >= 5, "27.11 艾弗里剧情进度配置存在且 ≥5 项, 实际 " + (pl1 ? pl1.items.length : "无"));
+var pl2 = api24.getRolePlots("罗宾 Robin");
+assert(!!pl2 && pl2.items.length >= 3, "27.11 罗宾剧情进度配置存在且 ≥3 项, 实际 " + (pl2 ? pl2.items.length : "无"));
+var pl3 = api24.getRolePlots("凯拉尔 Kylar");
+assert(!!pl3 && pl3.items.length >= 5, "27.11 凯拉尔剧情进度配置存在且 ≥5 项, 实际 " + (pl3 ? pl3.items.length : "无"));
+assert(api24.getRolePlots("惠特尼 Whitney") === null, "27.11 未配置角色返回 null（不误挂进度块）");
+// 点路径写入：avery_tower.progress=85 / stage=3
+delete V.avery_tower;
+api24.setDotPath("avery_tower.progress", 85);
+assert(V.avery_tower && V.avery_tower.progress === 85, "27.11 点路径写入 avery_tower.progress=85, 实际 " + (V.avery_tower && V.avery_tower.progress));
+api24.setDotPath("avery_tower.stage", 3);
+assert(V.avery_tower.stage === 3, "27.11 点路径写入 avery_tower.stage=3, 实际 " + V.avery_tower.stage);
+assert(api24.getDotPath("avery_tower.progress") === 85, "27.11 点路径读取 avery_tower.progress=85");
+assert(api24.getDotPath("no_such.path") === undefined, "27.11 不存在路径读取为 undefined（不抛错）");
+// 动作：partyGuests 补全 + kylarSeen 补全
+delete V.avery_party; delete V.kylarSeen;
+var pg = api24.applyRolePlotAction("partyGuests");
+assert(Array.isArray(V.avery_party.guests) && V.avery_party.guests.length === 5, "27.11 partyGuests 补全 5 区域, 实际 " + (V.avery_party.guests || []).length + "：" + pg);
+var ks = api24.applyRolePlotAction("kylarSeen");
+assert(Array.isArray(V.kylarSeen) && V.kylarSeen.length === 8, "27.11 kylarSeen 补全 8 标记, 实际 " + (V.kylarSeen || []).length + "：" + ks);
+delete V.avery_tower; delete V.avery_party; delete V.kylarSeen;
+// 27.12) v1.9.2 自查：MOD 运行时注入场景（V.scenes 缓存键）必须进入 getScenesDefs（MOD 区不空）
+V.scenes = { TestModRuntimeScene: { name: "MOD-运行时新场景", startPassage: "TestModRuntimeScene", passages: [], unlocked: true } };
+var sd12 = api24.getScenesDefs();
+assert(sd12.defs && sd12.defs.TestModRuntimeScene !== undefined, "27.12 运行时注入键（V.scenes）进入 getScenesDefs, 实际含键 " + JSON.stringify(Object.keys(sd12.defs || {})));
+delete V.scenes;
+// 27.13) v1.9.2 自查：MOD 扩展 setup.NPCNameList（原版角色池扩展机制）不得污染 isVanillaNPC/charCategory
+try {
+	setup.NPCNameList = (setup.NPCNameList || []).concat(["Alice", "Liddell", "Seath", "Luna", "TestNPC"]);
+} catch (e) { setup.NPCNameList = ["Alice", "Liddell", "Seath", "Luna", "TestNPC"]; }
+assert(api24.charCategory("Alice") === "mod", "27.13 MOD 角色 Alice 归 mod（NPCNameList 扩展不再误判原版）, 实际 " + api24.charCategory("Alice"));
+assert(api24.charCategory("Liddell") === "mod", "27.13 MOD 角色 Liddell 归 mod");
+assert(api24.charCategory("Seath") === "mod", "27.13 MOD 角色 Seath 归 mod");
+assert(api24.charCategory("Luna") === "mod", "27.13 MOD 角色 Luna 归 mod");
+assert(api24.charCategory("TestNPC") === "mod", "27.13 MOD 角色 TestNPC 归 mod");
+assert(api24.charCategory("Robin") === "love", "27.13 原版恋爱角色 Robin 仍归 love, 实际 " + api24.charCategory("Robin"));
+assert(api24.charCategory("Mason") === "normal", "27.13 原版普通角色 Mason 仍归 normal, 实际 " + api24.charCategory("Mason"));
+/* 模组分区内细分（恋爱/普通）的 DOM 归属断言见 smoke 16 节（jsdom 环境 window.maplebirch 未被替换，
+   可注入 loveInterest 标记；test_mce 的 window.maplebirch 中途被各 MOD 测试整体替换致 MB 缓存陈旧，
+   恋爱判定在此环境不可注入，故数据层不重复断言） */
 // 27.8) 未知特质拒绝
 var gx = api24.grantNpcTrait("no_such_trait");
 assert(gx.ok === false && gx.message.indexOf("未知特质") !== -1, "27.8 未知特质拒绝, 实际 " + gx.message);
 // 27.9) 清理
-delete V.player; delete V.templePromised; delete V.temple_rank; delete V.temple_burden; delete V.brokenVowCount; delete V.robinpaid; delete V.syndromeeden; delete V.syndromekylar; delete V.syndromewolves; delete V.syndromebird; delete V.avery_fate; delete V.location; delete global.C;
+delete V.player; delete V.templePromised; delete V.temple_rank; delete V.temple_burden; delete V.brokenVowCount; delete V.robinpaid; delete V.syndromeeden; delete V.syndromekylar; delete V.syndromewolves; delete V.syndromebird; delete V.avery_fate; delete V.mceAveryShelter; delete V.mceAveryFateSnapshot; delete V.location; delete global.C;
 
 // 28) v1.5.0 与原有功能协同/隔离检验：恋爱解锁 ↔ 特质获取 / 场景直达 ↔ 特质状态 / 誓言修复 ↔ 恋爱 / Mod作弊 ↔ robinpaid 隔离 / 全局批量不碰新变量
 // 28.1) 恢复恋爱条件环境（第 7 节容错测试清空过 window，重新挂载完整框架 npc）

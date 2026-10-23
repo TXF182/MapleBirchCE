@@ -26,8 +26,41 @@
 			owned: function () { return getV().syndromebird >= 1; },
 			grant: function () { getV().syndromebird = 1; return { ok: true, message: "已满足「斯德哥尔摩综合征：巨鹰」条件（syndromebird = 1）" }; } },
 		{ key: "avery_saviour", name: "艾弗里的救星", en: "Avery's Saviour", desc: "你救了艾弗里的命。愤怒每日衰减。",
-			owned: function () { return getV().avery_fate === "saved"; },
-			grant: function () { getV().avery_fate = "saved"; return { ok: true, message: "已满足「艾弗里的救星」条件（avery_fate = saved）" }; } }
+			owned: function () { return getV().avery_fate === "saved" || getV().mceAveryShelter === true; },
+			grant: function (mode) {
+				var v = getV();
+				var m = mode || "saved";
+				if (m === "shelter") {
+					/* 庇护模式：只挂 MCE 标记，不改 avery_fate——大楼/高塔保留正常建造进度，不走原版救星结局线 */
+					if (!v.mceAveryShelter) {
+						v.mceAveryShelter = true;
+						v.mceAveryFateSnapshot = (v.avery_fate === undefined) ? "undefined" : v.avery_fate;
+					}
+					return { ok: true, message: "庇护模式已启用：获得「艾弗里的救星」效果（愤怒每日衰减），avery_fate 未改动——大楼/高塔保留建造进度，不走原版救星结局线。" };
+				}
+				/* 原版线：avery_fate = saved（高塔转烧毁态，与原版 Save Avery 结局一致） */
+				if (v.avery_fate !== "saved") {
+					v.mceAveryFateSnapshot = (v.avery_fate === undefined) ? "undefined" : v.avery_fate;
+				}
+				v.avery_fate = "saved";
+				return { ok: true, message: "已满足「艾弗里的救星」条件（avery_fate = saved，原版救星线：高塔转为烧毁态）" };
+			},
+			revert: function () {
+				var v = getV();
+				var wasShelter = !!v.mceAveryShelter;
+				var snap = v.mceAveryFateSnapshot;
+				var wasSaved = v.avery_fate === "saved";
+				delete v.mceAveryShelter;
+				delete v.mceAveryFateSnapshot;
+				var msg;
+				if (wasSaved && snap !== undefined) {
+					if (snap === "undefined") { delete v.avery_fate; msg = "avery_fate 已还原为操作前状态（未定义）"; }
+					else { v.avery_fate = snap; msg = "avery_fate 已还原为 " + snap; }
+				} else {
+					msg = "avery_fate 保持原状（" + (v.avery_fate === undefined ? "未定义" : v.avery_fate) + "）";
+				}
+				return { ok: true, message: "已撤回「艾弗里的救星」" + (wasShelter ? "（庇护标记已清除；" : "（") + msg + "）——大楼/高塔恢复操作前状态" };
+			} }
 	];
 	// 神殿誓言状态（原版 Traits widget 一般特质分组：Chastity Vow / Broken Vow / Rite of Promise / Broken Promise）
 	function getVowStatus() {
@@ -64,12 +97,20 @@
 			return { key: t.key, name: t.name, en: t.en, desc: t.desc, owned: !!t.owned() };
 		});
 	}
-	// 获取指定 NPC 特质：条件不满足时直接把条件变量改为满足
-	function grantNpcTrait(key) {
+	// 获取指定 NPC 特质：条件不满足时直接把条件变量改为满足；mode 可选（avery_saviour 支持 shelter 庇护模式）
+	function grantNpcTrait(key, mode) {
 		var t = null, i;
 		for (i = 0; i < NPC_TRAITS.length; i++) { if (NPC_TRAITS[i].key === key) { t = NPC_TRAITS[i]; break; } }
 		if (!t) { return { ok: false, message: "未知特质 " + key }; }
-		return t.grant();
+		return t.grant(mode);
+	}
+	// 撤回指定 NPC 特质：恢复操作前状态（目前 avery_saviour 支持快照回退）
+	function revertNpcTrait(key) {
+		var t = null, i;
+		for (i = 0; i < NPC_TRAITS.length; i++) { if (NPC_TRAITS[i].key === key) { t = NPC_TRAITS[i]; break; } }
+		if (!t) { return { ok: false, message: "未知特质 " + key }; }
+		if (typeof t.revert !== "function") { return { ok: false, message: "该特质不支持撤回" }; }
+		return t.revert();
 	}
 
 	function renderGlobal() {
@@ -131,9 +172,54 @@
 		vrow.appendChild(vbtn);
 		pane.appendChild(vrow);
 		var traits = listNpcTraits();
-		pane.appendChild(el("div", "mce-hint", "NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。"));
+		pane.appendChild(el("div", "mce-hint", "NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持庇护模式与撤回。"));
 		var tbox = el("div", "");
 		traits.forEach(function (t) {
+			if (t.key === "avery_saviour") {
+				/* v1.9.2：救星特质双模式 + 撤回（庇护模式不碰 avery_fate，大楼保留） */
+				var v2 = getV();
+				var shelterOn = v2.mceAveryShelter === true;
+				var row = el("div", "mce-row");
+				row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc + (shelterOn ? "　【庇护模式生效中：大楼保留建造进度】" : (t.owned ? "　【原版线：高塔烧毁】" : ""))));
+				if (t.owned) {
+					var rbtn = el("button", "mce-btn mce-red", "撤回（恢复操作前状态）");
+					rbtn.type = "button";
+					rbtn.title = "移除救星标记/庇护标记，并按操作前快照还原 avery_fate，大楼/高塔恢复原状";
+					(function (t2) {
+						rbtn.addEventListener("click", function () {
+							var r = revertNpcTrait(t2.key);
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderGlobal();
+						});
+					})(t);
+					row.appendChild(rbtn);
+				} else {
+					var b1 = el("button", "mce-btn mce-gold", "获取（原版线）");
+					b1.type = "button";
+					b1.title = "avery_fate = saved，高塔转烧毁态（原版 Save Avery 结局线）";
+					(function (t2) {
+						b1.addEventListener("click", function () {
+							var r = grantNpcTrait(t2.key, "saved");
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderGlobal();
+						});
+					})(t);
+					row.appendChild(b1);
+					var b2 = el("button", "mce-btn mce-gold", "获取（庇护模式）");
+					b2.type = "button";
+					b2.title = "不碰 avery_fate，保留大楼/高塔建造进度，只获得救星效果（不走救星结局线）";
+					(function (t2) {
+						b2.addEventListener("click", function () {
+							var r = grantNpcTrait(t2.key, "shelter");
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderGlobal();
+						});
+					})(t);
+					row.appendChild(b2);
+				}
+				tbox.appendChild(row);
+				return;
+			}
 			var row = el("div", "mce-row");
 			row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc));
 			var btn = el("button", "mce-btn" + (t.owned ? "" : " mce-gold"), t.owned ? "已拥有" : "获取");

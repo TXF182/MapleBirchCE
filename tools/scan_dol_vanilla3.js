@@ -2,7 +2,7 @@
 /* 深扫 3：town_projects / office 键的上下文与关联角色 */
 "use strict";
 const fs = require("fs");
-const FILE = "C:\\Users\\27352\\Desktop\\DoL-ModLoader-0.5.12.13-v2.101.1\\Degrees of Lewdity.html";
+const FILE = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
 const html = fs.readFileSync(FILE, "utf8");
 
 // 1) town_projects 上下文：抽取含该键的片段（前 120 后 200 字符），聚类

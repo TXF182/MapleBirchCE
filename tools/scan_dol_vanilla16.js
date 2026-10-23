@@ -2,7 +2,7 @@
 /* 深扫 16：地点阶段键的阶段上限（gte/is/== 阈值实证），供"地点"子界面 max 取值 */
 "use strict";
 const fs = require("fs");
-const FILE = "C:\\Users\\27352\\Desktop\\DoL-ModLoader-0.5.12.13-v2.101.1\\Degrees of Lewdity.html";
+const FILE = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
 const html = fs.readFileSync(FILE, "utf8");
 
 const keys = ["farm_stage", "farm_phase", "flats_progress", "temple_cloister_progress", "temple_arcade_phase",

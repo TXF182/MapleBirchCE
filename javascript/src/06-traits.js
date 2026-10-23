@@ -926,6 +926,12 @@ function applyPlayerGender(V, g) {
 		} else {
 			return "FAIL: 未知性别 " + g;
 		}
+		/* 引擎收敛（实测路径=测试路径修复）：原版 gender_appearance 由 exposure()→exposedcheck()
+		   在场景更新时重算；切性别后立即触发一次（alwaysRun=true 战斗内也收敛），同场景外观性别立即生效，
+		   避免下一场景前 UI/服装分型读到旧值。环境无引擎函数（单测沙箱）时静默跳过，不影响七键结果。 */
+		try {
+			if (typeof window !== "undefined" && typeof window.exposedcheck === "function") { window.exposedcheck(true); }
+		} catch (e) {}
 		return out.join(",");
 	} catch (e) { return "FAIL: " + (e && e.message ? e.message : e); }
 }
@@ -939,7 +945,12 @@ function renderGenderBox(pane, V) {
 		var b = el("button", g === gv ? "mce-btn-active" : "", (GENDER_CN[gv] || gv) + (g === gv ? " ✓" : ""));
 		b.type = "button";
 		b.setAttribute("data-gender", gv);
-		b.addEventListener("click", function () { applyPlayerGender(V, gv); renderPlayerEdit(); });
+		b.addEventListener("click", function () {
+			var res = applyPlayerGender(V, gv);
+			var isFail = typeof res === "string" && res.indexOf("FAIL") === 0;
+			setStatus(isFail ? res : "性别已切换为「" + (GENDER_CN[gv] || gv) + "」", isFail ? "mce-err" : "mce-ok");
+			renderPlayerEdit();
+		});
 		brow.appendChild(b);
 	});
 	box.appendChild(brow);

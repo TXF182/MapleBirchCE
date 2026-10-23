@@ -242,6 +242,15 @@
 				sceneStatus: sceneStatus,
 				completeScene: completeScene,
 				listSceneLines: listSceneLines,
+				/* v1.9.2 剧情页分区：原版场景键索引 + 角色映射 */
+				VANILLA_SCENE_KEYS: VANILLA_SCENE_KEYS,
+				isVanillaSceneKey: isVanillaSceneKey,
+				sceneRoleOf: sceneRoleOf,
+				/* v1.9.2 任务三：非场景剧情进度控制（按角色） */
+				getRolePlots: getRolePlots,
+				getDotPath: getDotPath,
+				setDotPath: setDotPath,
+				applyRolePlotAction: applyRolePlotAction,
 				listPlaceGroups: listPlaceGroups,
 				placeNameCN: placeNameCN,
 				teleportTo: teleportTo,
@@ -299,6 +308,7 @@
 				fixVows: fixVows,
 				listNpcTraits: listNpcTraits,
 				grantNpcTrait: grantNpcTrait,
+				revertNpcTrait: revertNpcTrait,
 				/* v1.8.0 玩家属性与特质管理 */
 				renderPlayerEdit: renderPlayerEdit,
 				compileVanillaTraits: compileVanillaTraits,

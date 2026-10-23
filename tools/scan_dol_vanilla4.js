@@ -2,7 +2,7 @@
 /* 深扫 4：town_projects 字段上下文（跨行）+ office 工作细节 + 角色（NPCList） */
 "use strict";
 const fs = require("fs");
-const FILE = "C:\\Users\\27352\\Desktop\\DoL-ModLoader-0.5.12.13-v2.101.1\\Degrees of Lewdity.html";
+const FILE = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
 const html = fs.readFileSync(FILE, "utf8");
 
 function ctxAround(key, before, after, limit) {

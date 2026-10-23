@@ -7,7 +7,25 @@
 		{ cat: "pernpc", title: "持久NPC", desc: "经理/校医/黑客/主教/守卫/囚犯等持久特殊 NPC" }
 	];
 	function charSectionKey(cat) { return "角色:" + cat; }
+	/* v1.9.2 自查：模组角色分区内细分「恋爱角色 / 普通角色」（按 isLoveCharacter 再判定） */
+	function buildModSubGroups(body, members) {
+		var loveM = [], normM = [];
+		members.forEach(function (n) { (isLoveCharacter(n) ? loveM : normM).push(n); });
+		function sub(title, list) {
+			var subHead = el("div", "mce-stage-head mce-line-head", title + "（" + list.length + "）");
+			body.appendChild(subHead);
+			if (list.length) { buildCharCards(body, null, list); }
+			else { body.appendChild(el("div", "mce-hint", "（暂无）")); }
+		}
+		sub("模组·恋爱角色", loveM);
+		sub("模组·普通角色", normM);
+	}
 	/* v1.9.0 自查优化：分组卡片构建（懒渲染——收起组不建行，展开时补建；与九巡 mods 页特质区同款语义） */
+	/* v1.9.2 自查：模组分区内细分（恋爱/普通），其余分类直接建卡片 */
+	function buildGroupCards(body, group, members) {
+		if (group.cat === "mod") { buildModSubGroups(body, members); }
+		else { buildCharCards(body, group, members); }
+	}
 	function buildCharCards(body, group, members) {
 		var grid = el("div", "mce-cards");
 		members.forEach(function (name) {
@@ -65,7 +83,7 @@
 			body.setAttribute("data-collapsed", open ? "0" : "1");
 			if (members.length) {
 				/* v1.9.0 自查优化：懒渲染——默认收起的组不建卡片 DOM，展开时才补建（head 点击回调内） */
-				if (open) { buildCharCards(body, group, members); }
+				if (open) { buildGroupCards(body, group, members); }
 			} else {
 				body.appendChild(el("div", "mce-hint", "（该分类暂无角色）"));
 			}
@@ -76,7 +94,7 @@
 				head.textContent = (nowOpen ? "▸ " : "▾ ") + group.title + "（" + members.length + "）";
 				/* 收起 → 展开：补建卡片（懒渲染）；open=点击前状态，点击后=!open */
 				if (!nowOpen && members.length && !body.querySelector(".mce-cards")) {
-					buildCharCards(body, group, members);
+					buildGroupCards(body, group, members);
 				}
 				mbCEUiState.collapsed = mbCEUiState.collapsed || {};
 				mbCEUiState.collapsed[charSectionKey(group.cat)] = nowOpen ? 1 : 0;

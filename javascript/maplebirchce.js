@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.2";
+	var MCE_VERSION = "1.9.4";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -264,14 +264,15 @@
 	}
 
 	/* ============ v1.9.0 角色分类：模组/恋爱/普通/持久NPC（按类型拆角色页子页面） ============ */
-	/* 原版 32 个命名 NPC（setup.NPCNameList 运行时优先；此为兜底/测试基准，来源：DoL 0.5.12.13 原版） */
+	/* 原版 32 个命名 NPC（固定清单，来源：DoL 0.5.12.13 原版。v1.9.2 起不再读运行时 setup.NPCNameList——
+	   它会随 MOD 扩展而污染"是否原版"判定，见 vanillaNPCList 注释） */
 	var VANILLA_NPC_NAMES = [
 		"Avery", "Bailey", "Briar", "Charlie", "Darryl", "Doren", "Eden", "Gwylan",
 		"Harper", "Jordan", "Kylar", "Landry", "Leighton", "Mason", "Morgan", "River",
 		"Robin", "Sam", "Sirris", "Whitney", "Winter", "Black Wolf", "Niki", "Quinn",
 		"Remy", "Alex", "Great Hawk", "Wren", "Sydney", "Ivory Wraith", "Zephyr", "Night Monster"
 	];
-	/* 原版官方恋人清单（setup.loveInterestNpc 兜底） */
+	/* 原版官方恋人清单（固定清单，同理不读运行时 loveInterestNpc） */
 	var VANILLA_LOVE_INTERESTS = ["Robin", "Whitney", "Kylar", "Sydney", "Eden", "Avery", "Black Wolf", "Great Hawk", "Alex", "Gwylan"];
 	/* 持久 NPC 角色键（原版 allowed_npcs 注册表；守卫/囚犯/坐骑为角色族，变体名以 _<键> 结尾） */
 	var PER_NPC_ROLES = ["steed", "guard", "inmate", "panty_thief", "school_nurse", "pinch", "black_dog", "hacker", "bishop", "bishop_right_hand", "bishop_left_hand", "manager", "alexs_parent1", "alexs_parent2", "whitneys_auncle", "whitney_parent_flat"];
@@ -283,22 +284,13 @@
 		"whitneys_auncle": "惠特尼姑/叔", "whitney_parent_flat": "惠特尼父母公寓",
 		"guard": "守卫", "inmate": "囚犯"
 	};
+	/* v1.9.2 自查修复：不再读运行时 setup.NPCNameList/loveInterestNpc——MOD 会把新角色名
+	   扩展进这两个清单（原版角色池扩展机制），导致 MOD 角色被误判为原版而分进恋爱/普通区。
+	   锁定 DoL 0.5.12.13 固定清单判定，MOD 扩展不影响"是否原版"分类。 */
 	function vanillaNPCList() {
-		try {
-			var st = getSetup();
-			if (st && Array.isArray(st.NPCNameList) && st.NPCNameList.length) {
-				return st.NPCNameList.map(function (n) { return String(n).toLowerCase(); });
-			}
-		} catch (e) {}
 		return VANILLA_NPC_NAMES.map(function (n) { return String(n).toLowerCase(); });
 	}
 	function vanillaLoveInterests() {
-		try {
-			var st = getSetup();
-			if (st && Array.isArray(st.loveInterestNpc) && st.loveInterestNpc.length) {
-				return st.loveInterestNpc.map(function (n) { return String(n).toLowerCase(); });
-			}
-		} catch (e) {}
 		return VANILLA_LOVE_INTERESTS.map(function (n) { return String(n).toLowerCase(); });
 	}
 	function isVanillaNPC(name) {
@@ -3805,6 +3797,12 @@ function applyPlayerGender(V, g) {
 		} else {
 			return "FAIL: 未知性别 " + g;
 		}
+		/* 引擎收敛（实测路径=测试路径修复）：原版 gender_appearance 由 exposure()→exposedcheck()
+		   在场景更新时重算；切性别后立即触发一次（alwaysRun=true 战斗内也收敛），同场景外观性别立即生效，
+		   避免下一场景前 UI/服装分型读到旧值。环境无引擎函数（单测沙箱）时静默跳过，不影响七键结果。 */
+		try {
+			if (typeof window !== "undefined" && typeof window.exposedcheck === "function") { window.exposedcheck(true); }
+		} catch (e) {}
 		return out.join(",");
 	} catch (e) { return "FAIL: " + (e && e.message ? e.message : e); }
 }
@@ -3818,7 +3816,12 @@ function renderGenderBox(pane, V) {
 		var b = el("button", g === gv ? "mce-btn-active" : "", (GENDER_CN[gv] || gv) + (g === gv ? " ✓" : ""));
 		b.type = "button";
 		b.setAttribute("data-gender", gv);
-		b.addEventListener("click", function () { applyPlayerGender(V, gv); renderPlayerEdit(); });
+		b.addEventListener("click", function () {
+			var res = applyPlayerGender(V, gv);
+			var isFail = typeof res === "string" && res.indexOf("FAIL") === 0;
+			setStatus(isFail ? res : "性别已切换为「" + (GENDER_CN[gv] || gv) + "」", isFail ? "mce-err" : "mce-ok");
+			renderPlayerEdit();
+		});
 		brow.appendChild(b);
 	});
 	box.appendChild(brow);
@@ -4248,7 +4251,25 @@ function renderPlayerEdit() {
 		{ cat: "pernpc", title: "持久NPC", desc: "经理/校医/黑客/主教/守卫/囚犯等持久特殊 NPC" }
 	];
 	function charSectionKey(cat) { return "角色:" + cat; }
+	/* v1.9.2 自查：模组角色分区内细分「恋爱角色 / 普通角色」（按 isLoveCharacter 再判定） */
+	function buildModSubGroups(body, members) {
+		var loveM = [], normM = [];
+		members.forEach(function (n) { (isLoveCharacter(n) ? loveM : normM).push(n); });
+		function sub(title, list) {
+			var subHead = el("div", "mce-stage-head mce-line-head", title + "（" + list.length + "）");
+			body.appendChild(subHead);
+			if (list.length) { buildCharCards(body, null, list); }
+			else { body.appendChild(el("div", "mce-hint", "（暂无）")); }
+		}
+		sub("模组·恋爱角色", loveM);
+		sub("模组·普通角色", normM);
+	}
 	/* v1.9.0 自查优化：分组卡片构建（懒渲染——收起组不建行，展开时补建；与九巡 mods 页特质区同款语义） */
+	/* v1.9.2 自查：模组分区内细分（恋爱/普通），其余分类直接建卡片 */
+	function buildGroupCards(body, group, members) {
+		if (group.cat === "mod") { buildModSubGroups(body, members); }
+		else { buildCharCards(body, group, members); }
+	}
 	function buildCharCards(body, group, members) {
 		var grid = el("div", "mce-cards");
 		members.forEach(function (name) {
@@ -4306,7 +4327,7 @@ function renderPlayerEdit() {
 			body.setAttribute("data-collapsed", open ? "0" : "1");
 			if (members.length) {
 				/* v1.9.0 自查优化：懒渲染——默认收起的组不建卡片 DOM，展开时才补建（head 点击回调内） */
-				if (open) { buildCharCards(body, group, members); }
+				if (open) { buildGroupCards(body, group, members); }
 			} else {
 				body.appendChild(el("div", "mce-hint", "（该分类暂无角色）"));
 			}
@@ -4317,7 +4338,7 @@ function renderPlayerEdit() {
 				head.textContent = (nowOpen ? "▸ " : "▾ ") + group.title + "（" + members.length + "）";
 				/* 收起 → 展开：补建卡片（懒渲染）；open=点击前状态，点击后=!open */
 				if (!nowOpen && members.length && !body.querySelector(".mce-cards")) {
-					buildCharCards(body, group, members);
+					buildGroupCards(body, group, members);
 				}
 				mbCEUiState.collapsed = mbCEUiState.collapsed || {};
 				mbCEUiState.collapsed[charSectionKey(group.cat)] = nowOpen ? 1 : 0;
@@ -5013,7 +5034,26 @@ function renderPlayerEdit() {
 	function getScenesDefs() {
 		var parsed = null;
 		try { parsed = parseScenesFromText(findScenesWidgetText()); } catch (e) { parsed = null; }
-		if (parsed) { return { defs: parsed, live: true }; }
+		if (parsed) {
+			/* v1.9.2 自查：MOD 运行时注入（Object.assign($scenes, {...}) / 框架注册）的键只在
+			   V.scenes 存档缓存、不在 widget 原文——合并进解析结果，确保 MOD 区显示运行时新增场景 */
+			var V2 = getV();
+			var sc2 = V2 && V2.scenes;
+			if (sc2 && typeof sc2 === "object") {
+				Object.keys(sc2).forEach(function (k) {
+					if (parsed[k]) { return; }
+					var s = sc2[k];
+					if (!s || typeof s !== "object") { return; }
+					parsed[k] = {
+						name: s.name, startPassage: s.startPassage, passages: Array.isArray(s.passages) ? s.passages.slice() : [],
+						unlockedExpr: typeof s.unlocked === "string" ? s.unlocked : "",
+						lockedExpr: typeof s.lockedMessage === "string" ? s.lockedMessage : "",
+						lockedCache: s.lockedMessage, unlockedCache: s.unlocked
+					};
+				});
+			}
+			return { defs: parsed, live: true };
+		}
 		/* v1.4.8：widget 段落定位失败 → Story 全文恢复（汉化/段落名变体兜底） */
 		var recovered = null;
 		try { recovered = recoverSceneDefsFromStory(); } catch (e) { recovered = null; }
@@ -5100,6 +5140,133 @@ function renderPlayerEdit() {
 		}).sort(function (a, b) { return a.prefix.toLowerCase().localeCompare(b.prefix.toLowerCase()); });
 		singles.sort(function (a, b) { return a.key.toLowerCase().localeCompare(b.key.toLowerCase()); });
 		return { lines: lines, singles: singles };
+	}
+
+	/* ============ v1.9.2 原版剧情分区索引（提取自游戏本体 0.5.12.13 $scenes 注册表，共 111 键） ============
+	   用途：剧情页把「原版剧情」与「MOD 注册剧情」分区展示。运行时解析出的场景键
+	   在本名单内 → 原版剧情（按角色分组）；不在名单内 → MOD 剧情。
+	   名单逐字提取自本体，非手写猜测；若 MOD 新增了同名键则仍归原版组（键未变）。 */
+	var VANILLA_SCENE_KEYS = [
+		"AdultShopIntro","AdultShopOpening","AlexFarmIntro","AlexFarmSelfMilkingCaught",
+		"AlexFarmWorkStage03","AlexFarmWorkStage04","AlexFarmWorkStage05","AlexFarmWorkStage06",
+		"AlexFarmWorkStage07","AlexFarmWorkStage08","AlexFarmWorkStage09","AlexFarmWorkStage10",
+		"AlexFarmWorkStage11","AlexFarmWorkStage12","AveryHelicopter","AveryParkIntroduction",
+		"BlackWolfIntro","ChefOpeningCeremony","ChefOpeningPhotograph","Christmas Mirror",
+		"EdenIntro","EdenRadioIntro","EdenValentinesBath","FreeTheBlackDog",
+		"HalloweenKylar","HalloweenWhitney","HarperHypnosisDog1","HarperHypnosisDog2",
+		"HarperHypnosisDog3","HarperHypnosisDog4","HarperHypnosisDogIntro","HarperHypnosisExam1",
+		"HarperHypnosisExam2","HarperHypnosisExam3","HarperHypnosisIntro","HarperHypnosisTrance1",
+		"HarperHypnosisTrance2","HarperHypnosisTrance3","HarperHypnosisTrance4","HookahPlot1",
+		"HookahPlot2","IslandCastle","KylarAbduction","KylarBasement",
+		"KylarManorSecret","KylarManorSleep","KylarMonstranceAccost","KylarMonstranceAsk",
+		"MickeyOrphanageHacker","MickeyPubFameIntro","MoorFlower","NightmareAlex",
+		"NightmareBird","NightmareCorruptSydney","NightmareEden","NightmareGwylan",
+		"NightmareHarper","NightmareOffice","NightmareWitch","NightmareWraith",
+		"Pinch","placeHolder","PrisonScarredInmate","PrisonSpirePrecipice",
+		"PrisonYardLocket","RaulAndJanet","RentFirstRobinFight","RobinCrossdressing1",
+		"RobinCrossdressing2","RobinCrossdressing3","RobinCrossdressing4","RobinCrossdressing5",
+		"RobinCrossdressing6","RobinCrossdressing6I","RobinDocks","RobinIntro1",
+		"RobinIntro2","RobinIntro3","RobinLandfill","RobinPillory",
+		"RobinPilloryIntro","RobinUndergroundDice","RobinUndergroundEscape","RobinUndergroundHunt",
+		"RobinUndergroundKiss","RobinUndergroundMachine","RobinUndergroundStage","Schism",
+		"SchoolInspectionBreast","SchoolInspectionPenis","SchoolInspectionPussy","TempleConfessorIntro",
+		"TempleSydneyCorrupt","TempleSydneyPunish","TempleSydneyPureRitual","TempleVigil",
+		"TheFarm","Tutorial","WhitneyOrphanageLoft","WhitneyOrphanageVisit",
+		"WhitneySchoolBully1","WhitneySchoolBully2","WhitneySchoolBully3","WhitneySchoolBully4",
+		"WhitneySchoolBullyChastity","WhitneySchoolBullyPanty","WhitneySchoolBullySkirt",
+		"WhitneySchoolBullySwimwear","WhitneyShoppingCentreClothes","WhitneyShoppingCentreCosmetics",
+		"WhitneyShoppingCentreHairDressers"
+	];
+	function isVanillaSceneKey(key) { return VANILLA_SCENE_KEYS.indexOf(key) !== -1; }
+	/* 场景键 → 角色分组（精确/前缀规则按顺序匹配，Nightmare 专项须在通用 Nightmare 之前） */
+	function sceneRoleOf(key) {
+		var k = String(key || "");
+		var rules = [
+			{ test: /^NightmareAlex/, role: "亚历克斯 Alex" },
+			{ test: /^NightmareEden/, role: "伊甸 Eden" },
+			{ test: /^NightmareHarper/, role: "哈珀 Harper" },
+			{ test: /^NightmareOffice/, role: "艾弗里 Avery" },
+			{ test: /^Robin|^RentFirstRobin/, role: "罗宾 Robin" },
+			{ test: /^Whitney|^HalloweenWhitney/, role: "惠特尼 Whitney" },
+			{ test: /^Kylar|^HalloweenKylar/, role: "凯拉尔 Kylar" },
+			{ test: /^Eden|^FreeTheBlackDog/, role: "伊甸 Eden" },
+			{ test: /^BlackWolf/, role: "黑狼 Black Wolf" },
+			{ test: /^Alex|^TheFarm$|^MoorFlower/, role: "亚历克斯 Alex" },
+			{ test: /^Avery/, role: "艾弗里 Avery" },
+			{ test: /^Harper/, role: "哈珀 Harper" },
+			{ test: /^Temple/, role: "神殿 Temple" },
+			{ test: /^Prison/, role: "监狱 Prison" },
+			{ test: /^SchoolInspection/, role: "学校 School" },
+			{ test: /^AdultShop/, role: "成人店 Adult Shop" },
+			{ test: /^Chef/, role: "厨师 Chef" },
+			{ test: /^Mickey/, role: "米奇 Mickey" },
+			{ test: /^Nightmare/, role: "噩梦梦境 Nightmare" }
+		];
+		for (var i = 0; i < rules.length; i++) { if (rules[i].test.test(k)) { return rules[i].role; } }
+		return "其他 Other";
+	}
+	/* ============ 任务三（v1.9.2）：非场景注册表的剧情进度控制（按角色收纳在剧情页原版区） ============
+	   每个条目真实变量均已从本体 0.5.12.13 核实（见条目 note），只写证据确凿的键。 */
+	var EXTRA_ROLE_PLOTS = {
+		"艾弗里 Avery": {
+			intro: "大楼建造 + 庄园派对（原版 $avery_tower / $avery_party，均已核实）",
+			items: [
+				{ key: "avery_tower_progress", name: "高塔建造进度", type: "range", varPath: "avery_tower.progress", min: 0, max: 100, step: 5, note: "0-100，分档触发剧情（25/60/76/80）" },
+				{ key: "avery_tower_stage", name: "高塔阶段", type: "select", varPath: "avery_tower.stage", options: [[0, "0 未开始"], [1, "1 奠基"], [2, "2 施工中"], [3, "3 接近完成（顶层救援线）"]], note: "stage 3 = 救星/献祭线入口" },
+				{ key: "avery_party_stage", name: "庄园派对进度", type: "select", varPath: "avery_party.stage", options: [[0, "0 未开始"], [1, "1 进行中"], [2, "2 高潮（可解锁狐狸来宾线）"]], note: "guests 补全见下方按钮" },
+				{ key: "avery_party_guests", name: "派对来宾区域补全", type: "action", action: "partyGuests", note: "补全 lounge/display/garden/pool/atrium 来宾记录（跳过逐一赴约）" },
+				{ key: "avery_mansion", name: "大厦状态", type: "info", varPath: "avery_mansion", note: "有值即已进入过庄园（$avery_mansion 3518 处引用）" }
+			]
+		},
+		"罗宾 Robin": {
+			intro: "债务事件 + 失踪 + 被虐程度（原版 $robindebtevent / $robinmissing / $robin.timer.hurt）",
+			items: [
+				{ key: "robin_debtevent", name: "债务事件阶段", type: "select", varPath: "robindebtevent", options: [[0, "0 无（已解决）"], [1, "1 晚餐事件"], [7, "7 垃圾场/受伤（robin_injured）"], [30, "30 枷刑（监禁最长一个月）"]], note: "本体 case dinner→1 / landfill→7 / pillory→30" },
+				{ key: "robin_missing", name: "失踪状态", type: "select", varPath: "robinmissing", options: [[0, "0 在家"], [1, "1 失踪（会迁移为 docks）"]], note: "原版迁移点：1 → \"docks\"" },
+				{ key: "robin_hurt", name: "被虐程度 timer.hurt", type: "range", varPath: "robin.timer.hurt", min: 0, max: 2, step: 1, note: "1=冲突 2=背叛（本体 gte 1/gte 2 两档）" }
+			]
+		},
+		"凯拉尔 Kylar": {
+			intro: "对象数值 + 已看剧情标记（原版 $kylar / $kylarSeen，均属凯拉尔线）",
+			items: [
+				{ key: "kylar_timer_love", name: "爱意（kylar.timer.love）", type: "range", varPath: "kylar.timer.love", min: 0, max: 100, step: 1, note: "$kylar.timer = {halls,street,home,love}；爱意影响凯拉尔剧情的触发与态度" },
+				{ key: "kylar_raped", name: "被侵犯（kylar.raped）", type: "range", varPath: "kylar.raped", min: 0, max: 1, step: 1, note: "1=凯拉尔曾对玩家施暴（地下室绑架线）" },
+				{ key: "kylar_riddle", name: "谜题（kylar.riddle）", type: "range", varPath: "kylar.riddle", min: 0, max: 1, step: 1, note: "凯拉尔谜语剧情：答对解锁额外互动" },
+				{ key: "kylar_fame", name: "成名阶段（kylar.fameStage）", type: "range", varPath: "kylar.fameStage", min: 0, max: 3, step: 1, note: "0-3，凯拉尔对玩家出名程度的反应档位" },
+				{ key: "kylar_seen", name: "已看剧情标记补全", type: "action", action: "kylarSeen", note: "补全凯拉尔线 8 个已看标记：悉尼写作(sydneyWriting)·悉尼线 / 表白(saidLove)·主线 / 突击队(commando)·绑架线 / 冬季喷泉(fountainWinter)·冬季 / 喷泉初遇(fountainIntro)·初遇 / 聊天初遇(chatIntro)·初遇 / 食堂(canteen)·校园 / 地下室(basement)·绑架" }
+			]
+		}
+	};
+	function getRolePlots(role) { return EXTRA_ROLE_PLOTS[role] || null; }
+	function getDotPath(varPath) {
+		var segs = String(varPath || "").split("."), o = getV(), i = 0;
+		for (; i < segs.length - 1; i++) { if (o === null || typeof o !== "object") { return undefined; } o = o[segs[i]]; }
+		return o === null || typeof o !== "object" ? undefined : o[segs[i]];
+	}
+	function setDotPath(varPath, val) {
+		var segs = String(varPath || "").split("."), o = getV(), i = 0;
+		for (; i < segs.length - 1; i++) { var k = segs[i]; if (o === null || typeof o !== "object") { return; } if (typeof o[k] !== "object" || o[k] === null) { o[k] = {}; } o = o[k]; }
+		if (o !== null && typeof o === "object") { o[segs[i]] = val; }
+	}
+	/* 一次性剧情动作（对应 item.action） */
+	function applyRolePlotAction(action) {
+		var V = getV(); if (!V) { return "状态对象不可用"; }
+		if (action === "partyGuests") {
+			if (typeof V.avery_party !== "object" || V.avery_party === null) { V.avery_party = {}; }
+			if (!Array.isArray(V.avery_party.guests)) { V.avery_party.guests = []; }
+			["lounge", "display", "garden", "pool", "atrium"].forEach(function (g) {
+				if (V.avery_party.guests.indexOf(g) === -1) { V.avery_party.guests.push(g); }
+			});
+			return "已补全派对来宾区域记录（" + V.avery_party.guests.join("/") + "）";
+		}
+		if (action === "kylarSeen") {
+			if (!Array.isArray(V.kylarSeen)) { V.kylarSeen = []; }
+			["sydneyWriting", "saidLove", "commando", "fountainWinter", "fountainIntro", "chatIntro", "canteen", "basement"].forEach(function (t) {
+				if (V.kylarSeen.indexOf(t) === -1) { V.kylarSeen.push(t); }
+			});
+			return "已补全凯拉尔剧情标记（" + V.kylarSeen.length + " 项）";
+		}
+		return "未知动作";
 	}
 
 	/* ============ 固定触发（v1.1）：把某个剧情钉住，下次推进剧情（遇见角色）自动重放
@@ -5940,7 +6107,20 @@ function renderPlayerEdit() {
 	/* ---- 特殊剧情页（$scenes 场景注册表动态枚举） ---- */
 	function renderScenes() {
 		var pane = root.querySelector('[data-pane="scenes"]');
+		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* v1.9.4：重建后保持滚动位置（固定触发/回退/一键完成后不跳回顶部） */
 		pane.textContent = "";
+		/* v1.9.4：折叠组展开状态键「剧情:<组名>」（与角色页「角色:<cat>」同语义、互不冲突），
+		   展开状态持久化到 mbCEUiState.collapsed——操作后 renderScenes() 重建不再全部收回去 */
+		function sceneSectionKey(role) { return "剧情:" + role; }
+		function sceneStored(role) {
+			return mbCEUiState.collapsed && mbCEUiState.collapsed[sceneSectionKey(role)] != null
+				? Number(mbCEUiState.collapsed[sceneSectionKey(role)]) : 1;
+		}
+		function sceneSet(role, val) {
+			mbCEUiState.collapsed = mbCEUiState.collapsed || {};
+			mbCEUiState.collapsed[sceneSectionKey(role)] = val;
+			mbCEUiSave({ collapsed: mbCEUiState.collapsed });
+		}
 		/* 使用提示（v1.5.2）：固定触发注意事项，页首常驻 */
 		pane.appendChild(el("div", "mce-warn", "使用提示：当你使用固定触发后，会一直循环。当出现退出场景时，回到此页面取消队列。之后你会被困在场景播放器中，请使用场景直达退出去。"));
 		/* 固定触发状态横幅（v1.2：队列，显示全部未触发项） */
@@ -5966,171 +6146,320 @@ function renderPlayerEdit() {
 		var r = getScenesDefs();
 		if (!Object.keys(r.defs).length) {
 			pane.appendChild(el("div", "mce-err", "未读取到场景注册表（$scenes）。"));
-			pane.appendChild(el("div", "mce-hint", "说明：本页读取游戏「场景查看器（Scene Viewer）」的注册表。请先在游戏菜单打开一次「场景」页面后返回；MOD 通过场景系统注册的剧情（如启示录 MOD 的罗宾神殿剧情）会随注册表自动出现。"));
+			pane.appendChild(el("div", "mce-hint", "说明：本页读取游戏「场景查看器（Scene Viewer）」的注册表。请先在游戏菜单打开一次「场景」页面后返回；MOD 通过场景系统注册的剧情会随注册表自动出现。"));
 			return;
 		}
-		pane.appendChild(el("div", "mce-hint", "已读取场景注册表 " + Object.keys(r.defs).length + " 条" + (r.live ? "（实时求值解锁条件，含 MOD 场景）" : "（读取存档缓存值）") + "。绿色=已达成，红色=未达成，黄色=锁定/互斥提示。"));
-		var cluster = listSceneLines(r.defs);
-		var lineTotal = cluster.lines.length, singleTotal = cluster.singles.length;
-		var lineDone = 0;
-		cluster.lines.forEach(function (line) {
-			var done = line.items.filter(function (it) { return sceneStatus(it.def).state === "pass"; }).length;
-			lineDone += done;
-			var block = el("div", "mce-stage");
+		pane.appendChild(el("div", "mce-hint", "已读取场景注册表 " + Object.keys(r.defs).length + " 条" + (r.live ? "（实时求值解锁条件）" : "（读取存档缓存值）") + "。原版剧情按角色分组，MOD 注册剧情单独一组。绿色=已达成，红色=未达成，黄色=锁定/互斥提示。"));
+		var allKeys = Object.keys(r.defs);
+		var vanillaKeys = allKeys.filter(function (k) { return isVanillaSceneKey(k); });
+		var modKeys = allKeys.filter(function (k) { return !isVanillaSceneKey(k); });
+		renderSceneRegion(pane, "原版剧情（游戏本体注册，" + vanillaKeys.length + " 场景）", vanillaKeys, r.defs, true);
+		renderSceneRegion(pane, "MOD 剧情（第三方模组注册，" + modKeys.length + " 场景）", modKeys, r.defs, false);
+		/* 分区渲染：原版按角色分组（sceneRoleOf），MOD 单组 */
+		function renderSceneRegion(pane2, title, keys, defs, byRole) {
+			if (!keys.length) { return; }
+			pane2.appendChild(el("div", "mce-section", title));
+			var sub = {};
+			keys.forEach(function (k) { var role = byRole ? sceneRoleOf(k) : "全部 MOD 场景"; (sub[role] = sub[role] || []).push(k); });
+			Object.keys(sub).sort().forEach(function (role) {
+				if (byRole) {
+					/* v1.9.4：角色/地点分组默认收起 + 懒渲染——收起只建组标题，展开才补建该组全部场景
+					   与剧情进度块（用户要求：按角色/地点所属合在一起，不要全部平铺太长）；展开状态持久化 */
+					var g = el("div", "mce-grp");
+					g.setAttribute("data-tcat", role);
+					var gh = el("div", "mce-grp-t mce-collapse-head");
+					gh.title = "点击展开/收起该分组场景（懒渲染：展开时才构建场景控件）";
+					var open0 = sceneStored(role) === 0;
+					gh.textContent = (open0 ? "▾" : "▸") + role + "（" + sub[role].length + " 场景）";
+					g.appendChild(gh);
+					var gb = el("div", "mce-grp-body");
+					gb.setAttribute("data-collapsed", open0 ? "0" : "1");
+					if (open0) {
+						renderSceneCluster(gb, sub[role], defs);
+						/* 任务三（v1.9.2）：非场景注册表的剧情进度控制，按角色收纳在本组尾部 */
+						var plots = getRolePlots(role);
+						if (plots) { gb.appendChild(renderRolePlots(plots)); }
+					}
+					gh.addEventListener("click", function () {
+						var nowOpen = gb.getAttribute("data-collapsed") === "0";
+						gb.setAttribute("data-collapsed", nowOpen ? "1" : "0");
+						gh.textContent = (nowOpen ? "▸" : "▾") + role + "（" + sub[role].length + " 场景）";
+						if (!nowOpen && !gb.querySelector(".mce-stage")) {
+							renderSceneCluster(gb, sub[role], defs);
+							var plots = getRolePlots(role);
+							if (plots) { gb.appendChild(renderRolePlots(plots)); }
+						}
+						sceneSet(role, nowOpen ? 1 : 0);
+					});
+					g.appendChild(gb);
+					pane2.appendChild(g);
+				} else {
+					/* v1.9.2 自查：MOD 场景区懒渲染折叠——收起只建标题，展开才补建全部 MOD 场景，
+					   避免 MOD 场景多时每次切剧情页全量建 DOM 卡顿（用户历史痛点：展开过多卡住/闪退）；
+					   v1.9.4：展开状态持久化 */
+					var mWrap = el("div", "mce-grp");
+					mWrap.setAttribute("data-tcat", "MOD 场景");
+					var mHead = el("div", "mce-grp-t mce-collapse-head");
+					mHead.title = "点击展开/收起全部 MOD 场景（懒渲染：展开时才构建场景控件）";
+					var mOpen0 = sceneStored("MOD") === 0;
+					mHead.textContent = (mOpen0 ? "▾" : "▸") + " 全部 MOD 场景（" + sub[role].length + "）";
+					mWrap.appendChild(mHead);
+					var mBody = el("div", "mce-grp-body");
+					mBody.setAttribute("data-collapsed", mOpen0 ? "0" : "1");
+					if (mOpen0) { renderSceneCluster(mBody, sub[role], defs); }
+					mHead.addEventListener("click", function () {
+						var open = mBody.getAttribute("data-collapsed") === "0";
+						mBody.setAttribute("data-collapsed", open ? "1" : "0");
+						mHead.textContent = (open ? "▸" : "▾") + " 全部 MOD 场景（" + sub[role].length + "）";
+						if (!open && !mBody.querySelector(".mce-stage")) { renderSceneCluster(mBody, sub[role], defs); }
+						sceneSet("MOD", open ? 1 : 0);
+					});
+					mWrap.appendChild(mBody);
+					pane2.appendChild(mWrap);
+				}
+			});
+		}
+		/* 剧情进度控制块（任务三）：渲染 EXTRA_ROLE_PLOTS 条目，行内应用不重建整组 */
+		function renderRolePlots(plots) {
+			var block = el("div", "mce-stage mce-plots");
 			var head = el("div", "mce-stage-head mce-line-head");
 			head.appendChild(el("span", "mce-dot", ""));
-			var stages = el("div", "mce-stages");
-			stages.style.display = "none"; /* v1.3：剧情线默认收起（合在一起不展开），点线头展开 */
-			head.appendChild(el("span", "mce-stage-name", "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，收起）"));
-			/* 固定整线：全部阶段按顺序入队，依次触发，触发完自动停止 */
-			var linePin = el("button", "mce-btn", "固定整线");
-			linePin.type = "button";
-			linePin.title = "把本系列全部阶段按顺序加入固定触发队列，依次触发，触发完自动停止";
-			(function (line2) {
-				linePin.addEventListener("click", function () {
-					var pr = pinSceneLine(line2);
-					setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
-					renderScenes();
-				});
-			})(line);
-			head.appendChild(linePin);
-			/* 展开/收起切换 */
-			var tog = el("button", "mce-btn mce-gold", "展开各阶段");
-			tog.type = "button";
-			tog.title = "展开查看本线各阶段，可对单阶段固定/回退/一键完成";
-			tog.addEventListener("click", function () {
-				var open = stages.style.display === "none";
-				stages.style.display = open ? "" : "none";
-				tog.textContent = open ? "收起各阶段" : "展开各阶段";
-				var nm = head.querySelector(".mce-stage-name");
-				if (nm) { nm.textContent = "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，" + (open ? "展开" : "收起") + "）"; }
-			});
-			head.appendChild(tog);
+			head.appendChild(el("span", "mce-stage-name", "剧情进度（非场景事件状态）"));
 			block.appendChild(head);
-			line.items.forEach(function (it) {
-				var st = sceneStatus(it.def);
-				var srow = el("div", "mce-stage " + (st.state === "pass" ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
-				var sh = el("div", "mce-stage-head");
-				sh.appendChild(el("span", "mce-dot", ""));
-				var nm = it.def.name || it.key;
-				sh.appendChild(el("span", "mce-stage-name", "阶段 " + it.num + "　" + nm));
-				/* 固定触发 / 回退（v1.2：队列） */
-				var pi = pinQueueIndex(it.key);
-				if (pi >= 0) {
-					sh.appendChild(el("span", "mce-badge mce-on", "已固定 第" + (pi + 1) + "位"));
-					var unpinB = el("button", "mce-btn mce-red", "回退");
-					unpinB.type = "button";
-					unpinB.title = "取消该剧情的固定触发，恢复原版随机触发";
-					(function (it2) {
-						unpinB.addEventListener("click", function () {
-							var was = unpinScene(it2.key);
-							setStatus(was ? "已回退：「" + (it2.def.name || it2.key) + "」取消固定触发" : "该剧情不在固定队列中", "mce-ok");
-							renderScenes();
+			var body = el("div", "mce-grp-body");
+			body.appendChild(el("div", "mce-hint", plots.intro));
+			plots.items.forEach(function (it) {
+				var row = el("div", "mce-row");
+				row.appendChild(el("span", "mce-row-name", it.name));
+				var curBadge = el("span", "mce-badge mce-on", "");
+				var refreshCur = function () {
+					var cv = getDotPath(it.varPath);
+					curBadge.textContent = "当前: " + (cv === undefined ? "未设置" : cv);
+				};
+				refreshCur();
+				row.appendChild(curBadge);
+				if (it.type === "range" || it.type === "select") {
+					var ctrl;
+					if (it.type === "range") {
+						var inp = el("input", "mce-inp");
+						inp.type = "number"; inp.min = String(it.min); inp.max = String(it.max); inp.step = String(it.step || 1);
+						var apply = el("button", "mce-btn", "应用");
+						apply.type = "button";
+						apply.addEventListener("click", function () {
+							var v = parseFloat(inp.value);
+							if (isNaN(v)) { v = 0; }
+							if (v < it.min) { v = it.min; } if (v > it.max) { v = it.max; }
+							setDotPath(it.varPath, v);
+							refreshCur();
+							setStatus(it.name + " → " + v, "mce-ok");
 						});
-					})(it);
-					sh.appendChild(unpinB);
-				} else {
-					var pinB = el("button", "mce-btn", "固定触发");
-					pinB.type = "button";
-					pinB.title = "固定此剧情：按顺序排队触发，触发一次后自动停止；顶部横幅或「回退」恢复原版触发";
-					(function (it2) {
-						pinB.addEventListener("click", function () {
-							var pr = pinScene(it2);
-							setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
-							renderScenes();
+						row.appendChild(inp); row.appendChild(apply);
+					} else {
+						var sel = el("select");
+						(it.options || []).forEach(function (o) {
+							var op = el("option"); op.value = String(o[0]); op.textContent = o[1];
+							var cv = getDotPath(it.varPath);
+							if (String(cv) === String(o[0])) { op.selected = true; }
+							sel.appendChild(op);
 						});
-					})(it);
-					sh.appendChild(pinB);
+						var applyS = el("button", "mce-btn", "应用");
+						applyS.type = "button";
+						applyS.addEventListener("click", function () {
+							var v = parseInt(sel.value, 10);
+							setDotPath(it.varPath, v);
+							refreshCur();
+							setStatus(it.name + " → " + sel.value, "mce-ok");
+						});
+						row.appendChild(sel); row.appendChild(applyS);
+					}
+				} else if (it.type === "action") {
+					var act = el("button", "mce-btn mce-gold", it.name);
+					act.type = "button";
+					act.addEventListener("click", function () {
+						setStatus(applyRolePlotAction(it.action), "mce-ok");
+						if (it.action === "kylarSeen") {
+							var cv = getDotPath("kylarSeen");
+							curBadge.textContent = "当前: " + (Array.isArray(cv) ? cv.length + " 项标记" : "未设置");
+						}
+					});
+					row.appendChild(act);
+				} else if (it.type === "info") {
+					row.appendChild(el("span", "mce-note", it.note));
 				}
-				if (st.state === "pass") {
-					sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
-				} else {
-					var btn = el("button", "mce-btn mce-gold", "一键完成");
-					btn.type = "button";
-					btn.title = "把该场景所有段落与解锁条件写入经历表（scenePassages）";
-					(function (it2, st2) {
-						btn.addEventListener("click", function () {
-							var res = completeScene(it2.def);
-							setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
-							renderScenes();
-						});
-					})(it, st);
-					sh.appendChild(btn);
-				}
-				srow.appendChild(sh);
-				var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
-				srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
-				srow.appendChild(el("div", "mce-stage-note", "段落数 " + (it.def.passages || []).length + (it.def.startPassage ? "　入口 " + it.def.startPassage : "") + "　键 " + it.key));
-				stages.appendChild(srow);
+				body.appendChild(row);
+				body.appendChild(el("div", "mce-note", it.note));
 			});
-			block.appendChild(stages);
-			pane.appendChild(block);
-		});
-		if (singleTotal) {
-			var sblock = el("div", "mce-stage");
-			sblock.appendChild(el("div", "mce-stage-head", el("span", "mce-stage-name", "独立场景（未聚合成线）")));
-			var sstages = el("div", "mce-stages");
-			cluster.singles.forEach(function (it) {
-				var st = sceneStatus(it.def);
-				var srow = el("div", "mce-stage " + (st.state === "pass" ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
-				var sh = el("div", "mce-stage-head");
-				sh.appendChild(el("span", "mce-dot", ""));
-				sh.appendChild(el("span", "mce-stage-name", it.def.name || it.key));
-				/* 固定触发 / 回退（v1.2：队列） */
-				var piS = pinQueueIndex(it.key);
-				if (piS >= 0) {
-					sh.appendChild(el("span", "mce-badge mce-on", "已固定 第" + (piS + 1) + "位"));
-					var unpinS = el("button", "mce-btn mce-red", "回退");
-					unpinS.type = "button";
-					unpinS.title = "取消该剧情的固定触发，恢复原版随机触发";
-					(function (it2) {
-						unpinS.addEventListener("click", function () {
-							var was = unpinScene(it2.key);
-							setStatus(was ? "已回退：「" + (it2.def.name || it2.key) + "」取消固定触发" : "该剧情不在固定队列中", "mce-ok");
-							renderScenes();
-						});
-					})(it);
-					sh.appendChild(unpinS);
-				} else {
-					var pinS = el("button", "mce-btn", "固定触发");
-					pinS.type = "button";
-					pinS.title = "固定此剧情：按顺序排队触发，触发一次后自动停止；顶部横幅或「回退」恢复原版触发";
-					(function (it2) {
-						pinS.addEventListener("click", function () {
-							var pr = pinScene(it2);
-							setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
-							renderScenes();
-						});
-					})(it);
-					sh.appendChild(pinS);
-				}
-				if (st.state === "pass") {
-					sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
-				} else {
-					var b2 = el("button", "mce-btn mce-gold", "一键完成");
-					b2.type = "button";
-					(function (it2) {
-						b2.addEventListener("click", function () {
-							var res = completeScene(it2.def);
-							setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
-							renderScenes();
-						});
-					})(it);
-					sh.appendChild(b2);
-				}
-				srow.appendChild(sh);
-				var note2 = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
-				srow.appendChild(el("div", "mce-stage-txt", note2 + (st.note || "（无说明）")));
-				sstages.appendChild(srow);
+			block.appendChild(body);
+			return block;
+		}
+		function renderSceneCluster(container, keys2, defs) {
+			var defsSub = {};
+			keys2.forEach(function (k) { defsSub[k] = defs[k]; });
+			var cluster = listSceneLines(defsSub);
+			var lineTotal = cluster.lines.length, singleTotal = cluster.singles.length;
+			var lineDone = 0;
+			cluster.lines.forEach(function (line) {
+				var done = line.items.filter(function (it) { return sceneStatus(it.def).state === "pass"; }).length;
+				lineDone += done;
+				var block = el("div", "mce-stage");
+				var head = el("div", "mce-stage-head mce-line-head");
+				head.appendChild(el("span", "mce-dot", ""));
+				var stages = el("div", "mce-stages");
+				stages.style.display = "none"; /* v1.3：剧情线默认收起（合在一起不展开），点线头展开 */
+				head.appendChild(el("span", "mce-stage-name", "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，收起）"));
+				/* 固定整线：全部阶段按顺序入队，依次触发，触发完自动停止 */
+				var linePin = el("button", "mce-btn", "固定整线");
+				linePin.type = "button";
+				linePin.title = "把本系列全部阶段按顺序加入固定触发队列，依次触发，触发完自动停止";
+				(function (line2) {
+					linePin.addEventListener("click", function () {
+						var pr = pinSceneLine(line2);
+						setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+						renderScenes();
+					});
+				})(line);
+				head.appendChild(linePin);
+				/* 展开/收起切换 */
+				var tog = el("button", "mce-btn mce-gold", "展开各阶段");
+				tog.type = "button";
+				tog.title = "展开查看本线各阶段，可对单阶段固定/回退/一键完成";
+				tog.addEventListener("click", function () {
+					var open = stages.style.display === "none";
+					stages.style.display = open ? "" : "none";
+					tog.textContent = open ? "收起各阶段" : "展开各阶段";
+					var nm = head.querySelector(".mce-stage-name");
+					if (nm) { nm.textContent = "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，" + (open ? "展开" : "收起") + "）"; }
+				});
+				head.appendChild(tog);
+				block.appendChild(head);
+				line.items.forEach(function (it) {
+					var st = sceneStatus(it.def);
+					var srow = el("div", "mce-stage " + (st.state === "pass" ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
+					var sh = el("div", "mce-stage-head");
+					sh.appendChild(el("span", "mce-dot", ""));
+					var nm = it.def.name || it.key;
+					sh.appendChild(el("span", "mce-stage-name", "阶段 " + it.num + "　" + nm));
+					/* 固定触发 / 回退（v1.2：队列） */
+					var pi = pinQueueIndex(it.key);
+					if (pi >= 0) {
+						sh.appendChild(el("span", "mce-badge mce-on", "已固定 第" + (pi + 1) + "位"));
+						var unpinB = el("button", "mce-btn mce-red", "回退");
+						unpinB.type = "button";
+						unpinB.title = "取消该剧情的固定触发，恢复原版随机触发";
+						(function (it2) {
+							unpinB.addEventListener("click", function () {
+								var was = unpinScene(it2.key);
+								setStatus(was ? "已回退：「" + (it2.def.name || it2.key) + "」取消固定触发" : "该剧情不在固定队列中", "mce-ok");
+								renderScenes();
+							});
+						})(it);
+						sh.appendChild(unpinB);
+					} else {
+						var pinB = el("button", "mce-btn", "固定触发");
+						pinB.type = "button";
+						pinB.title = "固定此剧情：按顺序排队触发，触发一次后自动停止；顶部横幅或「回退」恢复原版触发";
+						(function (it2) {
+							pinB.addEventListener("click", function () {
+								var pr = pinScene(it2);
+								setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+								renderScenes();
+							});
+						})(it);
+						sh.appendChild(pinB);
+					}
+					if (st.state === "pass") {
+						sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
+					} else {
+						var btn = el("button", "mce-btn mce-gold", "一键完成");
+						btn.type = "button";
+						btn.title = "把该场景所有段落与解锁条件写入经历表（scenePassages）";
+						(function (it2, st2) {
+							btn.addEventListener("click", function () {
+								var res = completeScene(it2.def);
+								setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
+								renderScenes();
+							});
+						})(it, st);
+						sh.appendChild(btn);
+					}
+					srow.appendChild(sh);
+					var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
+					srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
+					srow.appendChild(el("div", "mce-stage-note", "段落数 " + (it.def.passages || []).length + (it.def.startPassage ? "　入口 " + it.def.startPassage : "") + "　键 " + it.key));
+					stages.appendChild(srow);
+				});
+				block.appendChild(stages);
+				container.appendChild(block);
 			});
-			sblock.appendChild(sstages);
-			pane.appendChild(sblock);
+			if (singleTotal) {
+				var sblock = el("div", "mce-stage");
+				var sHead = el("div", "mce-stage-head");
+				sHead.appendChild(el("span", "mce-stage-name", "独立场景（未聚合成线）"));
+				sblock.appendChild(sHead);
+				var sstages = el("div", "mce-stages");
+				cluster.singles.forEach(function (it) {
+					var st = sceneStatus(it.def);
+					var srow = el("div", "mce-stage " + (st.state === "pass" ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
+					var sh = el("div", "mce-stage-head");
+					sh.appendChild(el("span", "mce-dot", ""));
+					sh.appendChild(el("span", "mce-stage-name", it.def.name || it.key));
+					/* 固定触发 / 回退（v1.2：队列） */
+					var piS = pinQueueIndex(it.key);
+					if (piS >= 0) {
+						sh.appendChild(el("span", "mce-badge mce-on", "已固定 第" + (piS + 1) + "位"));
+						var unpinS = el("button", "mce-btn mce-red", "回退");
+						unpinS.type = "button";
+						unpinS.title = "取消该剧情的固定触发，恢复原版随机触发";
+						(function (it2) {
+							unpinS.addEventListener("click", function () {
+								var was = unpinScene(it2.key);
+								setStatus(was ? "已回退：「" + (it2.def.name || it2.key) + "」取消固定触发" : "该剧情不在固定队列中", "mce-ok");
+								renderScenes();
+							});
+						})(it);
+						sh.appendChild(unpinS);
+					} else {
+						var pinS = el("button", "mce-btn", "固定触发");
+						pinS.type = "button";
+						pinS.title = "固定此剧情：按顺序排队触发，触发一次后自动停止；顶部横幅或「回退」恢复原版触发";
+						(function (it2) {
+							pinS.addEventListener("click", function () {
+								var pr = pinScene(it2);
+								setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+								renderScenes();
+							});
+						})(it);
+						sh.appendChild(pinS);
+					}
+					if (st.state === "pass") {
+						sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
+					} else {
+						var b2 = el("button", "mce-btn mce-gold", "一键完成");
+						b2.type = "button";
+						(function (it2) {
+							b2.addEventListener("click", function () {
+								var res = completeScene(it2.def);
+								setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
+								renderScenes();
+							});
+						})(it);
+						sh.appendChild(b2);
+					}
+					srow.appendChild(sh);
+					var note2 = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
+					srow.appendChild(el("div", "mce-stage-txt", note2 + (st.note || "（无说明）")));
+					sstages.appendChild(srow);
+				});
+				sblock.appendChild(sstages);
+				container.appendChild(sblock);
+			}
+			if (!cluster.lines.length && !cluster.singles.length) {
+				container.appendChild(el("div", "mce-hint", "本分组无场景。"));
+			} else {
+				container.appendChild(el("div", "mce-hint", "剧情线 " + lineTotal + " 条（已达成 " + lineDone + "），独立场景 " + singleTotal + " 个。"));
+			}
 		}
-		if (!cluster.lines.length && !cluster.singles.length) {
-			pane.appendChild(el("div", "mce-hint", "注册表为空（场景查看器未初始化或未注册任何场景）。"));
-		} else {
-			pane.appendChild(el("div", "mce-hint", "剧情线 " + lineTotal + " 条（已达成 " + lineDone + "/" + lineTotal + " 条线末段），独立场景 " + singleTotal + " 个。"));
-		}
+		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; } /* v1.9.4：重建后保持滚动位置 */
 	}
 
 	/* ---- 全局页 ---- */
@@ -6162,8 +6491,41 @@ function renderPlayerEdit() {
 			owned: function () { return getV().syndromebird >= 1; },
 			grant: function () { getV().syndromebird = 1; return { ok: true, message: "已满足「斯德哥尔摩综合征：巨鹰」条件（syndromebird = 1）" }; } },
 		{ key: "avery_saviour", name: "艾弗里的救星", en: "Avery's Saviour", desc: "你救了艾弗里的命。愤怒每日衰减。",
-			owned: function () { return getV().avery_fate === "saved"; },
-			grant: function () { getV().avery_fate = "saved"; return { ok: true, message: "已满足「艾弗里的救星」条件（avery_fate = saved）" }; } }
+			owned: function () { return getV().avery_fate === "saved" || getV().mceAveryShelter === true; },
+			grant: function (mode) {
+				var v = getV();
+				var m = mode || "saved";
+				if (m === "shelter") {
+					/* 庇护模式：只挂 MCE 标记，不改 avery_fate——大楼/高塔保留正常建造进度，不走原版救星结局线 */
+					if (!v.mceAveryShelter) {
+						v.mceAveryShelter = true;
+						v.mceAveryFateSnapshot = (v.avery_fate === undefined) ? "undefined" : v.avery_fate;
+					}
+					return { ok: true, message: "庇护模式已启用：获得「艾弗里的救星」效果（愤怒每日衰减），avery_fate 未改动——大楼/高塔保留建造进度，不走原版救星结局线。" };
+				}
+				/* 原版线：avery_fate = saved（高塔转烧毁态，与原版 Save Avery 结局一致） */
+				if (v.avery_fate !== "saved") {
+					v.mceAveryFateSnapshot = (v.avery_fate === undefined) ? "undefined" : v.avery_fate;
+				}
+				v.avery_fate = "saved";
+				return { ok: true, message: "已满足「艾弗里的救星」条件（avery_fate = saved，原版救星线：高塔转为烧毁态）" };
+			},
+			revert: function () {
+				var v = getV();
+				var wasShelter = !!v.mceAveryShelter;
+				var snap = v.mceAveryFateSnapshot;
+				var wasSaved = v.avery_fate === "saved";
+				delete v.mceAveryShelter;
+				delete v.mceAveryFateSnapshot;
+				var msg;
+				if (wasSaved && snap !== undefined) {
+					if (snap === "undefined") { delete v.avery_fate; msg = "avery_fate 已还原为操作前状态（未定义）"; }
+					else { v.avery_fate = snap; msg = "avery_fate 已还原为 " + snap; }
+				} else {
+					msg = "avery_fate 保持原状（" + (v.avery_fate === undefined ? "未定义" : v.avery_fate) + "）";
+				}
+				return { ok: true, message: "已撤回「艾弗里的救星」" + (wasShelter ? "（庇护标记已清除；" : "（") + msg + "）——大楼/高塔恢复操作前状态" };
+			} }
 	];
 	// 神殿誓言状态（原版 Traits widget 一般特质分组：Chastity Vow / Broken Vow / Rite of Promise / Broken Promise）
 	function getVowStatus() {
@@ -6200,12 +6562,20 @@ function renderPlayerEdit() {
 			return { key: t.key, name: t.name, en: t.en, desc: t.desc, owned: !!t.owned() };
 		});
 	}
-	// 获取指定 NPC 特质：条件不满足时直接把条件变量改为满足
-	function grantNpcTrait(key) {
+	// 获取指定 NPC 特质：条件不满足时直接把条件变量改为满足；mode 可选（avery_saviour 支持 shelter 庇护模式）
+	function grantNpcTrait(key, mode) {
 		var t = null, i;
 		for (i = 0; i < NPC_TRAITS.length; i++) { if (NPC_TRAITS[i].key === key) { t = NPC_TRAITS[i]; break; } }
 		if (!t) { return { ok: false, message: "未知特质 " + key }; }
-		return t.grant();
+		return t.grant(mode);
+	}
+	// 撤回指定 NPC 特质：恢复操作前状态（目前 avery_saviour 支持快照回退）
+	function revertNpcTrait(key) {
+		var t = null, i;
+		for (i = 0; i < NPC_TRAITS.length; i++) { if (NPC_TRAITS[i].key === key) { t = NPC_TRAITS[i]; break; } }
+		if (!t) { return { ok: false, message: "未知特质 " + key }; }
+		if (typeof t.revert !== "function") { return { ok: false, message: "该特质不支持撤回" }; }
+		return t.revert();
 	}
 
 	function renderGlobal() {
@@ -6267,9 +6637,54 @@ function renderPlayerEdit() {
 		vrow.appendChild(vbtn);
 		pane.appendChild(vrow);
 		var traits = listNpcTraits();
-		pane.appendChild(el("div", "mce-hint", "NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。"));
+		pane.appendChild(el("div", "mce-hint", "NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持庇护模式与撤回。"));
 		var tbox = el("div", "");
 		traits.forEach(function (t) {
+			if (t.key === "avery_saviour") {
+				/* v1.9.2：救星特质双模式 + 撤回（庇护模式不碰 avery_fate，大楼保留） */
+				var v2 = getV();
+				var shelterOn = v2.mceAveryShelter === true;
+				var row = el("div", "mce-row");
+				row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc + (shelterOn ? "　【庇护模式生效中：大楼保留建造进度】" : (t.owned ? "　【原版线：高塔烧毁】" : ""))));
+				if (t.owned) {
+					var rbtn = el("button", "mce-btn mce-red", "撤回（恢复操作前状态）");
+					rbtn.type = "button";
+					rbtn.title = "移除救星标记/庇护标记，并按操作前快照还原 avery_fate，大楼/高塔恢复原状";
+					(function (t2) {
+						rbtn.addEventListener("click", function () {
+							var r = revertNpcTrait(t2.key);
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderGlobal();
+						});
+					})(t);
+					row.appendChild(rbtn);
+				} else {
+					var b1 = el("button", "mce-btn mce-gold", "获取（原版线）");
+					b1.type = "button";
+					b1.title = "avery_fate = saved，高塔转烧毁态（原版 Save Avery 结局线）";
+					(function (t2) {
+						b1.addEventListener("click", function () {
+							var r = grantNpcTrait(t2.key, "saved");
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderGlobal();
+						});
+					})(t);
+					row.appendChild(b1);
+					var b2 = el("button", "mce-btn mce-gold", "获取（庇护模式）");
+					b2.type = "button";
+					b2.title = "不碰 avery_fate，保留大楼/高塔建造进度，只获得救星效果（不走救星结局线）";
+					(function (t2) {
+						b2.addEventListener("click", function () {
+							var r = grantNpcTrait(t2.key, "shelter");
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderGlobal();
+						});
+					})(t);
+					row.appendChild(b2);
+				}
+				tbox.appendChild(row);
+				return;
+			}
 			var row = el("div", "mce-row");
 			row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc));
 			var btn = el("button", "mce-btn" + (t.owned ? "" : " mce-gold"), t.owned ? "已拥有" : "获取");
@@ -6621,6 +7036,15 @@ function renderPlayerEdit() {
 				sceneStatus: sceneStatus,
 				completeScene: completeScene,
 				listSceneLines: listSceneLines,
+				/* v1.9.2 剧情页分区：原版场景键索引 + 角色映射 */
+				VANILLA_SCENE_KEYS: VANILLA_SCENE_KEYS,
+				isVanillaSceneKey: isVanillaSceneKey,
+				sceneRoleOf: sceneRoleOf,
+				/* v1.9.2 任务三：非场景剧情进度控制（按角色） */
+				getRolePlots: getRolePlots,
+				getDotPath: getDotPath,
+				setDotPath: setDotPath,
+				applyRolePlotAction: applyRolePlotAction,
 				listPlaceGroups: listPlaceGroups,
 				placeNameCN: placeNameCN,
 				teleportTo: teleportTo,
@@ -6678,6 +7102,7 @@ function renderPlayerEdit() {
 				fixVows: fixVows,
 				listNpcTraits: listNpcTraits,
 				grantNpcTrait: grantNpcTrait,
+				revertNpcTrait: revertNpcTrait,
 				/* v1.8.0 玩家属性与特质管理 */
 				renderPlayerEdit: renderPlayerEdit,
 				compileVanillaTraits: compileVanillaTraits,
