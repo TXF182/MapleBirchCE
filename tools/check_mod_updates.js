@@ -37,14 +37,13 @@ const CHANNELS = [
     /* 框架本体（非适配器）：declOverride = 本地实测兼容版本。升版前必须跑
        `node tools/check_framework_api.js <新版 inject_early.js>` 核对 CE 依赖的
        API（maplebirch.get / .npc / .temporary.traitLists / window.maplebirch）
-       全部保留后再更新此值。5.5.4 已核对兼容（2026-10-23，v1.9.1 后适配轮）：
+       全部保留后再更新此值。5.5.5 已核对兼容（2026-10-24，模组适配轮）：
        核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists /
        define / frameworkNotice），setup.MapleBirch / maplebirch.patch 缺失均为
        非 CE 依赖（CE 0 次调用 patch；setup.MapleBirch 仅 01-core.js resolveMB()
-       的兜底分支，window.maplebirch 主路径存在时永不触发），与 5.5.3 核对结果一致，
-       缺失无害。5.5.4 更新内容（NPC 转化点数上限独立设置 / 食材定义读档恢复 /
-       中英文文档补全）不涉及 CE 适配器数值与阶段系统，无新增作弊点。 */
-    declOverride: "5.5.4" }
+       的兜底分支，window.maplebirch 主路径存在时永不触发），与 5.5.3/5.5.4 核对结果一致，
+       缺失无害。 */
+    declOverride: "5.5.5" }
 ];
 
 function declaredVersion(modId) {

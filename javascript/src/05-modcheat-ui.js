@@ -1,3 +1,40 @@
+	/* v1.9.4 问题2 根治：Mod 子页超长组时间分片构建（模块级状态，跨 renderModCheatDetail 渲染存活）。
+	   背景：DoL-Game-UI 每帧 rAF 全量样式扫描抢主线程，Mod 子页"全部展开"一次性建数百行 =
+	   单帧长任务 → 移动 WebView 滚动丢帧 / 长任务 ANR 闪退（用户实测）。
+	   方案：pending > MOD_ROW_BATCH_LIMIT 时改为分帧构建（首帧同步建 MOD_ROW_BATCH 行，剩余入队
+	   逐帧 setTimeout 排空），把长任务摊平，不砍任何作弊项；测试环境设
+	   window.__mbCE_forceSyncRows=true 强制同步（smoke 同步断言）。 */
+	var modRowBatchTimer = null;
+	var modRowQueue = []; /* 分片任务：{ body, fns, i, failed } */
+	var MOD_ROW_BATCH = 40;
+	var MOD_ROW_BATCH_LIMIT = 60;
+	function mbCEForceSyncRows() {
+		try { return typeof window !== "undefined" && window && window.__mbCE_forceSyncRows === true; } catch (e) { return false; }
+	}
+	function appendRowNodes(body, n) {
+		if (!n) { return; }
+		if (n.length) { for (var i2 = 0; i2 < n.length; i2++) { body.appendChild(n[i2]); } }
+		else { body.appendChild(n); }
+	}
+	/* 分片排空：每帧最多建 BATCH 行，直到队列清空（长任务摊平；3 个 guard 防本帧过度） */
+	function modRowStep() {
+		var guard = 0;
+		while (modRowQueue.length && guard < 3) {
+			var t = modRowQueue[0];
+			var built = 0;
+			while (t.i < t.fns.length && built < MOD_ROW_BATCH) {
+				try { appendRowNodes(t.body, t.fns[t.i]()); } catch (e) { t.failed++; }
+				t.i++; built++;
+			}
+			if (t.i >= t.fns.length) {
+				if (t.failed) { t.body.appendChild(el("div", "mce-hint", "有 " + t.failed + " 行加载失败（适配器数据异常），已跳过。")); }
+				modRowQueue.shift();
+			}
+			guard++;
+		}
+		if (modRowQueue.length) { modRowBatchTimer = setTimeout(modRowStep, 0); }
+		else { modRowBatchTimer = null; }
+	}
 	/* 动态发现：注册制 + 内置适配器（探测命中即合并）+ 被动识别占位；每次调用重扫。 */
 	function getCheatMods() {
 		try {
@@ -166,6 +203,10 @@
 		if (!pane) { return; }
 		var m = findCheatMod(modId);
 		var st = pane.scrollTop; /* 五巡：重建后保持滚动位置（翻到长列表底部操作不再跳回顶部） */
+		/* v1.9.5-自检：重建时清残留分片任务——切 tab/重进子页后旧渲染的分片不再往已脱离 DOM 的 body 补行（省帧），
+		   新渲染的 pending 行由全新任务构建，与旧队列无关 */
+		if (modRowBatchTimer) { clearTimeout(modRowBatchTimer); modRowBatchTimer = null; }
+		modRowQueue.length = 0;
 		pane.textContent = "";
 		if (!m) {
 			pane.appendChild(el("div", "mce-err", "模组未识别（可能已卸载），请返回列表。"));
@@ -234,18 +275,30 @@
 			var pend = grp.pending;
 			grp.pending = [];
 			var failed = 0;
-			/* 行闭包返回 node 或 node 数组；组体收起时 append 无布局成本，展开时批量插入 */
-			pend.forEach(function (fn) {
-				try {
-					var n = fn();
-					if (!n) { return; }
-					if (n.length) { for (var i2 = 0; i2 < n.length; i2++) { grp.body.appendChild(n[i2]); } }
-					else { grp.body.appendChild(n); }
-				} catch (e) { failed++; }
-			});
-			if (failed) {
-				grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
+			/* v1.9.4：行数超阈值或测试强制同步时走同步（首帧立即可见全部行）；否则分片 */
+			if (mbCEForceSyncRows() || pend.length <= MOD_ROW_BATCH_LIMIT) {
+				for (var i = 0; i < pend.length; i++) {
+					try { appendRowNodes(grp.body, pend[i]()); } catch (e) { failed++; }
+				}
+				if (failed) {
+					grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
+				}
+				return;
 			}
+			/* 分片：先同步建首批 BATCH 行（点击展开立刻可见内容），剩余入队逐帧排空 */
+			var first = Math.min(MOD_ROW_BATCH, pend.length);
+			for (var fi = 0; fi < first; fi++) {
+				try { appendRowNodes(grp.body, pend[fi]()); } catch (e) { failed++; }
+			}
+			if (pend.length <= MOD_ROW_BATCH) {
+				if (failed) {
+					grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
+				}
+				return;
+			}
+			var task = { body: grp.body, fns: pend.slice(first), i: 0, failed: failed };
+			modRowQueue.push(task);
+			if (!modRowBatchTimer) { modRowBatchTimer = setTimeout(modRowStep, 0); }
 		}
 		var any = false;
 		if (m.tasks.length) { any = true; renderCheatTasks(m, grpFor, buildModGrpRows); }

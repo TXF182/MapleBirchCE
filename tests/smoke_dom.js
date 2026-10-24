@@ -56,6 +56,9 @@ window.maplebirch = { get: function () { return null; }, npc: {} };
 window.modUtils = { getMod: function () { return null; } };
 
 /* ---------- 3. 加载构建产物（eval 后 init 自动建面板） ---------- */
+/* v1.9.4 问题2：Mod 子页超长组时间分片构建（>60 行分帧，防 DoL-Game-UI rAF 扫描下长任务卡顿/闪退）。
+   分片默认开启；测试环境强制同步（smoke 同步断言依赖行渲染完成） */
+window.__mbCE_forceSyncRows = true;
 const js = fs.readFileSync(path.join(__dirname, "..", "javascript", "maplebirchce.js"), "utf8");
 eval(js);
 const api = setup.mbStageCE;
@@ -744,6 +747,10 @@ setTimeout(function () {
         if (seenBtn) { seenBtn.click(); }
         assert(Array.isArray(V.kylarSeen) && V.kylarSeen.length === 8, "15 点按钮 → kylarSeen 补全 8 标记，实际 " + (V.kylarSeen || []).length);
       }
+      /* 15.5 v1.9.5-自检：乱码兜底单定时器（清旧设新，防 renderScenes 频繁重建时 800ms 闭包堆积扫描旧 pane） */
+      assert(js.indexOf("var sHeadGuardTimer = null;") !== -1, "15.5 sHeadGuardTimer 单定时器变量已声明（源码）");
+      assert(js.indexOf("if (sHeadGuardTimer) { clearTimeout(sHeadGuardTimer); }") !== -1, "15.5 渲染重建时先清旧定时器（源码）");
+      assert(js.indexOf("sHeadGuardTimer = setTimeout") !== -1, "15.5 兜底定时器挂到模块级变量（源码）");
       /* 救星三按钮真实点击（全局页） */
       delete V.avery_fate; delete V.mceAveryShelter; delete V.mceAveryFateSnapshot;
       const gptxt = clickTabSafe("global");
@@ -774,6 +781,35 @@ setTimeout(function () {
   } catch (e15) {
     failures++;
     console.error("FAIL: 15 玩家路径测试异常：" + (e15 && e15.message ? e15.message : e15));
+  }
+  /* ---------- 16. v1.9.4 问题2：Mod 子页超长组时间分片（首帧同步 40 行 + 逐帧排空，防 DoL-Game-UI rAF 扫描下长任务 ANR） ---------- */
+  try {
+    const bigValues = [];
+    for (let bi = 0; bi < 70; bi++) { bigValues.push({ key: "bv" + bi, name: "大数值" + bi, varPath: "big_v" + bi }); V["big_v" + bi] = 0; }
+    setup.mbCE_modCheats = [{ modId: "bigmod", modName: "大模组", tasks: [{ key: "bt", name: "大任务" }], stages: [{ key: "bs", name: "大阶段", varPath: "big_s", levels: [0, 1], labels: ["零", "一"] }], abilities: [{ key: "ba", name: "大能力", varPath: "big_a" }], scenes: [{ key: "bsc", name: "大剧情" }], values: bigValues }];
+    V.big_s = 0; V.big_a = false;
+    window.__mbCE_forceSyncRows = false;
+    api.renderModCheatDetail("bigmod");
+    const bPane = document.querySelector('[data-pane="mods"]');
+    [].slice.call(bPane.querySelectorAll(".mce-collapse-head")).forEach(function (h) { try { h.click(); } catch (e) {} });
+    const builtNow = bPane.querySelectorAll(".mce-row").length;
+    assert(builtNow < 70, "16 分片：70 行组展开首帧未全量渲染（" + builtNow + "/70，长任务已摊平）");
+    assert(builtNow >= 40, "16 分片：首帧已渲染 40+ 行（点击立即可见内容），实际 " + builtNow);
+    window.__mbCE_forceSyncRows = true;
+    setTimeout(function () {
+      const total = bPane.querySelectorAll(".mce-row").length;
+      const bTxt = bPane.textContent;
+      if (total > builtNow && bTxt.indexOf("大数值0") !== -1 && bTxt.indexOf("大数值69") !== -1) {
+        console.log("PASS: 16 分片：逐帧排空后全量渲染（首帧 " + builtNow + " 行 → 排空后 " + total + " 行，含大数值0/69）");
+      } else { failures++; console.error("FAIL: 16 分片排空后未全量（首帧 " + builtNow + " → 现 " + total + "，大数值0=" + (bTxt.indexOf("大数值0") !== -1) + " 大数值69=" + (bTxt.indexOf("大数值69") !== -1) + "）"); process.exitCode = 1; }
+      assert(js.indexOf("modRowQueue.length = 0;") !== -1, "16.1 重建时清残留分片任务（renderModCheatDetail 入口，源码）");
+      assert(js.indexOf("if (modRowBatchTimer) { clearTimeout(modRowBatchTimer); modRowBatchTimer = null; }") !== -1, "16.1 重建时先清分片定时器（源码）");
+      delete setup.mbCE_modCheats;
+    }, 800);
+  } catch (e16) {
+    failures++;
+    console.error("FAIL: 16 分片测试异常：" + (e16 && e16.message ? e16.message : e16));
+    window.__mbCE_forceSyncRows = true;
   }
   console.log(failures === 0 ? "\nSMOKE ALL PASSED" : "\nSMOKE " + failures + " FAILURES");
   process.exitCode = failures === 0 ? 0 : 1;

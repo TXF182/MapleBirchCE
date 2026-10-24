@@ -111,7 +111,7 @@ function moduleDirHasLeaf(files, parentRoot, leaf) {
 	return false;
 }
 
-/* ---------- 4. 单条 varPath 证据搜集 ---------- */
+/* ---------- 4. 单条 varPath 证据搜集（结构化：{file, line, text}） ---------- */
 function gatherEvidence(files, vp) {
 	const parts = vp.split(".");
 	const leaf = parts[parts.length - 1];
@@ -123,17 +123,38 @@ function gatherEvidence(files, vp) {
 	// 动态键：obj[xx.id] 或 obj[_ordinand].leaf（方括号变量 + 后缀 .leaf）
 	const dynRe = new RegExp("\\[\\s*[A-Za-z_$][A-Za-z0-9_$]*\\.id\\s*\\]|\\[\\s*[A-Za-z_$][A-Za-z0-9_$]*\\]\\s*\\.\\s*" + esc(leaf), "g");
 
+	function hit(re, text) {
+		const m = re.exec(text);
+		if (!m) return null;
+		const line = text.slice(0, m.index).split("\n").length;
+		let lineText = text.split("\n")[line - 1];
+		if (lineText && lineText.length > 96) lineText = lineText.slice(0, 96) + "…";
+		return { file: null, line, text: lineText || "" };
+	}
 	const ev = { literal: [], concat: [], state: [], stringKey: [], dynamic: [] };
+	function pushHit(arr, f, text, idx) {
+		const line = text.slice(0, idx).split("\n").length;
+		const lineText = text.split("\n")[line - 1] || "";
+		/* 截断时优先保留匹配词附近（前 96 字符可能不含目标词，误导人工核对） */
+		const st = Math.max(0, idx - (idx - text.lastIndexOf("\n", idx - 1) - 1) - 24);
+		const snip = lineText.length > 96 ? "…" + lineText.slice(Math.max(0, st), st + 96) : lineText;
+		arr.push({ file: f, line, text: snip.slice(0, 120) });
+	}
 	for (const f of files) {
 		const text = fs.readFileSync(f, "utf8");
 		let m;
-		const litReG = new RegExp(litRe.source, "g"); while ((m = litReG.exec(text))) ev.literal.push(f + ":" + (m.index + 1));
-		const concatReG = new RegExp(concatRe.source, "g"); while ((m = concatReG.exec(text))) ev.concat.push(f + ":" + (m.index + 1));
-		const stateReG = new RegExp(stateRe.source, "g"); while ((m = stateReG.exec(text))) ev.state.push(f + ":" + (m.index + 1));
-		const strReG = new RegExp(strRe.source, "g"); while ((m = strReG.exec(text))) ev.stringKey.push(f + ":" + (m.index + 1));
-		const dynReG = new RegExp(dynRe.source, "g"); while ((m = dynReG.exec(text))) ev.dynamic.push(f + ":" + (m.index + 1));
+		const litReG = new RegExp(litRe.source, "g"); while ((m = litReG.exec(text))) pushHit(ev.literal, f, text, m.index);
+		const concatReG = new RegExp(concatRe.source, "g"); while ((m = concatReG.exec(text))) pushHit(ev.concat, f, text, m.index);
+		const stateReG = new RegExp(stateRe.source, "g"); while ((m = stateReG.exec(text))) pushHit(ev.state, f, text, m.index);
+		const strReG = new RegExp(strRe.source, "g"); while ((m = strReG.exec(text))) pushHit(ev.stringKey, f, text, m.index);
+		const dynReG = new RegExp(dynRe.source, "g"); while ((m = dynReG.exec(text))) pushHit(ev.dynamic, f, text, m.index);
 	}
 	return { leaf, parent, ev };
+}
+
+/* 证据格式化：file:line: text（每类最多 3 条） */
+function fmtEv(arr) {
+	return arr.slice(0, 3).map((h) => h.file + ":" + h.line + ": " + (h.text || "")).join("  |  ");
 }
 
 /* ---------- 5. 判定 ---------- */
@@ -143,61 +164,81 @@ function classify(files, vp) {
 
 	// ① 字面完整路径
 	if (ev.literal.length > 0)
-		return { vp, verdict: KEEP, why: "字面命中：源码存在 V/" + vp + "（" + ev.literal.length + " 处）" };
+		return { vp, verdict: KEEP, why: "字面命中：源码存在 V/" + vp + "（" + ev.literal.length + " 处）", evidence: fmtEv(ev.literal) };
 
 	// ② 连写访问（twee 别名 / 直接对象访问）
 	if (ev.concat.length > 0)
-		return { vp, verdict: KEEP, why: "连写访问命中：" + parent + "." + leaf + "（别名形态，" + ev.concat.length + " 处）" };
+		return { vp, verdict: KEEP, why: "连写访问命中：" + parent + "." + leaf + "（别名形态，" + ev.concat.length + " 处）", evidence: fmtEv(ev.concat) };
 
 	// ③ 父根定义块内 leaf: 类型/默认值（interface/type 前缀名或对象字面量，任一块命中）
 	if (findLeafDefBlock(files, root, leaf))
-		return { vp, verdict: KEEP, why: "状态结构定义存在：" + root + " 定义块内 leaf: 类型/默认值" };
+		return { vp, verdict: KEEP, why: "状态结构定义存在：" + root + " 定义块内 leaf: 类型/默认值", evidence: root + " 定义块（interface/type/对象字面量）命中" };
 
 	// ④ this.state.leaf —— 属主校验
 	if (ev.state.length > 0) {
-		const ownerOk = ev.state.some((h) => {
-			const idx = h.lastIndexOf(":");
-			return stateOwnerMatches(h.slice(0, idx), root);
-		});
+		const ownerOk = ev.state.some((h) => stateOwnerMatches(h.file, root));
 		if (ownerOk) {
 			const why = "this.state." + leaf + " 命中且 state 绑定属主含 " + root + "（别名盲区，" + ev.state.length + " 处）";
-			return { vp, verdict: KEEP, why: why };
+			return { vp, verdict: KEEP, why: why, evidence: fmtEv(ev.state) };
 		}
 		// 属主不符 → 父根模块目录复查
 		if (moduleDirHasLeaf(files, root, leaf)) {
 			const why = "this.state." + leaf + " 属主非 " + root + "，但模块目录内存在 " + leaf + "，疑似有效建议复核";
-			return { vp: vp, verdict: REVIEW, why: why };
+			return { vp: vp, verdict: REVIEW, why: why, evidence: fmtEv(ev.state) };
 		}
 		const why = "属主非 " + root + " 且模块目录内零出现 " + leaf + "：真缺失（模组删除/改名该字段）";
-		return { vp: vp, verdict: REMOVE, why: why };
+		return { vp: vp, verdict: REMOVE, why: why, evidence: fmtEv(ev.state) };
 	}
 
 	// ⑤ 叶子键字符串 / 动态键形态
-	if (ev.stringKey.length > 0 || ev.dynamic.length > 0)
-		return { vp, verdict: REVIEW, why: "叶子键 " + leaf + " 以字符串/动态键形态存在（配置数组或 obj[xx] 访问，" + (ev.stringKey.length + ev.dynamic.length) + " 处），声明保留建议复核" };
+	if (ev.stringKey.length > 0 || ev.dynamic.length > 0) {
+		const evStr = fmtEv(ev.stringKey), evDyn = fmtEv(ev.dynamic);
+		if (ev.stringKey.length > 0 && ev.dynamic.length > 0) {
+			// 动态键读写对闭合：leaf 字符串定义（配置/数组字面量）+ obj[var].leaf 访问并存 → 键存活
+			const why = "动态键读写对闭合：leaf 字符串定义（" + ev.stringKey.length + " 处）与 obj[var].leaf 访问（" + ev.dynamic.length + " 处）并存 → 键存活";
+			return { vp, verdict: KEEP, why: why, evidence: evStr + "  ||  " + evDyn };
+		}
+		const why = "叶子键 " + leaf + " 以字符串/动态键形态存在（" + (ev.stringKey.length + ev.dynamic.length) + " 处），声明保留建议复核";
+		return { vp, verdict: REVIEW, why: why, evidence: (evStr ? evStr : "") + (evStr && evDyn ? "  ||  " : "") + evDyn };
+	}
 
 	// ⑥ 零证据
-	return { vp, verdict: REMOVE, why: "零证据：源码中未出现 " + leaf + " 的任何形态，真缺失（模组删除/改名该字段）" };
+	return { vp, verdict: REMOVE, why: "零证据：源码中未出现 " + leaf + " 的任何形态，真缺失（模组删除/改名该字段）", evidence: "" };
 }
 
 /* ---------- main ---------- */
 function main() {
-	const modId = process.argv[2];
-	const srcDir = process.argv[3];
-	if (!modId || !srcDir) { console.error("用法：node tools/resolve_missing.js <适配器id> <模组源码目录>"); process.exit(1); }
+	const args = process.argv.slice(2);
+	const jsonMode = args.indexOf("--json") !== -1;
+	const modId = jsonMode ? args[0] : args[0];
+	const srcDir = jsonMode ? args[1] : args[1];
+	if (!modId || !srcDir) { console.error("用法：node tools/resolve_missing.js <适配器id> <模组源码目录> [--json]"); process.exit(1); }
 	if (!fs.existsSync(srcDir)) { console.error("源码目录不存在: " + srcDir); process.exit(1); }
 
 	const files = collectFiles(srcDir);
 	const varPaths = extractVarPaths(modId);
-	console.log("===== resolve_missing.js 缺失条目自动定案：适配器 " + modId + " vs " + srcDir + " =====");
-	console.log("声明 varPath " + varPaths.length + " 条，源码文件 " + files.length + " 个\n");
-
 	const results = [];
 	for (const vp of varPaths) {
 		const r = classify(files, vp);
 		results.push(r);
+	}
+
+	if (jsonMode) {
+		/* 机器可读：供自动化流水线消费（后续可直接按 verdict 批量改 04-modcheat.js） */
+		const out = {
+			adapter: modId, srcDir, declared: varPaths.length, files: files.length,
+			results: results.map((r) => ({ verdict: r.verdict, vp: r.vp, why: r.why, evidence: r.evidence || "" }))
+		};
+		console.log(JSON.stringify(out, null, 2));
+		return;
+	}
+
+	console.log("===== resolve_missing.js 缺失条目自动定案：适配器 " + modId + " vs " + srcDir + " =====");
+	console.log("声明 varPath " + varPaths.length + " 条，源码文件 " + files.length + " 个\n");
+	for (const r of results) {
 		console.log("[" + r.verdict + "] " + r.vp);
 		console.log("     " + r.why);
+		if (r.evidence) console.log("     ↳ " + r.evidence);
 	}
 
 	console.log("\n===== 汇总（建议动作） =====");

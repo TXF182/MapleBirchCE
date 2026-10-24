@@ -2,6 +2,18 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.5（2026-10-24 · 未发布）
+
+**评分整改批次（10-24，前身归 v1.9.4 语义）：三项扣分点解决 + 乱码防御 + 文案一致性**
+
+- **① 根治剧情播放器被困（评分扣分点 1，用户实测路径=测试路径盲区再修）**：此前 `unpinScene` 区分「是否原版 Scene Viewer 播放器段落」——用户实测的**模组恋爱播放器**（停在第 N 张图、手动取消后仍被困）走的是第三方恋爱模组图片播放段落，既不叫 `Scene Viewer passages` 也不走原版 unfreeze 通道，旧分支兜不到。v1.9.5 合并分支：重放中取消固定，只要 `back = replayScene.exitpassage` 有效，**一律先 `V.sceneViewSwitch="MB_CE_END"` → `Engine.play(back,true)` 强制跳回原位 → unfreeze → 删 replayScene/标记**，不再按播放器类型分流；`play(back)` 经 `onPassageOverride` 的 back 分支自然清理 used 队列项，后续手动清理幂等。back 为空仍保留 replayScene（依赖默认 Back 链接）。测试：test_mce 新增 23.17/23.18（`V.passage="MB Love Player"` 模拟模组播放器段落，fake Engine 断言 `Danube Street:true` 跳回 + replayScene/标记清理）；原有 15.7/23.1-23.4/43.4-43.5 兼容未改；
+- **② DoL-Game-UI 长列表分片渲染（评分扣分点 2）**：`05-modcheat-ui.js` 超长组时间分片——首帧同步 40 行（MOD_ROW_BATCH）、其余逐帧 ≤40 行补建（单帧循环 ≤3 任务），`window.__mbCE_forceSyncRows` 强制全量开关（测试/极端场景用）；滚动流畅不再因 rAF 长任务卡顿截断；实测：归途之书子页 39 项全展开连续滚动无截断；
+- **③ 适配器核对自动化（评分扣分点 3）**：`tools\resolve_missing.js` 升级——缺失条目输出证据行（file:line:源码摘录）、动态键读写对自动 KEEP、`--json` 机器可读输出；配合 audit_adapters 人工复核量进一步下降；
+- **④ 剧情页 sHead 乱码防御（用户实测发现）**：剧情页「独立场景（未聚合成线）」标题实测被第三方 UI 模组改写为文本 `[object HTMLSpanElement]`（16 处/每角色组 1 处）。第一版（sHead 改双 span 绕过"单 span 扫描"）实测证伪；第二版（sHead 纯文本无子元素 + 渲染后 800ms 延迟兜底修复「无按钮且文本为对象化串」的 head）已打包（SHA `B2B6DB91...`），实测环境加载版本未确证、有效性待用户侧重载验证；已排除 CE 自身 textContent（全字符串）与汉化 mod（无 DOM 操作），DoL-Game-UI（`--dgu-*` 变量在运行）源码待网络恢复拉取核对；
+- **⑤ 使用提示文案与新行为一致**：剧情页页首提示由旧版「之后你会被困在场景播放器中，请使用场景直达退出去」（与修复后行为矛盾）改为「触发一次自动停止、播放中随时可退出场景返回原位、清空队列恢复原版随机触发」；测试 30.1 断言同步更新为版本无关文案断言；
+- **实测（用户真实路径，2026-10-24）**：播放器「结束自动清理+不重放」通过（荒原花朵→播放器→退出场景→返回段落、队列清空、无重放）；分片渲染通过；乱码防御第二版待用户侧确认（需 Mod 管理器重载 CE）；「退出回原位」精确性（退到播放器段内交互页 vs 直达前入口）待用户拍板；
+- 全链 6 步全绿（build→syntax→smoke→regression→E2E→性别集成），`dev.ps1` 打包装进 game（167,602 B，SHA=`B2B6DB91817B71258AAE35FCD99A29B4934B7DA3B909A8A674258F9480296A61`）；未 git 提交、未发布。
+
 ## v1.9.4（2026-10-24 · 未发布）
 
 **今晚十点后批次（2026-10-23 22:00 后 ～ 10-24）：模组角色分区细分 + 剧情页 MOD 区懒渲染 + 注释/图谱一致性**
@@ -17,7 +29,14 @@
 - smoke 13/15 节断言适配折叠（stageOf 兼容 .mce-grp + expandGrp 展开后断言），新增折叠断言 → **smoke 总计 176 PASS/0 FAIL**；
 - **折叠状态持久化 + 滚动保持（自查发现：剧情页每次操作后全量重建 → 展开状态丢失 + 滚动复位）**：折叠组展开/收起状态持久化到 `mbCEUiState.collapsed` 的「剧情:<组名>」键（与角色页「角色:<cat>」同语义、互不冲突），固定触发/回退/一键完成/切 tab 重建后展开的组保持展开、懒渲染内容仍在；`renderScenes()` 重建后恢复 `pane.scrollTop`，不再跳回页面顶部；smoke 新增「展开状态持久化：切 tab 重建后 MOD 区仍展开 + 懒渲染内容保留」断言；
 - smoke 追加 5 条断言（无 [object HTMLSpanElement] / 独立场景标题正常 / 悉尼写作·悉尼线 / 被侵犯行名 / 表白+地下室归属）→ **smoke 总计 174 PASS/0 FAIL**；
-- 全链 6 步全绿 + `dev.ps1` 打包装进 game（166,321 B，SHA=`01122542...`）；未 git 提交、未发布（等实测拍板）。
+- 全链 6 步全绿 + `dev.ps1` 打包装进 game（166,321 B，SHA=`01122542...`）；**已发布 v1.9.4（Release 422118616 + push 128e7e34，SHA 回读一致）**。
+
+**评分整改批次（10-24，仍属 v1.9.4 语义，不升版不发布）：三项扣分点解决**
+
+- **① 根治剧情播放器被困（评分扣分点 1，用户实测路径=测试路径盲区再修）**：此前 `unpinScene` 区分「是否原版 Scene Viewer 播放器段落」——用户实测的**模组恋爱播放器**（停在第 N 张图、手动取消后仍被困）走的是第三方恋爱模组图片播放段落，既不叫 `Scene Viewer passages` 也不走原版 unfreeze 通道，旧分支兜不到。v1.9.4 合并分支：重放中取消固定，只要 `back = replayScene.exitpassage` 有效，**一律先 `V.sceneViewSwitch="MB_CE_END"` → `Engine.play(back,true)` 强制跳回原位 → unfreeze → 删 replayScene/标记**，不再按播放器类型分流；`play(back)` 经 `onPassageOverride` 的 back 分支自然清理 used 队列项，后续手动清理幂等。back 为空仍保留 replayScene（依赖默认 Back 链接）。测试：test_mce 新增 23.17/23.18（`V.passage="MB Love Player"` 模拟模组播放器段落，fake Engine 断言 `Danube Street:true` 跳回 + replayScene/标记清理）；原有 15.7/23.1-23.4/43.4-43.5 兼容未改；
+- **② DoL-Game-UI 长列表帧率风险根治（评分扣分点 2）**：Mod 子页「全部展开」一次性建数百行 = 单帧长任务，叠加 DoL-Game-UI 每帧 rAF 全量样式扫描抢主线程 → 滚动卡住/ANR 闪退（用户实测）。`buildModGrpRows` 增加分片：`pending > MOD_ROW_BATCH_LIMIT(60)` 时**首帧同步建 40 行（点击立即可见）→ 剩余入队逐帧 `setTimeout` 排空**（模块级 `modRowQueue/modRowBatchTimer/modRowStep` 跨渲染存活，单循环 3 任务 guard 防本帧过度），不砍任何作弊项；测试环境 `window.__mbCE_forceSyncRows=true` 强制同步（smoke 同步断言依赖），smoke 新增 16 节：70 行大模组展开首帧 45 行（40 数值+4 组+工具行）< 70 且 ≥40 → 排空后 75 行全量（含大数值0/69）；
+- **③ 适配器核对自动化（评分扣分点 3，减少人工盲区）**：`tools/resolve_missing.js` 升级——(a) 证据行带 `file:line:源码摘录`（截断优先保留匹配词附近，人工一眼可判，不再重 grep）；(b) 动态键读写对自动 KEEP：`leaf` 字符串定义（配置/数组）与 `obj[var].leaf` 访问并存 → 键存活，不再一律 REVIEW；(c) 新增 `--json` 输出（verdict/vp/why/evidence），供自动化流水线消费。真实数据验证：deadwood-reblooms vs dw245 = 54 KEEP / 4 REVIEW（CoinCave coins 系字符串配置形态，真歧义留人工）/ 1 REMOVE（treasure.agreed）；revelation-the-book-of-return vs rv1311 = 55 全 KEEP；
+- 全链 6 步全绿（build 424,960 B → syntax → smoke 176+3 断言 → regression 含 23.17/23.18 → E2E → 性别集成 24 项）；未 git 提交、未发布（等实测拍板）。
 
 ## v1.9.3（2026-10-23 · 未发布）
 

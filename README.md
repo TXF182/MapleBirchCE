@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.2**（完整版本线见 [CHANGELOG.md](CHANGELOG.md)）
+**当前版本：v1.9.5**（完整版本线见 [CHANGELOG.md](CHANGELOG.md)）
 
 ## 安装（快速开始）
 
@@ -61,15 +61,15 @@
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.4.5 | 阶段 9 / 能力 18 / 数值 28 | `maplebirch.get("DeadwoodReblooms")` |
-| 归途之书 · Revelation | 1.3.11 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
+| 枯木逢春 · Deadwood Reblooms | 2.4.6 | 阶段 9 / 能力 18 / 数值 28 | `maplebirch.get("DeadwoodReblooms")` |
+| 归途之书 · Revelation | 1.3.12 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
 | DomRobin | 0.0.8 | 阶段 1 / 能力 12 / 数值 3 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
 | 原版优化 Dol-Optimization | 1.1.2.1 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
 | Wraith'sReflection · 幽灵的倒影 | 1.3.4 | 阶段 4 / 能力 4 / 数值 2 | `V` 自有根并集（WraithsReflection/HelpAsk/项链系） |
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
-| maplebirch 框架本体 | 5.5.4 | 兼容性核对（API 8 项） | `window.maplebirch` |
+| maplebirch 框架本体 | 5.5.5 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
 > 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**9 渠道全覆盖**：8 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims）+ 框架本体。
 

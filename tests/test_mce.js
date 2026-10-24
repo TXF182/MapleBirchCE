@@ -731,10 +731,15 @@ V.mbCE_queue = [{ key: "KYLAR", name: "Kylar Manor", startPassage: "Manor Hall",
 let paK = { name: "Elsewhere" };
 api.onPassageOverride(paK);
 assert(V.mbCE_replayOnce === true && V.mbCE_replayPending === false && V.syndromekylar === 1, "触发设重放标记并写世界入口 syndromekylar=" + V.syndromekylar + " pending(直入段落不设)=" + V.mbCE_replayPending);
-// 15.7) 取消固定（重放中）→ 清 sceneViewSwitch（防被困播放器）+ 返回原位
+// 15.7) 取消固定（重放中）→ 清 sceneViewSwitch（防被困播放器）+ 返回原位（Engine 可用路径）
 V.sceneViewSwitch = "AlexFarmWorkStage3";
+V.replayScene = { exitpassage: "Danube Street" }; /* v1.9.5-自检：补重放中状态；并显式 mock Engine——无 Engine 时新防御保留 replayScene（Back 有源）属正确行为，不在此断言 */
+var played15 = "";
+global.Engine = { play: function (n, h) { played15 = n + ":" + !!h; } };
 api.unpinScene();
 assert(V.sceneViewSwitch === "MB_CE_END" && !V.replayScene, "取消固定清 sceneViewSwitch 与 replayScene");
+assert(played15 === "Danube Street:true", "15.7 Engine.play 跳回原位（Danube Street）, 实际 " + played15);
+delete global.Engine;
 // 15.8) 固定整线：全部阶段按顺序入队
 delete V.mbCE_queue;
 let line = { prefix: "AlexFarmWorkStage", items: [
@@ -1143,7 +1148,7 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:do
 global.window = { maplebirch: { get: function (n) { return n === "DeadwoodReblooms" ? {} : undefined; } } };
 var dwd = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
 assert(dwd && dwd.declared === true, "21.1 探测命中：枯木逢春自动识别");
-assert(dwd.stages.length === 9 && dwd.abilities.length === 18 && dwd.values.length === 28, "21.1 分组齐全 阶段9/能力18/数值28（v1.9.1 后适配轮补 2.4.5：CoinCave 金币洞穴 3 标记 + 5 数值 + 悉尼转化 3 数值）, 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
+assert(dwd.stages.length === 9 && dwd.abilities.length === 17 && dwd.values.length === 28, "21.1 分组齐全 阶段9/能力17/数值28（2.4.6 适配轮：CoinCave 金币洞穴 found/appraised 2 标记 + 5 数值 + 悉尼转化 3 数值；agreed 已删——2.4.6 源码零证据）" + ", 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
 // 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus/Finance/MoreTransformations/maplebirch），
 //        不碰原版顶层键（rebellion/victories/self_rent/both_rent/rent_separated 等原版同名键均不声明）；
 //        maplebirch 为框架 NPC 转化存档命名空间（$maplebirch.npc.<名>.transformation.<type>，2.4.5 悉尼转化作弊项，见 NPCTransformation.ts ensure/read）
@@ -1276,6 +1281,29 @@ delete V.passage; /* currentPassageName() 拿不到 → back 空 */
 api.unpinScene("nokey");
 assert(V.replayScene && V.sceneViewSwitch === "MB_CE_END" && playLog23.length === 1, "23.4 back 无效时不删 replayScene（default 仍有 Back 链接）");
 delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending;
+// 23.17) v1.9.4 根治（用户实测盲区）：重放中取消且当前处于模组恋爱播放器段落（非 Scene Viewer）
+//        → back 有效即强制 Engine.play 跳回原位 + 清理 replayScene/标记（不再区分播放器类型）
+V.passage = "MB Love Player";
+V.replayScene = { name: "Robin Pier", startPassage: "MB Love Player", passages: [], exitpassage: "Danube Street" };
+V.mbCE_replayOnce = true; V.mbCE_replayPending = true;
+V.mbCE_queue = [{ key: "KR", name: "N", startPassage: "MB Love Player", passages: [], used: true }];
+playLog23.length = 0;
+api.unpinScene("KR");
+assert(playLog23.length === 1 && playLog23[0] === "Danube Street:true", "23.17 模组播放器段落取消 → 强制 Engine.play 回原位, 实际 " + JSON.stringify(playLog23));
+assert(!V.replayScene && !V.mbCE_replayOnce && !V.mbCE_replayPending, "23.18 模组播放器段落取消 → 清理 replayScene/标记");
+delete V.mbCE_queue; delete V.passage;
+// 23.19) v1.9.5-自检：Engine 不可用（ep 缺失）→ 保留 replayScene/标记（播放器 Back 有源），只失效 switch 不删不跳
+delete global.Engine;
+V.passage = "MB Love Player";
+V.replayScene = { name: "Robin Pier", startPassage: "MB Love Player", passages: [], exitpassage: "Danube Street" };
+V.mbCE_replayOnce = true; V.mbCE_replayPending = true;
+V.mbCE_queue = [{ key: "KR2", name: "N", startPassage: "MB Love Player", passages: [], used: true }];
+api.unpinScene("KR2");
+assert(!!V.replayScene, "23.19 Engine 缺失 → 保留 replayScene（Back 有源，不删）");
+assert(!!V.mbCE_replayOnce, "23.19 Engine 缺失 → 保留 replayOnce 标记");
+assert(V.sceneViewSwitch === "MB_CE_END", "23.19 Engine 缺失 → sceneViewSwitch 已失效");
+assert((js.match(/mbCEClearReplay\(/g) || []).length >= 6, "23.20 统一清理入口：mbCEClearReplay 定义 + 5 调用点（播放器各终点不再散落三段式清理）");
+delete V.mbCE_queue; delete V.passage; delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending;
 // 23.5) onPassageOverride：dest === exitpassage（Back 正常返回原位）→ 清理残留
 V.passage = "Orphanage";
 V.replayScene = { name: "X", startPassage: "Scene Viewer passages", passages: [], exitpassage: "Orphanage" };
@@ -1783,10 +1811,10 @@ assert(V.daily.avery.talk !== undefined, "29.6 Avery's Mansion 触发兜底");
 // 29.7) 28 节残留清理
 delete V.player; delete V.templePromised; delete V.robinpaid; delete V.syndromeeden; delete V.syndromekylar; delete V.RobinExpansion; delete global.window;
 
-// 30) v1.5.2 剧情页页首使用提示（页首常驻、位于固定触发横幅之前；十四巡：文案还原为固定触发原始说明全文）
+// 30) v1.5.2 剧情页页首使用提示（页首常驻、位于固定触发横幅之前；十四巡：文案还原为固定触发原始说明全文；v1.9.4-自检：与修复后行为一致——触发一次自动停止、退出场景返回原位）
 const SRC_NOW = fs.readFileSync(jsPath, "utf8");
-const WARN_TXT = "使用提示：当你使用固定触发后，会一直循环。当出现退出场景时，回到此页面取消队列。之后你会被困在场景播放器中，请使用场景直达退出去。";
-assert(SRC_NOW.includes(WARN_TXT), "30.1 剧情页页首提示文案已写入源码（固定触发原始说明全文）");
+const WARN_TXT = "使用提示：固定触发后按队列顺序触发一次并自动停止，播放中随时可点「退出场景」返回原位；若需恢复原版随机触发，点顶部横幅「清空队列」即可。";
+assert(SRC_NOW.includes(WARN_TXT), "30.1 剧情页页首提示文案已写入源码（与修复后行为一致，不写旧版被困说法）");
 const RSI = SRC_NOW.indexOf("function renderScenes()");
 const RNEXT = SRC_NOW.indexOf("固定触发状态横幅", RSI);
 const WARN_I = SRC_NOW.indexOf("mce-warn", RSI);
@@ -1799,7 +1827,7 @@ delete V.mbCE_wrote;
 V.LostLamb = { recalled: false, active: false, scene: "", doubt: 0, fear: 10, notice: 0, ending: "", talkVow: "", known: { bishop: false, gwylan: false, auriga: false } };
 V.TempleDuties = { enrolled: false, review: false, duties: 0, oath: "", bishop: "none", manor: "none", declaration: "private", watch: { phase: "threshold" }, case: { stage: "field" }, archive: { roof: -1, shelves: -1, sorted: 0 }, candidates: { Robin: { agreed: false }, Sydney: { agreed: false } } };
 var r31 = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
-assert(r31 && r31.modName.indexOf("归途之书") !== -1 && r31.modName.indexOf("1.3.11") !== -1, "31.1 适配器声明升级 1.3.11, 实际 " + (r31 && r31.modName));
+assert(r31 && r31.modName.indexOf("归途之书") !== -1 && /v1\.3\.\d+/.test(r31.modName), "31.1 适配器声明已升级到 1.3.x 最新（版本无关断言，当前 " + (r31 && r31.modName) + "）");
 assert(r31.stages.filter(function (s) { return s.key === "ll_vow"; }).length === 1 && r31.stages.filter(function (s) { return s.key === "td_oath"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.watch.phase"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·守夜·案件阶段已收录");
@@ -1867,7 +1895,7 @@ delete V.LostLamb; delete V.TempleDuties; delete V.mbCE_wrote;
 V.RobinExpansion = { shop_stage: "none", asylum: { status: "home" } };
 V.VanillaPlus = { attitudes: { ironWill: true, sadomasochist: false } };
 var dw32 = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
-assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && dw32.modName.indexOf("2.4.5") !== -1, "32.1 适配器声明升级 2.4.5, 实际 " + (dw32 && dw32.modName));
+assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && /2\.4\.\d+/.test(dw32.modName), "32.1 适配器声明已升级到 2.4.x 最新（版本无关断言，当前 " + (dw32 && dw32.modName) + "）");
 assert(dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.ironWill"; }).length === 1 &&
        dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.sadomasochist"; }).length === 1 &&
        dw32.stages.filter(function (s) { return s.varPath === "MoreTransformations.harbour.zephyr.stage"; }).length === 1, "32.1 铁意志/受虐狂能力 + 冷月港·泽菲尔线阶段已收录");
@@ -1882,13 +1910,13 @@ assert(dwBad.ok === false, "32.3 旧声明阶段越界拒绝仍有效（2.2.7 �
 var dwAsy = api.setCheatStage("deadwood-reblooms", "r_asylum", "admitted");
 assert(dwAsy.ok && V.RobinExpansion.asylum.status === "admitted", "32.3 收容所阶段写入 admitted（2.2.7 兼容）, 实际 " + JSON.stringify(V.RobinExpansion.asylum));
 delete V.RobinExpansion; delete V.VanillaPlus; delete V.mbCE_wrote;
-// 32.4) 2.4.5 新增 CoinCave 金币洞穴：声明 + 布尔/数值写入（入口源码：Widgets.twee _coinCave=$MoreTransformations.treasure；found 跳过岛屿探索 100 次门槛）
+// 32.4) 2.4.5/2.4.6 CoinCave 金币洞穴：声明 + 布尔/数值写入（入口源码：Widgets.twee _coinCave=$MoreTransformations.treasure；found 跳过岛屿探索 100 次门槛；2.4.6 适配轮：agreed 已删——2.4.5 起源码即零证据）
 V.MoreTransformations = { treasure: { torch: 0, coins: 0, museumCoins: 0, crewCoins: 0, zephyrCoins: 0 } };
 var dw32b = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
 assert(dw32b.abilities.filter(function (a) { return a.varPath === "MoreTransformations.treasure.found"; }).length === 1 &&
        dw32b.abilities.filter(function (a) { return a.varPath === "MoreTransformations.treasure.appraised"; }).length === 1 &&
-       dw32b.abilities.filter(function (a) { return a.varPath === "MoreTransformations.treasure.agreed"; }).length === 1,
-       "32.4 CoinCave 3 个布尔能力已收录（found/appraised/agreed）");
+       dw32b.abilities.filter(function (a) { return a.varPath === "MoreTransformations.treasure.agreed"; }).length === 0,
+       "32.4 CoinCave 布尔能力已收录 found/appraised，agreed 已移除（2.4.6 源码零证据）");
 assert(dw32b.values.filter(function (v) { return v.varPath === "MoreTransformations.treasure.torch"; }).length === 1 &&
        dw32b.values.filter(function (v) { return v.varPath === "MoreTransformations.treasure.coins"; }).length === 1 &&
        dw32b.values.filter(function (v) { return v.varPath === "MoreTransformations.treasure.museumCoins"; }).length === 1 &&

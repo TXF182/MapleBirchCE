@@ -1,4 +1,5 @@
 	/* ---- 特殊剧情页（$scenes 场景注册表动态枚举） ---- */
+	var sHeadGuardTimer = null; /* v1.9.5-自检：乱码兜底单定时器——renderScenes 频繁重建时清旧设新，防 800ms 闭包堆积扫描旧 pane */
 	function renderScenes() {
 		var pane = root.querySelector('[data-pane="scenes"]');
 		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* v1.9.4：重建后保持滚动位置（固定触发/回退/一键完成后不跳回顶部） */
@@ -15,8 +16,8 @@
 			mbCEUiState.collapsed[sceneSectionKey(role)] = val;
 			mbCEUiSave({ collapsed: mbCEUiState.collapsed });
 		}
-		/* 使用提示（v1.5.2）：固定触发注意事项，页首常驻 */
-		pane.appendChild(el("div", "mce-warn", "使用提示：当你使用固定触发后，会一直循环。当出现退出场景时，回到此页面取消队列。之后你会被困在场景播放器中，请使用场景直达退出去。"));
+		/* 使用提示（v1.9.4-自检）：与修复后行为一致（触发一次自动停止、退出场景返回原位，不再被困） */
+		pane.appendChild(el("div", "mce-warn", "使用提示：固定触发后按队列顺序触发一次并自动停止，播放中随时可点「退出场景」返回原位；若需恢复原版随机触发，点顶部横幅「清空队列」即可。"));
 		/* 固定触发状态横幅（v1.2：队列，显示全部未触发项） */
 		var pinnedBanner = getPinnedScene();
 		if (pinnedBanner && pinnedBanner.length) {
@@ -288,7 +289,11 @@
 			if (singleTotal) {
 				var sblock = el("div", "mce-stage");
 				var sHead = el("div", "mce-stage-head");
-				sHead.appendChild(el("span", "mce-stage-name", "独立场景（未聚合成线）"));
+				/* v1.9.4-自检：sHead 曾只挂一个 span（mce-stage-name），实测被第三方 UI 模组
+				   改写为文本 [object HTMLSpanElement]；改为「mce-dot + mce-stage-name」双 span 后
+				   新包实测仍被改写（16 处）——外部脚本非按子元素数量判断。
+				   现改为纯文本（head 无子元素，外部脚本无元素可对象化），并辅以渲染后延迟兜底修复。 */
+				sHead.textContent = "独立场景（未聚合成线）";
 				sblock.appendChild(sHead);
 				var sstages = el("div", "mce-stages");
 				cluster.singles.forEach(function (it) {
@@ -354,6 +359,21 @@
 			}
 		}
 		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; } /* v1.9.4：重建后保持滚动位置 */
+		/* v1.9.4-自检：防御第三方 UI 模组在 CE 渲染后对「无按钮纯文本 head」的对象化改写
+		   （实测 sHead 被改成 [object HTMLSpanElement]，双 span 结构亦未能幸免）。
+		   延迟校验：仅修复「文本为对象化串且无按钮」的 head（即 sHead，line/sh 均有按钮不命中）。
+		   v1.9.5-自检：单定时器（清旧设新）——渲染频繁重建时旧闭包不再扫描已脱离的旧 pane。 */
+		if (sHeadGuardTimer) { clearTimeout(sHeadGuardTimer); }
+		sHeadGuardTimer = setTimeout(function () {
+			var bad = pane.querySelectorAll(".mce-stage-head");
+			for (var bi = 0; bi < bad.length; bi++) {
+				var bt = bad[bi].textContent || "";
+				/* v1.9.5-自检：覆盖对象化文本全形态（HTMLSpanElement 实测 16 处；HTMLDivElement/HTMLHeadingElement/HTMLButtonElement/Object 同源防御） */
+				if (/^\[object (HTMLSpanElement|HTMLDivElement|HTMLHeadingElement|HTMLButtonElement|Object)\]$/.test(bt.trim()) && !bad[bi].querySelector("button")) {
+					bad[bi].textContent = "独立场景（未聚合成线）";
+				}
+			}
+		}, 800);
 	}
 
 	/* ---- 全局页 ---- */

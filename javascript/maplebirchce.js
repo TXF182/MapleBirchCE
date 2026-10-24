@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.4";
+	var MCE_VERSION = "1.9.5";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1522,7 +1522,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.3.11",
+			modName: "默示录：归途之书 v1.3.12",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -1727,7 +1727,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.4.5",
+			modName: "枯木逢春 · Deadwood Reblooms 2.4.6",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -1781,9 +1781,7 @@
 				{ key: "cc_found", name: "金币洞穴 · 已发现洞窟（2.4.5 新增）", varPath: "MoreTransformations.treasure.found", type: "boolean",
 				  note: "2.4.5 新增金币洞穴线：发现前置要求岛屿探索 100 次（$island.explore_count gte 100），勾选直接标记已发现，跳过探索门槛" },
 				{ key: "cc_appraised", name: "金币洞穴 · 温特已记录纹饰（2.4.5 新增）", varPath: "MoreTransformations.treasure.appraised", type: "boolean",
-				  note: "2.4.5 新增：博物馆对话让温特记录金币纹饰后的状态，勾选视为已完成记录" },
-				{ key: "cc_agreed", name: "金币洞穴 · 泽菲尔已同意同行（2.4.5 新增）", varPath: "MoreTransformations.treasure.agreed", type: "boolean",
-				  note: "2.4.5 新增：泽菲尔答应将船长份额一并带回后的状态，勾选可跳过对话" }
+				  note: "2.4.5 新增：博物馆对话让温特记录金币纹饰后的状态，勾选视为已完成记录" }
 			],
 			scenes: [],
 			values: [
@@ -2231,6 +2229,43 @@
 		} catch (e) { out.errors.push("审计异常：" + (e && e.message ? e.message : e)); }
 		return out;
 	}
+	/* v1.9.4 问题2 根治：Mod 子页超长组时间分片构建（模块级状态，跨 renderModCheatDetail 渲染存活）。
+	   背景：DoL-Game-UI 每帧 rAF 全量样式扫描抢主线程，Mod 子页"全部展开"一次性建数百行 =
+	   单帧长任务 → 移动 WebView 滚动丢帧 / 长任务 ANR 闪退（用户实测）。
+	   方案：pending > MOD_ROW_BATCH_LIMIT 时改为分帧构建（首帧同步建 MOD_ROW_BATCH 行，剩余入队
+	   逐帧 setTimeout 排空），把长任务摊平，不砍任何作弊项；测试环境设
+	   window.__mbCE_forceSyncRows=true 强制同步（smoke 同步断言）。 */
+	var modRowBatchTimer = null;
+	var modRowQueue = []; /* 分片任务：{ body, fns, i, failed } */
+	var MOD_ROW_BATCH = 40;
+	var MOD_ROW_BATCH_LIMIT = 60;
+	function mbCEForceSyncRows() {
+		try { return typeof window !== "undefined" && window && window.__mbCE_forceSyncRows === true; } catch (e) { return false; }
+	}
+	function appendRowNodes(body, n) {
+		if (!n) { return; }
+		if (n.length) { for (var i2 = 0; i2 < n.length; i2++) { body.appendChild(n[i2]); } }
+		else { body.appendChild(n); }
+	}
+	/* 分片排空：每帧最多建 BATCH 行，直到队列清空（长任务摊平；3 个 guard 防本帧过度） */
+	function modRowStep() {
+		var guard = 0;
+		while (modRowQueue.length && guard < 3) {
+			var t = modRowQueue[0];
+			var built = 0;
+			while (t.i < t.fns.length && built < MOD_ROW_BATCH) {
+				try { appendRowNodes(t.body, t.fns[t.i]()); } catch (e) { t.failed++; }
+				t.i++; built++;
+			}
+			if (t.i >= t.fns.length) {
+				if (t.failed) { t.body.appendChild(el("div", "mce-hint", "有 " + t.failed + " 行加载失败（适配器数据异常），已跳过。")); }
+				modRowQueue.shift();
+			}
+			guard++;
+		}
+		if (modRowQueue.length) { modRowBatchTimer = setTimeout(modRowStep, 0); }
+		else { modRowBatchTimer = null; }
+	}
 	/* 动态发现：注册制 + 内置适配器（探测命中即合并）+ 被动识别占位；每次调用重扫。 */
 	function getCheatMods() {
 		try {
@@ -2399,6 +2434,10 @@
 		if (!pane) { return; }
 		var m = findCheatMod(modId);
 		var st = pane.scrollTop; /* 五巡：重建后保持滚动位置（翻到长列表底部操作不再跳回顶部） */
+		/* v1.9.5-自检：重建时清残留分片任务——切 tab/重进子页后旧渲染的分片不再往已脱离 DOM 的 body 补行（省帧），
+		   新渲染的 pending 行由全新任务构建，与旧队列无关 */
+		if (modRowBatchTimer) { clearTimeout(modRowBatchTimer); modRowBatchTimer = null; }
+		modRowQueue.length = 0;
 		pane.textContent = "";
 		if (!m) {
 			pane.appendChild(el("div", "mce-err", "模组未识别（可能已卸载），请返回列表。"));
@@ -2467,18 +2506,30 @@
 			var pend = grp.pending;
 			grp.pending = [];
 			var failed = 0;
-			/* 行闭包返回 node 或 node 数组；组体收起时 append 无布局成本，展开时批量插入 */
-			pend.forEach(function (fn) {
-				try {
-					var n = fn();
-					if (!n) { return; }
-					if (n.length) { for (var i2 = 0; i2 < n.length; i2++) { grp.body.appendChild(n[i2]); } }
-					else { grp.body.appendChild(n); }
-				} catch (e) { failed++; }
-			});
-			if (failed) {
-				grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
+			/* v1.9.4：行数超阈值或测试强制同步时走同步（首帧立即可见全部行）；否则分片 */
+			if (mbCEForceSyncRows() || pend.length <= MOD_ROW_BATCH_LIMIT) {
+				for (var i = 0; i < pend.length; i++) {
+					try { appendRowNodes(grp.body, pend[i]()); } catch (e) { failed++; }
+				}
+				if (failed) {
+					grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
+				}
+				return;
 			}
+			/* 分片：先同步建首批 BATCH 行（点击展开立刻可见内容），剩余入队逐帧排空 */
+			var first = Math.min(MOD_ROW_BATCH, pend.length);
+			for (var fi = 0; fi < first; fi++) {
+				try { appendRowNodes(grp.body, pend[fi]()); } catch (e) { failed++; }
+			}
+			if (pend.length <= MOD_ROW_BATCH) {
+				if (failed) {
+					grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
+				}
+				return;
+			}
+			var task = { body: grp.body, fns: pend.slice(first), i: 0, failed: failed };
+			modRowQueue.push(task);
+			if (!modRowBatchTimer) { modRowBatchTimer = setTimeout(modRowStep, 0); }
 		}
 		var any = false;
 		if (m.tasks.length) { any = true; renderCheatTasks(m, grpFor, buildModGrpRows); }
@@ -5547,38 +5598,32 @@ function renderPlayerEdit() {
 			}
 			if (V && V.replayScene) {
 				changed = true;
-				/* v1.8.19 防困播放器重构（用户实测：手动取消后仍被困场景播放器）：
+				/* v1.8.19 防困播放器重构（用户实测：手动取消后仍被困场景播放器）+ v1.9.4 根治：
 				   根因一：back = exitpassage || currentPassageName() 的兜底会让"玩家正处于播放器段落
 				   时取消"变成原地跳转（跳去当前播放器段落），且随后删 replayScene → 播放器 default 分支
 				   的 Back 链接无源 → 退出按钮消失 → 被困。
 				   根因二：先调 unfreezePlayerStats（wikifier）会经 mbCEUnfreezeHook 提前删掉 replayScene，
 				   跳转目标若恰为播放器段落同样导致 Back 无源。
-				   新逻辑：
-				   - back 有效且不在原版播放器内 → 先删重放状态 → 解冻 → 跳回原位；
-				   - back 有效且正处于原版播放器（Scene Viewer passages/End）→ 解冻（hook 兜底清理队列）
-				     → 跳回原位（目标非播放器，安全）→ 删重放状态；
-				   - back 为空（框架播放器/未知段落）→ 保留 replayScene（原版 default 的 Back 链接依赖它），
-				     不主动跳转——玩家经 Back 退出（475 行路径清理）或框架播放器自身退出调用
-				     unfreeze → mbCEUnfreezeHook 兜底清理。 */
-				var cur = currentPassageName();
-				var inPlayer = (cur === "Scene Viewer passages" || cur === "Scene Viewer End");
+				   v1.9.4：合并 inPlayer 分支——重放中取消固定，一律 Engine.play(back) 强制跳回原位再清理，
+				   不再区分"是否原版 Scene Viewer 播放器段落"。覆盖用户实测的模组恋爱播放器场景
+				   （播放器停在第 N 张图、手动取消后仍被困）：back 有效即强制脱离任何播放器/中间段落。
+				   play(back) 触发 :passageoverride（dest=back → 489 行 Back 返回原位分支）自然清理
+				   used 队列项；随后手动清 replayScene/标记兜底（幂等）。 */
 				back = (V.replayScene.exitpassage) ? V.replayScene.exitpassage : "";
 				/* 先清 sceneViewSwitch 为无效值 → Scene Viewer passages 的 switch 走 default（顺序不可反） */
 				V.sceneViewSwitch = "MB_CE_END";
-				if (back && !inPlayer) {
-					try { delete V.replayScene; } catch (e) { V.replayScene = undefined; }
-					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
-					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
+				if (back) {
 					var ep = getEnginePlayFn();
-					if (ep) { try { ep.play.call(ep.e, back, true); } catch (e) {} }
-				} else if (back && inPlayer) {
-					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
-					var ep2 = getEnginePlayFn();
-					if (ep2) { try { ep2.play.call(ep2.e, back, true); } catch (e) {} }
-					try { delete V.replayScene; } catch (e) { V.replayScene = undefined; }
-					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+					if (ep) {
+						/* v1.9.5-自检：跳转可用才清理——若 Engine 不可用（极端），保留 replayScene/标记，
+						   播放器 Back 链接仍有源，避免重蹈「删 replayScene → Back 无源 → 被困」覆辙 */
+						try { ep.play.call(ep.e, back, true); } catch (e) {}
+						mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */
+					}
 				}
-				/* back 为空：保留 replayScene/标记，不主动跳转（见上方注释） */
+				/* back 为空：保留 replayScene/标记
+				   （播放器 default 的 Back 链接依赖它），不主动跳转——玩家经 Back 退出
+				   （489 行路径清理）或播放器自身退出调用 unfreeze → mbCEUnfreezeHook 兜底清理。 */
 			}
 		} catch (e) {}
 		return changed;
@@ -5712,6 +5757,17 @@ function renderPlayerEdit() {
 			}
 		} catch (e) {}
 	}
+	/* v1.9.5-自检：清重放残留的统一入口（unpinScene / onPassageOverride 各终点共用，消除 5 处分叉不一致）。
+	   顺序固定：先清 replayScene/标记，再 unfreeze（避免 mbCEUnfreezeHook 在清理前重复走 cleanup）；
+	   skipUnfreeze=true 时不调 unfreeze（原版手动重放场景不干预原版流程）。 */
+	function mbCEClearReplay(skipUnfreeze) {
+		var Vr = getV();
+		try { Vr.replayScene = undefined; } catch (e) { Vr.replayScene = undefined; }
+		try { Vr.mbCE_replayOnce = undefined; Vr.mbCE_replayPending = undefined; } catch (e) {}
+		if (!skipUnfreeze) {
+			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
+		}
+	}
 	/* :passageoverride 钩子：固定触发判定（在 SugarCube 原版 redirect 之前改 passageArgs.name） */
 	function onPassageOverride(passageArgs) {
 		try {
@@ -5733,12 +5789,8 @@ function renderPlayerEdit() {
 				   原版手动重放保持原版行为：End → Exit scene 回场景查看器。 */
 				var wasMod = !!V.mbCE_replayOnce;
 				var backTo = (V.replayScene && V.replayScene.exitpassage) ? V.replayScene.exitpassage : "";
-				try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
-				try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
-				if (wasMod) {
-					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
-					if (backTo && passageArgs) { passageArgs.name = backTo; }
-				}
+				mbCEClearReplay(!wasMod); /* v1.9.5-自检：统一清理入口（原版手动重放不 unfreeze） */
+				if (wasMod && backTo && passageArgs) { passageArgs.name = backTo; }
 				return;
 			}
 			if (V.replayScene) {
@@ -5749,9 +5801,7 @@ function renderPlayerEdit() {
 				if (dest === "Scene Viewer passages" && !V.mbCE_replayPending) {
 					cleanupUsedPins();
 					var backS = (V.replayScene && V.replayScene.exitpassage) ? V.replayScene.exitpassage : "";
-					try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
-					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
-					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
+					mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */
 					if (backS && passageArgs) { passageArgs.name = backS; }
 					return;
 				}
@@ -5770,9 +5820,7 @@ function renderPlayerEdit() {
 							}
 						}
 					} catch (e) {}
-					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
-					try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
-					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+					mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */
 					return;
 				}
 				/* MOD 固定触发的重放：仅已知确定性逃逸终点到达时清理残留（农场剧情结束直接去 Farm Work 而非回 Scene Viewer），
@@ -5791,9 +5839,7 @@ function renderPlayerEdit() {
 							}
 						}
 					} catch (e) {}
-					try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
-					try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
-					try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+					mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */
 				} else {
 					return; /* 仍在重放链内 → 不触发 */
 				}
@@ -6105,6 +6151,7 @@ function renderPlayerEdit() {
 	}
 
 	/* ---- 特殊剧情页（$scenes 场景注册表动态枚举） ---- */
+	var sHeadGuardTimer = null; /* v1.9.5-自检：乱码兜底单定时器——renderScenes 频繁重建时清旧设新，防 800ms 闭包堆积扫描旧 pane */
 	function renderScenes() {
 		var pane = root.querySelector('[data-pane="scenes"]');
 		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* v1.9.4：重建后保持滚动位置（固定触发/回退/一键完成后不跳回顶部） */
@@ -6121,8 +6168,8 @@ function renderPlayerEdit() {
 			mbCEUiState.collapsed[sceneSectionKey(role)] = val;
 			mbCEUiSave({ collapsed: mbCEUiState.collapsed });
 		}
-		/* 使用提示（v1.5.2）：固定触发注意事项，页首常驻 */
-		pane.appendChild(el("div", "mce-warn", "使用提示：当你使用固定触发后，会一直循环。当出现退出场景时，回到此页面取消队列。之后你会被困在场景播放器中，请使用场景直达退出去。"));
+		/* 使用提示（v1.9.4-自检）：与修复后行为一致（触发一次自动停止、退出场景返回原位，不再被困） */
+		pane.appendChild(el("div", "mce-warn", "使用提示：固定触发后按队列顺序触发一次并自动停止，播放中随时可点「退出场景」返回原位；若需恢复原版随机触发，点顶部横幅「清空队列」即可。"));
 		/* 固定触发状态横幅（v1.2：队列，显示全部未触发项） */
 		var pinnedBanner = getPinnedScene();
 		if (pinnedBanner && pinnedBanner.length) {
@@ -6394,7 +6441,11 @@ function renderPlayerEdit() {
 			if (singleTotal) {
 				var sblock = el("div", "mce-stage");
 				var sHead = el("div", "mce-stage-head");
-				sHead.appendChild(el("span", "mce-stage-name", "独立场景（未聚合成线）"));
+				/* v1.9.4-自检：sHead 曾只挂一个 span（mce-stage-name），实测被第三方 UI 模组
+				   改写为文本 [object HTMLSpanElement]；改为「mce-dot + mce-stage-name」双 span 后
+				   新包实测仍被改写（16 处）——外部脚本非按子元素数量判断。
+				   现改为纯文本（head 无子元素，外部脚本无元素可对象化），并辅以渲染后延迟兜底修复。 */
+				sHead.textContent = "独立场景（未聚合成线）";
 				sblock.appendChild(sHead);
 				var sstages = el("div", "mce-stages");
 				cluster.singles.forEach(function (it) {
@@ -6460,6 +6511,21 @@ function renderPlayerEdit() {
 			}
 		}
 		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; } /* v1.9.4：重建后保持滚动位置 */
+		/* v1.9.4-自检：防御第三方 UI 模组在 CE 渲染后对「无按钮纯文本 head」的对象化改写
+		   （实测 sHead 被改成 [object HTMLSpanElement]，双 span 结构亦未能幸免）。
+		   延迟校验：仅修复「文本为对象化串且无按钮」的 head（即 sHead，line/sh 均有按钮不命中）。
+		   v1.9.5-自检：单定时器（清旧设新）——渲染频繁重建时旧闭包不再扫描已脱离的旧 pane。 */
+		if (sHeadGuardTimer) { clearTimeout(sHeadGuardTimer); }
+		sHeadGuardTimer = setTimeout(function () {
+			var bad = pane.querySelectorAll(".mce-stage-head");
+			for (var bi = 0; bi < bad.length; bi++) {
+				var bt = bad[bi].textContent || "";
+				/* v1.9.5-自检：覆盖对象化文本全形态（HTMLSpanElement 实测 16 处；HTMLDivElement/HTMLHeadingElement/HTMLButtonElement/Object 同源防御） */
+				if (/^\[object (HTMLSpanElement|HTMLDivElement|HTMLHeadingElement|HTMLButtonElement|Object)\]$/.test(bt.trim()) && !bad[bi].querySelector("button")) {
+					bad[bi].textContent = "独立场景（未聚合成线）";
+				}
+			}
+		}, 800);
 	}
 
 	/* ---- 全局页 ---- */
