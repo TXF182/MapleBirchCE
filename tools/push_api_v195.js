@@ -23,7 +23,7 @@ const path = require("path");
 const REPO = "TXF182/MapleBirchCE";
 const BRANCH = "main";
 const ROOT = path.join(__dirname, "..");
-const MSG = "v1.9.5 发布批次：模组适配更新（枯木逢春 2.4.6 / 归途之书 1.3.12 / 框架 5.5.5）+ 删除 cc_agreed（2.4.6 源码零证据）+ 测试断言版本无关化 + README/CHANGELOG 同步 + 版本双源 1.9.5";
+const MSG = "fix: v1.9.5 自查整改批次——删9条零证据声明（dom_robin liveStream/liveStreamTogetherTalked、wraiths WRR/SilverConchWR、dolsims 5条）、修复 resolve_missing Twee 形态误判（ERR-20261024-001）、REVIEW 3条复核定案（sinSims/BicycleSims KEEP）、4过时工具归档 _legacy、README/CHANGELOG/DoL-Project 桥接层同步、测试断言版本无关化";
 
 function tokenFromGitCredential() {
   const input = "protocol=https\nhost=github.com\n\n";

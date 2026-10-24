@@ -1086,7 +1086,7 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:re
 global.window = { modUtils: { getMod: function (n) { return n === "DomRobin" ? {} : undefined; } } };
 var drb = api.getCheatMods().filter(function (x) { return x.modId === "dom_robin"; })[0];
 assert(drb && drb.declared === true, "20.1 探测命中：DomRobin 自动识别");
-assert(drb.stages.length === 1 && drb.abilities.length === 12 && drb.values.length === 3, "20.1 分组齐全 阶段1/能力12/数值3, 实际 " + drb.stages.length + "/" + drb.abilities.length + "/" + drb.values.length);
+assert(drb.stages.length === 1 && drb.abilities.length === 11 && drb.values.length === 2, "20.1 分组齐全 阶段1/能力11/数值2（2026-10-24 删零证据声明 liveStreamTogetherTalked 能力12→11、ls_on 数值3→2）, 实际 " + drb.stages.length + "/" + drb.abilities.length + "/" + drb.values.length);
 // 20.2) 隔离：DomRobin 大量复用原版罗宾线变量，适配器绝不声明
 var drbPaths = [];
 drb.stages.concat(drb.abilities).concat(drb.values).forEach(function (it) { drbPaths.push(it.varPath); });
@@ -1114,11 +1114,9 @@ api.toggleCheatAbility("dom_robin", "pb_choc", true);
 assert(V.chocolateUpgradeShouldPayBack === true, "20.4 巧克力摊还钱进度 true");
 api.toggleCheatAbility("dom_robin", "pb_live", true);
 assert(V.liveStreamShouldPayBack === true, "20.4 直播设备还钱进度 true");
-// 20.5) 数值钳制：打赢次数 0-99 / 直播开关 0-1
+// 20.5) 数值钳制：打赢次数 0-99（2026-10-24 删零证据声明 ls_on/liveStream，直播开关不再暴露）
 api.applyCheatModValue("dom_robin", "rf_chain", 200);
 assert(V.robinFightChain === 99, "20.5 打赢次数钳制 99, 实际 " + V.robinFightChain);
-api.applyCheatModValue("dom_robin", "ls_on", 5);
-assert(V.liveStream === 1, "20.5 直播开关钳制 1, 实际 " + V.liveStream);
 // 20.6) 列表：柠檬水摊新商品追加/移除
 V.lemonadeNewGoodsList = ["popcorn"];
 api.applyCheatModValue("dom_robin", "goods_list", "balloon");
@@ -2578,9 +2576,8 @@ var wrt2 = api.setCheatStage("wraiths-reflection", "wr_thief", "bogus");
 assert(wrt2.ok === false, "41.5 necklaceThief 枚举越界拒绝（bogus），实际 ok=" + wrt2.ok);
 var wrt3 = api.setCheatStage("wraiths-reflection", "wr_thief", "rreturn");
 assert(wrt3.ok && V.necklaceThief === "rreturn", "41.5 双 r 拼写 rreturn 如实可写（模组自身 bug 取值）");
-api.applyCheatModValue("wraiths-reflection", "wr_conch", 1);
-assert(V.SilverConchWR === 1, "41.5 银海螺获得写入 1");
-delete V.WraithsReflection; delete V.necklaceThief; delete V.SilverConchWR;
+/* 2026-10-24：wr_conch（SilverConchWR）已删——1.3.4 对照源码零证据（resolve_missing 人工复核 0 命中），银海螺键不再暴露 */
+delete V.WraithsReflection; delete V.necklaceThief;
 /* 41.6）DoLSims：钳制 + 宿主缺失拒绝 */
 api.applyCheatModValue("dolsims", "ds_sin", 5000);
 assert(V.sinSims === 1000, "41.6 sinSims 越上限钳制到 1000，实际 " + V.sinSims);

@@ -149,7 +149,7 @@
 	   lemonadeUpgraded/chocolateUpgraded/robinPayBothNote/robinCouldPayBoth/robinSoldConsole 等），
 	   适配器一律不声明；只暴露模组自建键（均见源码赋值/初始化）：
 	   $liveStreamStage 直播周数 0-6（作者在言灵提示中明示可改）、$robinFightChain 反抗链打赢次数
-	   （≥3 解锁共同战斗）、$liveStream 直播开关 0/1、$lemonadeNewGoodsList 柠檬水摊新商品列表
+	   （≥3 解锁共同战斗）、$lemonadeNewGoodsList 柠檬水摊新商品列表
 	   （popcorn/snack/balloon/flower，gameStartOnly.txt 初始化 []），
 	   以及一批 boolean 进度标记（战斗谈话/共同战斗/还债谈话/花环/直播准备/一起直播/4 项还钱进度）。 */
 	CHEAT_ADAPTERS["dom_robin"] = {
@@ -175,7 +175,6 @@
 				{ key: "rp_self", name: "还债线 · 自还债谈话", varPath: "robinPaySelfTalked", type: "boolean" },
 				{ key: "fc_talked", name: "柠檬摊 · 花环谈话", varPath: "flowerCrownTalked", type: "boolean" },
 				{ key: "ls_agree", name: "直播 · 同意准备直播", varPath: "liveStreamAgreePrepare", type: "boolean" },
-				{ key: "ls_talked", name: "直播 · 谈过一起直播", varPath: "liveStreamTogetherTalked", type: "boolean" },
 				{ key: "ls_together", name: "直播 · 一起直播", varPath: "liveStreamTogether", type: "boolean" },
 				{ key: "pb_lemon", name: "还钱进度 · 柠檬水摊", varPath: "lemonadeShouldPayBack", type: "boolean" },
 				{ key: "pb_live", name: "还钱进度 · 直播设备", varPath: "liveStreamShouldPayBack", type: "boolean" },
@@ -185,7 +184,6 @@
 			scenes: [],
 			values: [
 				{ key: "rf_chain", name: "反抗链 · 打赢次数（≥3 解锁共同战斗）", varPath: "robinFightChain", type: "number", min: 0, max: 99 },
-				{ key: "ls_on", name: "直播 · 开启（0 关 / 1 开）", varPath: "liveStream", type: "number", min: 0, max: 1 },
 				{ key: "goods_list", name: "柠檬水摊 · 新商品", varPath: "lemonadeNewGoodsList", type: "list", options: ["popcorn", "snack", "balloon", "flower"] }
 			]
 		}
@@ -403,8 +401,8 @@
 	   （剧情未启动的新档 detect=false，此时本无可作弊内容，可接受；无框架降级安装时 V 键语义不变）。
 	   状态键：V.WraithsReflection（恋爱总闸门=1）/ HelpAsk（米奇求助线 1-5）/ necklaceWR（项链持有 0-3）/
 	   necklaceThief（偷窃责任枚举，模组自身 Return Necklace 2 写入 "rreturn"（双 r）但约 6 处补丁只认 "return"——
-	   面板如实列出两种取值，写 "return" 覆盖面最全）/ AdmitMR / RefuseWR / SilverConchWR / SilverConchAsk /
-	   WRR / necklaceThiefWR（项链窃案·怨灵侧标记，并入探测）/ stealdailyMR。原版根（wraith.state="forgive"/weekly.wraithDate/dateCount.Wraith）一律不暴露。 */
+	   面板如实列出两种取值，写 "return" 覆盖面最全）/ AdmitMR / RefuseWR / SilverConchAsk /
+	   necklaceThiefWR（项链窃案·怨灵侧标记，并入探测）/ stealdailyMR。原版根（wraith.state="forgive"/weekly.wraithDate/dateCount.Wraith）一律不暴露。 */
 	CHEAT_ADAPTERS["wraiths-reflection"] = {
 		detect: function () {
 			try {
@@ -413,8 +411,8 @@
 				if (!V) { return false; }
 				return (V.WraithsReflection !== undefined || V.HelpAsk !== undefined ||
 					V.necklaceWR !== undefined || V.necklaceThief !== undefined ||
-					V.necklaceThiefWR !== undefined || V.SilverConchWR !== undefined ||
-					V.stealdailyMR !== undefined || V.WRR !== undefined);
+					V.necklaceThiefWR !== undefined ||
+					V.stealdailyMR !== undefined);
 			} catch (e) { return false; }
 		},
 		entry: {
@@ -440,14 +438,10 @@
 			abilities: [
 				{ key: "wr_admit", name: "监狱对峙 · 承认罪过", varPath: "AdmitMR", type: "boolean" },
 				{ key: "wr_refuse", name: "分裂 · 已拒绝", varPath: "RefuseWR", type: "boolean" },
-				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean" },
-				{ key: "wr_rr", name: "麋鹿公寓/公园 · 罗宾介绍标记", varPath: "WRR", type: "boolean",
-				  note: "复用型标记：麋鹿公寓「说过话」与公园约会「罗宾已见过祂」共用" }
+				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean" }
 			],
 			scenes: [],
 			values: [
-				{ key: "wr_conch", name: "银海螺已获得（0/1）", varPath: "SilverConchWR", type: "number", min: 0, max: 1,
-				  note: "前提 $WraithsReflection：湖底罐子摸到海螺" },
 				{ key: "wr_steal", name: "当日偷窃冷却（0/1，清 0 可再偷）", varPath: "stealdailyMR", type: "number", min: 0, max: 1 }
 			]
 		}
@@ -455,7 +449,7 @@
 
 	/* 内置适配器：DoLSims 0.8.1.7（类模拟人生大扩展，2026-10-20 解压 19 twee/2 js/265 文件实证）
 	   探测键：window.MirrorHypnoVariableRefresh（funcSims.js 无条件挂载，脚本加载即存在）。
-	   结构：无统一宿主对象，持久态散挂 V 顶层（*Sims 后缀 + 少量无前缀新根）；从 250 个候选根精选 42 项，
+	   结构：无统一宿主对象，持久态散挂 V 顶层（*Sims 后缀 + 少量无前缀新根）；从 250 个候选根精选 45 项，
 	   剔除原版键（options/NPCName/kylarenglish/mental 等）与日锁类（每日自动重置，无作弊价值）。
 	   值域依据源码 clamp 实证；未确认具体枚举的阶段（Seath_phase/Judgement_Init 等）按数值钳制暴露并注明。
 	   写入防线天然成立：四维 .value/SchoolOrder 等只在开局/迁移 passage 后存在，宿主缺失时拒绝写入不崩。 */
@@ -509,16 +503,11 @@
 				{ key: "ds_influence", name: "风纪委员 · 影响力", varPath: "InfluenceSims.value", type: "number", min: 0, max: 40 },
 				{ key: "ds_gym", name: "健身卡剩余（每日非周一 -1）", varPath: "Gym_Card", type: "number", min: 0, max: 7 },
 				{ key: "ds_skill_game", name: "电脑房 · 游戏技能", varPath: "gameskillSims", type: "number", min: 0, max: 999 },
-				{ key: "ds_skill_live", name: "电脑房 · 直播技能", varPath: "liveskillSims", type: "number", min: 0, max: 999 },
-				{ key: "ds_skill_program", name: "电脑房 · 编程技能", varPath: "programskillSims", type: "number", min: 0, max: 999 },
-				{ key: "ds_skill_create", name: "电脑房 · 创作技能", varPath: "createskillSims", type: "number", min: 0, max: 999 },
-				{ key: "ds_skill_search", name: "电脑房 · 检索技能", varPath: "searchskillSims", type: "number", min: 0, max: 999 },
 				{ key: "ds_skill_hypno", name: "电脑房 · 催眠技能", varPath: "hypnosisskillSims", type: "number", min: 0, max: 999 },
 				{ key: "ds_book_11", name: "图书馆 · 11 号书进度", varPath: "citylibrarybook_11", type: "number", min: 0, max: 1000 },
 				{ key: "ds_book_12", name: "图书馆 · 12 号书进度", varPath: "citylibrarybook_12", type: "number", min: 0, max: 1000 },
 				{ key: "ds_book_13", name: "图书馆 · 13 号书进度", varPath: "citylibrarybook_13", type: "number", min: 0, max: 1000 },
 				{ key: "ds_book_14", name: "图书馆 · 14 号书进度", varPath: "citylibrarybook_14", type: "number", min: 0, max: 1000 },
-				{ key: "ds_book_15", name: "图书馆 · 15 号书进度", varPath: "citylibrarybook_15", type: "number", min: 0, max: 1000 },
 				{ key: "ds_book_16", name: "图书馆 · 16 号书进度", varPath: "citylibrarybook_16", type: "number", min: 0, max: 1000 },
 				{ key: "ds_book_17", name: "图书馆 · 17 号书进度", varPath: "citylibrarybook_17", type: "number", min: 0, max: 1000 },
 				{ key: "ds_demon", name: "恶魔化进度（≥6 判定）", varPath: "demon", type: "number", min: 0, max: 10,

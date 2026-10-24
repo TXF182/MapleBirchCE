@@ -116,7 +116,10 @@ function gatherEvidence(files, vp) {
 	const parts = vp.split(".");
 	const leaf = parts[parts.length - 1];
 	const parent = parts.slice(0, -1).join(".");
-	const litRe = new RegExp("(?:V|\\$)\\." + esc(parent) + "\\.\\s*" + esc(leaf) + "\\b", "g");
+	const litRe = new RegExp("(?:V|\\$)\\." + (parent ? esc(parent) + "\\.\\s*" : "") + esc(leaf) + "\\b", "g");
+	/* Twee/SugarCube 形态：$leaf（单段无点）与 $parent.leaf（多段）——twee 中 $x 即 V.x。
+	   单段键此前只会生成 "(?:V|\$)\.\.leaf"（双点）且漏掉无点 $leaf，导致真实键被误判 REMOVE。 */
+	const tweeRe = new RegExp("\\$\\s*" + (parent ? esc(parent) + "\\.\\s*" : "") + esc(leaf) + "\\b", "g");
 	const concatRe = new RegExp("\\b" + esc(parent) + "\\.\\s*" + esc(leaf) + "\\b", "g");
 	const stateRe = new RegExp("(?:this\\.)?state\\.(?:[A-Za-z_][A-Za-z0-9_]*\\.)*\\s*" + esc(leaf) + "\\b", "g");
 	const strRe = new RegExp("[\"']\\s*" + esc(leaf) + "\\s*[\"']", "g");
@@ -144,6 +147,7 @@ function gatherEvidence(files, vp) {
 		const text = fs.readFileSync(f, "utf8");
 		let m;
 		const litReG = new RegExp(litRe.source, "g"); while ((m = litReG.exec(text))) pushHit(ev.literal, f, text, m.index);
+		const tweeReG = new RegExp(tweeRe.source, "g"); while ((m = tweeReG.exec(text))) pushHit(ev.literal, f, text, m.index);
 		const concatReG = new RegExp(concatRe.source, "g"); while ((m = concatReG.exec(text))) pushHit(ev.concat, f, text, m.index);
 		const stateReG = new RegExp(stateRe.source, "g"); while ((m = stateReG.exec(text))) pushHit(ev.state, f, text, m.index);
 		const strReG = new RegExp(strRe.source, "g"); while ((m = strReG.exec(text))) pushHit(ev.stringKey, f, text, m.index);

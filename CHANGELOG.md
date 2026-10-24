@@ -2,7 +2,7 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v1.9.5（2026-10-24 · 未发布）
+## v1.9.5（2026-10-24 · 已发布）
 
 **评分整改批次（10-24，前身归 v1.9.4 语义）：三项扣分点解决 + 乱码防御 + 文案一致性**
 
@@ -14,7 +14,17 @@
 - **实测（用户真实路径，2026-10-24）**：播放器「结束自动清理+不重放」通过（荒原花朵→播放器→退出场景→返回段落、队列清空、无重放）；分片渲染通过；乱码防御第二版待用户侧确认（需 Mod 管理器重载 CE）；「退出回原位」精确性（退到播放器段内交互页 vs 直达前入口）待用户拍板；
 - 全链 6 步全绿（build→syntax→smoke→regression→E2E→性别集成），`dev.ps1` 打包装进 game（167,602 B，SHA=`B2B6DB91817B71258AAE35FCD99A29B4934B7DA3B909A8A674258F9480296A61`）；未 git 提交、未发布。
 
-## v1.9.4（2026-10-24 · 未发布）
+**自查整改批次（2026-10-24 上午～下午，补记）：适配器核查盲区清零 + 零证据声明清理 + 工具链卫生**
+
+- **补 5 个模组对照源码 + 键存活全量校验（消除核查盲区）**：下载 DomRobin 0.0.8 / More Love Interests 0.1.8.0 / SmartPhone 0.3.91 / Wraith'sReflection 1.3.4 / DoLSims 0.8.1.7 对应版本源码进 `tools\_modcache`（dr080/mli0180/sp0391/wr134/ds0817，对照目录 5→10）；此前这 5 个适配器声明从未被源码校验。校验结果：mli 1/1、smartphone 8/8 全活；dom_robin/wraiths/dolsims 共 8 条零证据缺失；
+- **修复 resolve_missing.js Twee 形态误判（严重 bug，错题本 ERR-20261024-001）**：工具只认 JS `V.xxx` 形态，漏掉 Twee/SugarCube `$xxx`（`<<set $var>>`）形态，把 24 条真实存在的键误判 REMOVE——人工复核拦下后修复（litRe 单段键去双点 + 新增 tweeRe `$leaf`/`$parent.leaf` 证据类），修复后 3 适配器 REMOVE 收敛为「无」，删除集精确；约定「REMOVE 落地前必须二次复核：另一脚本 MISS + 人工 grep 0 命中」；
+- **删除 9 条零证据声明**（两脚本 MISS + 人工 grep 0 命中三重一致）：dom_robin `liveStreamTogetherTalked`、`liveStream`（0.0.8 源码无 `$liveStream`/`V.liveStream`，仅话题字符串/CSS 类 liveStreamFans/Forbide/Delete）；wraiths `WRR`、`SilverConchWR`（探测逻辑/注释同步清）；dolsims `liveskillSims`/`programskillSims`/`createskillSims`/`searchskillSims`/`citylibrarybook_15`；REVIEW 复核后 dolsims `sinSims`/`BicycleSims` 实证真实变量（`<<set $sinSims to Math.clamp(...,0,1000)>>`、`<<set $BicycleSims to 1>>`）保留——REVIEW 收敛为 0；
+- **测试断言同步**：20.1 分组齐全 能力 12→11、数值 3→2（dom_robin）；20.5 直播开关钳制断言删；41.5 银海螺（wr_conch/SilverConchWR）断言删；
+- **文档/版本说明同步**：CHANGELOG v1.9.5 标「已发布」；v1.9.4 头部发布标记修正；README 适配器一览 DomRobin 能力 11/数值 2 + v1.4.2 探查段可操控项描述同步；
+- **工具链卫生**：清理 11 个未跟踪 `_probe` 残留（tests 2 + tools 9，含整棵 `_probe_dolui\DoL-Game-UI-main` 重复对照树）；4 个过时工具（`_check_keys.js`/`_check_keys2.js`/`_check_mod_npc_names.py`/`_fw553_api.txt`，均指向旧对照路径 rv140/dw245）归档 `tools\_legacy\`（git rename 保留历史）；DoL-Project 桥接层 README/scan.ps1 对照版本同步为 dw246/rv1312/fw555mod（10 个对照目录）；
+- 全链 5 步全绿（build→node --check→DOM 冒烟→全量回归→E2E+性别集成 24/24）；未 git 提交、未发布（打包与发布需用户另行确认）。
+
+## v1.9.4（2026-10-24 · 已发布）
 
 **今晚十点后批次（2026-10-23 22:00 后 ～ 10-24）：模组角色分区细分 + 剧情页 MOD 区懒渲染 + 注释/图谱一致性**
 

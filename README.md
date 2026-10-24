@@ -1,16 +1,16 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**8 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 [CHANGELOG.md](CHANGELOG.md)。**
+> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**8 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.5**（完整版本线见 [CHANGELOG.md](CHANGELOG.md)）
+**当前版本：v1.9.5**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 安装（快速开始）
 
 1. **前置依赖**：
    - [SugarCube 2 ModLoader](https://github.com/Lyoko-Jeremie/sugarcube-2-ModLoader) ≥ 2.0.0
-   - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.5.3）
+   - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.5.5）
    - 游戏本体 ≥ 0.5.12.13
 2. 游戏内按 `Alt+M` 打开 ModLoader → 「添加 / 移除Mod」→ 选择 `MapleBirchCE.mod.zip` → 「添加旁加载Mod」→ 提示 Success 后**刷新页面**。
 3. 若旧版 `MapleBirchCE`（v1）已在列表中：先「移除」再导入新版，避免同名单冲突。
@@ -61,9 +61,9 @@
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.4.6 | 阶段 9 / 能力 18 / 数值 28 | `maplebirch.get("DeadwoodReblooms")` |
+| 枯木逢春 · Deadwood Reblooms | 2.4.6 | 阶段 9 / 能力 17 / 数值 28 | `maplebirch.get("DeadwoodReblooms")` |
 | 归途之书 · Revelation | 1.3.12 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
-| DomRobin | 0.0.8 | 阶段 1 / 能力 12 / 数值 3 | `modUtils.get("DomRobin")` |
+| DomRobin | 0.0.8 | 阶段 1 / 能力 11 / 数值 2 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
 | 原版优化 Dol-Optimization | 1.1.2.1 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
@@ -89,7 +89,7 @@
 | 依赖 | 最低要求 | 实测版本 |
 |---|---|---|
 | ModLoader | ≥ 2.0.0 | 2.101.1 |
-| maplebirchFramework | ≥ 5.4.2 | 5.5.3 |
+| maplebirchFramework | ≥ 5.4.2 | 5.5.5 |
 | 游戏本体 | ≥ 0.5.12.13 | 0.5.12.13 |
 | Cheat Extended | 任意 | 1.20.3 共存实测无冲突 |
 
@@ -259,7 +259,7 @@
   - **探查**：解压至 `_domrobin_probe\`，通读 boot.json（name=DomRobin, version=0.0.8-for-dol-0.5.12.13）、robinModInject_early.js、robinModUtil.js、robinModSettings.js、robinTraitEffects.js、DomRobin_maplebirch_leaf.js/.twee、balloonStand.js、liveStream.js、widgets.twee 等，盘点全部 `V.`/`$` 状态键归属；
   - **边界隔离（关键）**：DomRobin **大量复用 DoL 原版罗宾线变量**（robinpaid/renttime_fight/robinShouldPayBack/lemonadeUpgraded/chocolateUpgraded/robinPayBothNote/robinPaySelfNote/robinCouldPayBoth/robinCouldPaySelf/robinSoldConsole/robinfirstrentfight/robinconsole/robinconsolelost 等）——适配器**一律不声明**这些键，只暴露确凿模组自建键，杜绝把原版数据渲染到 Mod作弊 页；
   - **适配器**：`CHEAT_ADAPTERS["dom_robin"]`，探测点 `window.modUtils.getMod("DomRobin")`（ModLoader 已加载模组注册表，模组卸载即消失）；
-  - **可操控项**：阶段 1（直播周数 `$liveStreamStage` 0–6，作者在模组言灵提示中明示可改）+ 能力 12（反抗战斗谈话/共同战斗完成/共同还债谈话/自还债谈话/花环谈话/直播同意准备/谈过一起直播/一起直播 + 4 项还钱进度：柠檬水摊/直播设备/巧克力摊升级/巧克力摊改造，均 boolean）+ 数值 3（反抗链打赢次数 0–99、直播开关 0/1、柠檬水摊新商品列表 popcorn/snack/balloon/flower）；
+  - **可操控项**：阶段 1（直播周数 `$liveStreamStage` 0–6，作者在模组言灵提示中明示可改）+ 能力 11（反抗战斗谈话/共同战斗完成/共同还债谈话/自还债谈话/花环谈话/直播同意准备/谈过一起直播 + 4 项还钱进度：柠檬水摊/直播设备/巧克力摊升级/巧克力摊改造，均 boolean）+ 数值 2（反抗链打赢次数 0–99、柠檬水摊新商品列表 popcorn/snack/balloon/flower）。2026-10-24 自查：对照 0.0.8 源码删除 2 条零证据声明（`liveStreamTogetherTalked` 能力、`liveStream` 直播开关——源码无 `$liveStream`/`V.liveStream`，仅话题字符串/CSS 类），能力 12→11、数值 3→2；
   - **验证**：261 项断言调用回归全过（新增第 20 节 18 条：探测/分组/原版罗宾线隔离/数字阶段写入跳最高回退/能力布尔/数值钳制/列表追加移除（on:false）/留痕回退删除叶子/无 modUtils 不出现）。
 - **v1.4.1（2026-10-15 · 归途之书（默示录）适配）**：
   - **背景**：用户实测 Mod作弊 时加载「默示录：归途之书 v1.3.1」modpack 未识别到内容——该 modpack 为 **dol-mod-protection-tools 加密**（auth-loader + .crypt，明文不可读）；用户随后提供源码包 `Revelation-The-Book-of-Return-1.3.1.zip`，据源码静态分析补内置适配器（不做任何解密）；
