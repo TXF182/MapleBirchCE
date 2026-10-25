@@ -2,7 +2,7 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v1.9.6（2026-10-25 · 未发布）
+## v1.9.6（2026-10-25 · 已发布）
 
 **枯木逢春 2.4.6 作弊项全补 + 着装审批联动（2026-10-25）**
 
@@ -32,6 +32,12 @@
 - **自足键确认（无需联动）**：孤儿院双买断（`pcFree/robinFree` 直读 `bought_out`）、四项成就（Board Seat / Controlling Stake / Black Raven / First Bounty 判定各只查单键）、银行档位（`ACCOUNT_TIERS` 直查即定额度）、属性锁定×6、驱除已用、容貌加成、花摊/爆米花/气球（直接参与收入结算）；
 - **不自动补、note 已明示**：劫案阶段（筹备/判定数据复杂，note 警示"建议配合筹备逐步写"，跳写 closed 会按失败结算）；交通头盔/工具/零件（需存档已有对应车辆，车辆无作弊键，note 已补说明）；
 - **测试**：§32.7.3 新增 6 条联动断言（借记卡联动开户 / 信用卡联动开户 / 余额联动开户+借记卡 / 已有股份不被联动覆盖 / 股份为 0 补 10% / 自租联动分开租房）；全链 6 步全绿（复核后重打包），打包 175,377 B，SHA=`6B794CE4F9138101353D5BC7EF650484A2D5C3E23934938584DE82F381AAFBCF`；未 git 提交、未发布。
+
+**源码工程化：04/06 大文件拆分（2026-10-25 再追加，并入 v1.9.6 工程结构）**
+
+- **按主题边界拆分两个超长源码文件**（可维护性整改，产物零变化）：`04-modcheat.js`（869 行）→ `04a-modcheat-adapters.js`（适配器数据 650 行）/ `04b-modcheat-write.js`（写入执行器 157 行）/ `04c-modcheat-util.js`（审计工具 53 行）；`06-traits.js`（994 行）→ `06a-traits-data.js`（254 行）/ `06b-traits-eval.js`（280 行）/ `06c-traits-ui.js`（336 行）/ `06d-traits-gender.js`（124 行）；src 由 17 段增至 22 段；
+- **零变化实证**：拼接产物 SHA 与拆分前**字节级一致**（`ce47e3aa7176f0a88684652f7b05b3a06f920e9ddc4e00f89fca772534a87ec3`，444,192 B；首轮切分曾因 PowerShell `-split` 吞空行 `\r` 差 5 字节，改用按行单元整体切分后复算一致）；全链 6 步全绿，重打包 175,377 B SHA=`D719023B4D4DED214BB53F075C91BB64800AC08DA77D6DBA7EF38A0A0FD6664A`（与已发布 v1.9.6 资产内容一致，zip 时间戳不同）；
+- **工具链同步**：`audit_adapters.js` / `check_mod_updates.js` / `resolve_missing.js` / `scan_mod_vars.js` / `_check_keys_mod.js` / `_check_char_names.py` 六工具的适配器源码路径全部改指 `04a-modcheat-adapters.js`（自查发现拆分后旧路径引用会挂，已修复并实跑验证）；README 目录树同步 22 段结构。
 
 ## v1.9.5（2026-10-24 · 已发布）
 

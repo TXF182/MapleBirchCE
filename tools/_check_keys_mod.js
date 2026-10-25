@@ -1,4 +1,4 @@
-/* 键存活校验：提取 04-modcheat.js 中指定适配器的全部 varPath，在新版模组源码目录里逐一验证。
+/* 键存活校验：提取 04a-modcheat-adapters.js 中指定适配器的全部 varPath，在新版模组源码目录里逐一验证。
  * 用法：node tools/_check_keys_mod.js <modId> <源码根目录> [--list]
  *   --list：只列 varPath 清单不校验（用于甄别）
  * 说明：分段键（$A.B.C）在源码里可能以任意分段出现；主键存活 = 首段存在，
@@ -16,7 +16,7 @@ if (!modId || !root || !fs.existsSync(root)) {
 }
 const listOnly = process.argv[4] === "--list";
 
-const SRC = path.join(__dirname, "..", "javascript", "src", "04-modcheat.js");
+const SRC = path.join(__dirname, "..", "javascript", "src", "04a-modcheat-adapters.js");
 const js = fs.readFileSync(SRC, "utf8");
 const i = js.indexOf('CHEAT_ADAPTERS["' + modId + '"]');
 if (i === -1) { console.error("适配器不存在: " + modId); process.exit(1); }

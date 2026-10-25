@@ -30,7 +30,7 @@ const path = require("path");
 const KEEP = "KEEP", REVIEW = "REVIEW", REMOVE = "REMOVE";
 
 const ROOT = path.join(__dirname, "..");
-const ADAPTER_SRC = path.join(ROOT, "javascript", "src", "04-modcheat.js");
+const ADAPTER_SRC = path.join(ROOT, "javascript", "src", "04a-modcheat-adapters.js");
 
 /* ---------- 1. 提取适配器全部 varPath ---------- */
 function extractVarPaths(modId) {
@@ -228,7 +228,7 @@ function main() {
 	}
 
 	if (jsonMode) {
-		/* 机器可读：供自动化流水线消费（后续可直接按 verdict 批量改 04-modcheat.js） */
+		/* 机器可读：供自动化流水线消费（后续可直接按 verdict 批量改 04a-modcheat-adapters.js） */
 		const out = {
 			adapter: modId, srcDir, declared: varPaths.length, files: files.length,
 			results: results.map((r) => ({ verdict: r.verdict, vp: r.vp, why: r.why, evidence: r.evidence || "" }))

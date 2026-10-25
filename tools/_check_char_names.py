@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""角色名中文化核查：提取 04-modcheat.js 全部 name 字段中的角色名，
+"""角色名中文化核查：提取 04a-modcheat-adapters.js 全部 name 字段中的角色名，
 与 01-core.js DISPLAY_NAMES 映射 + 模组官方译名对照。
 """
 import re, os, sys
 
 BASE = r"C:\Users\27352\Doubao\chats\2026-10-13\new-chat-2\MapleBirchCE"
-mcheat = open(os.path.join(BASE, "javascript", "src", "04-modcheat.js"), encoding="utf-8").read()
+mcheat = open(os.path.join(BASE, "javascript", "src", "04a-modcheat-adapters.js"), encoding="utf-8").read()
 core = open(os.path.join(BASE, "javascript", "src", "01-core.js"), encoding="utf-8").read()
 
 # DISPLAY_NAMES 映射（value=中文）

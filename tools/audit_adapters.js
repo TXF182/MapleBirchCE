@@ -1,7 +1,7 @@
 /*
  * 模组升级自动核对脚本（v1.9.0 工程化第 3 项）：
  * 第三方模组升级后，扫描其源码，把「源码中实际写入的 V 路径」与
- * CHEAT_ADAPTERS（04-modcheat.js）里声明的 varPath 比对，
+ * CHEAT_ADAPTERS（04a-modcheat-adapters.js）里声明的 varPath 比对，
  * 输出：声明缺失（模组改名/删除）/ 新增候选（模组新增、适配器未覆盖）/ 疑似改名建议。
  * 用法：node tools/audit_adapters.js <适配器id> <模组源码目录>
  * 适配器 id：revelation-the-book-of-return / dom_robin / deadwood-reblooms / SmartPhone / MLI
@@ -17,12 +17,12 @@ if (!MOD_ID || !MOD_SRC || !fs.existsSync(MOD_SRC)) {
   process.exit(2);
 }
 
-/* ---------- 1. 从 04-modcheat.js 提取适配器声明 ---------- */
-const SRC_MOD = path.join(__dirname, "..", "javascript", "src", "04-modcheat.js");
+/* ---------- 1. 从 04a-modcheat-adapters.js 提取适配器声明 ---------- */
+const SRC_MOD = path.join(__dirname, "..", "javascript", "src", "04a-modcheat-adapters.js");
 const raw = fs.readFileSync(SRC_MOD, "utf8");
 const segRe = new RegExp('CHEAT_ADAPTERS\\["' + MOD_ID.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '"\\] = \\{([\\s\\S]*?)\\n\\t\\};', "m");
 const segM = segRe.exec(raw);
-if (!segM) { console.error("未在 04-modcheat.js 找到适配器: " + MOD_ID); process.exit(2); }
+if (!segM) { console.error("未在 04a-modcheat-adapters.js 找到适配器: " + MOD_ID); process.exit(2); }
 const seg = segM[1];
 const declared = [];
 const vpRe = /varPath:\s*"([^"]+)"/g;

@@ -10,7 +10,7 @@
 const https = require("https");
 const fs = require("fs"), path = require("path");
 
-const SRC = path.join(__dirname, "..", "javascript", "src", "04-modcheat.js");
+const SRC = path.join(__dirname, "..", "javascript", "src", "04a-modcheat-adapters.js");
 const js = fs.readFileSync(SRC, "utf8");
 
 /* 渠道表：适配器 modId → GitHub repo；extract 为从 modName 提取声明版本的匹配。

@@ -95,12 +95,13 @@
 
 ## 版本说明
 
-- **v1.9.6（2026-10-25 · 未发布）**：
+- **v1.9.6（2026-10-25 · 已发布）**：
   - **枯木逢春 2.4.6 作弊项全补 + 着装审批联动 + 健身会员联动**：补 20 项（原版增强六项属性突破特质×7、三位一体前置三接触+本体、诡异镜子×6、健身房会员阶段、赌场疑心、医务待审）；城镇堕落不加（原版 `world_corruption_soft` 已由 DoLSims 分区 `ds_corruption` 覆盖）；
   - **枯木逢春 2.4.6 适配器全量自查优化（v1.9.6 追加）**：对照 2.4.6 源码逐模块扫漏，补齐 43 项——原版增强属性锁定×6 与驱除标记、罗宾投资线 6 键与店铺设施 4 键与房租分担 3 键、金融线（银行开户/档位/余额/借记卡/信用卡、券商开户/现金、公司办公室/协议/董事会/控股/黑乌鸦认可/订单数、孤儿院双买断）13 项、交通（头盔/维修工具×2/零件×2）5 项、街道（劫案阶段、已结悬赏）2 项；跳过复杂结构（持仓/股价/房产表/每日标记等）与内部排期键；
   - **新增联动写入机制（applyCheatSync，clear/set/copyMax 三型）**：写着装规范自动清待审批申请、最高政策只升不降、清零试行期（修复实测"已强制裸体仍显示等待礼顿决定"）；写健身房会员自动给 `expires_at` 十年有效（修复 onDay 结算当天失效盲区）；
   - **新键能力核查 + 联动补足（v1.9.6 再追加）**：43 键写入=读回全正常；对照 2.4.6 源码补 4 处"写了不生效"的联动——借记卡/信用卡勾选自动开户、存款余额自动开户+借记卡（模组可用资金判定依赖 opened&&debit_card）、投资协议勾选缺省补 10% 股份（不覆盖已有值）、自租联动分开租房（对齐模组自身语义）；孤儿院买断/四项成就/银行档位/属性锁定等确认自足；劫案阶段与交通键需前置条件（note 已明示）；
   - **验证**：全链 6 步全绿（build→syntax→smoke→regression→E2E→性别集成 24/24）；zip 条目正斜杠 4/4、verifier 4/4；
+  - **v1.9.6 发布后工程增量（同版并入，未再升版）**：04/06 大文件按主题拆 7 段（src 17→22 段，产物 SHA 字节级不变 `ce47e3aa`）；6 个适配器工具路径同步改指 `04a-modcheat-adapters.js`（自查发现旧引用会挂，已实跑验证）；README 目录树同步；详见 CHANGELOG「源码工程化」条目。
 - **v1.9.5（2026-10-24 · 已发布）**：
   - **评分整改批次（10-24，前身归 v1.9.4 语义）**：根治剧情播放器被困（模组恋爱播放器路径盲区——重放中取消固定一律 `V.sceneViewSwitch="MB_CE_END"` + 强制跳回原位 + unfreeze，不再按播放器类型分流）；DoL-Game-UI 长列表分片渲染（首帧 40 行 + 逐帧 ≤40 行补建，滚动不卡顿截断）；适配器核对自动化（resolve_missing 输出证据行/动态键自动 KEEP/`--json`）；剧情页 sHead 乱码防御 + 使用提示文案同步；
   - **自查整改批次（上午～下午）**：补 5 个模组对照源码进 `tools\_modcache`（dr080/mli0180/sp0391/wr134/ds0817，对照目录 5→10）消除核查盲区；修复 resolve_missing.js Twee 形态误判（严重 bug，ERR-20261024-001，24 条真实键曾误判 REMOVE 被人工复核拦下）；删除 9 条零证据声明（dom_robin `liveStreamTogetherTalked`/`liveStream`、wraiths `WRR`/`SilverConchWR`、dolsims 5 条，两脚本 MISS + 人工 grep 0 命中三重一致）；REVIEW 复核 `sinSims`/`BicycleSims` 实证保留；4 过时工具归档 `_legacy`；README 修复 CHANGELOG 死链 + 枯木逢春能力 18→17 + 框架版本统一 5.5.5；
@@ -472,14 +473,19 @@ MapleBirchCE.mod.zip
 ```
 MapleBirchCE/（git 源码真相源）
 ├── javascript/
-│   ├── src/                       # 开发源，按功能域拆 17 段（改代码改这里）
+│   ├── src/                       # 开发源，按功能域拆 22 段（改代码改这里）
 │   │   ├── 00-preamble.js         # 顶部版本注释 + IIFE 头
 │   │   ├── 01-core.js             # 基础：版本号/框架解析/数值/中文/角色枚举/数值读写
 │   │   ├── 02-romance.js          # 恋爱剧情阶段 + 转化阶段
 │   │   ├── 03-global.js           # 全局批量（格威岚防崩/属性中英映射）
-│   │   ├── 04-modcheat.js         # Mod作弊适配器 + 通用写入执行器 + 回退
+│   │   ├── 04a-modcheat-adapters.js # Mod作弊适配器声明（8 模组数据，原名 04-modcheat.js）
+│   │   ├── 04b-modcheat-write.js  # 通用写入执行器 + 回退
+│   │   ├── 04c-modcheat-util.js   # 适配器标准化/审计工具
 │   │   ├── 05-modcheat-ui.js      # Mod作弊动态发现 + 渲染 + 玩家属性编辑
-│   │   ├── 06-traits.js           # 特质管理：静态表/编译/系列合并/强制获得/渲染
+│   │   ├── 06a-traits-data.js     # 特质静态表/中文翻译（原名 06-traits.js 数据段）
+│   │   ├── 06b-traits-eval.js     # 特质求值/写入链
+│   │   ├── 06c-traits-ui.js       # 特质/系列渲染 + 收藏 + 数值编辑
+│   │   ├── 06d-traits-gender.js   # 性别切换（七键联动）
 │   │   ├── 07a-shell.js           # 面板基础：CSS/el/injectCSS/setStatus/标签切换
 │   │   ├── 07b-char.js            # 角色一览卡片
 │   │   ├── 07c-stage.js           # 阶段页数据卡 + 内层标签
@@ -493,7 +499,6 @@ MapleBirchCE/（git 源码真相源）
 │   └── maplebirchce.js            # 构建产物（build 生成，勿手改）
 ├── tools/
 │   ├── build_js.js                # 拼接 src → 单文件（--sync-pkg <打包源> 顺手同步）
-│   ├── split_js.js                # 全文件切分脚本（重建 SHA 自检；07 段再拆已并入 07a-07h）
 │   ├── audit_adapters.js          # 模组升级核对：扫描第三方模组源码 V 路径 vs 适配器声明
 │   ├── resolve_missing.js         # 缺失条目自动定案：对 audit 报告的每项自动判 KEEP/REVIEW/REMOVE（见下）
 │   ├── check_framework_api.js     # 框架兼容性核对：框架新版 inject_early.js 中 CE 依赖的 API 是否保留

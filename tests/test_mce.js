@@ -3187,5 +3187,38 @@ const css45 = dHead44.children.filter(c => c.id === "mce-style")[0].textContent;
 assert(css45.indexOf("contain:content") !== -1, "45.8 .mce-grp contain:content 已注入");
 assert(css45.indexOf("overscroll-behavior:contain") !== -1, "45.8 .mce-body overscroll-behavior:contain 已注入");
 
+/* ============ 46）存档卫生：新游戏不继承旧存档的 CE 写入 ============
+   背景：用户实测疑虑"之前用模组改过数值，开新游戏会不会继承"。
+   结论机制：CE 无 localStorage 存档值、无 StoryInit 注入、无模块级 V 缓存，
+   写入全部经函数内 getV() 命中当前存档对象；新游戏 = SugarCube 重建 State.variables。 */
+/* 46.0 构造"被 CE 重度改过的旧存档"：作弊数值 + 庇护标记 + 留痕 + 回放队列 */
+const oldSaveCE = V;
+oldSaveCE.money = 999999;
+oldSaveCE.avery_fate = "saved";
+oldSaveCE.mceAveryShelter = true;
+oldSaveCE.mbCE_wrote = { "set:money:999999": { type: "set", path: "money", value: 999999, t: 1 } };
+oldSaveCE.mbCE_queue = [{ key: "OLD", name: "旧固定", startPassage: "OldStart", passages: [], used: true }];
+const oldKeys46 = Object.keys(oldSaveCE);
+assert(oldKeys46.indexOf("mceAveryShelter") !== -1 && oldKeys46.indexOf("mbCE_wrote") !== -1 && oldKeys46.indexOf("mbCE_queue") !== -1,
+	"46.0 前置：旧存档确有 CE 写入（作弊数值/庇护标记/留痕/回放队列）");
+/* 46.1 模拟新游戏：SugarCube 重建 State.variables（V 换全新对象，仅含原版 StoryInit 结构壳）。
+   判定口径：characters/player/daily/weekly 属原版 StoryInit 本就会建的壳键，不算继承；
+   真正的污染是「CE 专属键 + 作弊数值」进入新档。 */
+global.V = { characters: { npc: {} }, player: {}, daily: {}, weekly: {} };
+global.State.variables = global.V;
+global.rv.variables = global.V;
+const shellKeys46 = ["characters", "player", "daily", "weekly"];
+const leaked46 = oldKeys46.filter(k => k in global.V && shellKeys46.indexOf(k) === -1);
+assert(leaked46.length === 0, "46.1 新游戏 V 重建后 CE 专属键/作弊键 0 条继承, 实际 " + JSON.stringify(leaked46));
+assert(global.V.money !== 999999 && global.V.avery_fate !== "saved" && global.V.mceAveryShelter === undefined,
+	"46.1 作弊数值未污染新档（money≠999999 / avery_fate≠saved / 无庇护标记）");
+/* 46.2 新档加载 mod（重 eval 产物）：只建原版默认壳（avery_mansion/avery_tower/daily），不写 CE 自产键 */
+eval(js);
+const newKeys46 = Object.keys(global.V);
+const newCEKeys46 = newKeys46.filter(k => /^mbCE_/i.test(k) || /^mce/i.test(k));
+assert(newCEKeys46.length === 0, "46.2 新档加载后 V 无 CE 自产键（含留痕/标记/队列）, 实际 " + JSON.stringify(newCEKeys46));
+assert(global.V.avery_mansion !== undefined && global.V.avery_tower !== undefined && global.V.daily !== undefined,
+	"46.2 新档加载建原版结构默认壳（avery_mansion/avery_tower/daily 存在）, 实际 " + newKeys46.join("/"));
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

@@ -19,7 +19,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const ADAPTER_SRC = path.join(ROOT, "javascript", "src", "04-modcheat.js");
+const ADAPTER_SRC = path.join(ROOT, "javascript", "src", "04a-modcheat-adapters.js");
 const GLOBAL_SRC = path.join(ROOT, "javascript", "src", "03-global.js");
 
 const srcDir = process.argv[2];
