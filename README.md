@@ -96,7 +96,7 @@
 
 ## 版本说明
 
-- **v1.9.7（2026-10-25 · 未发布，1.9.6 发布后的变更归入本版）**：
+- **v1.9.7（2026-10-25 · 已发布，1.9.6 发布后的变更归入本版）**：
   - **源码工程化**：04/06 大文件按主题拆 7 段（src 17→22 段，产物 SHA 字节级不变 `ce47e3aa`）；6 个适配器工具路径同步改指 `04a-modcheat-adapters.js`（自查发现旧引用会挂，已实跑验证）；README 目录树同步；验证链完善（run_all.ps1 步骤编号 [1/6]-[6/6]、全绿后自动 codegraph sync、pre-commit 文案同步、UI 非热路径加载后置）；
   - **适配器版本声明同步**：枯木逢春 modName `2.4.6 → 2.4.7`、归途之书 `v1.3.12 → v1.3.13`（与已装 game 官方包对齐，功能引入版本注释未动）；更新检测 UPDATES 3 → 1；
   - **框架 5.5.6 升级**：`check_framework_api.js` 核对 inject_early.js 核心 8 项全过、`setup.MapleBirch`/`maplebirch.patch` 缺失与历史版本一致（CE 非依赖）→ 判兼容；`check_mod_updates.js` declOverride `5.5.5 → 5.5.6`；game 框架包 `v5.5.0 → v5.5.6` 替换（旧包备份 `modpack-backup\`）；README 依赖说明/适配器表/兼容矩阵同步；

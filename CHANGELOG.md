@@ -2,7 +2,7 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v1.9.7（2026-10-25 · 未发布）
+## v1.9.7（2026-10-25 · 已发布）
 
 **1.9.6 发布后的全部变更：源码工程化（04/06 拆分）+ 适配器版本声明同步 + 框架 5.5.6 升级 + 对照源码清理（2026-10-25）**
 
@@ -18,7 +18,7 @@
 - **适配器版本声明同步**：枯木逢春 modName `2.4.6 → 2.4.7`（04a 第 213 行）、归途之书 `v1.3.12 → v1.3.13`（第 10 行）——与已装 game 的官方包对齐；全文件 60+ 处 `2.4.6` 功能引入版本注释未动；更新检测 UPDATES 3 → 1；
 - **对照源码同步 + 清理（2026-10-25）**：枯木对照 `dw246(2.4.6) → dw247(2.4.7)`（tarball v2.4.7，604 文件）、归途对照 `rv1312(1.3.12) → rv1313(1.3.13)`（89 文件）；`_check_keys_mod.js` 全量核查：枯木 117 条 varPath、归途 57 条**全部存活**；框架对照 `fw555mod(5.5.5) → fw556(5.5.6)`（release mod.zip + unpacked，inject_early.js 在 `fw556\unpacked\dist\`）；删除被取代的 `fw555mod/dw246/rv1312` 三个旧对照 + dr080/ds0817/DoL-Game-UI-main 历史对照（需用时从渠道重新下载）；DoL-Project 桥接层 README 对照表 / scan.ps1（modIds 映射 + fwapi/vars/keys 默认路径）同步新目录名与 fw556 结构；scan.ps1 语法解析通过；
 - **框架 5.5.6 升级（check_framework_api 核对后人工替换）**：下载 `maplebirch-0.5.12.13-v5.5.6.mod.zip`（383,875 B，asset size 校验过）进 `tools\_modcache\fw556`；`check_framework_api.js` 核对 inject_early.js：核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists / define / frameworkNotice），`setup.MapleBirch` / `maplebirch.patch` 缺失与 5.5.3/5.5.4/5.5.5 一致（CE 非依赖，无害）→ 判兼容；`check_mod_updates.js` declOverride `5.5.5 → 5.5.6` + 核对注释更新；README 三处（依赖说明/适配器表/兼容矩阵）同步 5.5.6；game 框架包 `v5.5.0 → v5.5.6` 替换（旧包备份至 `DoL-Project\modpack-backup\`，可回滚）；
-- **更新检测复核**：9 渠道全无更新（枯木 2.4.7 / 归途 1.3.13 对齐，框架 5.5.6 对齐，其余 6 适配器无更新）；全链 6 步全绿（build 444,192 B → smoke → 回归 → E2E 8 适配器 → 性别 24/24 → codegraph sync），重打包 176,006 B SHA=`C93157385DD9C76EBC2474F51812F58217E48533D36E5CA95F60657EF3263334` 已装 game；未 git 提交、未发布。
+- **更新检测复核**：9 渠道全无更新（枯木 2.4.7 / 归途 1.3.13 对齐，框架 5.5.6 对齐，其余 6 适配器无更新）；全链 6 步全绿（build 444,192 B → smoke → 回归 → E2E 8 适配器 → 性别 24/24 → codegraph sync），重打包 176,006 B SHA=`C93157385DD9C76EBC2474F51812F58217E48533D36E5CA95F60657EF3263334` 已装 game；未 git 提交、未发布（该段随后并入 v1.9.7，2026-10-25 发布：commit `dac2bd1`，GitHub Release v1.9.7，资产 176,487 B SHA=`49FC41D7F3E90421913F18250F4310D5C069B149DA5947B24DEC5895BBB1936E`）。
 
 ## v1.9.6（2026-10-25 · 已发布）
 
