@@ -2,6 +2,37 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.6（2026-10-25 · 未发布）
+
+**枯木逢春 2.4.6 作弊项全补 + 着装审批联动（2026-10-25）**
+
+- **补 20 项作弊**：原版增强六项属性突破特质×7（意志/体能/容貌/暴露/变态/放纵 + 全能 `incorrigible`）→ `VanillaPlus.traits.*`；三位一体前置三接触（温暖/岩石/空无黑暗）→ `divineTransformations.prayer.*`；三位一体本体 → `divineTransformations.trinity`；诡异镜子×6（孤儿院/农场/高塔/神殿/西里斯/凯拉尔）→ `deviancy.mirrors.*`；健身房会员阶段（无/周卡/月卡/年卡/终身）→ `LifeSimulation.gym.membership`；赌场疑心值（0–100，≥60 可疑、≥100 拒服务）→ `LifeSimulation.casino.suspicion`；医务待审标记 → `LifeSimulation.medicine.review.pending`；
+- **城镇堕落不加**：原版键 `world_corruption_soft` 已由 DoLSims 分区 `ds_corruption`（世界软腐化）覆盖，同键不重复；
+- **新增联动写入机制（applyCheatSync）**：作弊条目可声明 `sync`（clear/set/copyMax 三型），主键写入成功后自动修正伴随键、不留痕、失败不影响主写入。首个用途——**着装规范 dress_active 写强制裸体时自动清待审批 `proposal`、同步最高政策 `highest`（只升不降）、清零试行期 `trialUntil`**，修复用户实测"已强制裸体但公告栏仍显示等待礼顿决定"的状态残留；第二个用途——**健身房会员写档自动给 `expires_at` 十年有效期**（自查发现的实测盲区：模组 `LifeSimulation.ts` onDay 结算 `expires_at<=now` 会把非 lifetime 会员重置为 none，只写 membership 必当天失效）；
+- **测试**：test_mce 新增 §32.6（18 键声明收录 / 写入生效 / 着装联动 / 降级语义 / 中间档只升不降 / 会员十年期）；21.1 分组齐全断言版本无关化（阶段≥10/能力≥35/数值≥29）；**升版 1.9.6 双源完成**（src/01-core.js MCE_VERSION 与 boot.json version）；全链 6 步全绿；未 git 提交、未发布。
+
+**枯木逢春 2.4.6 适配器全量自查优化（2026-10-25 追加，并入 v1.9.6）**
+
+- **对照 2.4.6 源码逐模块扫漏，补齐 43 项**：
+  - 原版增强 VanillaPlus（+7）：属性锁定×6（意志/体能/容貌/放纵/暴露/变态，`lock.*` 防衰减）+ 驱除已用标记（`divineTransformations.expungeUsed`）；三位一体判定核实为 `trinity===true` 直接生效，无需补 contact 联动；
+  - 罗宾 RobinExpansion（+11）：投资线 6 键（`investment.agreed/share/valuation/invested_total/returned_total/dividends_total`，share 为百分比、估值英镑、投入/收回/分红以便士）+ 店铺设施 4 键（`shop_bank_supported/shop_flowers/shop_popcorn/shop_balloons`）+ 房租分担 3 键（`self_rent/both_rent/rent_separated`）；
+  - 金融 Finance（+13）：银行开户/借记卡/信用卡（`bank.opened/debit_card/credit_card`）、银行档位阶段（`account_tier`：普通/优选/尊享）、银行余额（便士）、券商开户/现金（便士）、公司办公室/合作协议/董事会/控股/黑乌鸦认可（成就判定键）、已完成订单数、孤儿院双买断（`pc_bought_out/robin_bought_out`）；
+  - 交通 Transport（+5）：头盔 + 维修工具×2 + 零件×2；
+  - 街道 StreetLife（+2）：劫案阶段（`heist.stage` 8 档）、已结悬赏数（成就 First Bounty 判定）；
+  - **跳过**（不适合直接写）：证券持仓 `holdings`/市场股价 `prices`/房产表 `owned`/车辆数组 `vehicles` 等复杂对象，每日标记/去重日期键（Sydney `*Day/*Year`），天文排期种子（`CelestialAnomalies.seed` 写坏会打乱日蚀/流星雨排期）；
+- **测试**：test_mce 新增 §32.7（11 条声明收录 + 9 条抽样写入生效，覆盖锁定/投资/董事会/孤儿院买断/头盔/银行档位/劫案/余额/悬赏）；README 适配器表更新为 阶段 12 / 能力 64 / 数值 41；全链 6 步全绿；未 git 提交、未发布。
+
+**枯木逢春 2.4.6 新键能力核查 + 联动补足（2026-10-25 再追加，并入 v1.9.6）**
+
+- **能力核查结论**：43 键写入=读回全部正常（§32.7.2 九条抽样）；对照 dw246 源码逐键核实读取上下文，确认 4 处"键写了但功能不生效"的联动缺口并补齐（复用既有 applyCheatSync 机制，主键写入成功后自动修正伴随键、不留痕）：
+  - 借记卡/信用卡勾选 → 自动联动开户 `bank.opened=true`（模组判定 `if (!bank.opened) return 'bank-required'`，只勾卡不开户必报错）；
+  - 存款余额写入 → 自动联动开户 + 借记卡（模组可用资金判定 = `cashOnHand + (opened && debit_card ? balance : 0)`，只写余额钱存着但不可用）；
+  - 罗宾投资协议勾选 → 联动股份比例（当前为 0 时补 10%，已有值不覆盖）——模组分红按 share 百分比结算，agreed 不带 share 收益恒 0；
+  - 自己承担房租勾选 → 联动分开租房标记（对齐模组自身语义：Robin.ts `self_rent && !rent_separated` 时自动置 true）；
+- **自足键确认（无需联动）**：孤儿院双买断（`pcFree/robinFree` 直读 `bought_out`）、四项成就（Board Seat / Controlling Stake / Black Raven / First Bounty 判定各只查单键）、银行档位（`ACCOUNT_TIERS` 直查即定额度）、属性锁定×6、驱除已用、容貌加成、花摊/爆米花/气球（直接参与收入结算）；
+- **不自动补、note 已明示**：劫案阶段（筹备/判定数据复杂，note 警示"建议配合筹备逐步写"，跳写 closed 会按失败结算）；交通头盔/工具/零件（需存档已有对应车辆，车辆无作弊键，note 已补说明）；
+- **测试**：§32.7.3 新增 6 条联动断言（借记卡联动开户 / 信用卡联动开户 / 余额联动开户+借记卡 / 已有股份不被联动覆盖 / 股份为 0 补 10% / 自租联动分开租房）；全链 6 步全绿（复核后重打包），打包 175,377 B，SHA=`6B794CE4F9138101353D5BC7EF650484A2D5C3E23934938584DE82F381AAFBCF`；未 git 提交、未发布。
+
 ## v1.9.5（2026-10-24 · 已发布）
 
 **评分整改批次（10-24，前身归 v1.9.4 语义）：三项扣分点解决 + 乱码防御 + 文案一致性**

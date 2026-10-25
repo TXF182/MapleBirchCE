@@ -233,14 +233,38 @@
 				  labels: ["未开始", "进行中", "已完成", "已获奖"] },
 				{ key: "dress_active", name: "校园 · 着装规范", varPath: "LifeSimulation.school.dress.active",
 				  levels: ["uniform", "free", "revealing", "optionalNudity", "nudeDay", "mandatoryNudity"],
-				  labels: ["校服", "自由着装", "暴露着装", "可选裸体", "裸体日", "强制裸体"] },
+				  labels: ["校服", "自由着装", "暴露着装", "可选裸体", "裸体日", "强制裸体"],
+				  sync: {
+					clear: ["LifeSimulation.school.dress.proposal"],
+					set: [{ path: "LifeSimulation.school.dress.trialUntil", value: 0 }],
+					copyMax: { path: "LifeSimulation.school.dress.highest", order: ["uniform", "free", "revealing", "optionalNudity", "nudeDay", "mandatoryNudity"] }
+				  },
+				  note: "写 active 自动联动：清掉待审批申请（proposal）、同步保住过的最高政策（highest 只升不降）、清零试行期（trialUntil），与模组 School.ts 状态机保持一致，避免「已到强制裸体却还显示等待礼顿决定」" },
 				{ key: "dress_highest", name: "校园 · 保住过的最高着装政策", varPath: "LifeSimulation.school.dress.highest",
 				  levels: ["uniform", "free", "revealing", "optionalNudity", "nudeDay", "mandatoryNudity"],
 				  labels: ["校服", "自由着装", "暴露着装", "可选裸体", "裸体日", "强制裸体"] },
 				{ key: "cm_zephyr", name: "冷月港 · 泽菲尔线阶段", varPath: "MoreTransformations.harbour.zephyr.stage",
 				  levels: [0, 1, 2, 3, 4],
 				  labels: ["未开始", "已问起", "已谈交易", "已找回货物", "已付酬完成"],
-				  note: "2.4.4 新增冷月港区域线：阶段 4 = 泽菲尔线完成态（对话与酬金结算需船 harbour.ship 与泽菲尔登场 Zephyr.init 前提，写 4 仅推进阶段、不代发酬金）" }
+				  note: "2.4.4 新增冷月港区域线：阶段 4 = 泽菲尔线完成态（对话与酬金结算需船 harbour.ship 与泽菲尔登场 Zephyr.init 前提，写 4 仅推进阶段、不代发酬金）" },
+				{ key: "gym_membership", name: "健身房 · 会员方案（2.4.6 新增）", varPath: "LifeSimulation.gym.membership",
+				  levels: ["none", "week", "month", "year", "lifetime"],
+				  labels: ["无", "周卡", "月卡", "年卡", "终身"],
+				  sync: {
+					set: [{ path: "LifeSimulation.gym.expires_at", value: function () {
+						var base = (typeof Time !== "undefined" && Time.date) ? Time.date.timeStamp : Math.floor(Date.now() / 1000);
+						return base + 3650 * 86400; /* 写会员同时给十年有效期，防 onDay 结算把过期会员重置为 none */
+					} }]
+				  },
+				  note: "GymPlan 枚举：'visit' 为单次入场不算会员，故从 week 起；写会员自动联动给 expires_at 十年有效期（模组 onDay 结算 expires_at<=now 会重置为 none，不联动写必当天失效）；lifetime 免过期检查，写它同样带十年值无副作用" },
+				{ key: "fin_bank_tier", name: "银行 · 账户档位（2.4.6 自查优化新增）", varPath: "Finance.bank.account_tier",
+				  levels: ["current", "preferred", "premier"],
+				  labels: ["普通", "优选", "尊享"],
+				  note: "模组 BankState.account_tier：档位决定透支/贷款/取现额度（premier=信用卡1.5万、贷款5万、取现1万英镑）；写档位后额度即刻生效" },
+				{ key: "sl_heist_stage", name: "街道 · 劫案阶段（2.4.6 自查优化新增）", varPath: "StreetLife.heist.stage",
+				  levels: ["idle", "prep", "entry", "challenge", "vault", "escape", "settlement", "closed"],
+				  labels: ["未开始", "筹备", "潜入", "关卡", "金库", "逃出", "结算", "已关闭"],
+				  note: "模组 HeistState.stage 状态机：劫案推进线；写 closed 会触发结算读取（outcome 未设时按失败结算），建议配合已筹备内容逐步写" }
 			],
 			abilities: [
 				{ key: "r_rebellion", name: "罗宾 · 反抗贝利路线", varPath: "RobinExpansion.rebellion", type: "boolean" },
@@ -259,12 +283,96 @@
 				{ key: "vp_ironwill", name: "原版增强 · 铁意志特质", varPath: "VanillaPlus.attitudes.ironWill", type: "boolean" },
 				{ key: "vp_sadomaso", name: "原版增强 · 受虐狂特质", varPath: "VanillaPlus.attitudes.sadomasochist", type: "boolean",
 				  note: "2.2.7 新增特质：勾选直接获得，影响原版受虐狂相关判定" },
+				{ key: "vp_trait_willpower", name: "原版增强 · 意志突破特质", varPath: "VanillaPlus.traits.willpower", type: "boolean",
+				  note: "2.4.6 六项属性突破：勾选视为已达成意志突破（新上限 125%），需先练满原版意志上限才生效相关判定" },
+				{ key: "vp_trait_physique", name: "原版增强 · 体能突破特质", varPath: "VanillaPlus.traits.physique", type: "boolean",
+				  note: "2.4.6：体能突破特质；Physique.ts 以 traits.physique && !breakUsed 判定挣脱事件可触发" },
+				{ key: "vp_trait_beauty", name: "原版增强 · 容貌突破特质", varPath: "VanillaPlus.traits.beauty", type: "boolean",
+				  note: "2.4.6：容貌突破特质（新上限 125%）" },
+				{ key: "vp_trait_exhibitionism", name: "原版增强 · 暴露突破特质", varPath: "VanillaPlus.traits.exhibitionism", type: "boolean",
+				  note: "2.4.6：暴露突破特质（五级事件 levelFive 需另行推进）" },
+				{ key: "vp_trait_deviancy", name: "原版增强 · 变态突破特质", varPath: "VanillaPlus.traits.deviancy", type: "boolean",
+				  note: "2.4.6：变态突破特质（与诡异镜子系统同命名空间）" },
+				{ key: "vp_trait_promiscuity", name: "原版增强 · 放纵突破特质", varPath: "VanillaPlus.traits.promiscuity", type: "boolean",
+				  note: "2.4.6：放纵突破特质（五级事件 levelFive 需另行推进）" },
+				{ key: "vp_trait_incorrigible", name: "原版增强 · 全能特质（六项全满）", varPath: "VanillaPlus.traits.incorrigible", type: "boolean",
+				  note: "2.4.6：六项属性全部满值后置位的额外特质，勾选直接获得" },
+				{ key: "vp_prayer_holy", name: "神圣转化 · 温暖接触已亲历", varPath: "VanillaPlus.divineTransformations.prayer.holy", type: "boolean",
+				  note: "三位一体前置：神殿祈祷室原版温暖存在，接受或挣脱均记录" },
+				{ key: "vp_prayer_stone", name: "神圣转化 · 岩石接触已亲历", varPath: "VanillaPlus.divineTransformations.prayer.stone", type: "boolean",
+				  note: "三位一体前置：岩石接触，同上" },
+				{ key: "vp_prayer_dark", name: "神圣转化 · 空无黑暗已亲历", varPath: "VanillaPlus.divineTransformations.prayer.dark", type: "boolean",
+				  note: "三位一体前置：空无黑暗接触，同上" },
+				{ key: "vp_trinity", name: "神圣转化 · 三位一体", varPath: "VanillaPlus.divineTransformations.trinity", type: "boolean",
+				  note: "2.4.6 三位一体：勾选直接获得，允许天使/堕天使/恶魔共存、阻止成长点数衰减、免除堕天使每日纯洁流失" },
 				{ key: "f_avery_refused", name: "孤儿院 · 已拒绝艾弗里收养（模组新增）", varPath: "Finance.orphanage.avery_adoption_refused", type: "boolean",
 				  note: "模组 2.4.2 起提供：勾选视为已拒绝艾弗里收养，孤儿院收养剧情将跳过" },
 				{ key: "cc_found", name: "金币洞穴 · 已发现洞窟（2.4.5 新增）", varPath: "MoreTransformations.treasure.found", type: "boolean",
 				  note: "2.4.5 新增金币洞穴线：发现前置要求岛屿探索 100 次（$island.explore_count gte 100），勾选直接标记已发现，跳过探索门槛" },
 				{ key: "cc_appraised", name: "金币洞穴 · 温特已记录纹饰（2.4.5 新增）", varPath: "MoreTransformations.treasure.appraised", type: "boolean",
-				  note: "2.4.5 新增：博物馆对话让温特记录金币纹饰后的状态，勾选视为已完成记录" }
+				  note: "2.4.5 新增：博物馆对话让温特记录金币纹饰后的状态，勾选视为已完成记录" },
+				{ key: "vp_mirror_home", name: "诡异镜子 · 孤儿院卧室（2.4.6 新增）", varPath: "VanillaPlus.deviancy.mirrors.home", type: "boolean",
+				  note: "2.4.6 诡异镜子系统：标记该处镜子已发现，可进入触手平原的出口判定" },
+				{ key: "vp_mirror_farm", name: "诡异镜子 · 农场（2.4.6 新增）", varPath: "VanillaPlus.deviancy.mirrors.farm", type: "boolean" },
+				{ key: "vp_mirror_tower", name: "诡异镜子 · 高塔（2.4.6 新增）", varPath: "VanillaPlus.deviancy.mirrors.tower", type: "boolean" },
+				{ key: "vp_mirror_temple", name: "诡异镜子 · 神殿宿舍（2.4.6 新增）", varPath: "VanillaPlus.deviancy.mirrors.temple", type: "boolean" },
+				{ key: "vp_mirror_sirris", name: "诡异镜子 · 西里斯庄园（2.4.6 新增）", varPath: "VanillaPlus.deviancy.mirrors.sirris", type: "boolean" },
+				{ key: "vp_mirror_kylar", name: "诡异镜子 · 凯拉尔庄园（2.4.6 新增）", varPath: "VanillaPlus.deviancy.mirrors.kylar", type: "boolean" },
+				{ key: "ls_medicine_pending", name: "医务室 · 有待处理体检报告（2.4.6 新增）", varPath: "LifeSimulation.medicine.review.pending", type: "boolean",
+				  note: "Medicine.ts review.pending：勾选视为有待处理体检结果（report 流程的待办标记）" },
+				{ key: "vp_lock_willpower", name: "原版增强 · 锁定意志（2.4.6 自查优化新增）", varPath: "VanillaPlus.lock.willpower", type: "boolean",
+				  note: "2.4.6 属性锁定系统：勾选后意志属性不被模组事件消耗/衰减，专用于「练满再突破」流程防掉值" },
+				{ key: "vp_lock_physique", name: "原版增强 · 锁定体能（2.4.6 自查优化新增）", varPath: "VanillaPlus.lock.physique", type: "boolean" },
+				{ key: "vp_lock_beauty", name: "原版增强 · 锁定容貌（2.4.6 自查优化新增）", varPath: "VanillaPlus.lock.beauty", type: "boolean" },
+				{ key: "vp_lock_promiscuity", name: "原版增强 · 锁定放纵（2.4.6 自查优化新增）", varPath: "VanillaPlus.lock.promiscuity", type: "boolean" },
+				{ key: "vp_lock_exhibitionism", name: "原版增强 · 锁定暴露（2.4.6 自查优化新增）", varPath: "VanillaPlus.lock.exhibitionism", type: "boolean" },
+				{ key: "vp_lock_deviancy", name: "原版增强 · 锁定变态（2.4.6 自查优化新增）", varPath: "VanillaPlus.lock.deviancy", type: "boolean" },
+				{ key: "vp_expunge_used", name: "神圣转化 · 驱除已用标记（2.4.6 自查优化新增）", varPath: "VanillaPlus.divineTransformations.expungeUsed", type: "boolean",
+				  note: "勾选视为已用过一次驱除（expunge），影响转化净化类剧情判定" },
+				{ key: "r_invest_agreed", name: "罗宾 · 投资协议已达成（2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.agreed", type: "boolean",
+				  sync: { set: [{ path: "RobinExpansion.investment.share", value: function (V) {
+					var inv = V.RobinExpansion && V.RobinExpansion.investment;
+					var cur = inv ? inv.share : 0;
+					return (cur === 0 || cur === undefined) ? 10 : cur; /* 缺省补 10% 股份，已有值不覆盖 */
+				  } }] },
+				  note: "罗宾投资线开启标记：勾选视为已签订投资协议，进入市场结算周期；自动联动股份比例（当前为 0 时补 10%，已有值不覆盖）——不联动分红按 0% 无收益" },
+				{ key: "r_shop_bank", name: "罗宾 · 银行已支持店铺（2.4.6 自查优化新增）", varPath: "RobinExpansion.shop_bank_supported", type: "boolean" },
+				{ key: "r_shop_flowers", name: "罗宾 · 花摊已开（2.4.6 自查优化新增）", varPath: "RobinExpansion.shop_flowers", type: "boolean" },
+				{ key: "r_shop_popcorn", name: "罗宾 · 爆米花摊已开（2.4.6 自查优化新增）", varPath: "RobinExpansion.shop_popcorn", type: "boolean" },
+				{ key: "r_shop_balloons", name: "罗宾 · 气球摊已开（2.4.6 自查优化新增）", varPath: "RobinExpansion.shop_balloons", type: "boolean" },
+				{ key: "r_rent_self", name: "罗宾 · 自己承担房租（2.4.6 自查优化新增）", varPath: "RobinExpansion.self_rent", type: "boolean",
+				  sync: { set: [{ path: "RobinExpansion.rent_separated", value: true }] },
+				  note: "对齐模组自身语义（Robin.ts 判定 self_rent 时自动置 rent_separated）：勾选自动联动分开租房标记" },
+				{ key: "r_rent_both", name: "罗宾 · 两人分担房租（2.4.6 自查优化新增）", varPath: "RobinExpansion.both_rent", type: "boolean" },
+				{ key: "r_rent_separated", name: "罗宾 · 分开租房（2.4.6 自查优化新增）", varPath: "RobinExpansion.rent_separated", type: "boolean" },
+				{ key: "fin_bank_opened", name: "银行 · 已开户（2.4.6 自查优化新增）", varPath: "Finance.bank.opened", type: "boolean",
+				  note: "金融线起点：勾选视为已在银行开户，解锁存款/借记卡/贷款等业务" },
+				{ key: "fin_debit", name: "银行 · 借记卡（2.4.6 自查优化新增）", varPath: "Finance.bank.debit_card", type: "boolean",
+				  sync: { set: [{ path: "Finance.bank.opened", value: true }] },
+				  note: "模组 2.4 金融扩展借记卡：可在刷卡商户消费（余额即付）；勾选自动联动开户（模组判定卡功能必须已开户，否则返回 bank-required）" },
+				{ key: "fin_credit", name: "银行 · 信用卡（2.4.6 自查优化新增）", varPath: "Finance.bank.credit_card", type: "boolean",
+				  sync: { set: [{ path: "Finance.bank.opened", value: true }] },
+				  note: "模组 2.4 金融扩展信用卡：先消费后还款（欠款 credit_debt 累积计息）；勾选自动联动开户（模组判定卡功能必须已开户）" },
+				{ key: "fin_broker_opened", name: "证券 · 券商已开户（2.4.6 自查优化新增）", varPath: "Finance.brokerage.opened", type: "boolean",
+				  note: "证券线起点：勾选视为已在券商开户，解锁股票交易与分红" },
+				{ key: "fin_co_office", name: "公司 · 已租办公室（2.4.6 自查优化新增）", varPath: "Finance.company.office", type: "boolean" },
+				{ key: "fin_co_agreement", name: "公司 · 合作协议已签（2.4.6 自查优化新增）", varPath: "Finance.company.agreement", type: "boolean" },
+				{ key: "fin_board", name: "公司 · 董事会席位（2.4.6 自查优化新增）", varPath: "Finance.company.shareholders.board", type: "boolean",
+				  note: "勾选视为已进入董事会（Achievements 成就「Deadwood Board Seat」条件之一）" },
+				{ key: "fin_controller", name: "公司 · 控股股东（2.4.6 自查优化新增）", varPath: "Finance.company.shareholders.controller", type: "boolean",
+				  note: "勾选视为已控股公司（成就「Deadwood Controlling Stake」条件之一）" },
+				{ key: "fin_ascension_recognized", name: "公司 · 黑乌鸦认可（2.4.6 自查优化新增）", varPath: "Finance.company.ascension.recognized", type: "boolean",
+				  note: "勾选视为已获黑乌鸦认可（成就「Deadwood Black Raven」条件之一）" },
+				{ key: "fin_orc_pc_free", name: "孤儿院 · 自己已买断（2.4.6 自查优化新增）", varPath: "Finance.orphanage.pc_bought_out", type: "boolean",
+				  note: "孤儿院收购线：勾选视为 PC 已被买断自由（pcFree 判定），不再欠贝利" },
+				{ key: "fin_orc_robin_free", name: "孤儿院 · 罗宾已买断（2.4.6 自查优化新增）", varPath: "Finance.orphanage.robin_bought_out", type: "boolean",
+				  note: "孤儿院收购线：勾选视为罗宾已被买断自由（robinFree 判定）" },
+				{ key: "tr_helmet", name: "交通 · 头盔已购（2.4.6 自查优化新增）", varPath: "Transport.helmet", type: "boolean",
+				  note: "模组骑行判定：摩托车必须已购头盔才可骑行；车辆本身无作弊键，需存档已有对应车辆才有效" },
+				{ key: "tr_tool_bike", name: "交通 · 自行车维修工具（2.4.6 自查优化新增）", varPath: "Transport.repair_tools.bicycle", type: "boolean",
+				  note: "用于自行车修理流程；需存档已有自行车才用得上" },
+				{ key: "tr_tool_motor", name: "交通 · 摩托维修工具（2.4.6 自查优化新增）", varPath: "Transport.repair_tools.motor", type: "boolean",
+				  note: "用于摩托车修理流程；需存档已有摩托车才用得上" }
 			],
 			scenes: [],
 			values: [
@@ -303,7 +411,32 @@
 				{ key: "sy_fallen_build", name: "悉尼 · 堕天转化点数（2.4.5 新增）", varPath: "maplebirch.npc.sydney.transformation.fallen.build", type: "number", min: 0, max: 31,
 				  note: "2.4.5 新增：堕天等级门槛 1/21/31，点数 31 达满级 3（堕落羽翼）" },
 				{ key: "sy_demon_build", name: "悉尼 · 恶魔转化点数（2.4.5 新增）", varPath: "maplebirch.npc.sydney.transformation.demon.build", type: "number", min: 0, max: 100,
-				  note: "2.4.5 新增：恶魔等级门槛 5/10/15/20/25/30 上限 100，≥30 满级 6；level≥6 且 build≥90 时自愿场景受孕判定改强制（源码 demon.level<6||build<90 判定）" }
+				  note: "2.4.5 新增：恶魔等级门槛 5/10/15/20/25/30 上限 100，≥30 满级 6；level≥6 且 build≥90 时自愿场景受孕判定改强制（源码 demon.level<6||build<90 判定）" },
+				{ key: "ls_casino_suspicion", name: "赌场 · 疑心值（2.4.6 新增）", varPath: "LifeSimulation.casino.suspicion", type: "number", min: 0, max: 100,
+				  note: "Casino.ts clamp 上限 100：≥60 触发可疑判定、≥100 拒绝服务；赌注赔率随疑心升高（写 0 回到清白）" },
+				{ key: "vp_beauty_bonus", name: "神圣转化 · 容貌加成点（2.4.6 自查优化新增）", varPath: "VanillaPlus.divineTransformations.beautyBonus", type: "number", min: 0, max: 100,
+				  note: "DivineTransformations.ts beautyBonus：转化带来的容貌加成（模组按事件逐步累加），直接写值即时生效" },
+				{ key: "r_invest_share", name: "罗宾 · 投资股份比例%（2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.share", type: "number", min: 0, max: 100,
+				  note: "Investment.ts share：整数百分比，exitValue=估值×股份×退出倍数/100；写高比例直接提高退出收益" },
+				{ key: "r_invest_valuation", name: "罗宾 · 投资估值（英镑，2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.valuation", type: "number", min: 0, max: 1000000,
+				  note: "Investment.ts valuation：公司估值（英镑口径）；估值越高后续结算金额越大" },
+				{ key: "r_invest_total", name: "罗宾 · 累计投入（便士，2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.invested_total", type: "number", min: 0, max: 100000000,
+				  note: "Investment.ts invested_total：累计投入以便士计（1英镑=100便士），写 100000 便士=1000 英镑；仅影响统计/汇报口径" },
+				{ key: "r_invest_returned", name: "罗宾 · 累计已收回（便士，2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.returned_total", type: "number", min: 0, max: 100000000 },
+				{ key: "r_invest_dividends", name: "罗宾 · 累计分红（便士，2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.dividends_total", type: "number", min: 0, max: 100000000 },
+				{ key: "fin_bank_balance", name: "银行 · 存款余额（便士，2.4.6 自查优化新增）", varPath: "Finance.bank.balance", type: "number", min: 0, max: 100000000,
+				  sync: { set: [{ path: "Finance.bank.opened", value: true }, { path: "Finance.bank.debit_card", value: true }] },
+				  note: "BankState.balance 以便士存（1英镑=100便士）：写 1000000=1万英镑；余额可用于借记卡消费/理财；写入自动联动开户+借记卡（模组可用资金判定=cashOnHand+(opened&&debit_card?balance:0)，不联动钱存着但不可用）；注意与原版 $money 分开计" },
+				{ key: "fin_broker_cash", name: "证券 · 券商现金（便士，2.4.6 自查优化新增）", varPath: "Finance.brokerage.cash", type: "number", min: 0, max: 100000000,
+				  note: "BrokerageState.cash 以便士计：写钱到券商账户可直接买股票（holdings 持仓结构复杂，不做直接持仓作弊）" },
+				{ key: "fin_co_completed", name: "公司 · 已完成订单数（2.4.6 自查优化新增）", varPath: "Finance.company.completed", type: "number", min: 0, max: 999,
+				  note: "CompanyState.completed：已完成订单计数（部分订单奖励/剧情按完成数推进）" },
+				{ key: "tr_parts_bike", name: "交通 · 自行车零件（2.4.6 自查优化新增）", varPath: "Transport.repair_parts.bicycle", type: "number", min: 0, max: 99,
+				  note: "用于自行车修理流程；需存档已有自行车才用得上" },
+				{ key: "tr_parts_motor", name: "交通 · 摩托零件（2.4.6 自查优化新增）", varPath: "Transport.repair_parts.motor", type: "number", min: 0, max: 99,
+				  note: "用于摩托车修理流程；需存档已有摩托车才用得上" },
+				{ key: "sl_bounty_completed", name: "街道 · 已结悬赏数（2.4.6 自查优化新增）", varPath: "StreetLife.bounties.completed", type: "number", min: 0, max: 999,
+				  note: "BountiesState.completed：已完结悬赏计数（成就「Deadwood First Bounty」判定 ≥1）" }
 			]
 		}
 	};
@@ -546,8 +679,38 @@
 		}
 		return { ok: true, parent: cur, leaf: parts[parts.length - 1], exists: cur[parts[parts.length - 1]] !== undefined };
 	}
+	/* 联动写入（v1.9.6 扩展）：条目可声明 sync 字段，主键写入成功后按序执行联动，
+	   保持模组状态机一致（如写 dress.active 时同步清 proposal / 升 highest / 清试行期）。
+	   联动键不留痕（属主写入的伴随修正）；联动失败不影响主写入结果。 */
+	function applyCheatSync(V, syncData, newVal) {
+		try {
+			if (!syncData || typeof syncData !== "object") { return; }
+			if (Array.isArray(syncData.clear)) {
+				syncData.clear.forEach(function (p) {
+					var r = cheatResolvePath(p);
+					if (r.ok) { r.parent[r.leaf] = null; }
+				});
+			}
+			if (Array.isArray(syncData.set)) {
+				syncData.set.forEach(function (s) {
+					var r = cheatResolvePath(s.path);
+					if (r.ok) { r.parent[r.leaf] = typeof s.value === "function" ? s.value(V) : s.value; }
+				});
+			}
+			if (syncData.copyMax && syncData.copyMax.path && Array.isArray(syncData.copyMax.order)) {
+				var tr = cheatResolvePath(syncData.copyMax.path);
+				if (tr.ok) {
+					var oi = syncData.copyMax.order.indexOf(newVal);
+					if (oi >= 0) {
+						var ci = syncData.copyMax.order.indexOf(tr.parent[tr.leaf]);
+						tr.parent[tr.leaf] = syncData.copyMax.order[Math.max(ci, oi)];
+					}
+				}
+			}
+		} catch (e) { /* 联动失败不影响主写入 */ }
+	}
 	/* 通用写入执行器（幂等防崩）：类型校验 + 越界钳制 + 留痕（保留首次 before，回退可还原）。 */
-	function cheatWriteValue(modId, itemKey, op, path, raw, type, min, max) {
+	function cheatWriteValue(modId, itemKey, op, path, raw, type, min, max, syncData) {
 		try {
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
@@ -589,6 +752,7 @@
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: val, t: Date.now() };
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
+			applyCheatSync(V, syncData, val); /* 联动修正（主写入成功后） */
 			return { ok: true, message: "已写入 " + path + " = " + JSON.stringify(val), before: before, after: val };
 		} catch (e) {
 			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };

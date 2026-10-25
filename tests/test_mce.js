@@ -1146,7 +1146,7 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:do
 global.window = { maplebirch: { get: function (n) { return n === "DeadwoodReblooms" ? {} : undefined; } } };
 var dwd = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
 assert(dwd && dwd.declared === true, "21.1 探测命中：枯木逢春自动识别");
-assert(dwd.stages.length === 9 && dwd.abilities.length === 17 && dwd.values.length === 28, "21.1 分组齐全 阶段9/能力17/数值28（2.4.6 适配轮：CoinCave 金币洞穴 found/appraised 2 标记 + 5 数值 + 悉尼转化 3 数值；agreed 已删——2.4.6 源码零证据）" + ", 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
+assert(dwd.stages.length >= 10 && dwd.abilities.length >= 35 && dwd.values.length >= 29, "21.1 分组齐全 阶段≥10/能力≥35/数值≥29（v1.9.6 扩展轮：六项突破特质+三位一体+诡异镜子+健身房会员+赌场疑心；数值/能力只会增不减）" + ", 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
 // 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus/Finance/MoreTransformations/maplebirch），
 //        不碰原版顶层键（rebellion/victories/self_rent/both_rent/rent_separated 等原版同名键均不声明）；
 //        maplebirch 为框架 NPC 转化存档命名空间（$maplebirch.npc.<名>.transformation.<type>，2.4.5 悉尼转化作弊项，见 NPCTransformation.ts ensure/read）
@@ -1154,7 +1154,7 @@ var dwdPaths = [];
 dwd.stages.concat(dwd.abilities).concat(dwd.values).forEach(function (it) { dwdPaths.push(it.varPath); });
 var dwdRoots = [];
 dwdPaths.forEach(function (p) { if (dwdRoots.indexOf(p.split(".")[0]) === -1) { dwdRoots.push(p.split(".")[0]); } });
-assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "maplebirch"].indexOf(r) !== -1; }),
+assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "Transport", "maplebirch"].indexOf(r) !== -1; }),
 	"21.2 声明根键均为模组模块状态, 实际 [" + dwdRoots + "]");
 // 隔离补充：一级键全为模组模块根（V.RobinExpansion 等），绝不落到原版顶层键上；
 // rebellion/victories/self_rent 等在模组里只是 RobinExpansion 对象内的自建副本（模组从不读写原版顶层同名键，已 grep 实证）
@@ -1942,6 +1942,120 @@ api.applyCheatModValue("deadwood-reblooms", "sy_demon_build", 500);
 assert(V.maplebirch.npc.sydney.transformation.demon.build === 100, "32.5 恶魔点数越上限钳制到 100");
 if (_mb32Before !== undefined) { V.maplebirch = _mb32Before; } else { delete V.maplebirch; }
 delete V.MoreTransformations; delete V.mbCE_wrote;
+
+// 32.6) v1.9.6 扩展轮：原版增强六项突破特质 + 三位一体 + 诡异镜子 + 健身房会员 + 赌场疑心 + 着装审批联动
+V.VanillaPlus = {
+	attitudes: { ironWill: true, sadomasochist: true },
+	traits: { willpower: false, physique: false, beauty: false, exhibitionism: false, deviancy: false, promiscuity: false, incorrigible: false },
+	divineTransformations: { prayer: { holy: false, stone: false, dark: false }, trinity: false },
+	deviancy: { mirrors: { home: false, farm: false, tower: false, temple: false, sirris: false, kylar: false } }
+};
+var dw32c = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
+// 32.6.1) 声明收录
+var dwVpPaths = dw32c.abilities.map(function (a) { return a.varPath; });
+["VanillaPlus.traits.willpower","VanillaPlus.traits.physique","VanillaPlus.traits.beauty","VanillaPlus.traits.exhibitionism","VanillaPlus.traits.deviancy","VanillaPlus.traits.promiscuity","VanillaPlus.traits.incorrigible",
+ "VanillaPlus.divineTransformations.prayer.holy","VanillaPlus.divineTransformations.prayer.stone","VanillaPlus.divineTransformations.prayer.dark","VanillaPlus.divineTransformations.trinity",
+ "VanillaPlus.deviancy.mirrors.home","VanillaPlus.deviancy.mirrors.farm","VanillaPlus.deviancy.mirrors.tower","VanillaPlus.deviancy.mirrors.temple","VanillaPlus.deviancy.mirrors.sirris","VanillaPlus.deviancy.mirrors.kylar"].forEach(function (p) {
+	assert(dwVpPaths.indexOf(p) !== -1, "32.6.1 原版增强键已收录 " + p);
+});
+assert(dw32c.stages.filter(function (s) { return s.varPath === "LifeSimulation.gym.membership"; }).length === 1, "32.6.1 健身房会员阶段已收录");
+assert(dw32c.values.filter(function (v) { return v.varPath === "LifeSimulation.casino.suspicion"; }).length === 1 &&
+	   dw32c.abilities.filter(function (a) { return a.varPath === "LifeSimulation.medicine.review.pending"; }).length === 1, "32.6.1 赌场疑心值 + 医务待审已收录");
+// 宿主初始化（写入前置）
+V.LifeSimulation = { gym: { membership: "none", expires_at: 0, sessions_today: 0 }, casino: { suspicion: 0 }, medicine: { review: { day: -1, shared: false, pending: false } } };
+// 32.6.2) 写入生效
+api.toggleCheatAbility("deadwood-reblooms", "vp_trait_physique", true);
+assert(V.VanillaPlus.traits.physique === true, "32.6.2 体能突破特质勾选生效");
+api.toggleCheatAbility("deadwood-reblooms", "vp_trinity", true);
+assert(V.VanillaPlus.divineTransformations.trinity === true, "32.6.2 三位一体勾选生效");
+api.toggleCheatAbility("deadwood-reblooms", "vp_mirror_temple", true);
+assert(V.VanillaPlus.deviancy.mirrors.temple === true, "32.6.2 神殿镜子勾选生效");
+api.setCheatStage("deadwood-reblooms", "gym_membership", "year");
+assert(V.LifeSimulation.gym.membership === "year", "32.6.2 健身房年卡写入, 实际 " + V.LifeSimulation.gym.membership);
+assert(typeof V.LifeSimulation.gym.expires_at === "number" && V.LifeSimulation.gym.expires_at > Math.floor(Date.now() / 1000),
+	   "32.6.2 写会员联动给十年有效期（expires_at > 当前）, 实际 " + V.LifeSimulation.gym.expires_at + " / now=" + Math.floor(Date.now() / 1000));
+api.applyCheatModValue("deadwood-reblooms", "ls_casino_suspicion", 60);
+assert(V.LifeSimulation.casino.suspicion === 60, "32.6.2 赌场疑心写 60（≥60 触发可疑判定）");
+// 32.6.3) 着装规范联动：写 active 同时清 proposal、升 highest、清试行期（模组 School.ts 状态机一致）
+V.LifeSimulation.school = { dress: { active: "uniform", highest: "free", previous: "uniform", proposal: "revealing", trialUntil: 800, cooldownUntil: 0 } };
+var dwSync = api.setCheatStage("deadwood-reblooms", "dress_active", "mandatoryNudity");
+assert(dwSync.ok === true, "32.6.3 着装规范写入强制裸体成功");
+assert(V.LifeSimulation.school.dress.active === "mandatoryNudity", "32.6.3 active=强制裸体");
+assert(V.LifeSimulation.school.dress.proposal === null, "32.6.3 待审批申请已清（proposal=null）, 实际 " + JSON.stringify(V.LifeSimulation.school.dress.proposal));
+assert(V.LifeSimulation.school.dress.highest === "mandatoryNudity", "32.6.3 保住过的最高政策已同步（highest=强制裸体）, 实际 " + V.LifeSimulation.school.dress.highest);
+assert(V.LifeSimulation.school.dress.trialUntil === 0, "32.6.3 试行期已清零（trialUntil=0）, 实际 " + V.LifeSimulation.school.dress.trialUntil);
+// 32.6.4) 联动降级语义：把 active 降回 uniform 时 highest 只升不降
+api.setCheatStage("deadwood-reblooms", "dress_active", "uniform");
+assert(V.LifeSimulation.school.dress.active === "uniform" && V.LifeSimulation.school.dress.highest === "mandatoryNudity", "32.6.4 active 回退但 highest 保持强制裸体（保住过的最高不降）");
+// 32.6.5) 联动中间值语义：写回 revealing（档位低于 mandatoryNudity）时 highest 仍保持不降；再升到最高档联动同步
+api.setCheatStage("deadwood-reblooms", "dress_active", "revealing");
+assert(V.LifeSimulation.school.dress.active === "revealing" && V.LifeSimulation.school.dress.highest === "mandatoryNudity",
+	   "32.6.5 写中间档 revealing：active=revealing 且 highest 保持强制裸体（copyMax 只升不降）");
+delete V.LifeSimulation; delete V.VanillaPlus; delete V.mbCE_wrote;
+
+// 32.7) v1.9.6 自查优化扩展轮：金融（银行/证券/公司/孤儿院）+ 罗宾投资与店铺设施 + 交通 + 街道（悬赏/劫案）+ 原版增强锁定与驱除
+V.VanillaPlus = { lock: { willpower: false, physique: false, beauty: false, promiscuity: false, exhibitionism: false, deviancy: false }, divineTransformations: { expungeUsed: false, beautyBonus: 0 } };
+V.RobinExpansion = { investment: { agreed: false, share: 0, valuation: 0, invested_total: 0, returned_total: 0, dividends_total: 0 }, shop_bank_supported: false, shop_flowers: false, shop_popcorn: false, shop_balloons: false, self_rent: false, both_rent: false, rent_separated: false };
+V.Finance = { bank: { opened: false, account_tier: "current", balance: 0, debit_card: false, credit_card: false }, brokerage: { opened: false, cash: 0 }, company: { office: false, agreement: false, completed: 0, shareholders: { board: false, controller: false }, ascension: { recognized: false } }, orphanage: { pc_bought_out: false, robin_bought_out: false } };
+V.Transport = { helmet: false, repair_tools: { bicycle: false, motor: false }, repair_parts: { bicycle: 0, motor: 0 } };
+V.StreetLife = { bounties: { completed: 0 }, heist: { stage: "idle" } };
+var dw37 = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
+// 32.7.1) 声明收录（抽查关键新键）
+var dw37Vp = dw37.values.map(function (v) { return v.varPath; });
+var dw37Ab = dw37.abilities.map(function (a) { return a.varPath; });
+assert(dw37.abilities.filter(function (a) { return a.varPath === "VanillaPlus.lock.willpower"; }).length === 1, "32.7.1 锁定意志能力已收录");
+assert(dw37.abilities.filter(function (a) { return a.varPath === "VanillaPlus.divineTransformations.expungeUsed"; }).length === 1, "32.7.1 驱除已用标记已收录");
+assert(dw37.abilities.filter(function (a) { return a.varPath === "RobinExpansion.investment.agreed"; }).length === 1, "32.7.1 罗宾投资协议已收录");
+assert(dw37.abilities.filter(function (a) { return a.varPath === "RobinExpansion.shop_bank_supported"; }).length === 1, "32.7.1 店铺银行支持已收录");
+assert(dw37.abilities.filter(function (a) { return a.varPath === "Finance.bank.opened"; }).length === 1, "32.7.1 银行开户已收录");
+assert(dw37.abilities.filter(function (a) { return a.varPath === "Finance.company.shareholders.board"; }).length === 1, "32.7.1 董事会席位已收录");
+assert(dw37.abilities.filter(function (a) { return a.varPath === "Finance.orphanage.pc_bought_out"; }).length === 1, "32.7.1 孤儿院买断已收录");
+assert(dw37.abilities.filter(function (a) { return a.varPath === "Transport.helmet"; }).length === 1, "32.7.1 头盔已收录");
+assert(dw37.stages.filter(function (s) { return s.varPath === "Finance.bank.account_tier"; }).length === 1, "32.7.1 银行档位阶段已收录");
+assert(dw37.stages.filter(function (s) { return s.varPath === "StreetLife.heist.stage"; }).length === 1, "32.7.1 劫案阶段已收录");
+assert(dw37Vp.indexOf("Finance.bank.balance") !== -1 && dw37Vp.indexOf("StreetLife.bounties.completed") !== -1, "32.7.1 银行余额/悬赏计数值已收录");
+// 32.7.2) 抽样写入生效
+api.toggleCheatAbility("deadwood-reblooms", "vp_lock_willpower", true);
+assert(V.VanillaPlus.lock.willpower === true, "32.7.2 锁定意志勾选生效");
+api.toggleCheatAbility("deadwood-reblooms", "r_invest_agreed", true);
+assert(V.RobinExpansion.investment.agreed === true, "32.7.2 投资协议勾选生效");
+api.toggleCheatAbility("deadwood-reblooms", "fin_board", true);
+assert(V.Finance.company.shareholders.board === true, "32.7.2 董事会席位勾选生效");
+api.toggleCheatAbility("deadwood-reblooms", "fin_orc_pc_free", true);
+assert(V.Finance.orphanage.pc_bought_out === true, "32.7.2 孤儿院买断勾选生效");
+api.toggleCheatAbility("deadwood-reblooms", "tr_helmet", true);
+assert(V.Transport.helmet === true, "32.7.2 头盔勾选生效");
+api.setCheatStage("deadwood-reblooms", "fin_bank_tier", "premier");
+assert(V.Finance.bank.account_tier === "premier", "32.7.2 银行档位写入尊享, 实际 " + V.Finance.bank.account_tier);
+api.setCheatStage("deadwood-reblooms", "sl_heist_stage", "vault");
+assert(V.StreetLife.heist.stage === "vault", "32.7.2 劫案阶段写入金库, 实际 " + V.StreetLife.heist.stage);
+api.applyCheatModValue("deadwood-reblooms", "fin_bank_balance", 1000000);
+assert(V.Finance.bank.balance === 1000000, "32.7.2 银行余额写 100 万便士（=1 万英镑）");
+api.applyCheatModValue("deadwood-reblooms", "sl_bounty_completed", 1);
+assert(V.StreetLife.bounties.completed === 1, "32.7.2 已结悬赏写 1（成就判定 ≥1）");
+api.applyCheatModValue("deadwood-reblooms", "tr_parts_bike", 5);
+assert(V.Transport.repair_parts.bicycle === 5, "32.7.2 自行车零件写 5");
+delete V.VanillaPlus; delete V.RobinExpansion; delete V.Finance; delete V.Transport; delete V.StreetLife; delete V.mbCE_wrote;
+// 32.7.3) 联动补足断言（v1.9.6 自查优化：写卡/余额/投资/租金自动补前置，避免「键写了但功能不生效」）
+V.Finance = { bank: { opened: false, debit_card: false, credit_card: false, balance: 0 } };
+V.RobinExpansion = { investment: { agreed: false, share: 0 }, self_rent: false, rent_separated: false };
+V.mbCE_wrote = {};
+api.toggleCheatAbility("deadwood-reblooms", "fin_debit", true);
+assert(V.Finance.bank.opened === true && V.Finance.bank.debit_card === true, "32.7.3 勾借记卡自动联动开户");
+api.toggleCheatAbility("deadwood-reblooms", "fin_credit", true);
+assert(V.Finance.bank.opened === true && V.Finance.bank.credit_card === true, "32.7.3 勾信用卡自动联动开户");
+api.applyCheatModValue("deadwood-reblooms", "fin_bank_balance", 500000);
+assert(V.Finance.bank.balance === 500000 && V.Finance.bank.opened === true && V.Finance.bank.debit_card === true, "32.7.3 写余额自动联动开户+借记卡");
+api.applyCheatModValue("deadwood-reblooms", "r_invest_share", 25);
+api.toggleCheatAbility("deadwood-reblooms", "r_invest_agreed", true);
+assert(V.RobinExpansion.investment.agreed === true && V.RobinExpansion.investment.share === 25, "32.7.3 投资协议勾选，已有股份不被联动覆盖");
+api.applyCheatModValue("deadwood-reblooms", "r_invest_share", 0);
+api.toggleCheatAbility("deadwood-reblooms", "r_invest_agreed", false);
+api.toggleCheatAbility("deadwood-reblooms", "r_invest_agreed", true);
+assert(V.RobinExpansion.investment.share === 10, "32.7.3 股份为 0 时联动补 10%");
+api.toggleCheatAbility("deadwood-reblooms", "r_rent_self", true);
+assert(V.RobinExpansion.self_rent === true && V.RobinExpansion.rent_separated === true, "32.7.3 勾自租联动分开租房标记（对齐模组自身语义）");
+delete V.Finance; delete V.RobinExpansion; delete V.mbCE_wrote;
 
 // ============ 第 33 节：v1.6.0 SmartPhone Alpha 0.3.91 新增适配（V.Phone 探测 + 0/1 数字语义） ============
 V.Phone = { Owned: [], photography: 0, TaskDanger: 0, FengMeeet: 0, MetFengGiveup: 0, SecondShopKnown: 0, FengAcceptExposed: 0, SydneySexLiveCompanion: 0, FengLine: 0 };

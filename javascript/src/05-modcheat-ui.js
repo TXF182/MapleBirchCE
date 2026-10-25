@@ -96,9 +96,9 @@
 			/* 字符串枚举阶段（v1.4.1）：目标值必须在 levels 内，越界拒绝，保持幂等 */
 			var idxStr = levels.indexOf(String(level));
 			if (idxStr === -1) { return { ok: false, message: "阶段值「" + level + "」不在枚举范围内（" + levels.join(" / ") + "）" }; }
-			return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, levels[idxStr], "string", 0, levels.length - 1);
+			return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, levels[idxStr], "string", 0, levels.length - 1, s.sync);
 		}
-		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, Number(level), "number", levels[0], levels[levels.length - 1]);
+		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, Number(level), "number", levels[0], levels[levels.length - 1], s.sync);
 	}
 	function jumpCheatStageMax(modId, key) {
 		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
@@ -116,7 +116,7 @@
 		var m = findCheatMod(modId), a = m && findCheatItem(m.abilities, key);
 		if (!a) { return { ok: false, message: "能力不存在或该模组未注册" }; }
 		if (!a.varPath) { return { ok: false, message: "「" + a.name + "」未声明能力变量（varPath），无法切换" }; }
-		return cheatWriteValue(modId, "ability_set:" + key, "ability_set", a.varPath, !!enabled, "boolean");
+		return cheatWriteValue(modId, "ability_set:" + key, "ability_set", a.varPath, !!enabled, "boolean", undefined, undefined, a.sync);
 	}
 	function cheatSceneAction(modId, key, op) {
 		var m = findCheatMod(modId), s = m && findCheatItem(m.scenes, key);
@@ -144,7 +144,7 @@
 			var v = raw && typeof raw === "object" ? raw : { value: String(raw), on: true };
 			return cheatWriteListValue(modId, "value_set:" + key + ":" + v.value, "value_set", it.varPath, v.value, !!v.on);
 		}
-		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, it.type === "boolean" ? "boolean" : "number", it.min, it.max);
+		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, it.type === "boolean" ? "boolean" : "number", it.min, it.max, it.sync);
 	}
 	function cheatReadSafe(modId, path) {
 		try {
