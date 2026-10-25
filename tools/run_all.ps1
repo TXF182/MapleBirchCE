@@ -7,25 +7,25 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-Write-Host "[1/5] build_js"
+Write-Host "[1/6] build_js"
 $buildArgs = @("tools/build_js.js")
 if ($Pkg) { $buildArgs += @("--sync-pkg", $Pkg) }
 node @buildArgs
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: build" -ForegroundColor Red; exit 1 }
 
-Write-Host "[2/5] node --check"
+Write-Host "[2/6] node --check"
 node --check javascript/maplebirchce.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: syntax" -ForegroundColor Red; exit 1 }
 
-Write-Host "[3/5] DOM 冒烟 (jsdom)"
+Write-Host "[3/6] DOM 冒烟 (jsdom)"
 node tests/smoke_dom.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: smoke" -ForegroundColor Red; exit 1 }
 
-Write-Host "[4/5] 全量回归"
+Write-Host "[4/6] 全量回归"
 node tests/test_mce.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: regression" -ForegroundColor Red; exit 1 }
 
-Write-Host "[5/5] 功能级 E2E（8 适配器全命中 + 模组特质获取/移除 + 全局页按钮真实点击）"
+Write-Host "[5/6] 功能级 E2E（8 适配器全命中 + 模组特质获取/移除 + 全局页按钮真实点击）"
 node tests/functional_e2e.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: functional e2e" -ForegroundColor Red; exit 1 }
 
@@ -34,3 +34,12 @@ node tests/integration_gender.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: integration_gender" -ForegroundColor Red; exit 1 }
 
 Write-Host "ALL CHECKS PASSED" -ForegroundColor Green
+
+# 全绿后自动同步 CodeGraph 图谱（辅助步骤，失败不阻塞交付）
+if (Get-Command codegraph -ErrorAction SilentlyContinue) {
+  Write-Host "[+] codegraph sync（图谱同步）"
+  try { codegraph sync -q; Write-Host "    codegraph 图谱已同步" }
+  catch { Write-Host "    WARN: codegraph sync 失败（图谱未更新，可稍后手动 codegraph sync）" -ForegroundColor Yellow }
+} else {
+  Write-Host "    WARN: codegraph 不在 PATH，跳过图谱同步" -ForegroundColor Yellow
+}

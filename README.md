@@ -4,13 +4,13 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.6**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v1.9.7**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 安装（快速开始）
 
 1. **前置依赖**：
    - [SugarCube 2 ModLoader](https://github.com/Lyoko-Jeremie/sugarcube-2-ModLoader) ≥ 2.0.0
-   - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.5.5）
+   - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.5.6）
    - 游戏本体 ≥ 0.5.12.13
 2. 游戏内按 `Alt+M` 打开 ModLoader → 「添加 / 移除Mod」→ 选择 `MapleBirchCE.mod.zip` → 「添加旁加载Mod」→ 提示 Success 后**刷新页面**。
 3. 若旧版 `MapleBirchCE`（v1）已在列表中：先「移除」再导入新版，避免同名单冲突。
@@ -57,7 +57,7 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.9.6）
+## Mod作弊 适配器一览（v1.9.7）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -69,9 +69,10 @@
 | 原版优化 Dol-Optimization | 1.1.2.1 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
 | Wraith'sReflection · 幽灵的倒影 | 1.3.4 | 阶段 4 / 能力 4 / 数值 2 | `V` 自有根并集（WraithsReflection/HelpAsk/项链系） |
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
-| maplebirch 框架本体 | 5.5.5 | 兼容性核对（API 8 项） | `window.maplebirch` |
+| maplebirch 框架本体 | 5.5.6 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
 > 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**9 渠道全覆盖**：8 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims）+ 框架本体。
+> **自动替换旧模组包**：`tools/check_mod_updates.js --apply` 检测到适配模组有新版时，自动下载官方最新包（api.github.com assets 端点 + 302 跟随）并替换 `game` 内旧模组包（按 gameGlob 匹配删除旧包后放入新包）；框架渠道不自动替换（升版前必须人工跑 `check_framework_api.js` 核对 API 兼容）。GitHub API 未认证有速率限制（403）时，设置 `GITHUB_TOKEN` 环境变量（仅内存使用）即可。已装模组包即官方最新版时，替换为幂等覆盖。
 
 ## 常见问题（FAQ）
 
@@ -89,19 +90,24 @@
 | 依赖 | 最低要求 | 实测版本 |
 |---|---|---|
 | ModLoader | ≥ 2.0.0 | 2.101.1 |
-| maplebirchFramework | ≥ 5.4.2 | 5.5.5 |
+| maplebirchFramework | ≥ 5.4.2 | 5.5.6 |
 | 游戏本体 | ≥ 0.5.12.13 | 0.5.12.13 |
 | Cheat Extended | 任意 | 1.20.3 共存实测无冲突 |
 
 ## 版本说明
 
+- **v1.9.7（2026-10-25 · 未发布，1.9.6 发布后的变更归入本版）**：
+  - **源码工程化**：04/06 大文件按主题拆 7 段（src 17→22 段，产物 SHA 字节级不变 `ce47e3aa`）；6 个适配器工具路径同步改指 `04a-modcheat-adapters.js`（自查发现旧引用会挂，已实跑验证）；README 目录树同步；验证链完善（run_all.ps1 步骤编号 [1/6]-[6/6]、全绿后自动 codegraph sync、pre-commit 文案同步、UI 非热路径加载后置）；
+  - **适配器版本声明同步**：枯木逢春 modName `2.4.6 → 2.4.7`、归途之书 `v1.3.12 → v1.3.13`（与已装 game 官方包对齐，功能引入版本注释未动）；更新检测 UPDATES 3 → 1；
+  - **框架 5.5.6 升级**：`check_framework_api.js` 核对 inject_early.js 核心 8 项全过、`setup.MapleBirch`/`maplebirch.patch` 缺失与历史版本一致（CE 非依赖）→ 判兼容；`check_mod_updates.js` declOverride `5.5.5 → 5.5.6`；game 框架包 `v5.5.0 → v5.5.6` 替换（旧包备份 `modpack-backup\`）；README 依赖说明/适配器表/兼容矩阵同步；
+  - **对照源码同步 + 清理**：枯木对照 `dw246 → dw247(2.4.7)`、归途对照 `rv1312 → rv1313(1.3.13)`（`_check_keys_mod.js` 核查 117+57 条 varPath 全存活）；框架对照 `fw555mod → fw556(5.5.6)`；删除被取代旧对照与历史对照（dr080/ds0817/DoL-Game-UI-main）；DoL-Project 桥接层 README/scan.ps1 同步新目录名；
+  - **验证**：全链 6 步全绿（build→syntax→smoke→regression→E2E→性别集成 24/24，全绿后自动 codegraph sync）；
 - **v1.9.6（2026-10-25 · 已发布）**：
   - **枯木逢春 2.4.6 作弊项全补 + 着装审批联动 + 健身会员联动**：补 20 项（原版增强六项属性突破特质×7、三位一体前置三接触+本体、诡异镜子×6、健身房会员阶段、赌场疑心、医务待审）；城镇堕落不加（原版 `world_corruption_soft` 已由 DoLSims 分区 `ds_corruption` 覆盖）；
   - **枯木逢春 2.4.6 适配器全量自查优化（v1.9.6 追加）**：对照 2.4.6 源码逐模块扫漏，补齐 43 项——原版增强属性锁定×6 与驱除标记、罗宾投资线 6 键与店铺设施 4 键与房租分担 3 键、金融线（银行开户/档位/余额/借记卡/信用卡、券商开户/现金、公司办公室/协议/董事会/控股/黑乌鸦认可/订单数、孤儿院双买断）13 项、交通（头盔/维修工具×2/零件×2）5 项、街道（劫案阶段、已结悬赏）2 项；跳过复杂结构（持仓/股价/房产表/每日标记等）与内部排期键；
   - **新增联动写入机制（applyCheatSync，clear/set/copyMax 三型）**：写着装规范自动清待审批申请、最高政策只升不降、清零试行期（修复实测"已强制裸体仍显示等待礼顿决定"）；写健身房会员自动给 `expires_at` 十年有效（修复 onDay 结算当天失效盲区）；
   - **新键能力核查 + 联动补足（v1.9.6 再追加）**：43 键写入=读回全正常；对照 2.4.6 源码补 4 处"写了不生效"的联动——借记卡/信用卡勾选自动开户、存款余额自动开户+借记卡（模组可用资金判定依赖 opened&&debit_card）、投资协议勾选缺省补 10% 股份（不覆盖已有值）、自租联动分开租房（对齐模组自身语义）；孤儿院买断/四项成就/银行档位/属性锁定等确认自足；劫案阶段与交通键需前置条件（note 已明示）；
   - **验证**：全链 6 步全绿（build→syntax→smoke→regression→E2E→性别集成 24/24）；zip 条目正斜杠 4/4、verifier 4/4；
-  - **v1.9.6 发布后工程增量（同版并入，未再升版）**：04/06 大文件按主题拆 7 段（src 17→22 段，产物 SHA 字节级不变 `ce47e3aa`）；6 个适配器工具路径同步改指 `04a-modcheat-adapters.js`（自查发现旧引用会挂，已实跑验证）；README 目录树同步；详见 CHANGELOG「源码工程化」条目。
 - **v1.9.5（2026-10-24 · 已发布）**：
   - **评分整改批次（10-24，前身归 v1.9.4 语义）**：根治剧情播放器被困（模组恋爱播放器路径盲区——重放中取消固定一律 `V.sceneViewSwitch="MB_CE_END"` + 强制跳回原位 + unfreeze，不再按播放器类型分流）；DoL-Game-UI 长列表分片渲染（首帧 40 行 + 逐帧 ≤40 行补建，滚动不卡顿截断）；适配器核对自动化（resolve_missing 输出证据行/动态键自动 KEEP/`--json`）；剧情页 sHead 乱码防御 + 使用提示文案同步；
   - **自查整改批次（上午～下午）**：补 5 个模组对照源码进 `tools\_modcache`（dr080/mli0180/sp0391/wr134/ds0817，对照目录 5→10）消除核查盲区；修复 resolve_missing.js Twee 形态误判（严重 bug，ERR-20261024-001，24 条真实键曾误判 REMOVE 被人工复核拦下）；删除 9 条零证据声明（dom_robin `liveStreamTogetherTalked`/`liveStream`、wraiths `WRR`/`SilverConchWR`、dolsims 5 条，两脚本 MISS + 人工 grep 0 命中三重一致）；REVIEW 复核 `sinSims`/`BicycleSims` 实证保留；4 过时工具归档 `_legacy`；README 修复 CHANGELOG 死链 + 枯木逢春能力 18→17 + 框架版本统一 5.5.5；
@@ -154,7 +160,7 @@
   - **适配器升级（2026-10-20 追加）**：枯木逢春 2.4.1→**2.4.2**、归途之书 v1.3.7→**v1.3.8**、框架 5.5.0→**5.5.1**（自动检测检出后手动同步：2.4.2/1.3.8 全量 audit + resolve_missing 定案 42/56 条全 KEEP，声明无删除；2.4.2 新增 `Finance.orphanage.avery_adoption_refused`（艾弗里收养拒绝标记，源码 `Finance/Orphanage.ts` 实证），补录为「孤儿院 · 已拒绝艾弗里收养」能力；框架 5.5.1 `check_framework_api.js` 核对核心 6 项 API 全过，`setup.MapleBirch`/`maplebirch.patch` 缺失均为非 CE 依赖（CE 0 次调用 patch））；
   - **适配器升级（首发）**：枯木逢春 2.2.7→**2.4.1**、归途之书 v1.3.4→**v1.3.7**、More Love Interests 0.1.7.0→**0.1.8.0**（GitHub Releases 最新版核对：2.4.1 下 `VanillaPlus.attitudes.ironWill/sadomasochist` 字面路径出现、与声明对上；1.3.7 缺失的 `faith_band/rite_round/candidates.*.agreed` 经源码实证均为 `this.state`/动态键别名盲区假报，声明无需改动；MLI 0.1.8.0 声明覆盖 100%）；
   - **移除过时声明**：枯木逢春 2.4.1 官方作弊面板已删除「校园秩序」字段（2.2.0 为 `{id:'order'}`，2.4.1 改为 studentSupport/staffSupport/corruption 三项，适配器早已声明）——删除 `LifeSimulation.school.order`，避免无效写入；
-  - **自动检测机制**：`tools/check_mod_updates.js` 每日检测 **9 个渠道**（8 个适配模组：枯木逢春 / 归途之书 / DomRobin / More Love Interests / SmartPhone `ANLINSTUDIO/Degrees-of-Lewdity-DolSmartPhone` / Dol-Optimization / Wraith'sReflection / DoLSims + 框架本体 `MaplebirchLeaf/SCML-DOL-maplebirchFramework`），GitHub Releases 最新版 vs 适配器声明版本（框架渠道对比"实测兼容版本"）；检出更新→自动下载源码→audit 核对→缺失条目自动定案（resolve_missing.js）→更新适配器→全链测试→汇报（不打包不发版，需另行确认）；框架检出更新时先跑 `check_framework_api.js` 核对 CE 依赖的框架 API 全保留、确认兼容后才更新兼容版本记录；已创建每日 21:15 定时任务；
+  - **自动检测机制**：`tools/check_mod_updates.js` 每日检测 **9 个渠道**（8 个适配模组：枯木逢春 / 归途之书 / DomRobin / More Love Interests / SmartPhone `ANLINSTUDIO/Degrees-of-Lewdity-DolSmartPhone` / Dol-Optimization / Wraith'sReflection / DoLSims + 框架本体 `MaplebirchLeaf/SCML-DOL-maplebirchFramework`），GitHub Releases 最新版 vs 适配器声明版本（框架渠道对比"实测兼容版本"）；检出更新→自动下载源码→audit 核对→缺失条目自动定案（resolve_missing.js）→更新适配器→全链测试→汇报（不打包不发版，需另行确认）；`--apply` 模式额外自动下载官方最新模组包并替换 `game` 内旧包（框架渠道跳过，升版前先跑 `check_framework_api.js` 核对 CE 依赖的框架 API 全保留、确认兼容后才更新兼容版本记录）；GitHub API 未认证限流（403）时设 `GITHUB_TOKEN` 环境变量（仅内存）；已创建每日 21:15 定时任务；
   - **验证**：全量回归通过（21.1 能力分组 14→15（2.4.2 补录拒绝收养）、31.1 声明 v1.3.8、32.1 声明 2.4.2、37.2 面板标题 v1.8.6）。
 
 - **v1.8.5（2026-10-19 · 修复严重 bug：特质管理区整体消失）**：
@@ -502,7 +508,7 @@ MapleBirchCE/（git 源码真相源）
 │   ├── audit_adapters.js          # 模组升级核对：扫描第三方模组源码 V 路径 vs 适配器声明
 │   ├── resolve_missing.js         # 缺失条目自动定案：对 audit 报告的每项自动判 KEEP/REVIEW/REMOVE（见下）
 │   ├── check_framework_api.js     # 框架兼容性核对：框架新版 inject_early.js 中 CE 依赖的 API 是否保留
-│   ├── check_mod_updates.js       # 模组更新检测：GitHub Releases 最新版 vs 适配器声明（每日定时任务调用）
+│   ├── check_mod_updates.js       # 模组更新检测+自动替换：GitHub Releases 最新版 vs 适配器声明；--apply 自动下载官方包替换 game 旧包（每日定时任务调用）
 │   ├── run_all.ps1                # 一键验证链（见下）
 │   └── install-hooks.ps1          # 安装 pre-commit 钩子（core.hooksPath → githooks/）
 ├── githooks/

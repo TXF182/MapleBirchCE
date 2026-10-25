@@ -2,7 +2,7 @@
 # MapleBirchCE pre-commit 钩子：提交前自动跑一键验证链
 # 由 tools/install-hooks.ps1 安装（git config core.hooksPath githooks）
 # 验证失败时阻止提交；跳过 --no-verify 可绕过（不推荐）。
-echo "[pre-commit] 运行一键验证链（build → 语法 → DOM冒烟 → 全量回归），约需 1-2 分钟..."
+echo "[pre-commit] 运行一键验证链（build → 语法 → DOM冒烟 → 全量回归 → 功能级 E2E → 性别集成，全绿后自动 codegraph sync），约需 1-3 分钟..."
 
 # 非 Windows 环境无 powershell.exe 时跳过（保持跨平台不阻塞）
 if ! command -v powershell.exe >/dev/null 2>&1; then

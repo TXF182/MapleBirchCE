@@ -2,6 +2,24 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.7（2026-10-25 · 未发布）
+
+**1.9.6 发布后的全部变更：源码工程化（04/06 拆分）+ 适配器版本声明同步 + 框架 5.5.6 升级 + 对照源码清理（2026-10-25）**
+
+**源码工程化：04/06 大文件拆分 + 验证链完善（2026-10-25 · 发布 1.9.6 后追加）**
+
+- **按主题边界拆分两个超长源码文件**（可维护性整改，产物零变化）：`04-modcheat.js`（869 行）→ `04a-modcheat-adapters.js`（适配器数据 650 行）/ `04b-modcheat-write.js`（写入执行器 157 行）/ `04c-modcheat-util.js`（审计工具 53 行）；`06-traits.js`（994 行）→ `06a-traits-data.js`（254 行）/ `06b-traits-eval.js`（280 行）/ `06c-traits-ui.js`（336 行）/ `06d-traits-gender.js`（124 行）；src 由 17 段增至 22 段；
+- **零变化实证**：拼接产物 SHA 与拆分前**字节级一致**（`ce47e3aa7176f0a88684652f7b05b3a06f920e9ddc4e00f89fca772534a87ec3`，444,192 B；首轮切分曾因 PowerShell `-split` 吞空行 `\r` 差 5 字节，改用按行单元整体切分后复算一致）；全链 6 步全绿，重打包 175,377 B SHA=`D719023B4D4DED214BB53F075C91BB64800AC08DA77D6DBA7EF38A0A0FD6664A`（与已发布 v1.9.6 资产内容一致，zip 时间戳不同）；
+- **工具链同步**：`audit_adapters.js` / `check_mod_updates.js` / `resolve_missing.js` / `scan_mod_vars.js` / `_check_keys_mod.js` / `_check_char_names.py` 六工具的适配器源码路径全部改指 `04a-modcheat-adapters.js`（自查发现拆分后旧路径引用会挂，已修复并实跑验证）；README 目录树同步 22 段结构；
+- **验证链完善**：`tools/run_all.ps1` 步骤编号 `[1/6]-[6/6]` 全程显示、全绿后自动 `codegraph sync -q` 同步图谱（不再手工跑）；`githooks/pre-commit` 文案与验证链同步；UI 非热路径加载后置评估落地（自查工程增量，性能优化细节见会话记录）。
+
+**治理收尾：声明同步 + 框架 5.5.6 升级 + 对照源码清理（2026-10-25 · 发布 1.9.6 后追加）**
+
+- **适配器版本声明同步**：枯木逢春 modName `2.4.6 → 2.4.7`（04a 第 213 行）、归途之书 `v1.3.12 → v1.3.13`（第 10 行）——与已装 game 的官方包对齐；全文件 60+ 处 `2.4.6` 功能引入版本注释未动；更新检测 UPDATES 3 → 1；
+- **对照源码同步 + 清理（2026-10-25）**：枯木对照 `dw246(2.4.6) → dw247(2.4.7)`（tarball v2.4.7，604 文件）、归途对照 `rv1312(1.3.12) → rv1313(1.3.13)`（89 文件）；`_check_keys_mod.js` 全量核查：枯木 117 条 varPath、归途 57 条**全部存活**；框架对照 `fw555mod(5.5.5) → fw556(5.5.6)`（release mod.zip + unpacked，inject_early.js 在 `fw556\unpacked\dist\`）；删除被取代的 `fw555mod/dw246/rv1312` 三个旧对照 + dr080/ds0817/DoL-Game-UI-main 历史对照（需用时从渠道重新下载）；DoL-Project 桥接层 README 对照表 / scan.ps1（modIds 映射 + fwapi/vars/keys 默认路径）同步新目录名与 fw556 结构；scan.ps1 语法解析通过；
+- **框架 5.5.6 升级（check_framework_api 核对后人工替换）**：下载 `maplebirch-0.5.12.13-v5.5.6.mod.zip`（383,875 B，asset size 校验过）进 `tools\_modcache\fw556`；`check_framework_api.js` 核对 inject_early.js：核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists / define / frameworkNotice），`setup.MapleBirch` / `maplebirch.patch` 缺失与 5.5.3/5.5.4/5.5.5 一致（CE 非依赖，无害）→ 判兼容；`check_mod_updates.js` declOverride `5.5.5 → 5.5.6` + 核对注释更新；README 三处（依赖说明/适配器表/兼容矩阵）同步 5.5.6；game 框架包 `v5.5.0 → v5.5.6` 替换（旧包备份至 `DoL-Project\modpack-backup\`，可回滚）；
+- **更新检测复核**：9 渠道全无更新（枯木 2.4.7 / 归途 1.3.13 对齐，框架 5.5.6 对齐，其余 6 适配器无更新）；全链 6 步全绿（build 444,192 B → smoke → 回归 → E2E 8 适配器 → 性别 24/24 → codegraph sync），重打包 176,006 B SHA=`C93157385DD9C76EBC2474F51812F58217E48533D36E5CA95F60657EF3263334` 已装 game；未 git 提交、未发布。
+
 ## v1.9.6（2026-10-25 · 已发布）
 
 **枯木逢春 2.4.6 作弊项全补 + 着装审批联动（2026-10-25）**
@@ -32,12 +50,6 @@
 - **自足键确认（无需联动）**：孤儿院双买断（`pcFree/robinFree` 直读 `bought_out`）、四项成就（Board Seat / Controlling Stake / Black Raven / First Bounty 判定各只查单键）、银行档位（`ACCOUNT_TIERS` 直查即定额度）、属性锁定×6、驱除已用、容貌加成、花摊/爆米花/气球（直接参与收入结算）；
 - **不自动补、note 已明示**：劫案阶段（筹备/判定数据复杂，note 警示"建议配合筹备逐步写"，跳写 closed 会按失败结算）；交通头盔/工具/零件（需存档已有对应车辆，车辆无作弊键，note 已补说明）；
 - **测试**：§32.7.3 新增 6 条联动断言（借记卡联动开户 / 信用卡联动开户 / 余额联动开户+借记卡 / 已有股份不被联动覆盖 / 股份为 0 补 10% / 自租联动分开租房）；全链 6 步全绿（复核后重打包），打包 175,377 B，SHA=`6B794CE4F9138101353D5BC7EF650484A2D5C3E23934938584DE82F381AAFBCF`；未 git 提交、未发布。
-
-**源码工程化：04/06 大文件拆分（2026-10-25 再追加，并入 v1.9.6 工程结构）**
-
-- **按主题边界拆分两个超长源码文件**（可维护性整改，产物零变化）：`04-modcheat.js`（869 行）→ `04a-modcheat-adapters.js`（适配器数据 650 行）/ `04b-modcheat-write.js`（写入执行器 157 行）/ `04c-modcheat-util.js`（审计工具 53 行）；`06-traits.js`（994 行）→ `06a-traits-data.js`（254 行）/ `06b-traits-eval.js`（280 行）/ `06c-traits-ui.js`（336 行）/ `06d-traits-gender.js`（124 行）；src 由 17 段增至 22 段；
-- **零变化实证**：拼接产物 SHA 与拆分前**字节级一致**（`ce47e3aa7176f0a88684652f7b05b3a06f920e9ddc4e00f89fca772534a87ec3`，444,192 B；首轮切分曾因 PowerShell `-split` 吞空行 `\r` 差 5 字节，改用按行单元整体切分后复算一致）；全链 6 步全绿，重打包 175,377 B SHA=`D719023B4D4DED214BB53F075C91BB64800AC08DA77D6DBA7EF38A0A0FD6664A`（与已发布 v1.9.6 资产内容一致，zip 时间戳不同）；
-- **工具链同步**：`audit_adapters.js` / `check_mod_updates.js` / `resolve_missing.js` / `scan_mod_vars.js` / `_check_keys_mod.js` / `_check_char_names.py` 六工具的适配器源码路径全部改指 `04a-modcheat-adapters.js`（自查发现拆分后旧路径引用会挂，已修复并实跑验证）；README 目录树同步 22 段结构。
 
 ## v1.9.5（2026-10-24 · 已发布）
 
