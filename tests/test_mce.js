@@ -915,7 +915,7 @@ assert(rV.ok === false && /原版变量/.test(rV.message), "18.4 原版变量拒
 assert(V.farm_stage === undefined, "18.4 原版变量未被写入");
 // 18.5) 数值类型校验 + 越界钳制
 api.applyCheatModValue("cheatTestA", "score", 99);
-assert(V.mliState.score === 5, "18.5 越上限钳制到 5, 实际 " + V.mliState.score);
+assert(V.mliState.score === 99, "18.5 上限不钳制（写 99 原样 99）, 实际 " + V.mliState.score);
 api.applyCheatModValue("cheatTestA", "score", -3);
 assert(V.mliState.score === 0, "18.5 越下限钳制到 0, 实际 " + V.mliState.score);
 var rNaN = api.applyCheatModValue("cheatTestA", "score", "abc");
@@ -1027,9 +1027,9 @@ api.toggleCheatAbility("revelation-the-book-of-return", "rt_pendant", true);
 assert(V.RobinTemple.pendant === true, "19.6 挂坠 true");
 // 19.7) 数值：唱诗熟练度 / 恩典钳制
 api.applyCheatModValue("revelation-the-book-of-return", "tc_singing", 5000);
-assert(V.TempleChoir.singing === 1000, "19.7 歌唱熟练度钳制 1000, 实际 " + V.TempleChoir.singing);
+assert(V.TempleChoir.singing === 5000, "19.7 歌唱熟练度上限不钳制（写 5000 原样）, 实际 " + V.TempleChoir.singing);
 api.applyCheatModValue("revelation-the-book-of-return", "rt_grace", 999);
-assert(V.RobinTemple.grace === 100, "19.7 恩典钳制 100, 实际 " + V.RobinTemple.grace);
+assert(V.RobinTemple.grace === 999, "19.7 恩典上限不钳制（写 999 原样）, 实际 " + V.RobinTemple.grace);
 // 19.8) 剧情：祷告事件 跳过/强制完成/重置
 api.cheatSceneAction("revelation-the-book-of-return", "rt_prayer", "scene_skip");
 assert(V.RobinTemple.prayer_event_resolved === true, "19.8 祷告事件跳过（resolved）");
@@ -1116,7 +1116,7 @@ api.toggleCheatAbility("dom_robin", "pb_live", true);
 assert(V.liveStreamShouldPayBack === true, "20.4 直播设备还钱进度 true");
 // 20.5) 数值钳制：打赢次数 0-99（2026-10-24 删零证据声明 ls_on/liveStream，直播开关不再暴露）
 api.applyCheatModValue("dom_robin", "rf_chain", 200);
-assert(V.robinFightChain === 99, "20.5 打赢次数钳制 99, 实际 " + V.robinFightChain);
+assert(V.robinFightChain === 200, "20.5 打赢次数上限不钳制（写 200 原样）, 实际 " + V.robinFightChain);
 // 20.6) 列表：柠檬水摊新商品追加/移除
 V.lemonadeNewGoodsList = ["popcorn"];
 api.applyCheatModValue("dom_robin", "goods_list", "balloon");
@@ -1193,13 +1193,13 @@ api.toggleCheatAbility("deadwood-reblooms", "f_avery_refused", true);
 assert(V.Finance.orphanage.avery_adoption_refused === true, "21.5 已拒绝艾弗里收养 true（2.4.2 新增）");
 // 21.6) 数值钳制：储备金/口碑/戒指/腐败
 api.applyCheatModValue("deadwood-reblooms", "r_reserve", 9999999);
-assert(V.RobinExpansion.reserve === 1000000, "21.6 储备金钳制 1000000, 实际 " + V.RobinExpansion.reserve);
+assert(V.RobinExpansion.reserve === 9999999, "21.6 储备金上限不钳制（写 9999999 原样）, 实际 " + V.RobinExpansion.reserve);
 api.applyCheatModValue("deadwood-reblooms", "bt_ring", 9);
-assert(V.BirdTower.ring.kept === 2, "21.6 金戒指钳制 2, 实际 " + V.BirdTower.ring.kept);
+assert(V.BirdTower.ring.kept === 9, "21.6 金戒指上限不钳制（写 9 原样）, 实际 " + V.BirdTower.ring.kept);
 api.applyCheatModValue("deadwood-reblooms", "sl_race_wins", 3);
 assert(V.StreetLife.races.wins === 3, "21.6 公路赛胜场 3, 实际 " + V.StreetLife.races.wins);
 api.applyCheatModValue("deadwood-reblooms", "ls_corruption", 150);
-assert(V.LifeSimulation.school.corruption === 100, "21.6 腐败钳制 100, 实际 " + V.LifeSimulation.school.corruption);
+assert(V.LifeSimulation.school.corruption === 150, "21.6 腐败上限不钳制（写 150 原样）, 实际 " + V.LifeSimulation.school.corruption);
 // 21.7) 防崩：模块状态宿主缺失 → 拒绝写入 undefined
 delete V.RobinExpansion;
 var dwdMiss = api.setCheatStage("deadwood-reblooms", "r_shop_stage", "applied");
@@ -1245,7 +1245,7 @@ assert(V.Psyche.sanity === -500, "21.11 理智下限钳制 -500, 实际 " + V.Ps
 api.applyCheatModValue("deadwood-reblooms", "ps_fear", 800);
 assert(V.Psyche.fear === 800, "21.11 心智·恐惧写 800, 实际 " + V.Psyche.fear);
 api.applyCheatModValue("deadwood-reblooms", "ps_fear", 1500);
-assert(V.Psyche.fear === 1000, "21.11 恐惧上限钳制 1000, 实际 " + V.Psyche.fear);
+assert(V.Psyche.fear === 1500, "21.11 恐惧上限不钳制（写 1500 原样）, 实际 " + V.Psyche.fear);
 api.applyCheatModValue("deadwood-reblooms", "pc_horse_build", 100);
 api.applyCheatModValue("deadwood-reblooms", "pc_whale_build", 100);
 api.applyCheatModValue("deadwood-reblooms", "pc_raven_build", 100);
@@ -1432,7 +1432,7 @@ const mcN1 = api24.applyCheatModValue("test-mod", "v1", 42);
 assert(mcN1.ok && V.TestMod.num1 === 42 && api24.cheatReadSafe("test-mod", "TestMod.num1") === 42, "24.2 数值更改 42：写入成功且读回确认");
 // 24.3) 越界钳制（max=100）
 const mcN2 = api24.applyCheatModValue("test-mod", "v1", 999);
-assert(mcN2.ok && V.TestMod.num1 === 100, "24.3 越界钳制：999 → 100");
+assert(mcN2.ok && V.TestMod.num1 === 999, "24.3 越上限不钳制（写 999 原样）");
 // 24.4) 布尔写入
 const mcB = api24.applyCheatModValue("test-mod", "v2", true);
 assert(mcB.ok && V.TestMod.flag_b === true, "24.4 布尔写入 true");
@@ -1586,7 +1586,7 @@ var mc26A = api24.applyCheatModValue("deadwood-reblooms", "duties_completed", 29
 assert(mc26A.ok && V.LifeSimulation.school.duties.completed === 29 && api24.cheatReadSafe("deadwood-reblooms", "LifeSimulation.school.duties.completed") === 29, "26.2 值勤次数写 29：写入成功且读回确认, 实际 " + api24.cheatReadSafe("deadwood-reblooms", "LifeSimulation.school.duties.completed"));
 // 26.3) 枯木逢春·值勤次数：越界钳制（max=999）
 api24.applyCheatModValue("deadwood-reblooms", "duties_completed", 99999);
-assert(V.LifeSimulation.school.duties.completed === 999, "26.3 值勤次数钳制 999, 实际 " + V.LifeSimulation.school.duties.completed);
+assert(V.LifeSimulation.school.duties.completed === 99999, "26.3 值勤次数上限不钳制（写 99999 原样）, 实际 " + V.LifeSimulation.school.duties.completed);
 // 26.4) 枯木逢春·着装规范（用户截图「自由着装」）：更改 → 读回确认
 var mc26B = api24.setCheatStage("deadwood-reblooms", "dress_active", "free");
 assert(mc26B.ok && V.LifeSimulation.school.dress.active === "free" && api24.cheatReadSafe("deadwood-reblooms", "LifeSimulation.school.dress.active") === "free", "26.4 着装规范写 free（自由着装）：写入成功且读回确认");
@@ -1601,7 +1601,7 @@ assert(V.LifeSimulation.school.dress.active === "uniform", "26.5 着装规范回
 api24.applyCheatModValue("deadwood-reblooms", "pc_loan", 500);
 assert(V.RobinExpansion.pc_loan === 500, "26.6 借款写 500, 实际 " + V.RobinExpansion.pc_loan);
 api24.applyCheatModValue("deadwood-reblooms", "weekly_income", 2000000);
-assert(V.RobinExpansion.weekly_income === 1000000, "26.6 周收入钳制 1000000, 实际 " + V.RobinExpansion.weekly_income);
+assert(V.RobinExpansion.weekly_income === 2000000, "26.6 周收入上限不钳制（写 2000000 原样）, 实际 " + V.RobinExpansion.weekly_income);
 api24.toggleCheatAbility("deadwood-reblooms", "clothes_stored", true);
 assert(V.LifeSimulation.school.clothesStored === true, "26.6 校服已存放 true");
 // 26.7) 归途之书·医院阶段（v1.4.9 新增）：更改 → 读回确认 → 越界 → 跳最高 → 回退初始
@@ -1634,11 +1634,11 @@ assert(V.RobinTemple.abandoned === true, "26.9 已放弃路线 true");
 api24.toggleCheatAbility("revelation-the-book-of-return", "rt_rite_done", true);
 assert(V.RobinTemple.secret.rite_done === true, "26.9 仪式已完成 true");
 api24.applyCheatModValue("revelation-the-book-of-return", "rt_rite_round", 999);
-assert(V.RobinTemple.secret.rite_round === 99, "26.9 同席连续次数钳制 99, 实际 " + V.RobinTemple.secret.rite_round);
+assert(V.RobinTemple.secret.rite_round === 999, "26.9 同席连续次数上限不钳制（写 999 原样）, 实际 " + V.RobinTemple.secret.rite_round);
 api24.applyCheatModValue("revelation-the-book-of-return", "rt_intimacy_count", 12);
 assert(V.RobinTemple.intimacy_count === 12, "26.9 亲密累计次数 12, 实际 " + V.RobinTemple.intimacy_count);
 api24.applyCheatModValue("revelation-the-book-of-return", "rt_evaluation_marks", 200);
-assert(V.RobinTemple.evaluation_marks === 100, "26.9 评估分数钳制 100, 实际 " + V.RobinTemple.evaluation_marks);
+assert(V.RobinTemple.evaluation_marks === 200, "26.9 评估分数上限不钳制（写 200 原样）, 实际 " + V.RobinTemple.evaluation_marks);
 // 26.10) 回退还原首次 before：值勤 29→再次写 50→回退还原 0；着装 free→再次写 revealing→回退还原 uniform
 api24.applyCheatModValue("deadwood-reblooms", "duties_completed", 50);
 assert(V.LifeSimulation.school.duties.completed === 50, "26.10 值勤再次写 50, 实际 " + V.LifeSimulation.school.duties.completed);
@@ -1889,7 +1889,7 @@ assert(rll2.ok && V.LostLamb.ending === "main", "31.2 梦境结局写入 main");
 api.applyCheatModValue("revelation-the-book-of-return", "ll_fear", 999);
 assert(V.LostLamb.fear === 999, "31.3 恐惧写入 999（上限 1000），实际 " + V.LostLamb.fear);
 api.applyCheatModValue("revelation-the-book-of-return", "ll_fear", 9999);
-assert(V.LostLamb.fear === 1000, "31.3 恐惧越上限钳制到 1000, 实际 " + V.LostLamb.fear);
+assert(V.LostLamb.fear === 9999, "31.3 恐惧上限不钳制（写 9999 原样）, 实际 " + V.LostLamb.fear);
 api.applyCheatModValue("revelation-the-book-of-return", "ll_notice", -5);
 assert(V.LostLamb.notice === 0, "31.3 觉察越下限钳制到 0");
 // 31.4) LostLamb 能力
@@ -1974,7 +1974,7 @@ assert(V.MoreTransformations.treasure.found === true, "32.4 found 勾选 → 已
 api.applyCheatModValue("deadwood-reblooms", "cc_torch", 30);
 assert(V.MoreTransformations.treasure.torch === 30, "32.4 火把写 30, 实际 " + V.MoreTransformations.treasure.torch);
 api.applyCheatModValue("deadwood-reblooms", "cc_torch", 200);
-assert(V.MoreTransformations.treasure.torch === 99, "32.4 火把越上限钳制到 99");
+assert(V.MoreTransformations.treasure.torch === 200, "32.4 火把上限不钳制（写 200 原样）");
 // 32.5) 2.4.5 新增悉尼 NPC 转化（框架 $maplebirch.npc.sydney.transformation.<type>.build，level 由 build 派生：angel 25..50 / fallen 1/21/31 / demon 5..30 max 100）
 var _mb32Before = V.maplebirch;
 V.maplebirch = { npc: { sydney: { transformation: { angel: { build: 0 }, fallen: { build: 0 }, demon: { build: 0 } } } } };
@@ -1987,7 +1987,7 @@ assert(V.maplebirch.npc.sydney.transformation.angel.build === 50, "32.5 天使�
 api.applyCheatModValue("deadwood-reblooms", "sy_demon_build", 90);
 assert(V.maplebirch.npc.sydney.transformation.demon.build === 90, "32.5 恶魔点数写 90（触发原版受孕强化判定门槛）, 实际 " + V.maplebirch.npc.sydney.transformation.demon.build);
 api.applyCheatModValue("deadwood-reblooms", "sy_demon_build", 500);
-assert(V.maplebirch.npc.sydney.transformation.demon.build === 100, "32.5 恶魔点数越上限钳制到 100");
+assert(V.maplebirch.npc.sydney.transformation.demon.build === 500, "32.5 恶魔点数上限不钳制（写 500 原样）");
 if (_mb32Before !== undefined) { V.maplebirch = _mb32Before; } else { delete V.maplebirch; }
 delete V.MoreTransformations; delete V.mbCE_wrote;
 
@@ -2113,7 +2113,7 @@ assert(sp33.values.filter(function (v) { return v.varPath === "Phone.TaskDanger"
 api.applyCheatModValue("smartphone", "sp_photography", 500);
 assert(V.Phone.photography === 500, "33.2 摄影技能写入 500");
 api.applyCheatModValue("smartphone", "sp_photography", 2000);
-assert(V.Phone.photography === 1000, "33.2 摄影越上限钳制到 1000");
+assert(V.Phone.photography === 2000, "33.2 摄影上限不钳制（写 2000 原样）");
 // 33.3) 0/1 数字语义（模组 ===1 判断兼容，禁止 boolean true）
 api.applyCheatModValue("smartphone", "sp_task_danger", 1);
 assert(V.Phone.TaskDanger === 1 && typeof V.Phone.TaskDanger === "number", "33.3 危险任务模式写入数字 1（===1 判断兼容）, 实际 " + V.Phone.TaskDanger + " 类型 " + typeof V.Phone.TaskDanger);
@@ -2622,7 +2622,7 @@ assert(api39.displayName("Rowan") === "罗文", "40.1 Rowan → 罗文, 实际 "
 assert(api39.displayName("Adrian") === "阿德里安", "40.1 Adrian → 阿德里安, 实际 " + api39.displayName("Adrian"));
 assert(api39.displayName("Marlow") === "马洛", "40.1 Marlow → 马洛, 实际 " + api39.displayName("Marlow"));
 assert(api39.displayName("Grant") === "格兰特", "40.1 Grant → 格兰特, 实际 " + api39.displayName("Grant"));
-assert(api39.displayName("Needmeet") === "尼德米特", "40.1 Needmeet → 尼德米特, 实际 " + api39.displayName("Needmeet"));
+assert(api39.displayName("Needmeet") === "遇欲", "40.1 Needmeet → 遇欲（对齐 DolOpt 官方中文名，旧译名尼德米特废弃）, 实际 " + api39.displayName("Needmeet"));
 assert(api39.displayName("Feng") === "老冯", "40.1 Feng → 老冯, 实际 " + api39.displayName("Feng"));
 assert(api39.displayName("Seath") === "希斯" && api39.displayName("Alice") === "爱丽丝" && api39.displayName("Liddell") === "利德尔", "40.1 v1.8.19 新译名 Seath→希斯/Alice→爱丽丝/Liddell→利德尔, 实际 " + api39.displayName("Seath") + "/" + api39.displayName("Alice") + "/" + api39.displayName("Liddell"));
 assert(api39.displayName("Ivory Wraith") === "怨灵" && api39.displayName("Avery") === "艾弗里", "40.1 原有映射不受影响 怨灵/艾弗里");
@@ -2774,15 +2774,27 @@ assert(!!md41 && md41.values.filter(function (v) { return v.varPath === "sinSims
 api.applyCheatModValue("dol-optimization", "opt_needmeet", 90);
 assert(V.needmeet_romance === 90, "41.4 Needmeet 好感写入 90");
 api.applyCheatModValue("dol-optimization", "opt_needmeet", 500);
-assert(V.needmeet_romance === 100, "41.4 Needmeet 越上限钳制到 100");
+assert(V.needmeet_romance === 500, "41.4 Needmeet 上限不钳制（写 500 原样）");
 V.options = { opt: { WornStacking: false } };
 api.toggleCheatAbility("dol-optimization", "opt_worn", true);
 assert(V.options.opt.WornStacking === true, "41.4 叠穿开关经 options.opt 写入，实际 " + V.options.opt.WornStacking);
 V.options.DolOptimization = {};
 api.applyCheatModValue("dol-optimization", "opt_wardrobe", 5000);
 assert(V.options.DolOptimization.LargerWardrobeValue === 5000, "41.4 衣柜扩容值写入 5000");
+/* 41.4b 便利店库存豁免（v1.9.11 未定版：DolOpt 借用原版 $daily 存自己的键，opt1121/Source/twee/game.twee 实证
+   `<<set $daily.conveniencestoregoods to {}>>`；适配器声明路径放行 vanilla 拦截，未声明原版根仍拒） */
+V.daily = { conveniencestoregoods: {} };
+var rc41b = api.applyCheatModValue("dol-optimization", "opt_cs_egg", 50);
+assert(rc41b.ok && V.daily.conveniencestoregoods["鸡蛋"] === 50, "41.4b 便利店·鸡蛋库存写入成功（豁免 vanilla 拦截），实际 " + JSON.stringify(V.daily.conveniencestoregoods["鸡蛋"]));
+api.applyCheatModValue("dol-optimization", "opt_cs_shampoo", 8);
+assert(V.daily.conveniencestoregoods["洗发水"] === 8, "41.4b 便利店·洗发水库存写入成功");
+api.applyCheatModValue("dol-optimization", "opt_cs_orange", 30);
+assert(V.daily.conveniencestoregoods["橙子"] === 30, "41.4b 便利店·橙子库存写入成功");
+api.applyCheatModValue("dol-optimization", "opt_cs_egg", 200);
+assert(V.daily.conveniencestoregoods["鸡蛋"] === 200, "41.4b 鸡蛋库存上限不钳制（写 200 原样）");
+delete V.daily;
 api.applyCheatModValue("dol-optimization", "opt_wardrobe", 99999);
-assert(V.options.DolOptimization.LargerWardrobeValue === 9999, "41.4 衣柜扩容钳制 9999");
+assert(V.options.DolOptimization.LargerWardrobeValue === 99999, "41.4 衣柜扩容上限不钳制（写 99999 原样）");
 delete V.needmeet_romance; delete V.options;
 /* 41.5）Wraith'sReflection：恋爱闸门 0/1 + necklaceThief 枚举拒绝 + rreturn/return 双取值 */
 var wrg = api.setCheatStage("wraiths-reflection", "wr_gate", 1);
@@ -2797,12 +2809,12 @@ assert(wrt3.ok && V.necklaceThief === "rreturn", "41.5 双 r 拼写 rreturn 如�
 delete V.WraithsReflection; delete V.necklaceThief;
 /* 41.6）DoLSims：钳制 + 宿主缺失拒绝 */
 api.applyCheatModValue("dolsims", "ds_sin", 5000);
-assert(V.sinSims === 1000, "41.6 sinSims 越上限钳制到 1000，实际 " + V.sinSims);
+assert(V.sinSims === 5000, "41.6 sinSims 上限不钳制（写 5000 原样），实际 " + V.sinSims);
 var dsd = api.applyCheatModValue("dolsims", "ds_discipline", 30);
 assert(dsd.ok === false && (dsd.message || "").indexOf("宿主") !== -1, "41.6 四维宿主缺失拒绝写入不崩，实际 " + (dsd.message || ""));
 V.DisciplineSims = { value: 5 };
 api.applyCheatModValue("dolsims", "ds_discipline", 50);
-assert(V.DisciplineSims.value === 40, "41.6 纪律值钳制 40（源码 clamp），实际 " + V.DisciplineSims.value);
+assert(V.DisciplineSims.value === 50, "41.6 纪律值上限不钳制（写 50 原样，模组自身 clamp 由其源码负责），实际 " + V.DisciplineSims.value);
 api.applyCheatModValue("dolsims", "ds_hypno", 999);
 assert(V.hypnoSims === 999, "41.6 催眠熟练度写入 999");
 var dsu = api.undoCheatModValue("dolsims", "value_set:ds_hypno");
@@ -2826,7 +2838,7 @@ var r42d = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest"
 assert(r42d.ok && V.mceRelTest === 185, "42.1 相对 + 5（空格宽容，180→185），实际 " + V.mceRelTest);
 /* 相对值 + 钳制组合 */
 var r42e = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "+50", "number", undefined, 190);
-assert(r42e.ok && V.mceRelTest === 190, "42.1 相对 +50 越上限钳制到 190（185+50→190），实际 " + V.mceRelTest);
+assert(r42e.ok && V.mceRelTest === 235, "42.1 相对 +50 上限不钳制（185+50→235），实际 " + V.mceRelTest);
 var r42f = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "abc", "number");
 assert(r42f.ok === false, "42.1 非数字拒绝（abc），实际 ok=" + r42f.ok);
 var r42g = api.cheatWriteValue("player-self", "t:rel", "value_set", "mceRelTest", "+", "number");
@@ -2908,7 +2920,7 @@ assert(c1b.ok && V.physique === 999999, "42.4 physique 写 999999 成功（无�
 var c2 = api.quickWrite("skulduggery", -50);
 assert(c2.ok && V.skulduggery === 0, "42.4 skulduggery 写 -50 被钳制到 0，实际 " + V.skulduggery);
 var c3 = api.quickWrite("purity", 9999);
-assert(c3.ok && V.purity === 2000, "42.4 purity 写 9999 被钳制到 2000，实际 " + V.purity);
+assert(c3.ok && V.purity === 9999, "42.4 purity 写 9999 上限不钳制（原样），实际 " + V.purity);
 
 /* 42.5）v1.8.12 适配器工作流审计：9 适配器全部健康，无错误/警告 */
 var aud = api.auditAdapters();
@@ -3092,13 +3104,13 @@ var ps1 = api44.placeStageWrite("town_projects.road", 4, 0, 5);
 assert(ps1.ok && V.town_projects && V.town_projects.road === 4, "44.3 宿主缺失自动建壳+写 road=4, 实际 " + JSON.stringify(V.town_projects));
 assert(V.mbCE_wrote && !!V.mbCE_wrote["place:town_projects.road"], "44.3 留痕 place:town_projects.road 存在");
 var ps2 = api44.placeStageWrite("town_projects.road", 99, 0, 5);
-assert(ps2.ok && V.town_projects.road === 5, "44.3 写 99 钳制到 max=5, 实际 " + V.town_projects.road);
+assert(ps2.ok && V.town_projects.road === 5, "44.3 写 99 钳到上限 5（阶段档位语义）, 实际 " + V.town_projects.road);
 var ps3 = api44.placeStageWrite("farm_stage", 7, 0, 12);
 assert(ps3.ok && V.farm_stage === 7, "44.3 farm_stage 写 7（绕过原版变量黑名单直写）, 实际 " + V.farm_stage);
 var ps4 = api44.placeStageWrite("farm_stage", -5, 0, 12);
 assert(ps4.ok && V.farm_stage === 0, "44.3 farm_stage 负值钳到 0, 实际 " + V.farm_stage);
 var ps5 = api44.placeStageWrite("flats_progress", 3, 0, 2);
-assert(ps5.ok && V.flats_progress === 2, "44.3 flats_progress 写 3 钳到 2, 实际 " + V.flats_progress);
+assert(ps5.ok && V.flats_progress === 2, "44.3 flats_progress 写 3 钳到上限 2（阶段档位语义）, 实际 " + V.flats_progress);
 var ps6 = api44.placeStageWrite("no.such.deep.path", 1, 0, 9);
 assert(ps6.ok === false, "44.3 嵌套宿主缺失且非 town_projects 拒绝, ok=" + ps6.ok);
 var psU = api44.placeStageUndo("town_projects.road");
@@ -3320,7 +3332,7 @@ api.setCheatStage("cattery", "cat_owncat", 1);
 api.applyCheatModValue("cattery", "cat_love", 40);
 assert(V.catArr[0].love === 40, "47.5 猫好感写入 40");
 api.applyCheatModValue("cattery", "cat_love", 50);
-assert(V.catArr[0].love === 40, "47.5 猫好感越上限钳制到 40");
+assert(V.catArr[0].love === 50, "47.5 猫好感上限不钳制（写 50 原样）");
 /* 47.5b 好感联动：写 ≥40 自动补 firstCat_loveMax=1（模组特质「金牌饲养员」触发条件），写低值不撤销 */
 assert(V.firstCat_loveMax === 1, "47.5b 写 love=40 自动补 firstCat_loveMax=1（金牌饲养员触发条件成立），实际 " + V.firstCat_loveMax);
 api.applyCheatModValue("cattery", "cat_love", 20);
@@ -3339,7 +3351,7 @@ assert(V.pc_milk === 12, "47.7 牛奶写入 12");
 api.applyCheatModValue("cattery", "cat_cook_gbjd", 5);
 assert(V.cookok_gbjd === 5, "47.7 宫保鸡丁次数写入 5");
 api.applyCheatModValue("cattery", "cat_cook_gbjd", 200);
-assert(V.cookok_gbjd === 99, "47.7 菜品越上限钳制到 99");
+assert(V.cookok_gbjd === 200, "47.7 菜品上限不钳制（写 200 原样）");
 /* 47.8 猫数据缺失 → 宿主拒绝（未领养时 catArr 不存在，防崩） */
 delete V.catArr; delete V.firstCat_variety;
 var rn42 = api.applyCheatModValue("cattery", "cat_love", 10);
@@ -3351,6 +3363,53 @@ assert(bu42.ok && V.pchaveCat === 0, "47.9 养猫阶段回退到 0");
 delete V.cattery_time; delete V.pcfood_cake; delete V.rentingahouse; delete V.pchaveCat; delete V.birdFly;
 delete V.pcHouseBook1; delete V.pc_milk; delete V.cookok_gbjd; delete V.catArr; delete V.firstCat_variety; delete V.firstCat_loveMax; delete V.mbCE_wrote;
 assert(api.getCheatMods().filter(function (x) { return x.modId === "cattery"; }).length === 0, "47.10 卸载后 Cattery 适配器自动消失");
+
+/* ============ 47.11）Cattery 特质直接获取（用户实测请求：模组作弊区直接给特质） ============
+   特质注册实证：cat1182/unzip/game/tj/traits.txt —— 金牌饲养员 has $pchaveCat>=1 and $firstCat_loveMax gte 1；
+   爱·时·机 has $pcHouseBook1_speciality gte 1；绝爱 has $pcHouseBook2_speciality gte 1。
+   判定均 gte 1 严格比较 → 能力走 numeric 数字通道（勾选 1 / 取消 0），禁 boolean。 */
+V.cattery_time = 0; /* 重新命中探测 */
+var ct44 = api.getCheatMods().filter(function (x) { return x.modId === "cattery"; })[0];
+assert(ct44 && ct44.abilities.filter(function (a) { return a.key === "cat_trait_gold"; }).length === 1, "47.11 特质·金牌饲养员能力已声明");
+assert(ct44.abilities.filter(function (a) { return a.numeric === true; }).length === 3, "47.11 三个特质均为数字通道（模组 gte 1 禁 boolean）");
+var tg11 = api.toggleCheatAbility("cattery", "cat_trait_gold", true);
+assert(tg11.ok && V.firstCat_loveMax === 1 && typeof V.firstCat_loveMax === "number" && V.pchaveCat === 1, "47.11 勾选金牌饲养员 → loveMax=1（数字）+ 补领养（特质条件成立），实际 " + V.firstCat_loveMax + "/" + V.pchaveCat);
+var tb11 = api.toggleCheatAbility("cattery", "cat_trait_book1", true);
+assert(tb11.ok && V.pcHouseBook1_speciality === 1 && typeof V.pcHouseBook1_speciality === "number", "47.11 勾选爱·时·机 → 藏书1特质写数字 1，实际 " + V.pcHouseBook1_speciality);
+api.toggleCheatAbility("cattery", "cat_trait_book2", true);
+assert(V.pcHouseBook2_speciality === 1, "47.11 勾选绝爱 → 藏书2特质写 1");
+api.toggleCheatAbility("cattery", "cat_trait_book1", false);
+assert(V.pcHouseBook1_speciality === 0, "47.11 取消爱·时·机 → 写 0（特质消失）");
+var tu11 = api.undoCheatModValue("cattery", "ability_set:cat_trait_gold");
+assert(tu11.ok && V.firstCat_loveMax == null, "47.11 金牌饲养员回退 → loveMax 还原首次写入前（未定义→删除）");
+delete V.firstCat_loveMax; delete V.pcHouseBook1_speciality; delete V.pcHouseBook2_speciality; delete V.mbCE_wrote;
+
+/* ============ 47.12）遇欲（Needmeet）角色卡：DolOpt 经 maplebirch.npc.add 注册的框架恋爱角色 ============
+   源码实证：opt1121/Source/javascript/opt-main-onframe.js —— { loveInterest: () => V.needmeet_romance >= 80,
+   romance: [() => V.needmeet_romance >= 80], CN: "遇欲" }。恋爱一键完成经 parseCondition 闭包键解析写 80。 */
+var nmData = { Data: { nam: "Needmeet" }, Config: { romance: [() => rv.variables.needmeet_romance >= 80], loveInterest: function () { return rv.variables.needmeet_romance >= 80; } }, Patch: {} };
+var nmMap44 = null;
+try {
+  /* 本段 api 属首次 eval 模块：其 MB.npc.data = 顶层 npcData Map（本文件 90 行构建），直接注册；
+     44 区重建的 window 数据源同步注册（api44 侧），两处都覆盖 */
+  if (npcData instanceof Map) { npcData.set("Needmeet", nmData); }
+  nmMap44 = global.window && global.window.maplebirch && global.window.maplebirch.npc && global.window.maplebirch.npc.data;
+  if (nmMap44 instanceof Map) { nmMap44.set("Needmeet", nmData); }
+} catch (e) {}
+assert(api.listCharacters().indexOf("Needmeet") !== -1, "47.12 角色池枚举含 遇欲（Needmeet）");
+assert(api.charCategory("Needmeet") === "mod", "47.12 遇欲归模组角色区（框架注册模组角色）");
+assert(api.isLoveCandidate("Needmeet") === true, "47.12 遇欲为恋爱候选（框架 Config.romance 命中 → 模组区「模组·恋爱角色」子组显示角色卡），实际 " + api.isLoveCandidate("Needmeet"));
+assert(api.displayName("Needmeet") === "遇欲", "47.12 遇欲显示名 = 官方中文（DolOpt CN 映射），实际 " + api.displayName("Needmeet"));
+V.needmeet_romance = 0;
+var nmSt = api.getRomanceStages("Needmeet");
+assert(nmSt.length >= 1 && /needmeet_romance/.test(nmSt[0].text), "47.12 遇欲恋爱条件解析（needmeet_romance >= 80）");
+var nmFix = api.completeRomanceStage("Needmeet", nmSt[0]);
+assert(nmFix.ok && V.needmeet_romance === 80, "47.12 遇欲恋爱一键完成 → needmeet_romance=80（闭包键自动写满足值），实际 " + V.needmeet_romance);
+/* 还原框架 mock，避免影响后续段落 */
+try { if (npcData instanceof Map) { npcData.delete("Needmeet"); } } catch (e) {}
+try { if (nmMap44 instanceof Map) { nmMap44.delete("Needmeet"); } } catch (e) {}
+delete V.needmeet_romance; delete V.mbCE_wrote;
+
 
 /* ============ 46）存档卫生：新游戏不继承旧存档的 CE 写入 ============
    背景：用户实测疑虑"之前用模组改过数值，开新游戏会不会继承"。

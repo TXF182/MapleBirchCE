@@ -82,6 +82,17 @@ window.DolOptimization = {};
 window.MirrorHypnoVariableRefresh = function () {};
 
 /* ---------- 3. 加载构建产物（init 自动建面板） ---------- */
+/* ---------- 2.5 localStorage mock（jsdom opaque origin 无 localStorage，Node 全局亦无） ----------
+   eval 前注入，使源码的持久化分支（拖动锁/位置/UI 状态/收藏）走与真实浏览器一致的路径 */
+global.localStorage = (function () {
+  var store = {};
+  return {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+    setItem: function (k, v) { store[k] = String(v); },
+    removeItem: function (k) { delete store[k]; }
+  };
+})();
+
 const js = fs.readFileSync(path.join(__dirname, "..", "javascript", "maplebirchce.js"), "utf8");
 eval(js);
 const api = setup.mbStageCE;
@@ -327,6 +338,50 @@ if (farmGrp) {
   assert(V.edengarden === 4 && V.edenshrooms === 4 && V.edenspring === 4, "E. 伊甸维护 → 3 键锁 4，实际 " + V.edengarden + "/" + V.edenshrooms + "/" + V.edenspring);
   assert(V.soap === 10 && V.salve === 10, "E. 补给 → soap/salve=10，实际 " + V.soap + "/" + V.salve);
 }
+
+/* ---------- F. 悬浮球：可拖动 + 全局页顶部固定按钮（v1.9.10+） ---------- */
+const toggleEl = document.getElementById("mce-toggle");
+assert(!!toggleEl && toggleEl.textContent === "解锁", "F. 右下角悬浮球按钮存在（id=mce-toggle，文本「解锁」）");
+function findFabRow() {
+  return [].slice.call(globalPane.querySelectorAll("div")).filter(function (g) { return g.textContent.indexOf("悬浮入口") !== -1; })[0];
+}
+const fabRowF = findFabRow();
+assert(!!fabRowF, "F. 全局页顶部含「悬浮入口」固定按钮行");
+if (fabRowF) {
+  assert(toggleEl.__mbCEBound === true, "F. 悬浮球事件已绑定并打标（__mbCEBound=true，热重载防重复绑定），实际 " + toggleEl.__mbCEBound);
+  const fabBtnF = fabRowF.querySelector("button");
+  assert(!!fabBtnF && fabBtnF.textContent.indexOf("锁定悬浮球拖动") !== -1, "F. 悬浮入口按钮默认文案「锁定悬浮球拖动」，实际 " + (fabBtnF ? fabBtnF.textContent : "(无)"));
+  assert(toggleEl.dataset.mceLocked === "0", "F. 默认未锁定（data-mce-locked=0），实际 " + toggleEl.dataset.mceLocked);
+  /* 锁定 → 禁拖动（点击仍可开关面板） */
+  fabBtnF.click();
+  assert(toggleEl.dataset.mceLocked === "1", "F. 点击「锁定悬浮球拖动」→ 锁定 data-mce-locked=1，实际 " + toggleEl.dataset.mceLocked);
+  assert(localStorage.getItem("mbCE_toggle_lock_v1") === "1", "F. 锁定状态已持久化 mbCE_toggle_lock_v1=1，实际 " + localStorage.getItem("mbCE_toggle_lock_v1"));
+  /* 锁定时点击悬浮球仍正常开关面板 */
+  toggleEl.click();
+  assert(document.querySelector("#mce-root").classList.contains("mce-open"), "F. 锁定时点击悬浮球 → 面板仍打开");
+  toggleEl.click();
+  assert(!document.querySelector("#mce-root").classList.contains("mce-open"), "F. 锁定时再次点击悬浮球 → 面板仍关闭");
+  /* 重渲染后按钮变「解锁悬浮球拖动」，再点恢复 */
+  const fabUnlockF = findFabRow() && findFabRow().querySelector("button");
+  assert(!!fabUnlockF && fabUnlockF.textContent.indexOf("解锁悬浮球拖动") !== -1, "F. 锁定后按钮文案变「解锁悬浮球拖动」，实际 " + (fabUnlockF ? fabUnlockF.textContent : "(无)"));
+  if (fabUnlockF) { fabUnlockF.click(); }
+  assert(toggleEl.dataset.mceLocked === "0", "F. 点击「解锁悬浮球拖动」→ 解锁 data-mce-locked=0，实际 " + toggleEl.dataset.mceLocked);
+  assert(localStorage.getItem("mbCE_toggle_lock_v1") === "0", "F. 解锁状态已持久化 mbCE_toggle_lock_v1=0，实际 " + localStorage.getItem("mbCE_toggle_lock_v1"));
+  assert(toggleEl.style.display !== "none", "F. 悬浮球始终显示（无隐藏态），实际 display=" + toggleEl.style.display);
+}
+/* 点击仍正常开关面板（拖拽拦截逻辑不破坏点击） */
+toggleEl.click();
+assert(document.querySelector("#mce-root").classList.contains("mce-open"), "F. 点击悬浮球 → 面板打开");
+toggleEl.click();
+assert(!document.querySelector("#mce-root").classList.contains("mce-open"), "F. 再次点击悬浮球 → 面板关闭");
+/* 拖拽事件链最小验证：pointerdown 派发不抛错（jsdom 无真实坐标，仅验证监听器已注册且不崩） */
+(function () {
+  let threw = false;
+  try {
+    toggleEl.dispatchEvent(new window.Event("pointerdown", { cancelable: true }));
+  } catch (e) { threw = true; console.error("FAIL: 拖拽 pointerdown 派发抛错: " + e.message); }
+  assert(!threw, "F. 拖拽 pointerdown 事件监听已注册且派发无抛错");
+})();
 
 /* ---------- M. v1.9.2 自查补盲：values list 型端到端链路（apply → 局部刷新回显 → 取消 → 回退 → 重渲染） ----------
    C 段注释曾误标「list 型走 DOM checkbox 已覆盖」——实际 firstVal 过滤掉了 list，能力 checkbox 也不走 values。

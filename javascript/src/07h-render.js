@@ -137,13 +137,13 @@
 					var ctrl;
 					if (it.type === "range") {
 						var inp = el("input", "mce-inp");
-						inp.type = "number"; inp.min = String(it.min); inp.max = String(it.max); inp.step = String(it.step || 1);
+						inp.type = "number"; inp.min = String(it.min); inp.max = String(it.max); inp.step = String(it.step || 1); /* 剧情进度是进度档位：钳制在 [min,max]（用户澄清：仅"直接填数值"放开上限，进度保留） */
 						var apply = el("button", "mce-btn", "应用");
 						apply.type = "button";
 						apply.addEventListener("click", function () {
 							var v = parseFloat(inp.value);
 							if (isNaN(v)) { v = 0; }
-							if (v < it.min) { v = it.min; } if (v > it.max) { v = it.max; }
+							if (v < it.min) { v = it.min; } if (v > it.max) { v = it.max; } /* 进度档位语义，钳制在上限内 */
 							setDotPath(it.varPath, v);
 							refreshCur();
 							setStatus(it.name + " → " + v, "mce-ok");

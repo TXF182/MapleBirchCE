@@ -21,8 +21,10 @@
 		"#mce-root.mce-open{display:flex}" +
 		"#mce-toggle{position:fixed;right:14px;bottom:14px;z-index:2147482999;width:52px;height:52px;border-radius:50%;" +
 		"background:#d4a73c;color:#111;border:2px solid #b38a2a;font-size:15px;font-weight:700;cursor:pointer;" +
-		"box-shadow:0 4px 14px rgba(0,0,0,.6);font-family:inherit}" +
+		"box-shadow:0 4px 14px rgba(0,0,0,.6);font-family:inherit;touch-action:none;" +
+		"user-select:none;-webkit-user-select:none}" +
 		"#mce-toggle:hover{background:#e0b44a}" +
+		"#mce-toggle.mce-dragging{cursor:grabbing!important;background:#e0b44a}" +
 		".mce-header{display:flex;align-items:center;height:42px;padding:0 10px;background:#1a1a1a;" +
 		"border-bottom:1px solid #3c3c3c;color:#d4a73c;font-weight:700;font-size:15px}" +
 		".mce-header .mce-title{flex:1;text-align:center}" +

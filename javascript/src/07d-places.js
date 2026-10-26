@@ -219,6 +219,7 @@
 			if (prev && "before" in prev) { before = prev.before; }
 			var lo = Number.isFinite(Number(min)) ? Number(min) : 0;
 			var hi = Number.isFinite(Number(max)) ? Number(max) : Infinity;
+			/* 地点页是阶段/档位语义：钳制到 [lo, hi]（用户澄清：仅"直接填数值"放开上限，阶段保留） */
 			var final = Math.max(lo, Math.min(hi, Math.round(Number(target) || 0)));
 			cur[leaf] = final;
 			if (!Vp.mbCE_wrote || typeof Vp.mbCE_wrote !== "object") { Vp.mbCE_wrote = {}; }
@@ -258,7 +259,7 @@
 				var cur = placeStageRead(it.path);
 				var row = el("div", "mce-row");
 				row.setAttribute("data-stagekey", it.key);
-				row.title = it.note + "（当前 " + cur + " / 上限 " + it.max + "）";
+				row.title = it.note + "（当前 " + cur + " / 上限 " + it.max + "；阶段档位，写入钳制在上限内）";
 				var lbl = el("span", "mce-row-lbl", it.name + "　");
 				var val = el("span", "mce-value", cur + " / " + it.max);
 				lbl.appendChild(val);
@@ -274,7 +275,10 @@
 				mInc.type = "button";
 				mInc.setAttribute("data-op", "inc");
 				mInc.addEventListener("click", function () {
-					placeStageWrite(it.path, placeStageRead(it.path) + 1, 0, it.max);
+					/* +1 是档位微调：钳到 [0, it.max]（阶段档位语义，防点出不存在档位） */
+					var nx = placeStageRead(it.path) + 1;
+					if (nx > it.max) { nx = it.max; }
+					placeStageWrite(it.path, nx, 0, it.max);
 					renderPlaces();
 				});
 				var mMax = el("button", "mce-btn mce-gold", "拉满");

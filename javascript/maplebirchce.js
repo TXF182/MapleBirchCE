@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.10";
+	var MCE_VERSION = "1.9.11";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -181,7 +181,7 @@
 		"zephyr": "泽菲尔", "morgan": "摩根", "river": "瑞沃", "sirris": "西里斯", "night monster": "夜魔",
 		/* v1.8.3：模组枚举角色中文映射（音译初版，可在游戏内按实际名称校对调整） */
 		"tsukihan": "月羽", "rowan": "罗文", "adrian": "阿德里安", "marlow": "马洛",
-		"grant": "格兰特", "needmeet": "尼德米特", "feng": "老冯",
+		"grant": "格兰特", "needmeet": "遇欲", "feng": "老冯",
 		/* v1.8.19：Maplebirch 恋爱扩展/模组注入角色（用户实测角色页仍有英文名） */
 		"seath": "希斯", "alice": "爱丽丝", "liddell": "利德尔"
 	};
@@ -444,9 +444,10 @@
 	}
 	function writeStat(npc, name, def, val) {
 		if (!npc) { return 0; }
+		/* v1.9.10：快捷面板数值上限不钳制（def.max 仅作 UI 参考），保留下限防负值破坏 */
 		var min = def.min != null ? def.min : 0;
-		var max = def.max != null ? def.max : 100;
-		npc[def.key] = Math.max(min, Math.min(max, Math.round(Number(val) || 0)));
+		var v = Math.round(Number(val) || 0);
+		npc[def.key] = Math.max(min, v);
 		return npc[def.key];
 	}
 	function fillStats(npc, name) {
@@ -2313,7 +2314,7 @@
 				{ key: "ds_sin", name: "罪恶值（0-1000）", varPath: "sinSims", type: "number", min: 0, max: 1000 },
 				{ key: "ds_hypno", name: "催眠熟练度（0-1000，门槛 100/300/500/1000）", varPath: "hypnoSims", type: "number", min: 0, max: 1000 },
 				{ key: "ds_discipline", name: "风纪委员 · 纪律", varPath: "DisciplineSims.value", type: "number", min: 0, max: 40,
-				  note: "源码 clamp 锁死上限 40；宿主对象在开局/迁移 passage 后存在，未初始化时拒绝写入" },
+				  note: "模组源码自身 clamp 上限 40（面板不钳制，写超由模组源码自行处理）；宿主对象在开局/迁移 passage 后存在，未初始化时拒绝写入" },
 				{ key: "ds_popularity", name: "风纪委员 · 声望", varPath: "PopularitySims.value", type: "number", min: 0, max: 40 },
 				{ key: "ds_horniness", name: "风纪委员 · 性欲值", varPath: "HorninessSims.value", type: "number", min: 0, max: 40 },
 				{ key: "ds_influence", name: "风纪委员 · 影响力", varPath: "InfluenceSims.value", type: "number", min: 0, max: 40 },
@@ -2381,7 +2382,18 @@
 				{ key: "cat_book5", name: "书房 · 藏书 5", varPath: "pcHouseBook5",
 				  levels: [0, 1], labels: ["未拥有", "已拥有"] }
 			],
-			abilities: [],
+			abilities: [
+				/* 特质直接获取（用户实测请求；判定均 gte 1 严格比较 → numeric 数字通道，禁 boolean）。
+				   特质注册实证：mods/cattery/tj/traits.txt —— 金牌饲养员 has $pchaveCat>=1 and $firstCat_loveMax gte 1；
+				   爱·时·机 has $pcHouseBook1_speciality gte 1（书房藏书1阅读获得，homeBook.twee）；绝爱同藏书2。 */
+				{ key: "cat_trait_gold", name: "特质 · 金牌饲养员", varPath: "firstCat_loveMax", numeric: true, min: 0, max: 1,
+				  sync: { set: [{ path: "pchaveCat", value: 1 }] },
+				  note: "模组判定 pchaveCat≥1 且 firstCat_loveMax≥1；勾选=补领养猫并置好感上限达成（好感写 40 亦自动触发），特质直接获得；取消=loveMax 归 0（特质消失，领养保留）" },
+				{ key: "cat_trait_book1", name: "特质 · 爱·时·机", varPath: "pcHouseBook1_speciality", numeric: true, min: 0, max: 1,
+				  note: "书房·藏书1 阅读获得（homeBook.twee 实证）；判定 gte 1，勾选写 1" },
+				{ key: "cat_trait_book2", name: "特质 · 绝爱", varPath: "pcHouseBook2_speciality", numeric: true, min: 0, max: 1,
+				  note: "书房·藏书2 阅读获得；判定 gte 1，勾选写 1" }
+			],
 			scenes: [],
 			values: [
 				{ key: "cat_love", name: "猫 · 好感（0-40）", varPath: "catArr.0.love", type: "number", min: 0, max: 40,
@@ -2418,7 +2430,7 @@
 				{ key: "cat_cook_qcbc", name: "菜品 · 清炒白菜（次数）", varPath: "cookok_qcbc", type: "number", min: 0, max: 99 },
 				{ key: "cat_cook_zccp", name: "菜品 · 自创菜品（次数）", varPath: "cookok_zccp", type: "number", min: 0, max: 99 },
 				{ key: "cat_clean_home", name: "清洁 · 出租屋（0-40）", varPath: "pcHome_clean", type: "number", min: 0, max: 40,
-				  note: "源码 Math.clamp 锁死 0-40；顶层标量直写（租屋初始化时模组写入 30），无宿主缺失" },
+				  note: "模组源码自身 Math.clamp 0-40（面板不钳制，写超由模组源码处理）；顶层标量直写（租屋初始化时模组写入 30），无宿主缺失" },
 				{ key: "cat_clean_front", name: "清洁 · 门口（0-3）", varPath: "pcEntranceFront_clean", type: "number", min: 0, max: 3 },
 				{ key: "cat_clean_after", name: "清洁 · 后院（0-3）", varPath: "pcEntranceAfter_clean", type: "number", min: 0, max: 3 },
 				{ key: "cat_drawing", name: "绘画 · 进度（0-100）", varPath: "pchouse_drawing", type: "number", min: 0, max: 100 },
@@ -2437,13 +2449,41 @@
 		}
 		return false;
 	}
+	/* v1.9.11 未定版：适配器声明路径豁免——第三方模组会借用原版变量宿主存自己的键
+	   （实证：Dol-Optimization 源码 `<<set $daily.conveniencestoregoods to {}>>` 把便利店库存写进原版 $daily，
+	   opt1121/Source/twee/game.twee:321），凡在已注册适配器 stages/abilities/values 声明中的 varPath
+	   一律放行（声明经对照源码核对），未声明的原版根仍按黑名单拒绝（玩家自己面板等通道不受影响）。 */
+	var mbCEAdapterPaths = null;
+	function mbCEBuildAdapterPaths() {
+		var out = {}, mid, e, sec, arr, i, it;
+		try {
+			for (mid in CHEAT_ADAPTERS) {
+				if (!Object.prototype.hasOwnProperty.call(CHEAT_ADAPTERS, mid)) { continue; }
+				e = CHEAT_ADAPTERS[mid] && CHEAT_ADAPTERS[mid].entry;
+				if (!e) { continue; }
+				for (sec = 0; sec < 3; sec++) {
+					arr = sec === 0 ? e.stages : (sec === 1 ? e.abilities : e.values);
+					if (!Array.isArray(arr)) { continue; }
+					for (i = 0; i < arr.length; i++) {
+						it = arr[i];
+						if (it && typeof it.varPath === "string" && it.varPath) { out[it.varPath] = true; }
+					}
+				}
+			}
+		} catch (e2) { /* 豁免集合构建失败 → 保守全部拒绝 */ }
+		return out;
+	}
+	function mbCEIsDeclaredAdapterPath(path) {
+		if (!mbCEAdapterPaths) { mbCEAdapterPaths = mbCEBuildAdapterPaths(); }
+		return !!(path && mbCEAdapterPaths[path]);
+	}
 	/* varPath 解析：父级对象链必须存在（禁止写入 undefined 对象）；叶子允许缺失（正常初始化）。 */
 	function cheatResolvePath(path) {
 		var V = getV();
 		if (!V) { return { ok: false, reason: "存档变量不可用" }; }
 		var parts = String(path || "").split(".");
 		if (!parts.length || !parts[0]) { return { ok: false, reason: "空路径" }; }
-		if (cheatIsVanillaRoot(parts[0])) { return { ok: false, reason: "vanilla", root: parts[0] }; }
+		if (cheatIsVanillaRoot(parts[0]) && !mbCEIsDeclaredAdapterPath(path)) { return { ok: false, reason: "vanilla", root: parts[0] }; }
 		var cur = V, i;
 		for (i = 0; i < parts.length - 1; i++) {
 			if (cur[parts[i]] === null || typeof cur[parts[i]] !== "object") {
@@ -2490,7 +2530,9 @@
 			}
 		} catch (e) { /* 联动失败不影响主写入 */ }
 	}
-	/* 通用写入执行器（幂等防崩）：类型校验 + 越界钳制 + 留痕（保留首次 before，回退可还原）。 */
+	/* 通用写入执行器（幂等防崩）：类型校验 + 保留下限 + 留痕（保留首次 before，回退可还原）。
+	   v1.9.10 用户需求：数值上限不钳制——声明 max 仅作 UI 参考范围提示，写入原样落档
+	   （模组自身 clamp 由其源码负责；CE 不做面板上限拦截）。下限仍钳 0 防负值破坏。 */
 	function cheatWriteValue(modId, itemKey, op, path, raw, type, min, max, syncData) {
 		try {
 			var V = getV();
@@ -2507,7 +2549,7 @@
 			}
 			var val = raw;
 			if (type === "number") {
-				/* v1.8.12 相对值：raw 为字符串且以 + / - 开头 → 按「当前值 + delta」计算（随后钳制） */
+				/* v1.8.12 相对值：raw 为字符串且以 + / - 开头 → 按「当前值 + delta」计算（v1.9.10 起上限不钳制、下限 0） */
 				var relDelta = null;
 				if (typeof raw === "string") {
 					var relM = /^([+\-])\s*([\d.]+)$/.exec(raw.trim());
@@ -2518,7 +2560,7 @@
 				val = relDelta !== null ? baseNum + relDelta : (typeof val === "number" ? val : Number(val));
 				if (!isFinite(val)) { return { ok: false, message: "数值无效（需为数字，支持 +N / -N 相对调整）" }; }
 				if (typeof min === "number" && val < min) { val = min; }
-				if (typeof max === "number" && val > max) { val = max; }
+				/* v1.9.10：上限不再钳制（声明 max 仅参考）；写低值不受影响 */
 			} else if (type === "boolean") {
 				val = (val === true || val === 1 || val === "1" || val === "true" || val === "on");
 			} else {
@@ -2748,7 +2790,9 @@
 			if (idxStr === -1) { return { ok: false, message: "阶段值「" + level + "」不在枚举范围内（" + levels.join(" / ") + "）" }; }
 			return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, levels[idxStr], "string", 0, levels.length - 1, s.sync);
 		}
-		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, Number(level), "number", levels[0], levels[levels.length - 1], s.sync);
+		/* v1.9.10：阶段是枚举语义（UI 下拉限定）——仍钳制到 levels 范围，与数值项放开上限区分 */
+		var lvStage = Math.max(levels[0], Math.min(levels[levels.length - 1], Number(level) || 0));
+		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, lvStage, "number", levels[0], levels[levels.length - 1], s.sync);
 	}
 	function jumpCheatStageMax(modId, key) {
 		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
@@ -2766,7 +2810,13 @@
 		var m = findCheatMod(modId), a = m && findCheatItem(m.abilities, key);
 		if (!a) { return { ok: false, message: "能力不存在或该模组未注册" }; }
 		if (!a.varPath) { return { ok: false, message: "「" + a.name + "」未声明能力变量（varPath），无法切换" }; }
-		return cheatWriteValue(modId, "ability_set:" + key, "ability_set", a.varPath, !!enabled, "boolean", undefined, undefined, a.sync);
+		/* v1.9.11 未定版：numeric 能力（模组 is 1 / gte 1 严格比较禁 boolean）——勾选写 1、取消写 0，
+		   布尔能力保持原语义；min/max 按声明钳制（缺省 0/1） */
+		var abilityVal = a.numeric ? (enabled ? 1 : 0) : !!enabled;
+		var abilityType = a.numeric ? "number" : "boolean";
+		var abilityMin = a.numeric ? (typeof a.min === "number" ? a.min : 0) : undefined;
+		var abilityMax = a.numeric ? (typeof a.max === "number" ? a.max : 1) : undefined;
+		return cheatWriteValue(modId, "ability_set:" + key, "ability_set", a.varPath, abilityVal, abilityType, abilityMin, abilityMax, a.sync);
 	}
 	function cheatSceneAction(modId, key, op) {
 		var m = findCheatMod(modId), s = m && findCheatItem(m.scenes, key);
@@ -3025,7 +3075,7 @@
 		if (a.varPath) { body.appendChild(el("div", "", "写入路径：" + a.varPath)); }
 		body.appendChild(el("div", "", "类型：" + (a.type || "boolean")));
 		if (a.type === "number" && (a.min !== undefined || a.max !== undefined)) {
-			body.appendChild(el("div", "", "钳制范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
+			body.appendChild(el("div", "", "参考范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
 		}
 		if (a.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + a.note)); }
 		det.appendChild(body);
@@ -3091,7 +3141,7 @@
 			   数值合法性由 cheatWriteValue 校验兜底 */
 			inp.inputmode = "decimal";
 			inp.placeholder = "+N / -N 相对";
-			inp.title = "支持相对调整：输入 +100 表示在当前值上加 100，-20 表示减 20；直接输入数字为绝对值（受钳制范围约束）";
+			inp.title = "支持相对调整：输入 +100 表示在当前值上加 100，-20 表示减 20；直接输入数字为绝对值（范围仅供参考，上限不钳制）";
 		}
 		var cur = cheatReadSafe(m.modId, it.varPath);
 		if (it.type === "boolean") { inp.checked = !!cur; }
@@ -3112,7 +3162,7 @@
 		if (it.varPath) { body.appendChild(el("div", "", "写入路径：" + it.varPath)); }
 		body.appendChild(el("div", "", "类型：" + (it.type || "number")));
 		if (typeof it.min === "number" || typeof it.max === "number") {
-			body.appendChild(el("div", "", "钳制范围：" + (typeof it.min === "number" ? it.min : "-∞") + " ~ " + (typeof it.max === "number" ? it.max : "∞")));
+			body.appendChild(el("div", "", "参考范围：" + (typeof it.min === "number" ? it.min : "-∞") + " ~ " + (typeof it.max === "number" ? it.max : "∞")));
 		}
 		if (it.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + it.note)); }
 		det.appendChild(body);
@@ -3300,7 +3350,7 @@
 			var es = ensureProfShell();
 			if (!es.ok) { return es; }
 		}
-		/* v1.8.12 功能6：查数据表取该项 min/max，传给 cheatWriteValue 统一钳制（一次性索引，避免每次遍历 33 项） */
+		/* v1.8.12 功能6：查数据表取该项 min/max，传给 cheatWriteValue 统一写入（上限不钳制）*/
 		if (!PANEL_QUICK_PATH_INDEX) {
 			PANEL_QUICK_PATH_INDEX = {};
 			PANEL_QUICK_GROUPS.forEach(function (g) {
@@ -4360,8 +4410,10 @@ function renderPlayerEdit() {
 		"#mce-root.mce-open{display:flex}" +
 		"#mce-toggle{position:fixed;right:14px;bottom:14px;z-index:2147482999;width:52px;height:52px;border-radius:50%;" +
 		"background:#d4a73c;color:#111;border:2px solid #b38a2a;font-size:15px;font-weight:700;cursor:pointer;" +
-		"box-shadow:0 4px 14px rgba(0,0,0,.6);font-family:inherit}" +
+		"box-shadow:0 4px 14px rgba(0,0,0,.6);font-family:inherit;touch-action:none;" +
+		"user-select:none;-webkit-user-select:none}" +
 		"#mce-toggle:hover{background:#e0b44a}" +
+		"#mce-toggle.mce-dragging{cursor:grabbing!important;background:#e0b44a}" +
 		".mce-header{display:flex;align-items:center;height:42px;padding:0 10px;background:#1a1a1a;" +
 		"border-bottom:1px solid #3c3c3c;color:#d4a73c;font-weight:700;font-size:15px}" +
 		".mce-header .mce-title{flex:1;text-align:center}" +
@@ -5157,6 +5209,7 @@ function renderPlayerEdit() {
 			if (prev && "before" in prev) { before = prev.before; }
 			var lo = Number.isFinite(Number(min)) ? Number(min) : 0;
 			var hi = Number.isFinite(Number(max)) ? Number(max) : Infinity;
+			/* 地点页是阶段/档位语义：钳制到 [lo, hi]（用户澄清：仅"直接填数值"放开上限，阶段保留） */
 			var final = Math.max(lo, Math.min(hi, Math.round(Number(target) || 0)));
 			cur[leaf] = final;
 			if (!Vp.mbCE_wrote || typeof Vp.mbCE_wrote !== "object") { Vp.mbCE_wrote = {}; }
@@ -5196,7 +5249,7 @@ function renderPlayerEdit() {
 				var cur = placeStageRead(it.path);
 				var row = el("div", "mce-row");
 				row.setAttribute("data-stagekey", it.key);
-				row.title = it.note + "（当前 " + cur + " / 上限 " + it.max + "）";
+				row.title = it.note + "（当前 " + cur + " / 上限 " + it.max + "；阶段档位，写入钳制在上限内）";
 				var lbl = el("span", "mce-row-lbl", it.name + "　");
 				var val = el("span", "mce-value", cur + " / " + it.max);
 				lbl.appendChild(val);
@@ -5212,7 +5265,10 @@ function renderPlayerEdit() {
 				mInc.type = "button";
 				mInc.setAttribute("data-op", "inc");
 				mInc.addEventListener("click", function () {
-					placeStageWrite(it.path, placeStageRead(it.path) + 1, 0, it.max);
+					/* +1 是档位微调：钳到 [0, it.max]（阶段档位语义，防点出不存在档位） */
+					var nx = placeStageRead(it.path) + 1;
+					if (nx > it.max) { nx = it.max; }
+					placeStageWrite(it.path, nx, 0, it.max);
 					renderPlaces();
 				});
 				var mMax = el("button", "mce-btn mce-gold", "拉满");
@@ -6711,13 +6767,13 @@ function renderPlayerEdit() {
 					var ctrl;
 					if (it.type === "range") {
 						var inp = el("input", "mce-inp");
-						inp.type = "number"; inp.min = String(it.min); inp.max = String(it.max); inp.step = String(it.step || 1);
+						inp.type = "number"; inp.min = String(it.min); inp.max = String(it.max); inp.step = String(it.step || 1); /* 剧情进度是进度档位：钳制在 [min,max]（用户澄清：仅"直接填数值"放开上限，进度保留） */
 						var apply = el("button", "mce-btn", "应用");
 						apply.type = "button";
 						apply.addEventListener("click", function () {
 							var v = parseFloat(inp.value);
 							if (isNaN(v)) { v = 0; }
-							if (v < it.min) { v = it.min; } if (v > it.max) { v = it.max; }
+							if (v < it.min) { v = it.min; } if (v > it.max) { v = it.max; } /* 进度档位语义，钳制在上限内 */
 							setDotPath(it.varPath, v);
 							refreshCur();
 							setStatus(it.name + " → " + v, "mce-ok");
@@ -7073,6 +7129,32 @@ function renderPlayerEdit() {
 			pane.appendChild(el("div", "mce-err", "未检测到 Maplebirch 框架。"));
 			return;
 		}
+		/* v1.9.11+：悬浮入口固定按钮（锁定/解锁右下角金色「解锁」球的拖动；
+		   悬浮球是面板唯一入口，不提供隐藏——隐藏即死锁） */
+		var fabLocked = !!(toggleBtn && toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1");
+		var fabWrap = el("div", "mce-row");
+		fabWrap.appendChild(el("span", "mce-row-lbl", "面板悬浮入口（右下角金色「解锁」球）"));
+		var fabBtn = el("button", "mce-btn", fabLocked ? "解锁悬浮球拖动" : "锁定悬浮球拖动");
+		fabBtn.type = "button";
+		fabBtn.title = fabLocked
+			? "悬浮球拖动已锁定（点击仍可开关面板）；点此解锁后可再次拖动"
+			: "点此锁定悬浮球拖动（固定不动，不再误拖/挡操作）；点击悬浮球本身仍可开关面板";
+		fabBtn.addEventListener("click", function () {
+			if (!toggleBtn) { return; }
+			var nowLocked = !!(toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1");
+			toggleBtn.dataset.mceLocked = nowLocked ? "0" : "1";
+			toggleBtn.title = nowLocked
+				? "Maplebirch CE 剧情条件解锁面板（可拖动：按住移到任意位置，位置自动记忆）"
+				: "Maplebirch CE 剧情条件解锁面板（拖动已锁定：点击开关面板，到「全局」页解锁拖动）";
+			try {
+				if (typeof localStorage !== "undefined" && localStorage) {
+					localStorage.setItem("mbCE_toggle_lock_v1", nowLocked ? "0" : "1");
+				}
+			} catch (e) {}
+			renderGlobal();
+		});
+		fabWrap.appendChild(fabBtn);
+		pane.appendChild(fabWrap);
 		var chars = listCharacters();
 		pane.appendChild(el("div", "mce-hint", "自动枚举角色 " + chars.length + " 个（本体 + 全部 MOD）。以下操作对全部角色生效。"));
 		var actions = el("div", "mce-actions");
@@ -7307,12 +7389,103 @@ function renderPlayerEdit() {
 		if (root && document.body && document.body.contains(root)) { return; }
 		injectCSS();
 
-		toggleBtn = el("button", "", "解锁");
+		toggleBtn = (document.getElementById && document.getElementById("mce-toggle")) || el("button", "", "解锁");
 		toggleBtn.id = "mce-toggle";
 		toggleBtn.type = "button";
-		toggleBtn.title = "Maplebirch CE 剧情条件解锁面板";
-		toggleBtn.addEventListener("click", toggle);
-		document.body.appendChild(toggleBtn);
+		toggleBtn.title = "Maplebirch CE 剧情条件解锁面板（可拖动：按住移到任意位置，位置自动记忆）";
+		if (!toggleBtn.isConnected && document.body) { document.body.appendChild(toggleBtn); }
+		/* v1.9.11+：悬浮球可拖动（pointer 拖拽，rAF 节流，位置持久化 localStorage）+ 拖动锁；
+		   拖动后吞掉本次 click（区分「点击开关」与「拖动挪位」）。
+		   悬浮球是面板唯一入口，废除「隐藏」功能（隐藏即死锁）——清旧键并强制恢复显示。 */
+		var tgSt = toggleBtn.style || {};
+		try {
+			if (typeof localStorage !== "undefined" && localStorage) {
+				if (localStorage.getItem("mbCE_toggle_hidden_v1") !== null) {
+					localStorage.removeItem("mbCE_toggle_hidden_v1");
+				}
+				tgSt.display = "";
+				var tpRaw = localStorage.getItem("mbCE_toggle_pos_v1");
+				if (tpRaw) {
+					var tpj = JSON.parse(tpRaw);
+					if (tpj && typeof tpj.left === "number" && typeof tpj.top === "number") {
+						tgSt.left = tpj.left + "px";
+						tgSt.top = tpj.top + "px";
+						tgSt.right = "auto";
+						tgSt.bottom = "auto";
+					}
+				}
+				/* 拖动锁：mbCE_toggle_lock_v1 = "1" 时禁拖动（点击仍正常开关面板） */
+				toggleBtn.dataset.mceLocked = (localStorage.getItem("mbCE_toggle_lock_v1") === "1") ? "1" : "0";
+				if (toggleBtn.dataset.mceLocked === "1") {
+					toggleBtn.title = "Maplebirch CE 剧情条件解锁面板（拖动已锁定：点击开关面板，到「全局」页解锁拖动）";
+				}
+			}
+		} catch (e) {}
+		var drag = { on: false, moved: false, sx: 0, sy: 0, l: 0, t: 0, bw: 56, bh: 56, nx: 0, ny: 0, raf: 0 };
+		/* v1.9.11+ 自查：绑定守卫——ModLoader 热重载复用同一 #mce-toggle 时跳过重复 addEventListener，
+		   否则 click 监听堆叠会导致一次点击多次开关面板 */
+		if (!toggleBtn.__mbCEBound) {
+		toggleBtn.addEventListener("pointerdown", function (ev) {
+			if (toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1") { return; }
+			drag.on = true; drag.moved = false;
+			drag.sx = ev.clientX; drag.sy = ev.clientY;
+			var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : { left: 0, top: 0, width: 56, height: 56 };
+			drag.l = r.left; drag.t = r.top;
+			drag.bw = r.width || 56; drag.bh = r.height || 56;
+			try { toggleBtn.classList.add("mce-dragging"); } catch (e2) {}
+			try { toggleBtn.setPointerCapture(ev.pointerId); } catch (e2) {}
+			try { ev.preventDefault(); } catch (e2) {}
+		});
+		toggleBtn.addEventListener("pointermove", function (ev) {
+			if (!drag.on) { return; }
+			var dx = ev.clientX - drag.sx, dy = ev.clientY - drag.sy;
+			if (Math.abs(dx) < 3 && Math.abs(dy) < 3) { return; }
+			drag.moved = true;
+			drag.nx = drag.l + dx; drag.ny = drag.t + dy;
+			if (!drag.raf) {
+				drag.raf = (typeof window !== "undefined" && window.requestAnimationFrame) ? window.requestAnimationFrame(function () {
+					drag.raf = 0;
+					if (!drag.on && !drag.moved) { return; }
+					var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
+					var h = (typeof window !== "undefined" && window.innerHeight) || 720;
+					var nl = Math.max(0, Math.min(w - (drag.bw || 56) - 4, drag.nx));
+					var nt = Math.max(0, Math.min(h - (drag.bh || 56) - 4, drag.ny));
+					tgSt.left = nl + "px";
+					tgSt.top = nt + "px";
+					tgSt.right = "auto";
+					tgSt.bottom = "auto";
+				}) : 0;
+			}
+		});
+		function tgDragEnd(ev) {
+			if (!drag.on) { return; }
+			drag.on = false;
+			try { toggleBtn.classList.remove("mce-dragging"); } catch (e2) {}
+			try { toggleBtn.releasePointerCapture(ev.pointerId); } catch (e2) {}
+			if (drag.moved) {
+				var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
+				var h = (typeof window !== "undefined" && window.innerHeight) || 720;
+				var nl = Math.max(0, Math.min(w - (drag.bw || 56) - 4, drag.nx));
+				var nt = Math.max(0, Math.min(h - (drag.bh || 56) - 4, drag.ny));
+				tgSt.left = nl + "px";
+				tgSt.top = nt + "px";
+				tgSt.right = "auto";
+				tgSt.bottom = "auto";
+				try {
+					if (typeof localStorage !== "undefined" && localStorage) {
+						localStorage.setItem("mbCE_toggle_pos_v1", JSON.stringify({ left: nl, top: nt }));
+					}
+				} catch (e2) {}
+			}
+		}
+		toggleBtn.addEventListener("pointerup", tgDragEnd);
+		toggleBtn.addEventListener("pointercancel", tgDragEnd);
+		toggleBtn.addEventListener("click", function () {
+			if (drag.moved) { drag.moved = false; return; }
+			toggle();
+		});
+		try { toggleBtn.__mbCEBound = true; } catch (e2) {}
+		}
 
 		root = el("div", "mce-root");
 		root.id = "mce-root";

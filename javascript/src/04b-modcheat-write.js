@@ -6,13 +6,41 @@
 		}
 		return false;
 	}
+	/* v1.9.11 未定版：适配器声明路径豁免——第三方模组会借用原版变量宿主存自己的键
+	   （实证：Dol-Optimization 源码 `<<set $daily.conveniencestoregoods to {}>>` 把便利店库存写进原版 $daily，
+	   opt1121/Source/twee/game.twee:321），凡在已注册适配器 stages/abilities/values 声明中的 varPath
+	   一律放行（声明经对照源码核对），未声明的原版根仍按黑名单拒绝（玩家自己面板等通道不受影响）。 */
+	var mbCEAdapterPaths = null;
+	function mbCEBuildAdapterPaths() {
+		var out = {}, mid, e, sec, arr, i, it;
+		try {
+			for (mid in CHEAT_ADAPTERS) {
+				if (!Object.prototype.hasOwnProperty.call(CHEAT_ADAPTERS, mid)) { continue; }
+				e = CHEAT_ADAPTERS[mid] && CHEAT_ADAPTERS[mid].entry;
+				if (!e) { continue; }
+				for (sec = 0; sec < 3; sec++) {
+					arr = sec === 0 ? e.stages : (sec === 1 ? e.abilities : e.values);
+					if (!Array.isArray(arr)) { continue; }
+					for (i = 0; i < arr.length; i++) {
+						it = arr[i];
+						if (it && typeof it.varPath === "string" && it.varPath) { out[it.varPath] = true; }
+					}
+				}
+			}
+		} catch (e2) { /* 豁免集合构建失败 → 保守全部拒绝 */ }
+		return out;
+	}
+	function mbCEIsDeclaredAdapterPath(path) {
+		if (!mbCEAdapterPaths) { mbCEAdapterPaths = mbCEBuildAdapterPaths(); }
+		return !!(path && mbCEAdapterPaths[path]);
+	}
 	/* varPath 解析：父级对象链必须存在（禁止写入 undefined 对象）；叶子允许缺失（正常初始化）。 */
 	function cheatResolvePath(path) {
 		var V = getV();
 		if (!V) { return { ok: false, reason: "存档变量不可用" }; }
 		var parts = String(path || "").split(".");
 		if (!parts.length || !parts[0]) { return { ok: false, reason: "空路径" }; }
-		if (cheatIsVanillaRoot(parts[0])) { return { ok: false, reason: "vanilla", root: parts[0] }; }
+		if (cheatIsVanillaRoot(parts[0]) && !mbCEIsDeclaredAdapterPath(path)) { return { ok: false, reason: "vanilla", root: parts[0] }; }
 		var cur = V, i;
 		for (i = 0; i < parts.length - 1; i++) {
 			if (cur[parts[i]] === null || typeof cur[parts[i]] !== "object") {
@@ -59,7 +87,9 @@
 			}
 		} catch (e) { /* 联动失败不影响主写入 */ }
 	}
-	/* 通用写入执行器（幂等防崩）：类型校验 + 越界钳制 + 留痕（保留首次 before，回退可还原）。 */
+	/* 通用写入执行器（幂等防崩）：类型校验 + 保留下限 + 留痕（保留首次 before，回退可还原）。
+	   v1.9.10 用户需求：数值上限不钳制——声明 max 仅作 UI 参考范围提示，写入原样落档
+	   （模组自身 clamp 由其源码负责；CE 不做面板上限拦截）。下限仍钳 0 防负值破坏。 */
 	function cheatWriteValue(modId, itemKey, op, path, raw, type, min, max, syncData) {
 		try {
 			var V = getV();
@@ -76,7 +106,7 @@
 			}
 			var val = raw;
 			if (type === "number") {
-				/* v1.8.12 相对值：raw 为字符串且以 + / - 开头 → 按「当前值 + delta」计算（随后钳制） */
+				/* v1.8.12 相对值：raw 为字符串且以 + / - 开头 → 按「当前值 + delta」计算（v1.9.10 起上限不钳制、下限 0） */
 				var relDelta = null;
 				if (typeof raw === "string") {
 					var relM = /^([+\-])\s*([\d.]+)$/.exec(raw.trim());
@@ -87,7 +117,7 @@
 				val = relDelta !== null ? baseNum + relDelta : (typeof val === "number" ? val : Number(val));
 				if (!isFinite(val)) { return { ok: false, message: "数值无效（需为数字，支持 +N / -N 相对调整）" }; }
 				if (typeof min === "number" && val < min) { val = min; }
-				if (typeof max === "number" && val > max) { val = max; }
+				/* v1.9.10：上限不再钳制（声明 max 仅参考）；写低值不受影响 */
 			} else if (type === "boolean") {
 				val = (val === true || val === 1 || val === "1" || val === "true" || val === "on");
 			} else {

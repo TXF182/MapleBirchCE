@@ -29,6 +29,16 @@
 - **Cattery 本体包就位 + 对照源码清理**：`game\Cattery-1.1.8.2-fixed-jumping_rope-icons.zip` 缺 `.mod` 后缀不会被 ModLoader 扫描 → 改名 `Cattery.mod.zip`（893,790 B，createCafePC/birdFly/flycattery 符号实证）；`tools\_modcache` 删旧对照 dw250/rv140/deadwood-2.4.7/revelation-1.3.13（只保留当前 dw251/rv141/fw556/mli0180/opt1121/sp0391/wr134/cat1182）；tools 未跟踪残留清零（_deadwood_probe/_revelation_src/_tmp_v199_* 共 13 项）；git 未跟踪归零；
 - **发布前核验**：全链 6 步全绿（build → syntax → DOM 冒烟 → 回归含 47.5b → E2E 9 适配器 → 性别集成）+ codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4；SHA256 见资产核对。
 
+## v1.9.11（2026-10-26 · 已发布）
+
+**悬浮球可拖动 + 全局页固定入口 + 自查优化（今晚改动归版 v1.9.11）**
+
+- **右下角金色「解锁」悬浮球改可拖动**：pointer 拖拽全链（pointerdown/move/up/cancel），3px 阈值区分「点击开关」与「拖动挪位」，拖动后吞掉本次 click 防误触；位置 clamp 在视口内（按按钮实际尺寸减 4px 边距，不再硬编码 64）；**rAF 节流**写入 style（拖动不再逐事件直写主线程）；位置持久化 `mbCE_toggle_pos_v1`、**拖动锁持久化 `mbCE_toggle_lock_v1`**；CSS 加 `touch-action/user-select` 防拖动误选文本，拖动态 `mce-dragging` 类显示 grabbing 光标；
+- **全局页（global）顶部新增固定按钮「面板悬浮入口」**：按当前锁定态切换「锁定悬浮球拖动/解锁悬浮球拖动」，点击写 `mbCE_toggle_lock_v1` 并即时重渲染——**锁定后悬浮球固定不动（不再误拖/挡操作），点击悬浮球本身仍可正常开关面板**；悬浮球是面板唯一入口，**废除「隐藏」功能（隐藏即死锁，无法再进面板）**——自动清理旧 `mbCE_toggle_hidden_v1` 键并强制恢复显示；锁定/解锁时悬浮球 title 同步提示；
+- **健壮性**：`ensureDom` 对已存在 `#mce-toggle` 复用（ModLoader 重载不产生第二个按钮）+ **`__mbCEBound` 绑定守卫**（复用同一按钮时跳过重复 addEventListener，防 click 监听堆叠导致一次点击多次开关面板）；`isConnected` 判空后才 append；位置恢复 JSON 解析容错；
+- **自查优化**：拖拽 rAF 节流（pointermove 不再逐事件直写 style，主线程更顺滑）；限位改按按钮实际渲染尺寸（不再硬编码 64px，任何尺寸/缩放下不出界）；拖动态 `mce-dragging` 光标（grabbing + 高亮）；
+- **升版 1.9.11 双源完成**（src/01-core.js MCE_VERSION 与 boot.json version）；README/CHANGELOG 同步；全链 6 步全绿 + codegraph sync；打包 verifier 4/4 + 装入 game；已发布（Release v1.9.11，资产 SHA 见核对）。
+
 ## v1.9.9（2026-10-26 · 已发布）
 
 **枯木逢春 2.5.0 说明页内容补全作弊项 + 月羽译名更正（2026-10-26）**

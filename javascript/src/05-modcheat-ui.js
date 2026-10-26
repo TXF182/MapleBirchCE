@@ -98,7 +98,9 @@
 			if (idxStr === -1) { return { ok: false, message: "阶段值「" + level + "」不在枚举范围内（" + levels.join(" / ") + "）" }; }
 			return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, levels[idxStr], "string", 0, levels.length - 1, s.sync);
 		}
-		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, Number(level), "number", levels[0], levels[levels.length - 1], s.sync);
+		/* v1.9.10：阶段是枚举语义（UI 下拉限定）——仍钳制到 levels 范围，与数值项放开上限区分 */
+		var lvStage = Math.max(levels[0], Math.min(levels[levels.length - 1], Number(level) || 0));
+		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, lvStage, "number", levels[0], levels[levels.length - 1], s.sync);
 	}
 	function jumpCheatStageMax(modId, key) {
 		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
@@ -116,7 +118,13 @@
 		var m = findCheatMod(modId), a = m && findCheatItem(m.abilities, key);
 		if (!a) { return { ok: false, message: "能力不存在或该模组未注册" }; }
 		if (!a.varPath) { return { ok: false, message: "「" + a.name + "」未声明能力变量（varPath），无法切换" }; }
-		return cheatWriteValue(modId, "ability_set:" + key, "ability_set", a.varPath, !!enabled, "boolean", undefined, undefined, a.sync);
+		/* v1.9.11 未定版：numeric 能力（模组 is 1 / gte 1 严格比较禁 boolean）——勾选写 1、取消写 0，
+		   布尔能力保持原语义；min/max 按声明钳制（缺省 0/1） */
+		var abilityVal = a.numeric ? (enabled ? 1 : 0) : !!enabled;
+		var abilityType = a.numeric ? "number" : "boolean";
+		var abilityMin = a.numeric ? (typeof a.min === "number" ? a.min : 0) : undefined;
+		var abilityMax = a.numeric ? (typeof a.max === "number" ? a.max : 1) : undefined;
+		return cheatWriteValue(modId, "ability_set:" + key, "ability_set", a.varPath, abilityVal, abilityType, abilityMin, abilityMax, a.sync);
 	}
 	function cheatSceneAction(modId, key, op) {
 		var m = findCheatMod(modId), s = m && findCheatItem(m.scenes, key);
@@ -375,7 +383,7 @@
 		if (a.varPath) { body.appendChild(el("div", "", "写入路径：" + a.varPath)); }
 		body.appendChild(el("div", "", "类型：" + (a.type || "boolean")));
 		if (a.type === "number" && (a.min !== undefined || a.max !== undefined)) {
-			body.appendChild(el("div", "", "钳制范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
+			body.appendChild(el("div", "", "参考范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
 		}
 		if (a.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + a.note)); }
 		det.appendChild(body);
@@ -441,7 +449,7 @@
 			   数值合法性由 cheatWriteValue 校验兜底 */
 			inp.inputmode = "decimal";
 			inp.placeholder = "+N / -N 相对";
-			inp.title = "支持相对调整：输入 +100 表示在当前值上加 100，-20 表示减 20；直接输入数字为绝对值（受钳制范围约束）";
+			inp.title = "支持相对调整：输入 +100 表示在当前值上加 100，-20 表示减 20；直接输入数字为绝对值（范围仅供参考，上限不钳制）";
 		}
 		var cur = cheatReadSafe(m.modId, it.varPath);
 		if (it.type === "boolean") { inp.checked = !!cur; }
@@ -462,7 +470,7 @@
 		if (it.varPath) { body.appendChild(el("div", "", "写入路径：" + it.varPath)); }
 		body.appendChild(el("div", "", "类型：" + (it.type || "number")));
 		if (typeof it.min === "number" || typeof it.max === "number") {
-			body.appendChild(el("div", "", "钳制范围：" + (typeof it.min === "number" ? it.min : "-∞") + " ~ " + (typeof it.max === "number" ? it.max : "∞")));
+			body.appendChild(el("div", "", "参考范围：" + (typeof it.min === "number" ? it.min : "-∞") + " ~ " + (typeof it.max === "number" ? it.max : "∞")));
 		}
 		if (it.note) { body.appendChild(el("div", "mce-ab-note", "说明：" + it.note)); }
 		det.appendChild(body);
@@ -650,7 +658,7 @@
 			var es = ensureProfShell();
 			if (!es.ok) { return es; }
 		}
-		/* v1.8.12 功能6：查数据表取该项 min/max，传给 cheatWriteValue 统一钳制（一次性索引，避免每次遍历 33 项） */
+		/* v1.8.12 功能6：查数据表取该项 min/max，传给 cheatWriteValue 统一写入（上限不钳制）*/
 		if (!PANEL_QUICK_PATH_INDEX) {
 			PANEL_QUICK_PATH_INDEX = {};
 			PANEL_QUICK_GROUPS.forEach(function (g) {

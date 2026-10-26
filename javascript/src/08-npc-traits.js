@@ -120,6 +120,32 @@
 			pane.appendChild(el("div", "mce-err", "未检测到 Maplebirch 框架。"));
 			return;
 		}
+		/* v1.9.11+：悬浮入口固定按钮（锁定/解锁右下角金色「解锁」球的拖动；
+		   悬浮球是面板唯一入口，不提供隐藏——隐藏即死锁） */
+		var fabLocked = !!(toggleBtn && toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1");
+		var fabWrap = el("div", "mce-row");
+		fabWrap.appendChild(el("span", "mce-row-lbl", "面板悬浮入口（右下角金色「解锁」球）"));
+		var fabBtn = el("button", "mce-btn", fabLocked ? "解锁悬浮球拖动" : "锁定悬浮球拖动");
+		fabBtn.type = "button";
+		fabBtn.title = fabLocked
+			? "悬浮球拖动已锁定（点击仍可开关面板）；点此解锁后可再次拖动"
+			: "点此锁定悬浮球拖动（固定不动，不再误拖/挡操作）；点击悬浮球本身仍可开关面板";
+		fabBtn.addEventListener("click", function () {
+			if (!toggleBtn) { return; }
+			var nowLocked = !!(toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1");
+			toggleBtn.dataset.mceLocked = nowLocked ? "0" : "1";
+			toggleBtn.title = nowLocked
+				? "Maplebirch CE 剧情条件解锁面板（可拖动：按住移到任意位置，位置自动记忆）"
+				: "Maplebirch CE 剧情条件解锁面板（拖动已锁定：点击开关面板，到「全局」页解锁拖动）";
+			try {
+				if (typeof localStorage !== "undefined" && localStorage) {
+					localStorage.setItem("mbCE_toggle_lock_v1", nowLocked ? "0" : "1");
+				}
+			} catch (e) {}
+			renderGlobal();
+		});
+		fabWrap.appendChild(fabBtn);
+		pane.appendChild(fabWrap);
 		var chars = listCharacters();
 		pane.appendChild(el("div", "mce-hint", "自动枚举角色 " + chars.length + " 个（本体 + 全部 MOD）。以下操作对全部角色生效。"));
 		var actions = el("div", "mce-actions");

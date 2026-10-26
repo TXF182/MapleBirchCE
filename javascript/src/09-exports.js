@@ -51,12 +51,103 @@
 		if (root && document.body && document.body.contains(root)) { return; }
 		injectCSS();
 
-		toggleBtn = el("button", "", "解锁");
+		toggleBtn = (document.getElementById && document.getElementById("mce-toggle")) || el("button", "", "解锁");
 		toggleBtn.id = "mce-toggle";
 		toggleBtn.type = "button";
-		toggleBtn.title = "Maplebirch CE 剧情条件解锁面板";
-		toggleBtn.addEventListener("click", toggle);
-		document.body.appendChild(toggleBtn);
+		toggleBtn.title = "Maplebirch CE 剧情条件解锁面板（可拖动：按住移到任意位置，位置自动记忆）";
+		if (!toggleBtn.isConnected && document.body) { document.body.appendChild(toggleBtn); }
+		/* v1.9.11+：悬浮球可拖动（pointer 拖拽，rAF 节流，位置持久化 localStorage）+ 拖动锁；
+		   拖动后吞掉本次 click（区分「点击开关」与「拖动挪位」）。
+		   悬浮球是面板唯一入口，废除「隐藏」功能（隐藏即死锁）——清旧键并强制恢复显示。 */
+		var tgSt = toggleBtn.style || {};
+		try {
+			if (typeof localStorage !== "undefined" && localStorage) {
+				if (localStorage.getItem("mbCE_toggle_hidden_v1") !== null) {
+					localStorage.removeItem("mbCE_toggle_hidden_v1");
+				}
+				tgSt.display = "";
+				var tpRaw = localStorage.getItem("mbCE_toggle_pos_v1");
+				if (tpRaw) {
+					var tpj = JSON.parse(tpRaw);
+					if (tpj && typeof tpj.left === "number" && typeof tpj.top === "number") {
+						tgSt.left = tpj.left + "px";
+						tgSt.top = tpj.top + "px";
+						tgSt.right = "auto";
+						tgSt.bottom = "auto";
+					}
+				}
+				/* 拖动锁：mbCE_toggle_lock_v1 = "1" 时禁拖动（点击仍正常开关面板） */
+				toggleBtn.dataset.mceLocked = (localStorage.getItem("mbCE_toggle_lock_v1") === "1") ? "1" : "0";
+				if (toggleBtn.dataset.mceLocked === "1") {
+					toggleBtn.title = "Maplebirch CE 剧情条件解锁面板（拖动已锁定：点击开关面板，到「全局」页解锁拖动）";
+				}
+			}
+		} catch (e) {}
+		var drag = { on: false, moved: false, sx: 0, sy: 0, l: 0, t: 0, bw: 56, bh: 56, nx: 0, ny: 0, raf: 0 };
+		/* v1.9.11+ 自查：绑定守卫——ModLoader 热重载复用同一 #mce-toggle 时跳过重复 addEventListener，
+		   否则 click 监听堆叠会导致一次点击多次开关面板 */
+		if (!toggleBtn.__mbCEBound) {
+		toggleBtn.addEventListener("pointerdown", function (ev) {
+			if (toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1") { return; }
+			drag.on = true; drag.moved = false;
+			drag.sx = ev.clientX; drag.sy = ev.clientY;
+			var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : { left: 0, top: 0, width: 56, height: 56 };
+			drag.l = r.left; drag.t = r.top;
+			drag.bw = r.width || 56; drag.bh = r.height || 56;
+			try { toggleBtn.classList.add("mce-dragging"); } catch (e2) {}
+			try { toggleBtn.setPointerCapture(ev.pointerId); } catch (e2) {}
+			try { ev.preventDefault(); } catch (e2) {}
+		});
+		toggleBtn.addEventListener("pointermove", function (ev) {
+			if (!drag.on) { return; }
+			var dx = ev.clientX - drag.sx, dy = ev.clientY - drag.sy;
+			if (Math.abs(dx) < 3 && Math.abs(dy) < 3) { return; }
+			drag.moved = true;
+			drag.nx = drag.l + dx; drag.ny = drag.t + dy;
+			if (!drag.raf) {
+				drag.raf = (typeof window !== "undefined" && window.requestAnimationFrame) ? window.requestAnimationFrame(function () {
+					drag.raf = 0;
+					if (!drag.on && !drag.moved) { return; }
+					var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
+					var h = (typeof window !== "undefined" && window.innerHeight) || 720;
+					var nl = Math.max(0, Math.min(w - (drag.bw || 56) - 4, drag.nx));
+					var nt = Math.max(0, Math.min(h - (drag.bh || 56) - 4, drag.ny));
+					tgSt.left = nl + "px";
+					tgSt.top = nt + "px";
+					tgSt.right = "auto";
+					tgSt.bottom = "auto";
+				}) : 0;
+			}
+		});
+		function tgDragEnd(ev) {
+			if (!drag.on) { return; }
+			drag.on = false;
+			try { toggleBtn.classList.remove("mce-dragging"); } catch (e2) {}
+			try { toggleBtn.releasePointerCapture(ev.pointerId); } catch (e2) {}
+			if (drag.moved) {
+				var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
+				var h = (typeof window !== "undefined" && window.innerHeight) || 720;
+				var nl = Math.max(0, Math.min(w - (drag.bw || 56) - 4, drag.nx));
+				var nt = Math.max(0, Math.min(h - (drag.bh || 56) - 4, drag.ny));
+				tgSt.left = nl + "px";
+				tgSt.top = nt + "px";
+				tgSt.right = "auto";
+				tgSt.bottom = "auto";
+				try {
+					if (typeof localStorage !== "undefined" && localStorage) {
+						localStorage.setItem("mbCE_toggle_pos_v1", JSON.stringify({ left: nl, top: nt }));
+					}
+				} catch (e2) {}
+			}
+		}
+		toggleBtn.addEventListener("pointerup", tgDragEnd);
+		toggleBtn.addEventListener("pointercancel", tgDragEnd);
+		toggleBtn.addEventListener("click", function () {
+			if (drag.moved) { drag.moved = false; return; }
+			toggle();
+		});
+		try { toggleBtn.__mbCEBound = true; } catch (e2) {}
+		}
 
 		root = el("div", "mce-root");
 		root.id = "mce-root";

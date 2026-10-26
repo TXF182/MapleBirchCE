@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.10";
+	var MCE_VERSION = "1.9.11";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -67,7 +67,7 @@
 		"zephyr": "泽菲尔", "morgan": "摩根", "river": "瑞沃", "sirris": "西里斯", "night monster": "夜魔",
 		/* v1.8.3：模组枚举角色中文映射（音译初版，可在游戏内按实际名称校对调整） */
 		"tsukihan": "月羽", "rowan": "罗文", "adrian": "阿德里安", "marlow": "马洛",
-		"grant": "格兰特", "needmeet": "尼德米特", "feng": "老冯",
+		"grant": "格兰特", "needmeet": "遇欲", "feng": "老冯",
 		/* v1.8.19：Maplebirch 恋爱扩展/模组注入角色（用户实测角色页仍有英文名） */
 		"seath": "希斯", "alice": "爱丽丝", "liddell": "利德尔"
 	};
@@ -330,9 +330,10 @@
 	}
 	function writeStat(npc, name, def, val) {
 		if (!npc) { return 0; }
+		/* v1.9.10：快捷面板数值上限不钳制（def.max 仅作 UI 参考），保留下限防负值破坏 */
 		var min = def.min != null ? def.min : 0;
-		var max = def.max != null ? def.max : 100;
-		npc[def.key] = Math.max(min, Math.min(max, Math.round(Number(val) || 0)));
+		var v = Math.round(Number(val) || 0);
+		npc[def.key] = Math.max(min, v);
 		return npc[def.key];
 	}
 	function fillStats(npc, name) {

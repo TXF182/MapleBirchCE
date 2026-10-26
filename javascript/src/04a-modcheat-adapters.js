@@ -692,7 +692,7 @@
 				{ key: "ds_sin", name: "罪恶值（0-1000）", varPath: "sinSims", type: "number", min: 0, max: 1000 },
 				{ key: "ds_hypno", name: "催眠熟练度（0-1000，门槛 100/300/500/1000）", varPath: "hypnoSims", type: "number", min: 0, max: 1000 },
 				{ key: "ds_discipline", name: "风纪委员 · 纪律", varPath: "DisciplineSims.value", type: "number", min: 0, max: 40,
-				  note: "源码 clamp 锁死上限 40；宿主对象在开局/迁移 passage 后存在，未初始化时拒绝写入" },
+				  note: "模组源码自身 clamp 上限 40（面板不钳制，写超由模组源码自行处理）；宿主对象在开局/迁移 passage 后存在，未初始化时拒绝写入" },
 				{ key: "ds_popularity", name: "风纪委员 · 声望", varPath: "PopularitySims.value", type: "number", min: 0, max: 40 },
 				{ key: "ds_horniness", name: "风纪委员 · 性欲值", varPath: "HorninessSims.value", type: "number", min: 0, max: 40 },
 				{ key: "ds_influence", name: "风纪委员 · 影响力", varPath: "InfluenceSims.value", type: "number", min: 0, max: 40 },
@@ -760,7 +760,18 @@
 				{ key: "cat_book5", name: "书房 · 藏书 5", varPath: "pcHouseBook5",
 				  levels: [0, 1], labels: ["未拥有", "已拥有"] }
 			],
-			abilities: [],
+			abilities: [
+				/* 特质直接获取（用户实测请求；判定均 gte 1 严格比较 → numeric 数字通道，禁 boolean）。
+				   特质注册实证：mods/cattery/tj/traits.txt —— 金牌饲养员 has $pchaveCat>=1 and $firstCat_loveMax gte 1；
+				   爱·时·机 has $pcHouseBook1_speciality gte 1（书房藏书1阅读获得，homeBook.twee）；绝爱同藏书2。 */
+				{ key: "cat_trait_gold", name: "特质 · 金牌饲养员", varPath: "firstCat_loveMax", numeric: true, min: 0, max: 1,
+				  sync: { set: [{ path: "pchaveCat", value: 1 }] },
+				  note: "模组判定 pchaveCat≥1 且 firstCat_loveMax≥1；勾选=补领养猫并置好感上限达成（好感写 40 亦自动触发），特质直接获得；取消=loveMax 归 0（特质消失，领养保留）" },
+				{ key: "cat_trait_book1", name: "特质 · 爱·时·机", varPath: "pcHouseBook1_speciality", numeric: true, min: 0, max: 1,
+				  note: "书房·藏书1 阅读获得（homeBook.twee 实证）；判定 gte 1，勾选写 1" },
+				{ key: "cat_trait_book2", name: "特质 · 绝爱", varPath: "pcHouseBook2_speciality", numeric: true, min: 0, max: 1,
+				  note: "书房·藏书2 阅读获得；判定 gte 1，勾选写 1" }
+			],
 			scenes: [],
 			values: [
 				{ key: "cat_love", name: "猫 · 好感（0-40）", varPath: "catArr.0.love", type: "number", min: 0, max: 40,
@@ -797,7 +808,7 @@
 				{ key: "cat_cook_qcbc", name: "菜品 · 清炒白菜（次数）", varPath: "cookok_qcbc", type: "number", min: 0, max: 99 },
 				{ key: "cat_cook_zccp", name: "菜品 · 自创菜品（次数）", varPath: "cookok_zccp", type: "number", min: 0, max: 99 },
 				{ key: "cat_clean_home", name: "清洁 · 出租屋（0-40）", varPath: "pcHome_clean", type: "number", min: 0, max: 40,
-				  note: "源码 Math.clamp 锁死 0-40；顶层标量直写（租屋初始化时模组写入 30），无宿主缺失" },
+				  note: "模组源码自身 Math.clamp 0-40（面板不钳制，写超由模组源码处理）；顶层标量直写（租屋初始化时模组写入 30），无宿主缺失" },
 				{ key: "cat_clean_front", name: "清洁 · 门口（0-3）", varPath: "pcEntranceFront_clean", type: "number", min: 0, max: 3 },
 				{ key: "cat_clean_after", name: "清洁 · 后院（0-3）", varPath: "pcEntranceAfter_clean", type: "number", min: 0, max: 3 },
 				{ key: "cat_drawing", name: "绘画 · 进度（0-100）", varPath: "pchouse_drawing", type: "number", min: 0, max: 100 },
