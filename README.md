@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.7**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v1.9.9**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 安装（快速开始）
 
@@ -57,12 +57,12 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.9.7）
+## Mod作弊 适配器一览（v1.9.9）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.4.6 | 阶段 12 / 能力 64 / 数值 41 | `maplebirch.get("DeadwoodReblooms")` |
-| 归途之书 · Revelation | 1.3.12 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
+| 枯木逢春 · Deadwood Reblooms | 2.5.0 | 阶段 13 / 能力 65 / 数值 55 | `maplebirch.get("DeadwoodReblooms")` |
+| 归途之书 · Revelation | 1.4.0 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
 | DomRobin | 0.0.8 | 阶段 1 / 能力 11 / 数值 2 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
@@ -96,6 +96,16 @@
 
 ## 版本说明
 
+- **v1.9.9（2026-10-26 · 已发布）**：
+  - **枯木逢春 2.5.0 说明页内容补全（心智/转化/神社/月羽/果园）**：新增心智键 `Psyche.sanity`（-500~1000）与 `Psyche.fear`（0~1000，8 档状态与学习收益由理智自动结算）；新增 PC 马/鲸/渡鸦转化点数键（`maplebirch.transformation.horse/whale/raven.build`，0-100，各六阶段）；新增神社线阶段键（`MoreTransformations.shrine.stage` 0-3）与喂鸦次数键（写 1+ 自动补喂鸦 3 次 + 已遇见渡鸦、写 3 自动补月羽已认识）；新增月羽好感/任性/欲望/已认识/恋人列表（`loveInterestList`）键；新增果园订单/合同/收入/常客 4 键；枯木声明 阶段 12→13 / 能力 64→65 / 数值 40→55；
+  - **译名更正**：`tsukihan` 月半 → 月羽（枯木 2.5.0 官方中文名）；
+  - **sync 机制扩展**：`sync.set` 支持条件 `if`（按主写入新值 min/max 判定是否执行联动，兼容旧无条件声明）；
+  - **测试同步**：21.1 分组 ≥13/≥65/≥55、40.1 译名月羽、新增 21.11-21.13（写入/钳制/sync 条件联动含 raven.met 补全/恋人列表）；发布前全面自查（键可用性逐一对照 dw250/opt1121/rv140 源码），修复神社线联动缺口并补 3 条测试；全链 6 步全绿 + codegraph sync；升版 1.9.9 双源完成；
+- **v1.9.8（2026-10-26 · 未发布）**：
+  - **模组更新适配**：枯木逢春 `2.4.7 → 2.5.0`（对照 `_modcache/dw250`）：投资键重构——`investment.share/.valuation` 两键删除（2.5.0 移除），`invested_total/returned_total/dividends_total` 改指新键 `contributed/returned/dividends`，新增 `treasury`（店铺周转金）；`r_invest_agreed` 勾选联动由"补 share 10%"改为联动四门店开启（对齐 2.5.0 投资=店铺扩张语义）；枯木数值 41 → 40；归途之书 `v1.3.13 → v1.4.0`（对照 `rv140`，56 键 55 存活 + 1 动态键零删）；
+  - **便利店"遇欲"补全（Dol-Optimization）**：`opt_needmeet` 显示名改"遇欲（Needmeet）· 好感"；新增 12 个便利店库存键（`daily.conveniencestoregoods.中文键` 0-99，需存档已进过便利店）；
+  - **面板按钮合并**：右上角「收起」「关闭」行为一致，删除「收起」只留「关闭」；
+  - **测试同步 5 处断言**（归途 1.4.0 / 枯木 2.5.0 / 投资联动四门店 / 标题按钮）；全链 6 步全绿 + codegraph sync；升版 1.9.8 双源完成；
 - **v1.9.7（2026-10-25 · 已发布，1.9.6 发布后的变更归入本版）**：
   - **源码工程化**：04/06 大文件按主题拆 7 段（src 17→22 段，产物 SHA 字节级不变 `ce47e3aa`）；6 个适配器工具路径同步改指 `04a-modcheat-adapters.js`（自查发现旧引用会挂，已实跑验证）；README 目录树同步；验证链完善（run_all.ps1 步骤编号 [1/6]-[6/6]、全绿后自动 codegraph sync、pre-commit 文案同步、UI 非热路径加载后置）；
   - **适配器版本声明同步**：枯木逢春 modName `2.4.6 → 2.4.7`、归途之书 `v1.3.12 → v1.3.13`（与已装 game 官方包对齐，功能引入版本注释未动）；更新检测 UPDATES 3 → 1；
@@ -535,16 +545,16 @@ MapleBirchCE/（git 源码真相源）
 
 `githooks/pre-commit` 随仓库提交；紧急绕过可用 `git commit --no-verify`（不推荐）。非 Windows 环境无 `powershell.exe` 时钩子自动跳过，不阻塞提交。
 
-**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令（或手动：build → check → smoke → 全量回归）→ 打包 `pack_v11.ps1` → `verify_v11.ps1`（boot 版本 + 包内 SHA == 构建产物）→ verifier 校验 → 交付。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
+**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（build → 语法 → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
 
 **第三方模组升级核对（audit_adapters.js）**：模组发布新版后，运行
-`node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `SmartPhone`。
+`node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `smartphone`。
 
 **缺失条目自动定案（resolve_missing.js）**：`audit_adapters.js` 报出的"缺失"多为盲区假报（`this.state.xxx` 别名访问、twee 别名、动态键 `obj[_ordinand].leaf`），逐条人工 grep 验证很费时。运行
 `node tools/resolve_missing.js <适配器id> <新源码目录>` 自动判定每条缺失为 **KEEP**（源码确实存在，audit 误报）/ **REVIEW**（疑似存在需复核）/ **REMOVE**（零证据真缺失，模组删字段）。证据链六类：字面 V/$root 路径、连写 parent.leaf、父根定义块 leaf 类型/默认值、`this.state.leaf` + state 绑定属主校验、叶子键字符串/动态键、零证据。判定原则：宁可"存在"不误删，REMOVE 只给零证据或"属主不符+模块目录零出现"。已对枯木逢春 2.4.1（42 条全 KEEP，含 duties.completed）/ 归途之书 1.3.7（56 条全 KEEP，含 rite_round/faith_band/动态键）/ MLI 0.1.8.0（1 条 KEEP）实测，与人工 grep 结论一致。
 
 **框架兼容性核对（check_framework_api.js）**：maplebirchFramework 发布新版时，先下载新版 `.mod.zip` 解压出 `dist/inject_early.js`，运行
-`node tools/check_framework_api.js <inject_early.js 路径>` 核对 CE 运行时依赖的框架 API（`window.maplebirch` / `maplebirch.get` / `maplebirch.npc(.data)` / `maplebirch.temporary.traitLists`）是否全部保留。核心 API 全保留才把 `tools/check_mod_updates.js` 框架渠道的 `declOverride` 更新为新版本。已核对 5.4.12→**5.5.0**（2026-10-19）：核心 6 项全过，`setup.MapleBirch` 回退缺失无害（5.5.0 走 `window.maplebirch` 主路径，回退仅老环境兜底）。
+`node tools/check_framework_api.js <inject_early.js 路径>` 核对 CE 运行时依赖的框架 API（`window.maplebirch` / `maplebirch.get` / `maplebirch.npc(.data)` / `maplebirch.temporary.traitLists`）是否全部保留。核心 API 全保留才把 `tools/check_mod_updates.js` 框架渠道的 `declOverride` 更新为新版本。已核对至 **5.5.6**（2026-10-25，对照 `fw556\unpacked\dist\inject_early.js`）：API 8 项全过；`setup.MapleBirch` / `maplebirch.patch` 缺失均为非 CE 依赖（CE 0 次调用 patch），与历史各版结论一致 → 判兼容。
 
 **v1.8.4 select.type 崩溃的防再犯体系**（三层）：
 - 源码已删除对 `<select>` 赋值只读 `type` 的代码（留注释警示）；

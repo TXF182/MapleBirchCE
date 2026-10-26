@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.7";
+	var MCE_VERSION = "1.9.9";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -180,7 +180,7 @@
 		"quinn": "奎恩", "darryl": "达里尔", "niki": "尼奇", "luna": "露娜", "raven": "渡鸦", "ivory wraith": "怨灵", "adian": "阿电",
 		"zephyr": "泽菲尔", "morgan": "摩根", "river": "瑞沃", "sirris": "西里斯", "night monster": "夜魔",
 		/* v1.8.3：模组枚举角色中文映射（音译初版，可在游戏内按实际名称校对调整） */
-		"tsukihan": "月半", "rowan": "罗文", "adrian": "阿德里安", "marlow": "马洛",
+		"tsukihan": "月羽", "rowan": "罗文", "adrian": "阿德里安", "marlow": "马洛",
 		"grant": "格兰特", "needmeet": "尼德米特", "feng": "老冯",
 		/* v1.8.19：Maplebirch 恋爱扩展/模组注入角色（用户实测角色页仍有英文名） */
 		"seath": "希斯", "alice": "爱丽丝", "liddell": "利德尔"
@@ -1522,7 +1522,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.3.13",
+			modName: "默示录：归途之书 v1.4.0",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -1725,7 +1725,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.4.7",
+			modName: "枯木逢春 · Deadwood Reblooms 2.5.0",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -1779,7 +1779,16 @@
 				{ key: "sl_heist_stage", name: "街道 · 劫案阶段（2.4.6 自查优化新增）", varPath: "StreetLife.heist.stage",
 				  levels: ["idle", "prep", "entry", "challenge", "vault", "escape", "settlement", "closed"],
 				  labels: ["未开始", "筹备", "潜入", "关卡", "金库", "逃出", "结算", "已关闭"],
-				  note: "模组 HeistState.stage 状态机：劫案推进线；写 closed 会触发结算读取（outcome 未设时按失败结算），建议配合已筹备内容逐步写" }
+				  note: "模组 HeistState.stage 状态机：劫案推进线；写 closed 会触发结算读取（outcome 未设时按失败结算），建议配合已筹备内容逐步写" },
+				{ key: "shrine_stage", name: "神社 · 黯羽神社线阶段（2.5.0 说明页新增）", varPath: "MoreTransformations.shrine.stage",
+				  levels: [0, 1, 2, 3],
+				  labels: ["未开始", "已收信", "已获指路与鸦羽项链", "已到访认识月羽"],
+				  sync: { set: [
+					{ path: "MoreTransformations.shrine.feeds", value: 3, if: { min: 1 } },
+					{ path: "MoreTransformations.raven.met", value: true, if: { min: 1 } },
+					{ path: "maplebirch.npc.Tsukihan.init", value: 1, if: { min: 3 } }
+				  ] },
+				  note: "神社线：0 未开始 → 1 已接过渡鸦衔来的信（需喂鸦≥3 次且已遇见渡鸦，写 1+ 自动补 feeds=3 与已遇见渡鸦）→ 2 已交信给格威岚获鸦羽项链（项链为衣柜物品，不代发）→ 3 森林深度 20-40 神社小路到访认识 19 岁月羽（血月/追猎关闭；写 3 自动补月羽已认识 init=1，月羽 npc 数值请到月羽键写入）；写 0 为重置不联动" }
 			],
 			abilities: [
 				{ key: "r_rebellion", name: "罗宾 · 反抗贝利路线", varPath: "RobinExpansion.rebellion", type: "boolean" },
@@ -1845,12 +1854,8 @@
 				{ key: "vp_expunge_used", name: "神圣转化 · 驱除已用标记（2.4.6 自查优化新增）", varPath: "VanillaPlus.divineTransformations.expungeUsed", type: "boolean",
 				  note: "勾选视为已用过一次驱除（expunge），影响转化净化类剧情判定" },
 				{ key: "r_invest_agreed", name: "罗宾 · 投资协议已达成（2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.agreed", type: "boolean",
-				  sync: { set: [{ path: "RobinExpansion.investment.share", value: function (V) {
-					var inv = V.RobinExpansion && V.RobinExpansion.investment;
-					var cur = inv ? inv.share : 0;
-					return (cur === 0 || cur === undefined) ? 10 : cur; /* 缺省补 10% 股份，已有值不覆盖 */
-				  } }] },
-				  note: "罗宾投资线开启标记：勾选视为已签订投资协议，进入市场结算周期；自动联动股份比例（当前为 0 时补 10%，已有值不覆盖）——不联动分红按 0% 无收益" },
+				  sync: { set: [{ path: "RobinExpansion.shop", value: true }, { path: "RobinExpansion.shop_flowers", value: true }, { path: "RobinExpansion.shop_popcorn", value: true }, { path: "RobinExpansion.shop_balloons", value: true }] },
+				  note: "罗宾投资线开启标记：勾选视为已签订投资协议，进入市场结算周期；自动联动四门店开启（2.5.0 已移除股份 share 键，不再联动股份；分红键 dividends 单独可写）" },
 				{ key: "r_shop_bank", name: "罗宾 · 银行已支持店铺（2.4.6 自查优化新增）", varPath: "RobinExpansion.shop_bank_supported", type: "boolean" },
 				{ key: "r_shop_flowers", name: "罗宾 · 花摊已开（2.4.6 自查优化新增）", varPath: "RobinExpansion.shop_flowers", type: "boolean" },
 				{ key: "r_shop_popcorn", name: "罗宾 · 爆米花摊已开（2.4.6 自查优化新增）", varPath: "RobinExpansion.shop_popcorn", type: "boolean" },
@@ -1887,7 +1892,9 @@
 				{ key: "tr_tool_bike", name: "交通 · 自行车维修工具（2.4.6 自查优化新增）", varPath: "Transport.repair_tools.bicycle", type: "boolean",
 				  note: "用于自行车修理流程；需存档已有自行车才用得上" },
 				{ key: "tr_tool_motor", name: "交通 · 摩托维修工具（2.4.6 自查优化新增）", varPath: "Transport.repair_tools.motor", type: "boolean",
-				  note: "用于摩托车修理流程；需存档已有摩托车才用得上" }
+				  note: "用于摩托车修理流程；需存档已有摩托车才用得上" },
+				{ key: "raven_flock_met", name: "渡鸦 · 已遇见鸦群（2.5.0 说明页新增）", varPath: "MoreTransformations.raven.met", type: "boolean",
+				  note: "神社线前置：白天/傍晚找鸦群初见得 5 渡鸦点；勾选视为已见过（跳过找鸦群），随后可在白天喂浆果/苹果 +2、模仿鸣叫每日成长" }
 			],
 			scenes: [],
 			values: [
@@ -1931,14 +1938,14 @@
 				  note: "Casino.ts clamp 上限 100：≥60 触发可疑判定、≥100 拒绝服务；赌注赔率随疑心升高（写 0 回到清白）" },
 				{ key: "vp_beauty_bonus", name: "神圣转化 · 容貌加成点（2.4.6 自查优化新增）", varPath: "VanillaPlus.divineTransformations.beautyBonus", type: "number", min: 0, max: 100,
 				  note: "DivineTransformations.ts beautyBonus：转化带来的容貌加成（模组按事件逐步累加），直接写值即时生效" },
-				{ key: "r_invest_share", name: "罗宾 · 投资股份比例%（2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.share", type: "number", min: 0, max: 100,
-				  note: "Investment.ts share：整数百分比，exitValue=估值×股份×退出倍数/100；写高比例直接提高退出收益" },
-				{ key: "r_invest_valuation", name: "罗宾 · 投资估值（英镑，2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.valuation", type: "number", min: 0, max: 1000000,
-				  note: "Investment.ts valuation：公司估值（英镑口径）；估值越高后续结算金额越大" },
-				{ key: "r_invest_total", name: "罗宾 · 累计投入（便士，2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.invested_total", type: "number", min: 0, max: 100000000,
-				  note: "Investment.ts invested_total：累计投入以便士计（1英镑=100便士），写 100000 便士=1000 英镑；仅影响统计/汇报口径" },
-				{ key: "r_invest_returned", name: "罗宾 · 累计已收回（便士，2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.returned_total", type: "number", min: 0, max: 100000000 },
-				{ key: "r_invest_dividends", name: "罗宾 · 累计分红（便士，2.4.6 自查优化新增）", varPath: "RobinExpansion.investment.dividends_total", type: "number", min: 0, max: 100000000 },
+				{ key: "r_invest_total", name: "罗宾 · 累计出资（便士，2.5.0 键名改造）", varPath: "RobinExpansion.investment.contributed", type: "number", min: 0, max: 100000000,
+				  note: "2.5.0 由 invested_total 改名 contributed（统计页「店铺合伙累计出资」）：累计出资以便士计（1英镑=100便士），写 100000 便士=1000 英镑；仅影响统计/汇报口径" },
+				{ key: "r_invest_returned", name: "罗宾 · 累计垫款已收回（便士，2.5.0 键名改造）", varPath: "RobinExpansion.investment.returned", type: "number", min: 0, max: 100000000,
+				  note: "2.5.0 由 returned_total 改名 returned（统计页「合伙累计垫款收回」）" },
+				{ key: "r_invest_dividends", name: "罗宾 · 累计分红（便士，2.5.0 键名改造）", varPath: "RobinExpansion.investment.dividends", type: "number", min: 0, max: 100000000,
+				  note: "2.5.0 由 dividends_total 改名 dividends（统计页「合伙累计分红」）" },
+				{ key: "r_invest_treasury", name: "罗宾 · 店铺周转金（便士，2.5.0 新增）", varPath: "RobinExpansion.investment.treasury", type: "number", min: 0, max: 100000000,
+				  note: "2.5.0 新增：合伙店铺周转金（经济页「店铺周转金」展示），写高可覆盖店铺采购周转" },
 				{ key: "fin_bank_balance", name: "银行 · 存款余额（便士，2.4.6 自查优化新增）", varPath: "Finance.bank.balance", type: "number", min: 0, max: 100000000,
 				  sync: { set: [{ path: "Finance.bank.opened", value: true }, { path: "Finance.bank.debit_card", value: true }] },
 				  note: "BankState.balance 以便士存（1英镑=100便士）：写 1000000=1万英镑；余额可用于借记卡消费/理财；写入自动联动开户+借记卡（模组可用资金判定=cashOnHand+(opened&&debit_card?balance:0)，不联动钱存着但不可用）；注意与原版 $money 分开计" },
@@ -1951,7 +1958,38 @@
 				{ key: "tr_parts_motor", name: "交通 · 摩托零件（2.4.6 自查优化新增）", varPath: "Transport.repair_parts.motor", type: "number", min: 0, max: 99,
 				  note: "用于摩托车修理流程；需存档已有摩托车才用得上" },
 				{ key: "sl_bounty_completed", name: "街道 · 已结悬赏数（2.4.6 自查优化新增）", varPath: "StreetLife.bounties.completed", type: "number", min: 0, max: 999,
-				  note: "BountiesState.completed：已完结悬赏计数（成就「Deadwood First Bounty」判定 ≥1）" }
+				  note: "BountiesState.completed：已完结悬赏计数（成就「Deadwood First Bounty」判定 ≥1）" },
+				{ key: "ps_sanity", name: "心智 · 理智（2.5.0 说明页新增）", varPath: "Psyche.sanity", type: "number", min: -500, max: 1000,
+				  note: "心智系统：理智范围 -500~1000 初始 1000；8 档状态（混乱/迷乱/心乱/恍惚/动摇/安定/清醒/专注）与学习收益（60%~120%）由理智自动结算，影响课堂/读书等科学数学活动；睡/祈祷/写作可恢复（当日额度约 30 点、高位减半）；需枯木模组运行初始化（V.Psyche 由模组创建），未初始化写会被拒绝" },
+				{ key: "ps_fear", name: "心智 · 恐惧（2.5.0 说明页新增）", varPath: "Psyche.fear", type: "number", min: 0, max: 1000,
+				  note: "恐惧范围 0~1000 初始 0，短期受惊用；≥400 且非战斗/追猎/剧情强制时可安抚（冷却 cooldown_until，模组结算）；写 0 回平静，写 1000 满值；需枯木模组运行初始化（V.Psyche 由模组创建），未初始化写会被拒绝" },
+				{ key: "pc_horse_build", name: "转化 · 马（2.5.0 说明页新增）", varPath: "maplebirch.transformation.horse.build", type: "number", min: 0, max: 100,
+				  note: "马转化共六阶段：进度在角色属性页、外观在镜子选择；build≥1 后停止衰减（隐藏部位不失去能力）；正常成长=雷米骑术课/林间果实/追回受惊马匹/荒原骑乘；写 100 直达满级（模组按 build 结算阶段）" },
+				{ key: "pc_whale_build", name: "转化 · 鲸（2.5.0 说明页新增）", varPath: "maplebirch.transformation.whale.build", type: "number", min: 0, max: 100,
+				  note: "鲸转化六阶段：海滩远处礁石岩石水池漂浮 10 分钟 +1、阁楼白米饭开启鲸化、已有点数后游泳/潜水继续积累（满游泳技能也有效）；写 100 直达满级" },
+				{ key: "pc_raven_build", name: "转化 · 渡鸦（2.5.0 说明页新增）", varPath: "maplebirch.transformation.raven.build", type: "number", min: 0, max: 100,
+				  note: "渡鸦转化六阶段：白天/傍晚找鸦群初见 +5、喂浆果/苹果 +2 每份、模仿鸣叫每日成长；写 100 直达满级（渡鸦羽毛项链防衰减，非代发物品）" },
+				{ key: "shrine_feeds", name: "神社 · 喂鸦次数（2.5.0 说明页新增）", varPath: "MoreTransformations.shrine.feeds", type: "number", min: 0, max: 999,
+				  sync: { set: [{ path: "MoreTransformations.raven.met", value: true, if: { min: 1 } }] },
+				  note: "神社收信前置：三个不同日子喂过鸦群（≥3）才可接渡鸦衔来的信；模组喂鸦前提=已遇见鸦群 raven.met，写 1+ 自动补已遇见；写 3 即可推进（喂食同时给渡鸦点）" },
+				{ key: "tsuki_love", name: "月羽 · 好感（2.5.0 说明页新增）", varPath: "maplebirch.npc.Tsukihan.love", type: "number", min: 0, max: 100,
+				  note: "月羽小屋进入实际判定=神社线完成（stage3）+已认识（init1）+npc活跃，好感不参与门禁；好感档位作用于互动：≥20 且恋人解锁聊天/亲密（Affection）、≥30 对应说明页「受邀入内」文案、≥50 解锁独处；聊天/一起读书（10 分钟每天一次压力-4 好感+1）/整理神社/购物提篮等提升；月羽 npc 需存档已初始化" },
+				{ key: "tsuki_dom", name: "月羽 · 任性（2.5.0 说明页新增）", varPath: "maplebirch.npc.Tsukihan.dom", type: "number", min: 0, max: 100,
+				  note: "模组 dom=Wilfulness 任性（初始 10）：周二购物顺着挑饼干/未获许可闯入浴室（好感-2 任性+2）等事件影响；写 0-100 直接调" },
+				{ key: "tsuki_lust", name: "月羽 · 欲望（2.5.0 说明页新增）", varPath: "maplebirch.npc.Tsukihan.lust", type: "number", min: 0, max: 100,
+				  note: "恋人亲密线：性欲≥30 且当日尚有亲密机会时可继续亲近（浴室同洗后）；写 100 直达上限；月羽 npc 需存档已初始化" },
+				{ key: "tsuki_init", name: "月羽 · 已认识（2.5.0 说明页新增）", varPath: "maplebirch.npc.Tsukihan.init", type: "number", min: 0, max: 1,
+				  note: "神社线 stage 3 首次到访自动认识 19 岁月羽（模组判定 init===1）；写 1 视为已认识；注意：月羽 npc 需存档已初始化（曾触发 npcInit），全新存档请先走神社线到访" },
+				{ key: "tsuki_lover", name: "月羽 · 恋人（2.5.0 说明页新增）", varPath: "loveInterestList", type: "list", options: ["Tsukihan"],
+				  note: "小屋邀请权限 = 好感≥30 且已选为恋人：追加把 Tsukihan 加入原版恋人列表（loveInterestList），配合好感键即受邀入内；小屋可同睡/洗澡（20:00-20:30，雨中 18:00）/聊天读书" },
+				{ key: "or_orders_completed", name: "果园 · 已交付供货订单（2.5.0 说明页新增）", varPath: "Orchard.orders_completed", type: "number", min: 0, max: 999,
+				  note: "果园市场线：向罗宾市场供货完成的订单数（orders_completed），影响重复订单量；写高解锁大额供货" },
+				{ key: "or_contracts_completed", name: "果园 · 已交付农场合同（2.5.0 说明页新增）", varPath: "Orchard.contracts_completed", type: "number", min: 0, max: 999,
+				  note: "果园农场合同线：交付雷米农场合同数（contracts_completed）" },
+				{ key: "or_sales_income", name: "果园 · 累计销售收入（便士，2.5.0 说明页新增）", varPath: "Orchard.sales_income", type: "number", min: 0, max: 100000000,
+				  note: "果园供货累计收入（便士，1英镑=100便士）：仅统计口径，写高即账目好看" },
+				{ key: "or_regular_visits", name: "果园 · 常客到访次数（2.5.0 说明页新增）", varPath: "Orchard.regular_visits", type: "number", min: 0, max: 999,
+				  note: "果园常客线：regular_visits 累计到访次数（常客系统按次数推进）" }
 			]
 		}
 	};
@@ -2033,13 +2071,37 @@
 			],
 			scenes: [],
 			values: [
-				{ key: "opt_needmeet", name: "尼德米特 好感（0-100，≥80 解锁恋爱线）", varPath: "needmeet_romance", type: "number", min: 0, max: 100,
-				  note: "≥50 信赖，≥80 解锁 loveInterest/恋爱线；面板写 V 侧，运行时副本在 C.npc.Needmeet.love" },
+				{ key: "opt_needmeet", name: "遇欲（Needmeet）· 好感（0-100，≥80 解锁恋爱线）", varPath: "needmeet_romance", type: "number", min: 0, max: 100,
+				  note: "遇欲便利店店主 NPC：≥50 信赖，≥80 解锁 loveInterest/恋爱线；面板写 V 侧即可（恋爱判定只看此值）；C.npc.Needmeet.love 是「询问他手中的本子」认识剧情的运行时标记，由剧情自然推进" },
 				{ key: "opt_hymen", name: "处女膜修复剩余天数（每日递减）", varPath: "hymenreconstructioncount", type: "number", min: 0, max: 30 },
 				{ key: "opt_hair", name: "发质（0-100）", varPath: "hairtexture", type: "number", min: 0, max: 100,
 				  note: "模组自建键（原版清单无），随每小时 +0.05 增长" },
 				{ key: "opt_nicotine", name: "尼古丁依赖（0-95）", varPath: "nicotine", type: "number", min: 0, max: 95 },
-				{ key: "opt_wardrobe", name: "衣柜扩容值（模组自标「作弊」）", varPath: "options.DolOptimization.LargerWardrobeValue", type: "number", min: 1, max: 9999 }
+				{ key: "opt_wardrobe", name: "衣柜扩容值（模组自标「作弊」）", varPath: "options.DolOptimization.LargerWardrobeValue", type: "number", min: 1, max: 9999 },
+				{ key: "opt_cs_condom", name: "便利店 · 避孕套库存", varPath: "daily.conveniencestoregoods.避孕套", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店柜台商品每日库存（初始 18，售出递减、不自动补货）；首次需先进入遇欲便利店一次（进入即初始化库存对象）" },
+				{ key: "opt_cs_pregtest", name: "便利店 · 验孕棒库存", varPath: "daily.conveniencestoregoods.验孕棒", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店柜台商品每日库存（初始 5，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_cig", name: "便利店 · 香烟库存", varPath: "daily.conveniencestoregoods.香烟", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店柜台商品每日库存（初始 27，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_sober", name: "便利店 · 醒酒药库存", varPath: "daily.conveniencestoregoods.醒酒药", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店柜台商品每日库存（初始 4，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_frigid", name: "便利店 · 降火药库存", varPath: "daily.conveniencestoregoods.降火药", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店柜台商品每日库存（初始 4，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_energy", name: "便利店 · 能量饮料库存", varPath: "daily.conveniencestoregoods.能量饮料", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店货架商品每日库存（初始 27，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_wash", name: "便利店 · 洗面奶库存", varPath: "daily.conveniencestoregoods.洗面奶", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店货架商品每日库存（初始 6，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_shampoo", name: "便利店 · 洗发水库存", varPath: "daily.conveniencestoregoods.洗发水", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店货架商品每日库存（初始 6，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_egg", name: "便利店 · 鸡蛋库存", varPath: "daily.conveniencestoregoods.鸡蛋", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店外摆食材每日库存（初始 40，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_tomato", name: "便利店 · 番茄库存", varPath: "daily.conveniencestoregoods.番茄", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店外摆食材每日库存（初始 21，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_apple", name: "便利店 · 苹果库存", varPath: "daily.conveniencestoregoods.苹果", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店外摆食材每日库存（初始 21，售出递减、不自动补货）；首次需先进入遇欲便利店一次" },
+				{ key: "opt_cs_orange", name: "便利店 · 橙子库存", varPath: "daily.conveniencestoregoods.橙子", type: "number", min: 0, max: 99,
+				  note: "遇欲便利店外摆食材每日库存（初始 21，售出递减、不自动补货）；首次需先进入遇欲便利店一次" }
 			]
 		}
 	};
@@ -2209,7 +2271,11 @@
 			if (Array.isArray(syncData.set)) {
 				syncData.set.forEach(function (s) {
 					var r = cheatResolvePath(s.path);
-					if (r.ok) { r.parent[r.leaf] = typeof s.value === "function" ? s.value(V) : s.value; }
+					/* v1.9.9 sync.set 条件扩展：s.if = { min / max } 按「主写入后的新值」判定，
+					   不满足则跳过该联动（如写 shrine.stage=0 重置时不补 feeds/init）。无 if 字段=无条件，兼容旧声明。 */
+					if (r.ok && (!s.if || ((typeof s.if.min !== "number" || newVal >= s.if.min) && (typeof s.if.max !== "number" || newVal <= s.if.max)))) {
+						r.parent[r.leaf] = typeof s.value === "function" ? s.value(V) : s.value;
+					}
 				});
 			}
 			if (syncData.copyMax && syncData.copyMax.path && Array.isArray(syncData.copyMax.order)) {
@@ -7081,13 +7147,9 @@ function renderPlayerEdit() {
 		errBtn.type = "button";
 		errBtn.addEventListener("click", mbCEToggleErrBox);
 		header.appendChild(errBtn);
-		var minBtn = el("button", "mce-min", "收起");
-		minBtn.type = "button";
-		minBtn.title = "收起";
 		var closeBtn = el("button", "mce-close", "关闭");
 		closeBtn.type = "button";
 		closeBtn.title = "关闭";
-		header.appendChild(minBtn);
 		header.appendChild(closeBtn);
 
 		var tabs = el("div", "mce-tabs");
@@ -7135,10 +7197,6 @@ function renderPlayerEdit() {
 		mbCEErrRows = errRows;
 		mbCEUpdateErrBadge();
 
-		minBtn.addEventListener("click", function () {
-			openFlag = false;
-			root.classList.remove("mce-open");
-		});
 		closeBtn.addEventListener("click", close);
 		tabs.addEventListener("click", function (e) {
 			var b = e.target && e.target.closest ? e.target.closest("button[data-tab]") : null;

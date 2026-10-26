@@ -37,7 +37,11 @@
 			if (Array.isArray(syncData.set)) {
 				syncData.set.forEach(function (s) {
 					var r = cheatResolvePath(s.path);
-					if (r.ok) { r.parent[r.leaf] = typeof s.value === "function" ? s.value(V) : s.value; }
+					/* v1.9.9 sync.set 条件扩展：s.if = { min / max } 按「主写入后的新值」判定，
+					   不满足则跳过该联动（如写 shrine.stage=0 重置时不补 feeds/init）。无 if 字段=无条件，兼容旧声明。 */
+					if (r.ok && (!s.if || ((typeof s.if.min !== "number" || newVal >= s.if.min) && (typeof s.if.max !== "number" || newVal <= s.if.max)))) {
+						r.parent[r.leaf] = typeof s.value === "function" ? s.value(V) : s.value;
+					}
 				});
 			}
 			if (syncData.copyMax && syncData.copyMax.path && Array.isArray(syncData.copyMax.order)) {

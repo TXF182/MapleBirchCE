@@ -68,13 +68,9 @@
 		errBtn.type = "button";
 		errBtn.addEventListener("click", mbCEToggleErrBox);
 		header.appendChild(errBtn);
-		var minBtn = el("button", "mce-min", "收起");
-		minBtn.type = "button";
-		minBtn.title = "收起";
 		var closeBtn = el("button", "mce-close", "关闭");
 		closeBtn.type = "button";
 		closeBtn.title = "关闭";
-		header.appendChild(minBtn);
 		header.appendChild(closeBtn);
 
 		var tabs = el("div", "mce-tabs");
@@ -122,10 +118,6 @@
 		mbCEErrRows = errRows;
 		mbCEUpdateErrBadge();
 
-		minBtn.addEventListener("click", function () {
-			openFlag = false;
-			root.classList.remove("mce-open");
-		});
 		closeBtn.addEventListener("click", close);
 		tabs.addEventListener("click", function (e) {
 			var b = e.target && e.target.closest ? e.target.closest("button[data-tab]") : null;

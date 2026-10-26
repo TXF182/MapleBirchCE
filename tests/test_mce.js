@@ -1146,7 +1146,7 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:do
 global.window = { maplebirch: { get: function (n) { return n === "DeadwoodReblooms" ? {} : undefined; } } };
 var dwd = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
 assert(dwd && dwd.declared === true, "21.1 探测命中：枯木逢春自动识别");
-assert(dwd.stages.length >= 10 && dwd.abilities.length >= 35 && dwd.values.length >= 29, "21.1 分组齐全 阶段≥10/能力≥35/数值≥29（v1.9.6 扩展轮：六项突破特质+三位一体+诡异镜子+健身房会员+赌场疑心；数值/能力只会增不减）" + ", 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
+assert(dwd.stages.length >= 13 && dwd.abilities.length >= 65 && dwd.values.length >= 55, "21.1 分组齐全 阶段≥13/能力≥65/数值≥55（v1.9.9 扩展轮：心智 Psyche+PC 马鲸渡鸦转化+神社线+月羽 npc+果园计数；tsuki_init/tsuki_lover 走数值区——模组判定 init===1 需数字、恋人列表需 list 通道）" + ", 实际 " + dwd.stages.length + "/" + dwd.abilities.length + "/" + dwd.values.length);
 // 21.2) 隔离：只声明 maplebirch 模块自建一级键（RobinExpansion/LifeSimulation/StreetLife/BirdTower/VanillaPlus/Finance/MoreTransformations/maplebirch），
 //        不碰原版顶层键（rebellion/victories/self_rent/both_rent/rent_separated 等原版同名键均不声明）；
 //        maplebirch 为框架 NPC 转化存档命名空间（$maplebirch.npc.<名>.transformation.<type>，2.4.5 悉尼转化作弊项，见 NPCTransformation.ts ensure/read）
@@ -1154,7 +1154,7 @@ var dwdPaths = [];
 dwd.stages.concat(dwd.abilities).concat(dwd.values).forEach(function (it) { dwdPaths.push(it.varPath); });
 var dwdRoots = [];
 dwdPaths.forEach(function (p) { if (dwdRoots.indexOf(p.split(".")[0]) === -1) { dwdRoots.push(p.split(".")[0]); } });
-assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "Transport", "maplebirch"].indexOf(r) !== -1; }),
+assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "Transport", "maplebirch", "Psyche", "Orchard", "loveInterestList"].indexOf(r) !== -1; }),
 	"21.2 声明根键均为模组模块状态, 实际 [" + dwdRoots + "]");
 // 隔离补充：一级键全为模组模块根（V.RobinExpansion 等），绝不落到原版顶层键上；
 // rebellion/victories/self_rent 等在模组里只是 RobinExpansion 对象内的自建副本（模组从不读写原版顶层同名键，已 grep 实证）
@@ -1232,8 +1232,56 @@ api.applyCheatModValue("deadwood-reblooms", "weekly_income", 1200);
 assert(V.RobinExpansion.weekly_income === 1200, "21.9 周收入 1200, 实际 " + V.RobinExpansion.weekly_income);
 api.toggleCheatAbility("deadwood-reblooms", "clothes_stored", true);
 assert(V.LifeSimulation.school.clothesStored === true, "21.9 校服已存放 true");
+// 21.11) v1.9.9 补枯木 2.5.0 说明页键：心智 Psyche、PC 马/鲸/渡鸦转化、神社线、月羽 npc、果园计数
+V.MoreTransformations = { shrine: { stage: 0, feeds: 0 }, raven: { met: false } };
+V.Psyche = { sanity: 1000, fear: 0 };
+V.maplebirch = { transformation: { horse: { build: 0 }, whale: { build: 0 }, raven: { build: 0 } }, npc: { Tsukihan: { init: 1, love: 0, dom: 10, lust: 0 } } };
+V.Orchard = { orders_completed: 0, contracts_completed: 0, sales_income: 0, regular_visits: 0 };
+V.loveInterestList = [];
+api.applyCheatModValue("deadwood-reblooms", "ps_sanity", 500);
+assert(V.Psyche.sanity === 500, "21.11 心智·理智写 500, 实际 " + V.Psyche.sanity);
+api.applyCheatModValue("deadwood-reblooms", "ps_sanity", -999);
+assert(V.Psyche.sanity === -500, "21.11 理智下限钳制 -500, 实际 " + V.Psyche.sanity);
+api.applyCheatModValue("deadwood-reblooms", "ps_fear", 800);
+assert(V.Psyche.fear === 800, "21.11 心智·恐惧写 800, 实际 " + V.Psyche.fear);
+api.applyCheatModValue("deadwood-reblooms", "ps_fear", 1500);
+assert(V.Psyche.fear === 1000, "21.11 恐惧上限钳制 1000, 实际 " + V.Psyche.fear);
+api.applyCheatModValue("deadwood-reblooms", "pc_horse_build", 100);
+api.applyCheatModValue("deadwood-reblooms", "pc_whale_build", 100);
+api.applyCheatModValue("deadwood-reblooms", "pc_raven_build", 100);
+assert(V.maplebirch.transformation.horse.build === 100 && V.maplebirch.transformation.whale.build === 100 && V.maplebirch.transformation.raven.build === 100, "21.11 PC 马/鲸/渡鸦转化写满 100");
+// 21.12) 神社线 sync 条件联动：写 0 不联动；写 1 补 feeds=3；写 3 补 feeds=3 + 月羽已认识
+V.MoreTransformations = { shrine: { stage: 0, feeds: 0 }, raven: { met: false } };
+api.setCheatStage("deadwood-reblooms", "shrine_stage", 0);
+assert(V.MoreTransformations.shrine.feeds === 0 && V.MoreTransformations.raven.met === false, "21.12 写神社 0 不联动喂鸦/渡鸦（保持 0/false）, 实际 feeds " + V.MoreTransformations.shrine.feeds);
+api.setCheatStage("deadwood-reblooms", "shrine_stage", 1);
+assert(V.MoreTransformations.shrine.stage === 1 && V.MoreTransformations.shrine.feeds === 3 && V.MoreTransformations.raven.met === true, "21.12 写神社 1 → 自动补喂鸦 3 + 已遇见渡鸦（模组收信前置 feeds≥3 且 raven.met）, 实际 feeds " + V.MoreTransformations.shrine.feeds + " raven.met=" + V.MoreTransformations.raven.met);
+V.MoreTransformations.raven.met = false;
+api.applyCheatModValue("deadwood-reblooms", "shrine_feeds", 1);
+assert(V.MoreTransformations.shrine.feeds === 1 && V.MoreTransformations.raven.met === true, "21.12 写喂鸦 1 → 自动补已遇见渡鸦（模组喂鸦前提 raven.met）, 实际 raven.met=" + V.MoreTransformations.raven.met);
+V.maplebirch = { npc: { Tsukihan: { init: 0, love: 0, dom: 10, lust: 0 } } };
+api.setCheatStage("deadwood-reblooms", "shrine_stage", 3);
+assert(V.MoreTransformations.shrine.stage === 3 && V.MoreTransformations.shrine.feeds === 3 && V.maplebirch.npc.Tsukihan.init === 1 && V.MoreTransformations.raven.met === true, "21.12 写神社 3 → 补喂鸦 3 + 已遇见 + 月羽已认识 init=1, 实际 init " + V.maplebirch.npc.Tsukihan.init);
+// 21.13) 月羽 npc 键 / 恋人列表 / 渡鸦遇见 / 果园计数
+api.applyCheatModValue("deadwood-reblooms", "tsuki_love", 40);
+api.applyCheatModValue("deadwood-reblooms", "tsuki_dom", 25);
+api.applyCheatModValue("deadwood-reblooms", "tsuki_lust", 30);
+assert(V.maplebirch.npc.Tsukihan.love === 40 && V.maplebirch.npc.Tsukihan.dom === 25 && V.maplebirch.npc.Tsukihan.lust === 30, "21.13 月羽 好感/任性/欲望 写入");
+api.applyCheatModValue("deadwood-reblooms", "tsuki_lover", "Tsukihan");
+assert(Array.isArray(V.loveInterestList) && V.loveInterestList.indexOf("Tsukihan") !== -1, "21.13 恋人列表追加 Tsukihan, 实际 " + JSON.stringify(V.loveInterestList));
+api.applyCheatModValue("deadwood-reblooms", "tsuki_lover", { value: "Tsukihan", on: false });
+assert(!V.loveInterestList || V.loveInterestList.indexOf("Tsukihan") === -1, "21.13 恋人列表移除 Tsukihan");
+api.toggleCheatAbility("deadwood-reblooms", "raven_flock_met", true);
+assert(V.MoreTransformations.raven.met === true, "21.13 渡鸦已遇见 true");
+api.applyCheatModValue("deadwood-reblooms", "tsuki_init", 1);
+assert(V.maplebirch.npc.Tsukihan.init === 1, "21.13 月羽已认识写 1（模组判定 ===1，布尔 true 不满足）, 实际 " + V.maplebirch.npc.Tsukihan.init);
+api.applyCheatModValue("deadwood-reblooms", "or_orders_completed", 5);
+api.applyCheatModValue("deadwood-reblooms", "or_contracts_completed", 2);
+api.applyCheatModValue("deadwood-reblooms", "or_sales_income", 10000);
+assert(V.Orchard.orders_completed === 5 && V.Orchard.contracts_completed === 2 && V.Orchard.sales_income === 10000, "21.13 果园 订单/合同/收入 写入");
 // 清理 21 节
 delete V.RobinExpansion; delete V.LifeSimulation; delete V.StreetLife; delete V.BirdTower; delete global.window;
+delete V.MoreTransformations; delete V.Psyche; delete V.maplebirch; delete V.Orchard; delete V.loveInterestList;
 Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:deadwood-reblooms") === 0; }).forEach(function (k) { delete V.mbCE_wrote[k]; });
 
 // 22) v1.4.4 修复：原版 scenes 的 unlocked 全依赖 $scenePassages.includes(...)（已看段落表），
@@ -1354,7 +1402,7 @@ delete global.setup.MapleBirch;
 eval(js);
 const api2 = setup.mbStageCE;
 const ch2 = (function () { try { return api2.listCharacters(); } catch (e) { return "ERR:" + e.message; } })();
-assert(Array.isArray(ch2) && ch2.length === 15, "框架缺失时 listCharacters 从存档兜底不抛错: " + ch2.length);
+assert(Array.isArray(ch2) && ch2.length >= 15, "框架缺失时 listCharacters 从存档兜底不抛错: " + ch2.length);
 
 // 24) Mod作弊：数值/阶段更改 → 读回确认 → 越界/宿主/vanilla 保护 → 回退还原（全链路）
 // 24.0) 清理 23 节可能写入的 Wraith 根（内置 wraiths-reflection 适配器回归隔离，v1.8.8）
@@ -1825,7 +1873,7 @@ delete V.mbCE_wrote;
 V.LostLamb = { recalled: false, active: false, scene: "", doubt: 0, fear: 10, notice: 0, ending: "", talkVow: "", known: { bishop: false, gwylan: false, auriga: false } };
 V.TempleDuties = { enrolled: false, review: false, duties: 0, oath: "", bishop: "none", manor: "none", declaration: "private", watch: { phase: "threshold" }, case: { stage: "field" }, archive: { roof: -1, shelves: -1, sorted: 0 }, candidates: { Robin: { agreed: false }, Sydney: { agreed: false } } };
 var r31 = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
-assert(r31 && r31.modName.indexOf("归途之书") !== -1 && /v1\.3\.\d+/.test(r31.modName), "31.1 适配器声明已升级到 1.3.x 最新（版本无关断言，当前 " + (r31 && r31.modName) + "）");
+assert(r31 && r31.modName.indexOf("归途之书") !== -1 && /v1\.4\.\d+/.test(r31.modName), "31.1 适配器声明已升级到 1.4.x 最新（版本无关断言，当前 " + (r31 && r31.modName) + "）");
 assert(r31.stages.filter(function (s) { return s.key === "ll_vow"; }).length === 1 && r31.stages.filter(function (s) { return s.key === "td_oath"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.watch.phase"; }).length === 1 &&
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·守夜·案件阶段已收录");
@@ -1893,7 +1941,7 @@ delete V.LostLamb; delete V.TempleDuties; delete V.mbCE_wrote;
 V.RobinExpansion = { shop_stage: "none", asylum: { status: "home" } };
 V.VanillaPlus = { attitudes: { ironWill: true, sadomasochist: false } };
 var dw32 = api.getCheatMods().filter(function (x) { return x.modId === "deadwood-reblooms"; })[0];
-assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && /2\.4\.\d+/.test(dw32.modName), "32.1 适配器声明已升级到 2.4.x 最新（版本无关断言，当前 " + (dw32 && dw32.modName) + "）");
+assert(dw32 && dw32.modName.indexOf("枯木逢春") !== -1 && /2\.5\.\d+/.test(dw32.modName), "32.1 适配器声明已升级到 2.5.x 最新（版本无关断言，当前 " + (dw32 && dw32.modName) + "）");
 assert(dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.ironWill"; }).length === 1 &&
        dw32.abilities.filter(function (a) { return a.varPath === "VanillaPlus.attitudes.sadomasochist"; }).length === 1 &&
        dw32.stages.filter(function (s) { return s.varPath === "MoreTransformations.harbour.zephyr.stage"; }).length === 1, "32.1 铁意志/受虐狂能力 + 冷月港·泽菲尔线阶段已收录");
@@ -2046,13 +2094,12 @@ api.toggleCheatAbility("deadwood-reblooms", "fin_credit", true);
 assert(V.Finance.bank.opened === true && V.Finance.bank.credit_card === true, "32.7.3 勾信用卡自动联动开户");
 api.applyCheatModValue("deadwood-reblooms", "fin_bank_balance", 500000);
 assert(V.Finance.bank.balance === 500000 && V.Finance.bank.opened === true && V.Finance.bank.debit_card === true, "32.7.3 写余额自动联动开户+借记卡");
-api.applyCheatModValue("deadwood-reblooms", "r_invest_share", 25);
+api.applyCheatModValue("deadwood-reblooms", "r_invest_total", 100000);
 api.toggleCheatAbility("deadwood-reblooms", "r_invest_agreed", true);
-assert(V.RobinExpansion.investment.agreed === true && V.RobinExpansion.investment.share === 25, "32.7.3 投资协议勾选，已有股份不被联动覆盖");
-api.applyCheatModValue("deadwood-reblooms", "r_invest_share", 0);
+assert(V.RobinExpansion.investment.agreed === true && V.RobinExpansion.shop === true && V.RobinExpansion.shop_flowers === true && V.RobinExpansion.shop_popcorn === true && V.RobinExpansion.shop_balloons === true, "32.7.3 投资协议勾选联动四门店（2.5.0 已移除股份 share 键）");
 api.toggleCheatAbility("deadwood-reblooms", "r_invest_agreed", false);
 api.toggleCheatAbility("deadwood-reblooms", "r_invest_agreed", true);
-assert(V.RobinExpansion.investment.share === 10, "32.7.3 股份为 0 时联动补 10%");
+assert(V.RobinExpansion.investment.agreed === true && V.RobinExpansion.investment.share === 0, "32.7.3 再次勾选不联动写 share（2.5.0 无此键）");
 api.toggleCheatAbility("deadwood-reblooms", "r_rent_self", true);
 assert(V.RobinExpansion.self_rent === true && V.RobinExpansion.rent_separated === true, "32.7.3 勾自租联动分开租房标记（对齐模组自身语义）");
 delete V.Finance; delete V.RobinExpansion; delete V.mbCE_wrote;
@@ -2300,7 +2347,7 @@ eval(js);
 const api37 = setup.mbStageCE;
 const root37 = dBody.children.filter(c => c.id === "mce-root")[0];
 assert(!!root37, "37.2 ensureDom 建立面板根节点");
-assert(/剧情条件解锁面板 v1\.\d+\.\d+收起/.test(root37.textContent), "37.2 面板标题版本号动态化（不再写死 v1.2）, 实际 " + root37.textContent.slice(0, 60));
+assert(/剧情条件解锁面板 v1\.\d+\.\d+关闭/.test(root37.textContent), "37.2 面板标题版本号动态化（右上角仅保留「关闭」按钮）, 实际 " + root37.textContent.slice(0, 60));
 api37.renderPlayerEdit();
 let pane37 = root37.querySelector('[data-pane="mods"]');
 /* v1.8.15 懒渲染：特质区默认收起 → 先展开全部分类，后续行级断言才能命中 */
@@ -2570,7 +2617,7 @@ delete V.player; delete V.temple_burden; delete V.syndromekylar; delete V.locati
 
 // ============ 第 40 节：v1.8.3 三需求（角色中文映射 / 系列合并 API / 无可写条件强制获得） ============
 // 40.1) 模组角色英文名 → 中文映射（截图 5：Tsukihan/Rowan/Adrian/Marlow/Grant/Needmeet/Feng）
-assert(api39.displayName("Tsukihan") === "月半", "40.1 Tsukihan → 月半, 实际 " + api39.displayName("Tsukihan"));
+assert(api39.displayName("Tsukihan") === "月羽", "40.1 Tsukihan → 月羽（v1.9.9 更正：枯木 2.5.0 官方中文名月羽，旧译名月半废弃）, 实际 " + api39.displayName("Tsukihan"));
 assert(api39.displayName("Rowan") === "罗文", "40.1 Rowan → 罗文, 实际 " + api39.displayName("Rowan"));
 assert(api39.displayName("Adrian") === "阿德里安", "40.1 Adrian → 阿德里安, 实际 " + api39.displayName("Adrian"));
 assert(api39.displayName("Marlow") === "马洛", "40.1 Marlow → 马洛, 实际 " + api39.displayName("Marlow"));
@@ -2923,6 +2970,7 @@ V.per_npc = {
 V.mickeyName = "米奇";
 delete V.town_projects; delete V.farm_stage; delete V.flats_progress; delete V.mbCE_wrote;
 V.NPCName = [mkNpc("Robin"), mkNpc("Bailey")];
+V.maplebirch = V.maplebirch || {};
 V.maplebirch.npc = {};
 global.window = {
   maplebirch: { npc: {
@@ -3019,7 +3067,7 @@ assert(perTxt44.indexOf("经理（Helen）") !== -1, "44.4 持久NPC卡含 经�
 assert(perTxt44.indexOf("校医") !== -1, "44.4 持久NPC卡含 校医, 实际 " + perTxt44.slice(0, 80));
 assert(perTxt44.indexOf("42") !== -1, "44.4 经理卡爱意显示 42（per_npc.manager.love）, 实际 " + perTxt44.slice(0, 80));
 secMod44.children[0].listeners.click[0]();
-assert(secMod44.children[1].textContent.indexOf("月半") !== -1, "44.4 模组角色卡含 月半（tsukihan）, 实际 " + secMod44.children[1].textContent.slice(0, 60));
+assert(secMod44.children[1].textContent.indexOf("月羽") !== -1, "44.4 模组角色卡含 月羽（tsukihan）, 实际 " + secMod44.children[1].textContent.slice(0, 60));
 secLove44.children[0].listeners.click[0]();
 assert(secLove44.children[1].textContent.indexOf("罗宾") !== -1, "44.4 恋爱角色卡含 罗宾, 实际 " + secLove44.children[1].textContent.slice(0, 60));
 

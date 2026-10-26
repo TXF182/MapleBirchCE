@@ -2,6 +2,30 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.9（2026-10-26 · 已发布）
+
+**枯木逢春 2.5.0 说明页内容补全作弊项 + 月羽译名更正（2026-10-26）**
+
+- **心智系统**：新增 `Psyche.sanity`（理智，-500~1000 初始 1000）与 `Psyche.fear`（恐惧，0~1000 初始 0）两个数值键——8 档状态（混乱/迷乱/心乱/恍惚/动摇/安定/清醒/专注）与学习收益（60%~120%）由理智自动结算（源码 `src/module/Psyche.ts` 实证）；
+- **PC 动物转化**：新增马/鲸/渡鸦三个转化点数键（`maplebirch.transformation.horse/whale/raven.build`，0-100）——各六阶段、进度在角色属性页、外观在镜子里选择，build≥1 停止衰减（隐藏部位不失去能力）；
+- **黯羽神社线**：新增 `MoreTransformations.shrine.stage` 阶段键（0 未开始 / 1 已收信 / 2 已获指路与鸦羽项链 / 3 已到访认识月羽）与喂鸦次数键（`shrine.feeds`）；**sync 联动（v1.9.9 扩展 sync.set 支持条件 `if`）**：写 1+ 自动补喂鸦 3 次 + 已遇见渡鸦 `raven.met=true`（模组收信前置=feeds≥3 且 raven.met，源码 `DarkfeatherShrine/Entry.twee` 实证），写 3 自动补月羽已认识 `init=1`；喂鸦次数键写 1+ 同样自动补已遇见（模组喂鸦前提）；写 0 重置不联动；
+- **月羽（Tsukihan）**：新增好感/任性/欲望数值键 + 已认识（init）数值键 + 恋人列表键（`loveInterestList`，list 型追加/移除 Tsukihan）——小屋门禁=神社线完成（stage 3）+已认识（init=1）+NPC 活跃（源码 `DarkfeatherShrine/HomeWidgets.twee` 实证），好感档位作用于互动（≥20 聊天/亲密、≥30 受邀文案、≥50 独处）；敲门 07-09/12-13/18-22、同睡/洗澡 20:00-20:30 雨中 18:00、潜入诡术 500/300；
+- **果园计数**：新增订单/合同/销售收入/常客到访 4 键（`Orchard.orders_completed/contracts_completed/sales_income/regular_visits`）；
+- **译名更正**：`tsukihan` 由「月半」改为「月羽」（枯木 2.5.0 官方中文译名，`src/script/DarkfeatherShrine/Tsukihan.ts` 的 CN 映射实证）；
+- **测试同步**：21.1 分组断言更新（≥13/≥65/≥55）；40.1 译名断言 月半→月羽；新增 21.11-21.13（新键写入/钳制/sync 条件联动含 raven.met 补全/恋人列表追加移除）；枯木声明 阶段 12→13 / 能力 64→65 / 数值 40→55；
+- 升版 1.9.9 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）；发布前全面自查：心智/转化/神社/月羽/果园/便利店/遇欲/投资/归途键逐一对照 dw250/opt1121/rv140 源码核验存活与判定，修复神社线阶段联动缺口（raven.met 补全）与 3 处说明文案，测试补 3 条联动断言，全链 6 步全绿 + codegraph sync。
+
+## v1.9.8（2026-10-26 · 未发布）
+
+**枯木逢春 2.5.0 / 归途之书 1.4.0 适配 + 便利店"遇欲"补全 + 面板按钮合并（2026-10-26）**
+
+- **模组更新适配**：枯木逢春 `2.4.7 → 2.5.0`（对照 `_modcache/dw250` 替换 dw247，audit 56 键 10 REVIEW 全部核实保留）：投资键重构——`RobinExpansion.investment.share` / `.valuation` 两键已删（2.5.0 移除，删除作弊项），`invested_total/returned_total/dividends_total` 改指新键 `contributed/returned/dividends`（键名改造，同条目换 varPath），新增 `treasury`（店铺周转金，2.5.0 新键）；`r_invest_agreed` 勾选联动由"补 share 10%"改为**联动四门店开启**（shop/shop_flowers/shop_popcorn/shop_balloons，对齐 2.5.0 投资=店铺扩张语义）；枯木 values 41 → 40；
+- 归途之书 `v1.3.13 → v1.4.0`（对照 `_modcache/rv140` 替换 rv1313，56 键 55 存活 + 1 动态键零删，仅升声明）；
+- **便利店"遇欲"补全（Dol-Optimization）**：全 8 适配器排查确认"遇欲便利店"非独立模组、属 Dol-Optimization；`opt_needmeet` 显示名改"遇欲（Needmeet）· 好感"并富化说明（≥80 解锁恋爱线）；新增 **12 个便利店库存键**（`daily.conveniencestoregoods.中文键`：避孕套/验孕棒/香烟/醒酒药/降火药/能量饮料/洗面奶/洗发水/鸡蛋/番茄/苹果/橙子，0-99），note 注明需存档已进过便利店（`daily.conveniencestoregoods` 初始化）否则写入拒绝；
+- **面板按钮合并**：右上角「收起」与「关闭」行为完全一致（均收起面板、由右下角解锁按钮重开），删除「收起」只留「关闭」（用户实测确认无区别）；
+- **测试同步（5 处断言更新）**：31.1 归途 `/v1.3.\d+/ → /v1.4.\d+/`；32.1 枯木 `/2.4.\d+/ → /2.5.\d+/`；32.7.3 投资联动断言改四门店 + share 保持 0（2.5.0 无此键）；37.2 面板标题断言「收起」→「关闭」；全链 6 步全绿（build → 语法 → DOM 冒烟 → 回归 → E2E 8 适配器 → 性别集成 24/24）+ codegraph sync；
+- **对照源码清理**：`_modcache` 删除 dw247/rv1313 旧对照（被 dw250/rv140 取代）；升版 1.9.8 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）。
+
 ## v1.9.7（2026-10-25 · 已发布）
 
 **1.9.6 发布后的全部变更：源码工程化（04/06 拆分）+ 适配器版本声明同步 + 框架 5.5.6 升级 + 对照源码清理（2026-10-25）**
