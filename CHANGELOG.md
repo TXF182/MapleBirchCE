@@ -2,6 +2,19 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.12（2026-10-26 · 未发布）
+
+**全局页新增「世界腐化（原版 World Corruption）」数值调整 + 自查优化（2026-10-26）**
+
+- **新增原版世界腐化数值调整区（全局页末尾，庄园自动维护之后）**：
+  - **世界硬腐化 `world_corruption_hard`**：罪孽/净化计数，原版新档初始 2；原版宏 `worldCorruption("hard", n)` 硬钳 **[-30, 30]**（宏注释"Unclamp or adjust upper limit once world corruption effects are added"）；
+  - **世界软腐化 `world_corruption_soft`**：世界异变程度，原版新档初始 0；原版宏硬钳 **[0, 100]**，≥30 增加怨灵聚合几率、≥70 触发校园衣物记忆；soft 负写入原版还会累计净化总量 `world_corruption_reduced`（CE 直写不经过宏不自动记账，UI hint 已注明为展示统计键）；
+  - **写入通道**：复用地点页 `placeStageWrite/placeStageUndo`（绕过原版根键黑名单直写顶层键，留痕 `place:world_corruption_hard/soft`，before 保留首次写入前状态可回退删字段）；**上限不钳制**（传 max=Infinity，直填多少就是多少，对齐用户"上限是多少就是多少"口径；原版宏只在事件触发时 clamp 不钳存量）、**下限按原版语义保留**（hard min=-30 / soft min=0，防负值破坏）；
+  - **UI**：两行各自 当前值 + 数值输入框（type=number 支持负值域）+ 应用 + 回退；应用/回退**局部刷新行内值，不重建整页不丢滚动**；已有写入留痕时初始即显示回退；回退按钮 title 标注"还原到首次写入前状态"；
+  - **自查优化**：渲染读取 getV() 缓存一次（forEach 前取 `Vg`，不再逐行调两次）；回退按钮复用 `makeWcUndo` 工厂（应用与初始留痕两处共用，无重复代码）；
+- **自行测试（用户显式验收）**：回归新增 §48 共 15 条（48.0 前置初始 2/0 → 48.1 直写绕过黑名单 + 留痕 → 48.2/48.3 上限不钳制 hard=50 / soft=150 原样 → 48.4 下限钳制 hard=-40→-30 / soft=-5→0 → 48.5 既有值回退还原 + 清留痕 → 48.6 无字段写入后回退删字段）；功能级 E2E 新增 W 区块共 11 条（区块渲染 → 两行 data-wckey → 输入框+应用按钮 → 初始无留痕不显示回退 → 应用 hard=50 写入+留痕+回退按钮出现 → 回退还原原值 2+清留痕 → 软腐化填 -5 钳 0）；DOM 冒烟补全局页世界腐化区断言（区块 + 初始值回显 2/0）；
+- 升版 1.9.12 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）；README/CHANGELOG 同步；全链 6 步全绿（build→syntax→冒烟→回归含 48.x→E2E 含 W→性别集成 24/24）+ codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4 + 装入 game；未发布（待发布指令）。
+
 ## v1.9.10（2026-10-26 · 已发布）
 
 **猫舍 Cattery 兼容适配（第 9 个适配器）+ 枯木逢春 2.5.1 / 归途之书 1.4.1 适配（2026-10-26）**

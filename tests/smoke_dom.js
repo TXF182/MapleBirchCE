@@ -41,6 +41,7 @@ const V = {
   loveInterest: [],
   passage: "Room",
   scenePassages: [],
+  world_corruption_hard: 2, world_corruption_soft: 0,
   mbCE_wrote: {}
 };
 global.V = V;
@@ -306,6 +307,11 @@ if (restockBtn[0]) { restockBtn[0].click(); }
 const cleanBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动庄园打扫") !== -1; });
 assert(cleanBtn.length === 1, "庄园维护「自动庄园打扫」按钮存在");
 if (cleanBtn[0]) { cleanBtn[0].click(); }
+/* v1.9.12 全局页新区：世界腐化（原版 World Corruption）数值调整 */
+const wcTxt = globalPane.textContent;
+assert(wcTxt.indexOf("世界腐化") !== -1 && wcTxt.indexOf("world_corruption_hard") !== -1 && wcTxt.indexOf("world_corruption_soft") !== -1,
+  "全局页含「世界腐化」区（硬/软腐化两行），实际 " + wcTxt.slice(0, 200));
+assert(wcTxt.indexOf("当前 2") !== -1 && wcTxt.indexOf("当前 0") !== -1, "世界腐化行显示原版初始值（hard=2 / soft=0），实际 " + wcTxt.slice(0, 200));
 /* v1.8.8 三个新适配器：注入探测 mock 后 Mod作弊 页出现 */
 window.DolOptimization = {};
 window.MirrorHypnoVariableRefresh = function () {};

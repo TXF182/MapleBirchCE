@@ -3444,5 +3444,48 @@ assert(newCEKeys46.length === 0, "46.2 新档加载后 V 无 CE 自产键（含�
 assert(global.V.avery_mansion !== undefined && global.V.avery_tower !== undefined && global.V.daily !== undefined,
 	"46.2 新档加载建原版结构默认壳（avery_mansion/avery_tower/daily 存在）, 实际 " + newKeys46.join("/"));
 
+
+/* ============ 48）世界腐化数值调整（v1.9.12 全局页）：直写原版键 + 上限不钳制 + 下限保留 + 留痕回退 ============
+   背景：用户要求在全局页加入原版「世界硬腐化 world_corruption_hard / 世界软腐化 world_corruption_soft」数值调整，
+   明确"上限是多少就是多少，别钳制"（数值直填不钳上限）；下限按原版宏语义保留（hard ≥ -30，soft ≥ 0）。
+   实现通道：复用地点页 placeStageWrite/placeStageUndo（绕过原版根键黑名单直写顶层键，留痕 place: 前缀可回退）。 */
+global.V = { characters: { npc: {} }, player: {}, daily: {}, weekly: {} };
+global.State.variables = global.V;
+global.rv.variables = global.V;
+V.world_corruption_hard = 2;  /* 原版新档初始 2 */
+V.world_corruption_soft = 0;  /* 原版新档初始 0 */
+const api48 = setup.mbStageCE;
+assert(!!api48 && typeof api48.placeStageWrite === "function", "48.0 前置：api48.placeStageWrite 可用");
+assert(V.world_corruption_hard === 2 && V.world_corruption_soft === 0, "48.0 前置：原版初始 world_corruption_hard=2 / soft=0, 实际 hard=" + V.world_corruption_hard + " soft=" + V.world_corruption_soft);
+/* 48.1 顶层键直写（绕过原版根键黑名单 reason=vanilla 的拒绝路径） */
+var w48a = api48.placeStageWrite("world_corruption_hard", 10, -30, Infinity);
+assert(w48a.ok && V.world_corruption_hard === 10, "48.1 直写 hard=10（绕过原版根键黑名单）, 实际 " + V.world_corruption_hard);
+assert(!!V.mbCE_wrote && !!V.mbCE_wrote["place:world_corruption_hard"], "48.1 留痕 place:world_corruption_hard 存在");
+/* 48.2/48.3 上限不钳制：CE 直写越过原版宏 clamp 上限（hard 原版 clamp 30 / soft 原版 clamp 100） */
+var w48b = api48.placeStageWrite("world_corruption_hard", 50, -30, Infinity);
+assert(w48b.ok && V.world_corruption_hard === 50, "48.2 写 hard=50 不钳制（原版宏上限 30 不生效）, 实际 " + V.world_corruption_hard);
+var w48c = api48.placeStageWrite("world_corruption_soft", 150, 0, Infinity);
+assert(w48c.ok && V.world_corruption_soft === 150, "48.3 写 soft=150 不钳制（原版宏上限 100 不生效）, 实际 " + V.world_corruption_soft);
+/* 48.4 下限按原版语义保留（hard ≥ -30 / soft ≥ 0），防负值破坏 */
+var w48d = api48.placeStageWrite("world_corruption_hard", -40, -30, Infinity);
+assert(w48d.ok && V.world_corruption_hard === -30, "48.4 写 hard=-40 钳到下限 -30, 实际 " + V.world_corruption_hard);
+var w48e = api48.placeStageWrite("world_corruption_soft", -5, 0, Infinity);
+assert(w48e.ok && V.world_corruption_soft === 0, "48.4 写 soft=-5 钳到下限 0, 实际 " + V.world_corruption_soft);
+/* 48.5 回退：既有值还原（清留痕重来，保证 before 为首写前状态） */
+delete V.mbCE_wrote;
+V.world_corruption_hard = 8;
+var w48f = api48.placeStageWrite("world_corruption_hard", 20, -30, Infinity);
+assert(w48f.ok && V.world_corruption_hard === 20, "48.5 既有 hard=8 写 20, 实际 " + V.world_corruption_hard);
+var w48u = api48.placeStageUndo("world_corruption_hard");
+assert(w48u.ok && V.world_corruption_hard === 8, "48.5 回退还原原值 8, 实际 " + V.world_corruption_hard);
+assert(!!V.mbCE_wrote && !V.mbCE_wrote["place:world_corruption_hard"], "48.5 回退清留痕");
+/* 48.6 回退删字段（before=undefined 语义）：soft 原本无字段 → 写入 → 回退删字段 */
+delete V.world_corruption_soft; delete V.mbCE_wrote;
+var w48g = api48.placeStageWrite("world_corruption_soft", 30, 0, Infinity);
+assert(w48g.ok && V.world_corruption_soft === 30, "48.6 无字段建写 soft=30, 实际 " + V.world_corruption_soft);
+var w48h = api48.placeStageUndo("world_corruption_soft");
+assert(w48h.ok && ("world_corruption_soft" in V) === false, "48.6 回退删字段（before=undefined → delete）, soft 存在=" + ("world_corruption_soft" in V));
+delete V.mbCE_wrote;
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

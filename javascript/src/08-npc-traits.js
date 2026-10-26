@@ -326,4 +326,71 @@
 			row.appendChild(btn);
 			acsec.appendChild(row);
 		});
+
+		/* v1.9.12：世界腐化（原版 World Corruption）数值调整
+		   原版键：V.world_corruption_hard（世界硬腐化，罪孽/净化计数，原版宏 worldCorruption("hard",n) 钳 -30~30，初始 2）
+		          V.world_corruption_soft（世界软腐化，世界异变程度，原版宏钳 0~100，初始 0）
+		   语义（原版宏）：soft ≥30 增加怨灵聚合几率，≥70 触发校园衣物记忆；hard 负值走净化，净化量累计 world_corruption_reduced。
+		   CE 直写 V 不经过原版 clamp：上限不钳制（数值填多少就是多少，原版事件驱动由游戏自身负责）；
+		   下限按原版语义保留（hard ≥ -30，soft ≥ 0），防负值破坏。复用 placeStageWrite/placeStageUndo（原版顶层键直写 + 留痕回退）。 */
+		var wcsec = el("div", "mce-section", "世界腐化（原版 World Corruption）");
+		pane.appendChild(wcsec);
+		wcsec.appendChild(el("div", "mce-hint", "世界硬腐化 world_corruption_hard（罪孽/净化计数，原版 -30~30 初始 2）；世界软腐化 world_corruption_soft（世界异变程度，原版 0~100 初始 0，≥30 增加怨灵聚合几率、≥70 触发校园衣物记忆）。直接填数值：上限不钳制，下限按原版语义保留；净化总量记录于 world_corruption_reduced。"));
+		var Vg = getV();
+		var makeWcUndo = function (row, it, val, inp) {
+			var ub = el("button", "mce-btn mce-red", "回退");
+			ub.type = "button";
+			ub.title = "还原到首次写入前状态（写入前无该字段时直接删除）";
+			ub.setAttribute("data-op", "wc-undo");
+			ub.addEventListener("click", function () {
+				var ru = placeStageUndo(it.key);
+				setStatus(ru.message, ru.ok ? "mce-ok" : "mce-err");
+				if (ru.ok) {
+					var back = Number(getV() && getV()[it.key]) || 0;
+					val.textContent = String(back);
+					inp.value = String(back);
+					var bb = row.querySelector('[data-op="wc-undo"]');
+					if (bb && bb.parentNode) { bb.parentNode.removeChild(bb); }
+				}
+			});
+			return ub;
+		};
+		[
+			{ key: "world_corruption_hard", name: "世界硬腐化", min: -30 },
+			{ key: "world_corruption_soft", name: "世界软腐化", min: 0 }
+		].forEach(function (it) {
+			var row = el("div", "mce-row");
+			row.setAttribute("data-wckey", it.key);
+			var cur = Number(Vg && Vg[it.key]) || 0;
+			var lbl = el("span", "mce-row-lbl", it.name + "（" + it.key + "）当前 ");
+			var val = el("span", "mce-value", String(cur));
+			lbl.appendChild(val);
+			row.appendChild(lbl);
+			var inp = el("input", "mce-inp");
+			inp.type = "number";
+			inp.value = String(cur);
+			inp.placeholder = String(cur);
+			row.appendChild(inp);
+			var apply = el("button", "mce-btn mce-gold", "应用");
+			apply.type = "button";
+			apply.addEventListener("click", function () {
+				var r = placeStageWrite(it.key, Number(inp.value), it.min, Infinity);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				if (r.ok) {
+					val.textContent = String(r.after);
+					inp.value = String(r.after);
+					if (!row.querySelector('[data-op="wc-undo"]')) {
+						row.appendChild(makeWcUndo(row, it, val, inp));
+					}
+				}
+			});
+			row.appendChild(apply);
+			/* 已有写入留痕 → 初始即显示回退 */
+			try {
+				if (Vg && Vg.mbCE_wrote && Vg.mbCE_wrote["place:" + it.key]) {
+					row.appendChild(makeWcUndo(row, it, val, inp));
+				}
+			} catch (e) {}
+			wcsec.appendChild(row);
+		});
 	}

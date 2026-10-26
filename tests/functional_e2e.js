@@ -58,6 +58,8 @@ const V = {
   WraithsReflection: 1, options: { opt: {} },
   /* Cattery 探测根（顶层标量） */
   cattery_time: 0, pcfood_cake: 0,
+  /* 原版世界腐化（v1.9.12 全局页新区块） */
+  world_corruption_hard: 2, world_corruption_soft: 0,
   loveInterest: [], passage: "Room", scenePassages: []
 };
 global.V = V;
@@ -413,6 +415,42 @@ api.renderModCheatDetail("mocklist");
 const listRowsM2 = [].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-mce-key") === "values:tags:alpha"; });
 assert(!!listRowsM2[0] && listRowsM2[0].querySelector('input[type="checkbox"]').checked === false, "M. 重渲染后回显未勾选");
 delete V.mocklist_tags; setup.mbCE_modCheats = [];
+
+/* ---------- W. 全局页世界腐化数值调整（v1.9.12）：直填不钳上限 + 下限保留 + 留痕回退 ---------- */
+const wcSecW = [].slice.call(globalPane.querySelectorAll(".mce-section")).filter(function (s) { return s.textContent.indexOf("世界腐化") !== -1; })[0];
+assert(!!wcSecW, "W. 全局页含「世界腐化（原版 World Corruption）」区块");
+const wcRowsW = [].slice.call(globalPane.querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-wckey"); });
+assert(wcRowsW.length === 2, "W. 世界硬/软腐化两行渲染（data-wckey）, 实际 " + wcRowsW.length + " 行");
+function wcRowW(key) { return wcRowsW.filter(function (r) { return r.getAttribute("data-wckey") === key; })[0]; }
+assert(!!wcRowW("world_corruption_hard") && !!wcRowW("world_corruption_soft"), "W. 行键 world_corruption_hard / world_corruption_soft 均存在");
+assert(!!wcRowW("world_corruption_hard").querySelector('input[type="number"]') && !!wcRowW("world_corruption_hard").querySelector("button"),
+  "W. 行内含数值输入框 + 应用按钮");
+assert(!wcRowW("world_corruption_hard").querySelector('[data-op="wc-undo"]'), "W. 初始无写入留痕 → 不显示回退按钮");
+/* 交互：填 50 应用（上限不钳制，原版宏 clamp 30 不生效） → 回退按钮出现 → 点回退还原 */
+const hardInpW = wcRowW("world_corruption_hard").querySelector('input[type="number"]');
+const hardApplyW = [].slice.call(wcRowW("world_corruption_hard").querySelectorAll("button")).filter(function (b) { return b.textContent === "应用"; })[0];
+assert(!!hardInpW && !!hardApplyW, "W. 硬腐化行输入框与应用按钮就绪");
+if (hardInpW && hardApplyW) {
+  hardInpW.value = "50";
+  hardApplyW.click();
+  assert(V.world_corruption_hard === 50, "W. 应用 hard=50 → V.world_corruption_hard=50（不钳制原版上限 30）, 实际 " + V.world_corruption_hard);
+  assert(!!V.mbCE_wrote && !!V.mbCE_wrote["place:world_corruption_hard"], "W. 应用后留痕 place:world_corruption_hard");
+  const undW = wcRowW("world_corruption_hard").querySelector('[data-op="wc-undo"]');
+  assert(!!undW, "W. 应用后行内出现「回退」按钮");
+  if (undW) {
+    undW.click();
+    assert(V.world_corruption_hard === 2, "W. 回退还原写入前原值 2, 实际 " + V.world_corruption_hard);
+    assert(!V.mbCE_wrote["place:world_corruption_hard"], "W. 回退清留痕");
+  }
+}
+/* 下限保留：软腐化填 -5 应用 → 钳到 0（原版下限语义） */
+const softInpW = wcRowW("world_corruption_soft").querySelector('input[type="number"]');
+const softApplyW = [].slice.call(wcRowW("world_corruption_soft").querySelectorAll("button")).filter(function (b) { return b.textContent === "应用"; })[0];
+if (softInpW && softApplyW) {
+  softInpW.value = "-5";
+  softApplyW.click();
+  assert(V.world_corruption_soft === 0, "W. 软腐化填 -5 → 钳到原版下限 0, 实际 " + V.world_corruption_soft);
+}
 
 /* ---------- 收尾 ---------- */
 console.log(failures === 0 ? "\nFUNCTIONAL E2E ALL PASSED" : "\nFUNCTIONAL E2E " + failures + " FAILURES");
