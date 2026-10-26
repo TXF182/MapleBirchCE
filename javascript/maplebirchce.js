@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.9";
+	var MCE_VERSION = "1.9.10";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -874,13 +874,15 @@
 						if (man && man.rage) { man.rage.dinner_missed = (man.rage.dinner_missed || 0) + 1; }
 						r.missed = true;
 					} else { fs[foods[0][0]].amount -= 1; r.fed = foods[0][0]; }
-					/* v1.8.10 对齐 AutoClean：喂食后刷新艾弗里点菜（avery_food_select widget，游戏中存在时生效） */
-					try {
-						if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
-							new window.SugarCube.Wikifier(null, "<<avery_food_select>>");
-						}
-					} catch (e3) {}
 				}
+				/* v1.9.10 对齐 AutoClean 原文（AutoCleanFeedAvery 末尾无条件 wikifier("avery_food_select")）：
+				   点菜/牛排/舒芙蕾/扁意面/高阶任一分支喂完都刷新艾弗里下一餐点菜（avery_mansion.food 轮换）；
+				   此前仅在最高难度分支内刷新 → 点菜/牛排路径永远吃同一种菜。 */
+				try {
+					if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
+						new window.SugarCube.Wikifier(null, "<<avery_food_select>>");
+					}
+				} catch (e3) {}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
 	}
@@ -889,7 +891,10 @@
 		var r = { beasts: 0, aggro: false, harvested: 0, error: "" };
 		var f = V.farm;
 		try {
-			if (f && f.tower_guard_skill && f.tower_guard_skill >= 1000) {
+			/* 对齐 AutoClean 0.1.5 AutoClean_js.js 原文：
+			   if(V.farm && V.farm.tower_guard && V.farm.tower_guard_skill && V.farm.tower_guard_skill >= 1000)
+			   —— 塔卫（原版 $farm.tower_guard 实证存在）在岗且技能≥1000 才锁四畜 30 / 清 agro */
+			if (f && f.tower_guard && f.tower_guard_skill && f.tower_guard_skill >= 1000) {
 				var b = f.beasts;
 				if (b) {
 					if (b.horses !== undefined) { b.horses = 30; r.beasts += 1; }
@@ -905,10 +910,15 @@
 					if (!(v > 0)) { return; }
 					/* 原版收获走 <<tending_give>> widget 发货给玩家；面板内尝试 SugarCube 通道（游戏中可用），失败仅清库存 */
 					try {
-						/* v1.8.9 对齐 AutoClean 0.1.5：遍历 stock 直接把键名传给 tending_give（truffles/eggs/milk/cream），
-						   不再做名字映射（原映射漏 cream 且键名可能不符原版） */
-						if (typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
-							new window.SugarCube.Wikifier(null, "<<tending_give '" + k + "' " + v + ">>");
+						/* v1.9.x 对齐 AutoClean 0.1.5 映射（原版 farm_stock_init 实证 stock 键为
+						   truffles/eggs/milk/cream，而原版食物键为 truffle/chicken_egg/bottle_of_milk：
+						   直接传 stock 键名会把货加进不存在的食物键 → 玩家拿不到收成）。
+						   cream 无原版食物键（原版 "cream" 均为药物），仅清库存、不进 tending_give。
+						   原版收获通道 tending_give 需 SugarCube 通道（游戏中可用），失败仅清库存 */
+						var STOCK_TO_FOOD = { truffles: "truffle", eggs: "chicken_egg", milk: "bottle_of_milk" };
+						var target = STOCK_TO_FOOD[k];
+						if (target && typeof window !== "undefined" && window.SugarCube && window.SugarCube.Wikifier) {
+							new window.SugarCube.Wikifier(null, "<<tending_give '" + target + "' " + v + ">>");
 						}
 					} catch (e2) {}
 					f.stock[k] = 0;
@@ -925,11 +935,16 @@
 		var V = getV();
 		var r = { quarters: false, garden: false, error: "" };
 		try {
-			/* 对齐 AutoClean：temple_quarters=100 仅 housekeeping≥1000 时；temple_garden=100 仅 tending≥1000 时 */
-			if (V.skill && V.skill.housekeeping >= 1000) {
+			/* 对齐 AutoClean 0.1.5 boot.json 补丁原文：
+			   if(V.housekeeping >= 1000){V.temple_quarters = 100; }
+			   if(V.tending >= 1000){V.temple_garden = 100;}
+			   —— 技能是 V 顶层标量（原版实证：V.housekeeping / V.tending 为 0-1000 数字，
+			   earnFeat("Majordomo") 判 V.housekeeping>=1000、cheatSection 用 $housekeeping；
+			   V.skill 在原版不存在，v1.9.x 曾误写 V.skill.housekeeping → 恒 false → 永远"未达标"） */
+			if (V.housekeeping >= 1000) {
 				if (typeof V.temple_quarters === "number") { V.temple_quarters = 100; r.quarters = true; }
 			}
-			if (V.skill && V.skill.tending >= 1000) {
+			if (V.tending >= 1000) {
 				if (typeof V.temple_garden === "number") { V.temple_garden = 100; r.garden = true; }
 			}
 		} catch (e) { r.error = String(e.message || e); }
@@ -950,10 +965,17 @@
 		var V = getV();
 		var r = { soap: false, salve: false, wood: false, error: "" };
 		try {
-			/* 对齐 AutoClean：肥皂/药膏补 10，鹰塔木材补 10 */
-			if (typeof V.soap === "number") { V.soap = 10; r.soap = true; }
-			if (typeof V.salve === "number") { V.salve = 10; r.salve = true; }
-			if (V.bird && V.bird.materials && typeof V.bird.materials.wood === "number") { V.bird.materials.wood = 10; r.wood = true; }
+			/* 对齐 AutoClean 0.1.5 boot.json 补丁：
+			   if( V.soap != undefined && V.soap < 10 )V.soap = 10;  （不足 10 才补，不压低高值）
+			   if( V.salve != undefined && V.salve < 10 )V.salve = 10;
+			   if(V.bird.upgrades !=undefined && V.bird.upgrades.firepit >= 3 && V.bird.materials.wood < 10 )V.bird.materials.wood = 10;
+			   —— 鹰塔木材需火坑升级≥3 且不足 10 才补 */
+			if (typeof V.soap === "number" && V.soap < 10) { V.soap = 10; r.soap = true; }
+			if (typeof V.salve === "number" && V.salve < 10) { V.salve = 10; r.salve = true; }
+			if (V.bird && V.bird.upgrades && V.bird.upgrades.firepit >= 3 &&
+				V.bird.materials && typeof V.bird.materials.wood === "number" && V.bird.materials.wood < 10) {
+				V.bird.materials.wood = 10; r.wood = true;
+			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
 	}
@@ -961,19 +983,103 @@
 		var V = getV();
 		var r = { rooms: 0, days: false, error: "" };
 		try {
-			/* 对齐 AutoClean：艾弗里豪宅八房间清零 + days_absent=0。
-			   房间字段随原版结构变化，此处运行时动态枚举：遍历 avery_mansion 直接子键，
-			   值含布尔 cleaned 属性的对象视为房间，置 cleaned=true（对结构变化鲁棒，不写死字段名）。 */
+			/* 对齐 AutoClean 0.1.5 boot.json 补丁：
+			   if(V.avery_fate === "saved" || V.avery_fate === "ascended"){
+			     V.avery_mansion.pool/kitchen/lounge/display/bedroom/bathroom/garden/dining = 0; days_absent = 0; }
+			   —— 仅艾弗里关系确立（saved/ascended）才打扫；房间是数值计数（原版实证 version 5
+			   初始化全部 to 0，含 study/garage），非带 cleaned 布尔的对象（v1.9.x 曾按对象结构
+			   枚举 → 恒 0 间房、打扫从未生效） */
+			if (V.avery_fate !== "saved" && V.avery_fate !== "ascended") {
+				r.skipped = true;
+				return r;
+			}
 			var man = V.avery_mansion;
 			if (man && typeof man === "object") {
-				Object.keys(man).forEach(function (k) {
-					var v = man[k];
-					if (v && typeof v === "object" && typeof v.cleaned === "boolean") { v.cleaned = true; r.rooms += 1; }
+				["pool", "kitchen", "lounge", "display", "bedroom", "bathroom", "dining", "garden", "study", "garage"].forEach(function (k) {
+					if (typeof man[k] === "number") { man[k] = 0; r.rooms += 1; }
 				});
 				if (typeof man.days_absent === "number") { man.days_absent = 0; r.days = true; }
 			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
+	}
+
+
+	/* ============ 庄园自动维护：每日全自动调度（AutoClean 模式，v1.9.x）
+	   用户诉求：维护应是"全自动服务"而非手点按钮。调度器以游戏内天数 Time.days
+	   （原版实证：Time.days 为开档以来总天数、从 0 起，过夜 +1）为锚，每次段落进入
+	   （mbCEOnPassageInit）时若天数变化且对应开关开启 → 自动执行一次该维护项。
+	   开关与上次执行天数存 localStorage（mbCE_auto），不写 V → 不污染存档、新档不继承。 */
+	var AUTO_MAINTAIN_ITEMS = [
+		{ key: "feed", name: "自动投喂艾弗里", run: function () { return mcFeedAvery(); } },
+		{ key: "farm", name: "自动农场维护", run: function () { return mcMaintainFarm(); } },
+		{ key: "temple", name: "自动神殿维护", run: function () { return mcMaintainTemple(); } },
+		{ key: "eden", name: "自动伊甸维护", run: function () { return mcMaintainEden(); } },
+		{ key: "restock", name: "自动补给", run: function () { return mcRestockSupplies(); } },
+		{ key: "clean", name: "自动庄园打扫", run: function () { return mcCleanMansion(); } }
+	];
+	function mcAutoState() {
+		var st = { items: {}, lastDay: -1 };
+		try {
+			if (typeof localStorage !== "undefined") {
+				var raw = localStorage.getItem("mbCE_auto");
+				if (raw) {
+					var p = JSON.parse(raw);
+					if (p && typeof p === "object") {
+						if (p.items && typeof p.items === "object") { st.items = p.items; }
+						if (typeof p.lastDay === "number") { st.lastDay = p.lastDay; }
+					}
+				}
+			}
+		} catch (e) {}
+		return st;
+	}
+	function mcAutoSave(st) {
+		try {
+			if (typeof localStorage !== "undefined") { localStorage.setItem("mbCE_auto", JSON.stringify(st)); }
+		} catch (e) {}
+	}
+	function mcAutoIsOn(key) {
+		return !!mcAutoState().items[key];
+	}
+	function mcAutoSet(key, on) {
+		var st = mcAutoState();
+		if (on) {
+			st.items[key] = true;
+			/* v1.9.10：开启时 UI 已即时执行一次（mcAutoRunOnce），记录当日 lastDay，
+			   当日 passage tick 不再重复执行（维护动作多数幂等但投喂会重复扣食材）；
+			   次日（Time.days+1）起由调度器自动执行。 */
+			if (typeof Time !== "undefined" && Time && typeof Time.days === "number" && Time.days >= 0) {
+				st.lastDay = Time.days;
+			}
+		} else {
+			delete st.items[key];
+		}
+		mcAutoSave(st);
+		return st;
+	}
+	function mcAutoRunOnce(key) {
+		for (var i = 0; i < AUTO_MAINTAIN_ITEMS.length; i += 1) {
+			if (AUTO_MAINTAIN_ITEMS[i].key === key) { return AUTO_MAINTAIN_ITEMS[i].run(); }
+		}
+		return { error: "未知维护项 " + key };
+	}
+	function mcAutoMaintainTick() {
+		try {
+			var st = mcAutoState();
+			var any = false, k;
+			for (k in st.items) { if (st.items[k]) { any = true; break; } }
+			if (!any) { return { day: null, ran: 0 }; }
+			var days = (typeof Time !== "undefined" && Time && typeof Time.days === "number") ? Time.days : -1;
+			if (days < 0 || days === st.lastDay) { return { day: days, ran: 0 }; }
+			var ran = 0;
+			AUTO_MAINTAIN_ITEMS.forEach(function (it) {
+				if (st.items[it.key]) { try { it.run(); ran += 1; } catch (e) {} }
+			});
+			st.lastDay = days;
+			mcAutoSave(st);
+			return { day: days, ran: ran };
+		} catch (e) { return { error: String(e.message || e) }; }
 	}
 
 	/* ============ v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，即时一键执行）
@@ -1522,7 +1628,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.4.0",
+			modName: "默示录：归途之书 v1.4.1",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -1725,7 +1831,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.5.0",
+			modName: "枯木逢春 · Deadwood Reblooms 2.5.1",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -2232,6 +2338,97 @@
 			]
 		}
 	};
+	/* ===== Cattery 猫舍（猫咖/出租屋/养宠/全图飞行） v1.1.8.2 =====
+	   状态模型：无根对象，全部为顶层标量（$rentingahouse/$pchaveCat/$pcfood_cake/$catArr 等）。
+	   判定方式均为严格比较（is 1 / gte 1），故所有键走数字通道（stages/values），禁用 boolean。
+	   养猫写 1 联动补猫数据（catArr 数组 + 品种），防止模组 catArr[0] 崩。 */
+	CHEAT_ADAPTERS["cattery"] = {
+		detect: function () {
+			try {
+				if (typeof window !== "undefined" && typeof window.createCafePC === "function") { return true; }
+				var v = getV();
+				return !!(v && (v.cattery_time !== undefined || v.pcfood_cake !== undefined || v.rentingahouse !== undefined || v.pchaveCat !== undefined));
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "cattery",
+			modName: "猫舍 Cattery v1.1.8.2（猫咖/出租屋/养宠/飞行）",
+			tasks: [],
+			stages: [
+				{ key: "cat_rent", name: "出租屋 · 是否已租", varPath: "rentingahouse",
+				  levels: [0, 1], labels: ["未租屋", "已租屋"],
+				  note: "写「已租屋」触发租屋事件（源码实证：租屋确定时 pcHome_clean=30，另有场景惰性置 35；pcHouseCleanLimit 锁 0-40）；每月 1 日需交租" },
+				{ key: "cat_owncat", name: "养猫 · 是否已领养", varPath: "pchaveCat",
+				  levels: [0, 1], labels: ["未养猫", "已养猫"],
+				  sync: { set: [
+					{ path: "firstCat_variety", value: "橘猫", if: { min: 1 } },
+					{ path: "catArr", value: [{ name: "咪咪", love: 0, play: 0 }], if: { min: 1 }, ifMissing: true }
+				  ] },
+				  note: "写「已养猫」自动补猫数据（仅当 catArr 不存在时，已有猫不重置；名字「咪咪」/好感 0/玩力 0）" },
+				{ key: "cat_garden", name: "出租屋 · 花园升级", varPath: "pcGardenupgrade",
+				  levels: [0, 1], labels: ["未升级", "已升级"] },
+				{ key: "cat_fly", name: "飞行 · 全图飞行解锁", varPath: "birdFly",
+				  levels: [0, 1], labels: ["未解锁", "已解锁"],
+				  note: "对应飞行训练 6 次后的「鸟翼」解锁（源码 cafefly.twee 写 $birdFly=1，判定 $birdFly gte 1）；飞往地点用 $flycattery 编号选择" },
+				{ key: "cat_book1", name: "书房 · 藏书 1", varPath: "pcHouseBook1",
+				  levels: [0, 1], labels: ["未拥有", "已拥有"] },
+				{ key: "cat_book2", name: "书房 · 藏书 2", varPath: "pcHouseBook2",
+				  levels: [0, 1], labels: ["未拥有", "已拥有"] },
+				{ key: "cat_book3", name: "书房 · 藏书 3", varPath: "pcHouseBook3",
+				  levels: [0, 1], labels: ["未拥有", "已拥有"] },
+				{ key: "cat_book4", name: "书房 · 藏书 4", varPath: "pcHouseBook4",
+				  levels: [0, 1], labels: ["未拥有", "已拥有"] },
+				{ key: "cat_book5", name: "书房 · 藏书 5", varPath: "pcHouseBook5",
+				  levels: [0, 1], labels: ["未拥有", "已拥有"] }
+			],
+			abilities: [],
+			scenes: [],
+			values: [
+				{ key: "cat_love", name: "猫 · 好感（0-40）", varPath: "catArr.0.love", type: "number", min: 0, max: 40,
+				  sync: { set: [
+					{ path: "firstCat_loveMax", value: 1, if: { min: 40 } }
+				  ] },
+				  note: "需先领养猫（catArr 存在）；写 ≥40 自动补 firstCat_loveMax=1——模组特质「金牌饲养员」触发条件是 love≥40 且 loveMax≠1 时置 loveMax=1（源码 Cathave_speciality widget 实证），不补则特质不出现；写低值不撤销 loveMax（模组仅电脑降级操作归 0）" },
+				{ key: "cat_play", name: "猫 · 玩力（0-40）", varPath: "catArr.0.play", type: "number", min: 0, max: 40,
+				  note: "需先领养猫（catArr 存在）" },
+				{ key: "cat_stray", name: "流浪猫 · 幸福度", varPath: "stray_happiness", type: "number", min: 0, max: 999 },
+				{ key: "cat_food_store", name: "食材 · 储备（pc_food）", varPath: "pc_food", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_cake", name: "食材 · 蛋糕（pcfood_cake）", varPath: "pcfood_cake", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_cabbage", name: "食材 · 卷心菜", varPath: "pc_cabbages", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_eggplant", name: "食材 · 茄子", varPath: "pc_aubergine", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_potato", name: "食材 · 土豆", varPath: "pc_potato", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_pepper", name: "食材 · 青椒", varPath: "pc_green_pepper", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_fillet", name: "食材 · 鱼排", varPath: "pc_fillet", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_chicken", name: "食材 · 鸡胸肉", varPath: "pc_chicken_breast", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_sichuan", name: "食材 · 花椒", varPath: "pc_Sichuan_pepper", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_cream", name: "食材 · 奶油", varPath: "pc_cream", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_flour", name: "食材 · 蛋糕粉", varPath: "pc_cake_flour", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_cocoa", name: "食材 · 可可粉", varPath: "pc_cocoa_powder", type: "number", min: 0, max: 99 },
+				{ key: "cat_food_milk", name: "食材 · 牛奶", varPath: "pc_milk", type: "number", min: 0, max: 99 },
+				{ key: "cat_boxed_meal", name: "便当 · 盒饭储备", varPath: "boxed_meal", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_dsx", name: "菜品 · 地三鲜（次数）", varPath: "cookok_dsx", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_sltds", name: "菜品 · 酸辣土豆丝（次数）", varPath: "cookok_sltds", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_qxjl", name: "菜品 · 茄香鸡柳（次数）", varPath: "cookok_qxjl", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_qjrs", name: "菜品 · 青椒肉丝（次数）", varPath: "cookok_qjrs", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_nxqzb", name: "菜品 · 奶香茄子煲（次数）", varPath: "cookok_nxqzb", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_jytd", name: "菜品 · 椒盐土豆（次数）", varPath: "cookok_jytd", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_bcdjp", name: "菜品 · 白菜炖鸡脯（次数）", varPath: "cookok_bcdjp", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_tdcrp", name: "菜品 · 土豆炒肉片（次数）", varPath: "cookok_tdcrp", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_gbjd", name: "菜品 · 宫保鸡丁（次数）", varPath: "cookok_gbjd", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_qcbc", name: "菜品 · 清炒白菜（次数）", varPath: "cookok_qcbc", type: "number", min: 0, max: 99 },
+				{ key: "cat_cook_zccp", name: "菜品 · 自创菜品（次数）", varPath: "cookok_zccp", type: "number", min: 0, max: 99 },
+				{ key: "cat_clean_home", name: "清洁 · 出租屋（0-40）", varPath: "pcHome_clean", type: "number", min: 0, max: 40,
+				  note: "源码 Math.clamp 锁死 0-40；顶层标量直写（租屋初始化时模组写入 30），无宿主缺失" },
+				{ key: "cat_clean_front", name: "清洁 · 门口（0-3）", varPath: "pcEntranceFront_clean", type: "number", min: 0, max: 3 },
+				{ key: "cat_clean_after", name: "清洁 · 后院（0-3）", varPath: "pcEntranceAfter_clean", type: "number", min: 0, max: 3 },
+				{ key: "cat_drawing", name: "绘画 · 进度（0-100）", varPath: "pchouse_drawing", type: "number", min: 0, max: 100 },
+				{ key: "cat_toubi", name: "投币 · 硬币数", varPath: "pctoubi", type: "number", min: 0, max: 999 },
+				{ key: "cat_time", name: "猫咖 · 累计经营时间", varPath: "cattery_time", type: "number", min: 0, max: 99999 },
+				{ key: "cat_cook_time", name: "猫咖 · 烹饪时间", varPath: "cattery_cook_time", type: "number", min: 0, max: 99999 }
+			]
+		}
+	};
+
 
 	function cheatIsVanillaRoot(root) {
 		var i;
@@ -2258,7 +2455,9 @@
 	}
 	/* 联动写入（v1.9.6 扩展）：条目可声明 sync 字段，主键写入成功后按序执行联动，
 	   保持模组状态机一致（如写 dress.active 时同步清 proposal / 升 highest / 清试行期）。
-	   联动键不留痕（属主写入的伴随修正）；联动失败不影响主写入结果。 */
+	   联动键不留痕（属主写入的伴随修正）；联动失败不影响主写入结果。
+	   v1.9.10 自查扩展：s.ifMissing = true 时仅在目标键不存在（undefined）才写入，
+	   防覆盖玩家已有数据（如 Cattery 养猫联动补 catArr，已有猫不重置）。 */
 	function applyCheatSync(V, syncData, newVal) {
 		try {
 			if (!syncData || typeof syncData !== "object") { return; }
@@ -2272,8 +2471,9 @@
 				syncData.set.forEach(function (s) {
 					var r = cheatResolvePath(s.path);
 					/* v1.9.9 sync.set 条件扩展：s.if = { min / max } 按「主写入后的新值」判定，
-					   不满足则跳过该联动（如写 shrine.stage=0 重置时不补 feeds/init）。无 if 字段=无条件，兼容旧声明。 */
-					if (r.ok && (!s.if || ((typeof s.if.min !== "number" || newVal >= s.if.min) && (typeof s.if.max !== "number" || newVal <= s.if.max)))) {
+					   不满足则跳过该联动（如写 shrine.stage=0 重置时不补 feeds/init）。无 if 字段=无条件，兼容旧声明。
+					   v1.9.10：s.ifMissing 时目标已存在（r.exists）则跳过，防覆盖玩家数据。 */
+					if (r.ok && !(s.ifMissing && r.exists) && (!s.if || ((typeof s.if.min !== "number" || newVal >= s.if.min) && (typeof s.if.max !== "number" || newVal <= s.if.max)))) {
 						r.parent[r.leaf] = typeof s.value === "function" ? s.value(V) : s.value;
 					}
 				});
@@ -6126,6 +6326,9 @@ function renderPlayerEdit() {
 			   _gwylanTF 即崩（reading 'includesAny' / 'tail'）。全局兜底可覆盖任何段落名
 			   （含框架改段落名/宿主段落内嵌格威岚内容的渲染路径）。 */
 			ensureGwylanSceneState();
+			/* v1.9.x 庄园自动维护每日调度：任意段落进入时检查游戏日变化，
+			   执行已开启的自动维护项（AutoClean 模式，见 03-global.js mcAutoMaintainTick） */
+			try { mcAutoMaintainTick(); } catch (e) {}
 			if (title !== "Scene Viewer passages") { return; }
 			var V = getV();
 			if (!V) { return; }
@@ -7004,78 +7207,52 @@ function renderPlayerEdit() {
 			btsec.appendChild(row);
 		});
 
-		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5：即时执行原模组每日 0 点的维护逻辑）
-		   v1.8.9：按钮改为 mce-row 结构（说明 + 按钮），与战斗终结区样式一致；投喂未达喂食阶段提示 skipped */
-		var acsec = el("div", "mce-section", "庄园自动维护（学 AutoClean 0.1.5：即时执行投喂/农场/神殿/伊甸/补给/打扫）");
+		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5）
+		   v1.9.x：一键按钮 → 自动开关。点击开关切换开启/关闭；开启即立即执行一次（即时生效），
+		   此后每日（Time.days 变化）由 mbCEOnPassageInit 自动执行。开关持久化 localStorage
+		   （mbCE_auto），不写 V → 不污染存档、新档不继承。 */
+		var acsec = el("div", "mce-section", "庄园自动维护（AutoClean 模式：开启后每天自动执行，无需手点）");
 		pane.appendChild(acsec);
-		var a1row = el("div", "mce-row");
-		a1row.appendChild(el("span", "mce-row-lbl", "按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱；未达喂食阶段（关系未确立）不操作"));
-		var a1 = el("button", "mce-btn mce-gold", "一键投喂艾弗里");
-		a1.type = "button";
-		a1.addEventListener("click", function () {
-			var r = mcFeedAvery();
-			if (r.error) { setStatus("投喂失败：" + r.error, "mce-err"); return; }
-			if (r.skipped) { setStatus("未达喂食阶段（艾弗里关系未到 saved/ascended），未操作", "mce-err"); return; }
-			setStatus(r.missed ? "无菜可喂，dinner_missed +1" : "已喂食：" + r.fed, r.missed ? "mce-err" : "mce-ok");
+		var acItems = [
+			{ key: "feed", name: "自动投喂艾弗里", desc: "按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱；未达喂食阶段（关系未确立）不操作" },
+			{ key: "farm", name: "自动农场维护", desc: "塔卫在岗且技能≥1000 锁四畜 30 / 清 agro；库存收获为食物并清零（cream 仅清理）" },
+			{ key: "temple", name: "自动神殿维护", desc: "housekeeping≥1000 时宿舍=100，tending≥1000 时花园=100（原版顶层技能判定）" },
+			{ key: "eden", name: "自动伊甸维护", desc: "伊甸菜地/菇桶/泉水锁 4" },
+			{ key: "restock", name: "自动补给", desc: "肥皂/药膏不足 10 时补 10；鹰塔火坑≥3 且木材不足 10 时补 10" },
+			{ key: "clean", name: "自动庄园打扫", desc: "艾弗里关系确立后：全部房间计数归零 + days_absent 归零" }
+		];
+		acItems.forEach(function (it) {
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-lbl", it.desc));
+			var btn = el("button", "mce-btn mce-gold", it.name + "（关）");
+			btn.type = "button";
+			var refresh = function () {
+				btn.textContent = it.name + (mcAutoIsOn(it.key) ? "（开）" : "（关）");
+			};
+			btn.addEventListener("click", function () {
+				var on = !mcAutoIsOn(it.key);
+				mcAutoSet(it.key, on);
+				if (on) {
+					var r = mcAutoRunOnce(it.key);
+					var msg;
+					if (r.error) { msg = it.name + "执行失败：" + r.error; }
+					else if (r.skipped) { msg = it.name + "已开启（本次跳过：艾弗里关系未确立）"; }
+					else if (it.key === "feed") { msg = r.missed ? it.name + "已开启，本次无菜可喂（dinner_missed+1）" : it.name + "已开启，本次已喂食：" + r.fed; }
+					else if (it.key === "farm") { msg = it.name + "已开启，本次锁满 " + r.beasts + " 只、收获 " + r.harvested + " 类库存"; }
+					else if (it.key === "temple") { msg = it.name + "已开启，本次宿舍" + (r.quarters ? "=100" : "未达标跳过") + "、花园" + (r.garden ? "=100" : "未达标跳过"); }
+					else if (it.key === "eden") { msg = it.name + "已开启，本次锁定 " + r.locked + " 项为 4"; }
+					else if (it.key === "restock") { msg = it.name + "已开启，本次肥皂" + (r.soap ? "=10" : "跳过") + "、药膏" + (r.salve ? "=10" : "跳过") + "、鹰塔木材" + (r.wood ? "=10" : "跳过"); }
+					else { msg = it.name + "已开启，本次执行完成"; }
+					setStatus(msg, r.error ? "mce-err" : "mce-ok");
+				} else {
+					setStatus(it.name + "已关闭", "mce-err");
+				}
+				refresh();
+			});
+			refresh();
+			row.appendChild(btn);
+			acsec.appendChild(row);
 		});
-		a1row.appendChild(a1);
-		var a2row = el("div", "mce-row");
-		a2row.appendChild(el("span", "mce-row-lbl", "塔卫≥1000 锁四畜 30 / 清 agro / 库存收获并清零（与 AutoClean 每日 0 点逻辑一致）"));
-		var a2 = el("button", "mce-btn mce-gold", "一键农场维护");
-		a2.type = "button";
-		a2.addEventListener("click", function () {
-			var r = mcMaintainFarm();
-			if (r.error) { setStatus("维护失败：" + r.error, "mce-err"); return; }
-			setStatus("动物锁满 " + r.beasts + " 只" + (r.aggro ? "，agro 已清零" : "") + "，收获 " + r.harvested + " 类库存", "mce-ok");
-		});
-		a2row.appendChild(a2);
-		acsec.appendChild(a1row);
-		acsec.appendChild(a2row);
-		/* v1.8.10：补全 AutoClean 维护面（神殿/伊甸/补给/打扫），保持 mce-row 结构 */
-		var a3row = el("div", "mce-row");
-		a3row.appendChild(el("span", "mce-row-lbl", "神殿防衰减：housekeeping≥1000 时宿舍=100，tending≥1000 时花园=100（对齐 AutoClean 条件锁值）"));
-		var a3 = el("button", "mce-btn mce-gold", "一键神殿维护");
-		a3.type = "button";
-		a3.addEventListener("click", function () {
-			var r = mcMaintainTemple();
-			if (r.error) { setStatus("神殿维护失败：" + r.error, "mce-err"); return; }
-			setStatus((r.quarters || r.garden) ? "神殿维护完成：宿舍" + (r.quarters ? "=100" : "未达标跳过") + "、花园" + (r.garden ? "=100" : "未达标跳过") : "技能未达标（housekeeping/tending 需≥1000），未操作", (r.quarters || r.garden) ? "mce-ok" : "mce-err");
-		});
-		a3row.appendChild(a3);
-		var a4row = el("div", "mce-row");
-		a4row.appendChild(el("span", "mce-row-lbl", "伊甸菜地/菇桶/泉水锁 4（与 AutoClean 每日 0 点无条件锁值一致）"));
-		var a4 = el("button", "mce-btn mce-gold", "一键伊甸维护");
-		a4.type = "button";
-		a4.addEventListener("click", function () {
-			var r = mcMaintainEden();
-			if (r.error) { setStatus("伊甸维护失败：" + r.error, "mce-err"); return; }
-			setStatus("伊甸维护完成：锁定 " + r.locked + " 项为 4", "mce-ok");
-		});
-		a4row.appendChild(a4);
-		var a5row = el("div", "mce-row");
-		a5row.appendChild(el("span", "mce-row-lbl", "肥皂/药膏补 10，鹰塔木材补 10（与 AutoClean 每日 0 点补货一致）"));
-		var a5 = el("button", "mce-btn mce-gold", "一键补给");
-		a5.type = "button";
-		a5.addEventListener("click", function () {
-			var r = mcRestockSupplies();
-			if (r.error) { setStatus("补给失败：" + r.error, "mce-err"); return; }
-			setStatus("补给完成：肥皂" + (r.soap ? "=10" : "跳过") + "、药膏" + (r.salve ? "=10" : "跳过") + "、鹰塔木材" + (r.wood ? "=10" : "跳过"), "mce-ok");
-		});
-		a5row.appendChild(a5);
-		var a6row = el("div", "mce-row");
-		a6row.appendChild(el("span", "mce-row-lbl", "艾弗里豪宅全部房间清理 + days_absent 归零（动态枚举房间，适配原版结构变化）"));
-		var a6 = el("button", "mce-btn mce-gold", "一键庄园打扫");
-		a6.type = "button";
-		a6.addEventListener("click", function () {
-			var r = mcCleanMansion();
-			if (r.error) { setStatus("庄园打扫失败：" + r.error, "mce-err"); return; }
-			setStatus("庄园打扫完成：清理 " + r.rooms + " 间房" + (r.days ? "，days_absent 归零" : ""), "mce-ok");
-		});
-		a6row.appendChild(a6);
-		acsec.appendChild(a3row);
-		acsec.appendChild(a4row);
-		acsec.appendChild(a5row);
-		acsec.appendChild(a6row);
 	}
 
 	function render() {
@@ -7368,6 +7545,13 @@ function renderPlayerEdit() {
 				mcMaintainEden: mcMaintainEden,
 				mcRestockSupplies: mcRestockSupplies,
 				mcCleanMansion: mcCleanMansion,
+				/* v1.9.x 庄园自动维护：每日全自动调度（AutoClean 模式） */
+				AUTO_MAINTAIN_ITEMS: AUTO_MAINTAIN_ITEMS,
+				mcAutoState: mcAutoState,
+				mcAutoIsOn: mcAutoIsOn,
+				mcAutoSet: mcAutoSet,
+				mcAutoRunOnce: mcAutoRunOnce,
+				mcAutoMaintainTick: mcAutoMaintainTick,
 				/* v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，数据层动作） */
 				COMBAT_ACTIONS: COMBAT_ACTIONS,
 				mcCombatAction: mcCombatAction,

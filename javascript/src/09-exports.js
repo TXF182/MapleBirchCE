@@ -289,6 +289,13 @@
 				mcMaintainEden: mcMaintainEden,
 				mcRestockSupplies: mcRestockSupplies,
 				mcCleanMansion: mcCleanMansion,
+				/* v1.9.x 庄园自动维护：每日全自动调度（AutoClean 模式） */
+				AUTO_MAINTAIN_ITEMS: AUTO_MAINTAIN_ITEMS,
+				mcAutoState: mcAutoState,
+				mcAutoIsOn: mcAutoIsOn,
+				mcAutoSet: mcAutoSet,
+				mcAutoRunOnce: mcAutoRunOnce,
+				mcAutoMaintainTick: mcAutoMaintainTick,
 				/* v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，数据层动作） */
 				COMBAT_ACTIONS: COMBAT_ACTIONS,
 				mcCombatAction: mcCombatAction,

@@ -585,6 +585,9 @@
 			   _gwylanTF 即崩（reading 'includesAny' / 'tail'）。全局兜底可覆盖任何段落名
 			   （含框架改段落名/宿主段落内嵌格威岚内容的渲染路径）。 */
 			ensureGwylanSceneState();
+			/* v1.9.x 庄园自动维护每日调度：任意段落进入时检查游戏日变化，
+			   执行已开启的自动维护项（AutoClean 模式，见 03-global.js mcAutoMaintainTick） */
+			try { mcAutoMaintainTick(); } catch (e) {}
 			if (title !== "Scene Viewer passages") { return; }
 			var V = getV();
 			if (!V) { return; }

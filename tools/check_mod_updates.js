@@ -4,10 +4,11 @@
  *       node tools/check_mod_updates.js --apply  # 检测到更新时，自动下载官方最新包并替换 game 内旧模组包
  * 输出：逐渠道报告（声明版本 / 最新 tag / 结论）+ 总结行 UPDATES: N（供定时任务判断）。
  * --apply 说明：仅替换"检测到更新"的渠道；资产下载走 api.github.com assets 端点（github.com 主域常断）；
- *   资产选择：优先 .modpack 主包（名字含 0.5.12.13-v 且非 audio/fem/mysterious），否则 .mod.zip；
+ *   资产选择：优先 .modpack 主包（名字含 0.5.12.13-v 且非 audio/fem/mysterious），否则 .mod.zip，
+ *   再兜底裸 .zip（Cattery 等仅发 .zip 资产的模组，排除 audio/fem/mysterious 子包）；
  *   替换动作为：删除 game 内匹配旧包 → 放入新包（文件名 = release 资产名）。
  * 说明：检测只改 --apply 模式才落盘；非 --apply 模式不改任何代码、不下载不替换。
- * 9 渠道：8 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims）+ 框架本体 maplebirch-framework。
+ * 10 渠道：9 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery）+ 框架本体 maplebirch-framework。
  * 框架渠道声明版本来自 declOverride（实测兼容版本），升版前须跑 check_framework_api.js 核对。
  */
 const https = require("https");
@@ -39,6 +40,8 @@ const CHANNELS = [
     extractDecl: /(\d+(?:\.\d+)+)/, gameGlob: "Wraith.sReflection.mod.zip" },
   { modId: "dolsims", repo: "MissedHeart/Degrees-of-Lewdity-DolSims",
     extractDecl: /(\d+(?:\.\d+)+)/, gameGlob: "DoLSims.mod.zip" },
+  { modId: "cattery", repo: "Maomaoi/Degrees-of-Lewdity-Cattery",
+    extractDecl: /(\d+(?:\.\d+)+)/, gameGlob: "Cattery*.zip" },
   { modId: "maplebirch-framework", repo: "MaplebirchLeaf/SCML-DOL-maplebirchFramework",
     /* 框架本体（非适配器）：declOverride = 本地实测兼容版本。升版前必须跑
        `node tools/check_framework_api.js <新版 inject_early.js>` 核对 CE 依赖的
@@ -129,7 +132,7 @@ function globMatch(name, pattern) {
   return re.test(name);
 }
 
-/* --apply：从 release assets 中挑主包（.modpack 优先且非 audio/fem/mysterious 子包，否则 .mod.zip） */
+/* --apply：从 release assets 中挑主包（.modpack 优先且非 audio/fem/mysterious 子包，否则 .mod.zip，再兜底裸 .zip） */
 function pickAsset(assets) {
   if (!assets || !assets.length) return null;
   const mp = assets.filter(function (a) { return a.name.indexOf(".modpack") !== -1; });
@@ -142,9 +145,17 @@ function pickAsset(assets) {
     return mp[0];
   }
   const z = assets.filter(function (a) { return a.name.indexOf(".mod.zip") !== -1; });
-  if (!z.length) return null;
-  z.sort(function (a, b) { return b.size - a.size; });
-  return z[0];
+  if (z.length) {
+    z.sort(function (a, b) { return b.size - a.size; });
+    return z[0];
+  }
+  /* 兜底：Cattery 等仅发布裸 .zip 资产的模组（资产名常含版本/特性后缀） */
+  const z2 = assets.filter(function (a) {
+    return a.name.indexOf(".zip") !== -1 && !/audio|fem|mysterious/i.test(a.name);
+  });
+  if (!z2.length) return null;
+  z2.sort(function (a, b) { return b.size - a.size; });
+  return z2[0];
 }
 
 /* --apply：经 api.github.com assets 端点下载（github.com 主域常断）；GitHub 返回 302 时递归跟随重定向。
@@ -243,7 +254,7 @@ function replaceInGame(gameGlob, newFileName) {
           row.apply = "SKIP：框架升版需先跑 check_framework_api.js 核对 API 兼容，再人工替换";
         } else {
           const asset = pickAsset(rel.assets || []);
-          if (!asset) { row.apply = "FAIL：release 无 .modpack/.mod.zip 资产，需人工下载"; }
+          if (!asset) { row.apply = "FAIL：release 无 .modpack/.mod.zip/.zip 资产，需人工下载"; }
           else {
             const destPath = path.join(DOWNLOAD_DIR, asset.name);
             const dl = await downloadAsset(ch.repo, asset, destPath);

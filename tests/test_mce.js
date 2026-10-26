@@ -2655,54 +2655,110 @@ assert(V.temple_burden === 1 && (!V.mbCE_forcedTraits || V.mbCE_forcedTraits.len
 delete V.temple_burden; delete V.mbCE_forcedTraits;
 
 // ============ 第 41 节：v1.8.8 新模组适配（学 CombatTerminator/AutoClean 全局页功能 + 三新适配器） ============
-/* 41.1）庄园自动维护 mcFeedAvery（学 AutoClean AutoCleanFeedAvery）：按喜好→牛排/舒芙蕾/扁意面→最高难度 */
+/* 41.1）庄园自动维护 mcFeedAvery（学 AutoClean AutoCleanFeedAvery）：按喜好→牛排/舒芙蕾/扁意面→最高难度
+   v1.9.10 修复：avery_food_select 刷新在所有喂食分支后无条件执行（对齐 AutoClean 函数末尾
+   wikifier("avery_food_select")；此前仅最高难度分支内刷新 → 点菜/牛排路径点菜永不轮换） */
 V.avery_fate = "saved"; V.avery_mansion = { food: "steak", rage: {} };
 V.foodstuff = { steak: { amount: 5 }, souffle: { amount: 2 } };
+var averyFS_calls = 0;
+var hadWindow41 = typeof window !== "undefined";
+if (!hadWindow41) { global.window = {}; }
+var oldSC41 = window.SugarCube;
+window.SugarCube = { Wikifier: function (ignore, code) { if (String(code).indexOf("avery_food_select") !== -1) { averyFS_calls += 1; } } };
 var feed1 = api.mcFeedAvery ? api.mcFeedAvery() : (setup.mbStageCE.mcFeedAvery ? setup.mbStageCE.mcFeedAvery() : null);
 if (feed1 === null) { feed1 = { error: "mcFeedAvery 不可达" }; }
 assert(feed1 && feed1.fed === "steak" && V.foodstuff.steak.amount === 4, "41.1 艾弗里投喂按喜好扣 steak，实际 fed=" + (feed1 && feed1.fed) + " amount=" + V.foodstuff.steak.amount);
+assert(averyFS_calls === 1, "41.1 点菜/牛排分支喂食后也刷新 avery_food_select（点菜轮换），实际调用=" + averyFS_calls);
 V.avery_mansion.food = "linguine"; delete V.foodstuff.steak; delete V.foodstuff.souffle;
 var feed2 = api.mcFeedAvery ? api.mcFeedAvery() : (setup.mbStageCE.mcFeedAvery ? setup.mbStageCE.mcFeedAvery() : { missed: true });
 assert(feed2.missed === true && V.avery_mansion.rage.dinner_missed === 1, "41.1 无菜可喂 → dinner_missed+1，实际 missed=" + feed2.missed + " 计数=" + V.avery_mansion.rage.dinner_missed);
+assert(averyFS_calls === 2, "41.1 无菜可喂（missed）后仍刷新点菜（AutoClean 无条件），实际调用=" + averyFS_calls);
 V.avery_fate = "unknown";
 var feed3 = api.mcFeedAvery ? api.mcFeedAvery() : (setup.mbStageCE.mcFeedAvery ? setup.mbStageCE.mcFeedAvery() : { missed: true });
 assert(feed3.skipped === true && feed3.missed !== true && V.avery_mansion.rage.dinner_missed === 1, "41.1 未达喂食阶段不操作不计 missed（对齐 AutoClean），实际 skipped=" + feed3.skipped + " 计数=" + V.avery_mansion.rage.dinner_missed);
+assert(averyFS_calls === 2, "41.1 skipped（fate 未确立）不刷新点菜，实际调用=" + averyFS_calls);
+if (oldSC41 !== undefined) { window.SugarCube = oldSC41; } else { delete window.SugarCube; }
+if (!hadWindow41) { delete global.window; }
 delete V.avery_fate; delete V.avery_mansion; delete V.foodstuff;
 
 /* 41.2）农场维护 mcMaintainFarm（学 AutoClean AutoCleanFarm）：塔卫≥1000 锁动物 / 清 aggro / stock 收获清零 */
-V.farm = { tower_guard_skill: 1200, beasts: { horses: 12, pigs: 5, cattle: 8, dogs: 3 }, aggro: 1, stock: { eggs: 4, milk: 2 } };
+V.farm = { tower_guard: {}, tower_guard_skill: 1200, beasts: { horses: 12, pigs: 5, cattle: 8, dogs: 3 }, aggro: 1, stock: { eggs: 4, milk: 2 } };
 V.farm_stage = 6;
 var mf1 = api.mcMaintainFarm ? api.mcMaintainFarm() : (setup.mbStageCE.mcMaintainFarm ? setup.mbStageCE.mcMaintainFarm() : {});
-assert(mf1.beasts === 4 && V.farm.beasts.horses === 30 && V.farm.aggro === 0, "41.2 塔卫≥1000 动物锁 30 + aggro 清零，实际 beasts=" + mf1.beasts + " aggro=" + V.farm.aggro);
+assert(mf1.beasts === 4 && V.farm.beasts.horses === 30 && V.farm.aggro === 0, "41.2 塔卫在岗且技能≥1000 动物锁 30 + aggro 清零，实际 beasts=" + mf1.beasts + " aggro=" + V.farm.aggro);
 assert(mf1.harvested === 2 && V.farm.stock.eggs === 0 && V.farm.stock.milk === 0, "41.2 库存收获并清零，实际 harvested=" + mf1.harvested + " eggs=" + V.farm.stock.eggs);
 V.farmerCanSell = true;
 var mf2 = api.mcMaintainFarm ? api.mcMaintainFarm() : (setup.mbStageCE.mcMaintainFarm ? setup.mbStageCE.mcMaintainFarm() : {});
 assert(mf2.harvested === 0, "41.2 farmerCanSell 让位不自动收货，实际 " + mf2.harvested);
 V.farmerCanSell = false;
-V.farm = { tower_guard_skill: 1200, beasts: { horses: 1, pigs: 1, cattle: 1, dogs: 1 }, aggro: 1, stock: { eggs: 1, milk: 1, truffles: 1, cream: 2 } };
+V.farm = { tower_guard: {}, tower_guard_skill: 1200, beasts: { horses: 1, pigs: 1, cattle: 1, dogs: 1 }, aggro: 1, stock: { eggs: 1, milk: 1, truffles: 1, cream: 2 } };
 V.farm_stage = 6;
 var mf1b = api.mcMaintainFarm ? api.mcMaintainFarm() : (setup.mbStageCE.mcMaintainFarm ? setup.mbStageCE.mcMaintainFarm() : {});
-assert(mf1b.harvested === 4 && V.farm.stock.cream === 0 && V.farm.stock.truffles === 0 && V.farm.stock.eggs === 0, "41.2b 四类库存（含 cream）全部收获并清零（直接传键名，与 AutoClean 一致），实际 harvested=" + mf1b.harvested + " cream=" + V.farm.stock.cream);
+assert(mf1b.harvested === 4 && V.farm.stock.cream === 0 && V.farm.stock.truffles === 0 && V.farm.stock.eggs === 0, "41.2b 四类库存全部处理并清零（eggs→chicken_egg/milk→bottle_of_milk/truffles→truffle 映射收货，cream 无原版食物键仅清库存），实际 harvested=" + mf1b.harvested + " cream=" + V.farm.stock.cream);
 delete V.farm; delete V.farm_stage; delete V.farmerCanSell;
 
-/* 41.2c）v1.8.10 维护扩展（学 AutoClean 剩余维护面）：神殿条件锁 / 伊甸无条件锁 / 补给 / 动态打扫 */
-V.skill = { housekeeping: 1200, tending: 800 };
-V.temple_quarters = 55; V.temple_garden = 60;
+/* 41.2c）v1.8.10 维护扩展（学 AutoClean 剩余维护面）：神殿条件锁 / 伊甸无条件锁 / 补给 / 打扫
+   修复（v1.9.x）：神殿技能判断改为 V 顶层标量 V.housekeeping/V.tending（原版+AutoClean boot.json 实证，
+   V.skill 在原版不存在 → 旧写法恒 false → 玩家报"技能满足却未达标"） */
+V.housekeeping = 1200; V.tending = 800; V.temple_quarters = 55; V.temple_garden = 60;
 var mt1 = api.mcMaintainTemple ? api.mcMaintainTemple() : (setup.mbStageCE.mcMaintainTemple ? setup.mbStageCE.mcMaintainTemple() : {});
-assert(mt1.quarters === true && V.temple_quarters === 100 && mt1.garden === false && V.temple_garden === 60, "41.2c 神殿维护按技能条件锁：housekeeping≥1000 宿舍=100，tending<1000 花园不动，实际 quarters=" + mt1.quarters + " garden=" + mt1.garden + " temple_garden=" + V.temple_garden);
-V.skill.tending = 1200;
+assert(mt1.quarters === true && V.temple_quarters === 100 && mt1.garden === false && V.temple_garden === 60, "41.2c 神殿维护按顶层技能条件锁：housekeeping≥1000 宿舍=100，tending<1000 花园不动（无 V.skill 不误判），实际 quarters=" + mt1.quarters + " garden=" + mt1.garden + " temple_garden=" + V.temple_garden);
+V.tending = 1200;
 var mt2 = api.mcMaintainTemple ? api.mcMaintainTemple() : (setup.mbStageCE.mcMaintainTemple ? setup.mbStageCE.mcMaintainTemple() : {});
 assert(mt2.garden === true && V.temple_garden === 100, "41.2c 神殿维护 tending≥1000 花园=100，实际 garden=" + mt2.garden);
+delete V.housekeeping; delete V.tending;
+V.housekeeping = 900; V.temple_quarters = 40;
+var mt3 = api.mcMaintainTemple ? api.mcMaintainTemple() : (setup.mbStageCE.mcMaintainTemple ? setup.mbStageCE.mcMaintainTemple() : {});
+assert(mt3.quarters === false && V.temple_quarters === 40, "41.2c 神殿维护 housekeeping<1000 不锁宿舍，实际 quarters=" + mt3.quarters + " temple_quarters=" + V.temple_quarters);
 V.edengarden = 1; V.edenshrooms = 2; V.edenspring = 3;
 var me1 = api.mcMaintainEden ? api.mcMaintainEden() : (setup.mbStageCE.mcMaintainEden ? setup.mbStageCE.mcMaintainEden() : {});
 assert(me1.locked === 3 && V.edengarden === 4 && V.edenshrooms === 4 && V.edenspring === 4, "41.2c 伊甸维护无条件锁 4（三键），实际 locked=" + me1.locked);
-V.soap = 3; V.salve = 5; V.bird = { materials: { wood: 2 } };
+V.soap = 3; V.salve = 15; V.bird = { upgrades: { firepit: 3 }, materials: { wood: 12 } };
 var mr1 = api.mcRestockSupplies ? api.mcRestockSupplies() : (setup.mbStageCE.mcRestockSupplies ? setup.mbStageCE.mcRestockSupplies() : {});
-assert(mr1.soap === true && mr1.salve === true && mr1.wood === true && V.soap === 10 && V.salve === 10 && V.bird.materials.wood === 10, "41.2c 补给：肥皂/药膏/鹰塔木材补 10，实际 soap=" + V.soap + " wood=" + V.bird.materials.wood);
-V.avery_mansion = { office: { cleaned: false }, bathroom: { cleaned: false }, bedroom: { cleaned: false }, man: { food: "steak" }, days_absent: 3 };
+assert(mr1.soap === true && mr1.salve === false && mr1.wood === false && V.soap === 10 && V.salve === 15 && V.bird.materials.wood === 12, "41.2c 补给：肥皂不足 10 补到 10；药膏/木材已 ≥10 不压低（对齐 AutoClean <10 才补），实际 soap=" + V.soap + " salve=" + V.salve + " wood=" + V.bird.materials.wood);
+V.soap = 15; V.bird = { upgrades: { firepit: 2 }, materials: { wood: 2 } };
+var mr2 = api.mcRestockSupplies ? api.mcRestockSupplies() : (setup.mbStageCE.mcRestockSupplies ? setup.mbStageCE.mcRestockSupplies() : {});
+assert(mr2.soap === false && mr2.wood === false && V.soap === 15 && V.bird.materials.wood === 2, "41.2c 补给：肥皂≥10 不动；火坑<3 不补木材（对齐 AutoClean 前置），实际 soap=" + V.soap + " wood=" + V.bird.materials.wood);
+V.avery_fate = "saved"; V.avery_mansion = { pool: 2, kitchen: 1, lounge: 3, display: 0, bedroom: 2, bathroom: 1, dining: 2, garden: 3, study: 1, garage: 1, days_absent: 3 };
 var mc1 = api.mcCleanMansion ? api.mcCleanMansion() : (setup.mbStageCE.mcCleanMansion ? setup.mbStageCE.mcCleanMansion() : {});
-assert(mc1.rooms === 3 && V.avery_mansion.office.cleaned === true && V.avery_mansion.bedroom.cleaned === true && V.avery_mansion.days_absent === 0, "41.2c 庄园打扫动态枚举房间清零（3 间，man 非房间不动）+ days_absent=0，实际 rooms=" + mc1.rooms + " days=" + mc1.days);
-delete V.skill; delete V.temple_quarters; delete V.temple_garden; delete V.edengarden; delete V.edenshrooms; delete V.edenspring; delete V.soap; delete V.salve; delete V.bird; delete V.avery_mansion;
+assert(mc1.rooms === 10 && V.avery_mansion.pool === 0 && V.avery_mansion.bedroom === 0 && V.avery_mansion.days_absent === 0, "41.2c 庄园打扫：fate=saved 时十房间计数归零 + days_absent=0（原版数值结构），实际 rooms=" + mc1.rooms + " days=" + mc1.days);
+V.avery_fate = "none";
+var mc2 = api.mcCleanMansion ? api.mcCleanMansion() : (setup.mbStageCE.mcCleanMansion ? setup.mbStageCE.mcCleanMansion() : {});
+assert(mc2.skipped === true && mc2.rooms === 0, "41.2c 庄园打扫：fate 未确立跳过不操作，实际 skipped=" + mc2.skipped + " rooms=" + mc2.rooms);
+delete V.housekeeping; delete V.tending; delete V.temple_quarters; delete V.temple_garden; delete V.edengarden; delete V.edenshrooms; delete V.edenspring; delete V.soap; delete V.salve; delete V.bird; delete V.avery_mansion; delete V.avery_fate;
+
+/* 41.2d）v1.9.x 每日全自动维护调度：开关持久化（localStorage mbCE_auto）+ Time.days 日更自动执行 */
+var ls41 = (function () { var m = {}; return { getItem: function (k) { return m[k] === undefined ? null : m[k]; }, setItem: function (k, v) { m[k] = String(v); }, removeItem: function (k) { delete m[k]; } }; })();
+var oldLS41 = global.localStorage;
+global.localStorage = ls41;
+var oldTime41 = global.Time;
+global.Time = { days: 100 };
+api.mcAutoSet("feed", true);
+var st41 = api.mcAutoState();
+assert(st41.items.feed === true, "41.2d mcAutoSet 开启自动投喂并持久化，实际 " + (st41.items.feed));
+var t1 = api.mcAutoMaintainTick ? api.mcAutoMaintainTick() : { ran: 0 };
+assert(t1.ran === 0, "41.2d 开启当日（mcAutoSet 已记 lastDay=100，按钮已即时执行）tick 不重复执行，实际 ran=" + t1.ran);
+var t2 = api.mcAutoMaintainTick ? api.mcAutoMaintainTick() : { ran: 0 };
+assert(t2.ran === 0, "41.2d 同日不重复执行，实际 ran=" + t2.ran);
+global.Time = { days: 101 };
+var t3 = api.mcAutoMaintainTick ? api.mcAutoMaintainTick() : { ran: 0 };
+assert(t3.ran === 1, "41.2d 次日（Time.days=101）再次自动执行，实际 ran=" + t3.ran);
+api.mcAutoSet("feed", false);
+global.Time = { days: 102 };
+var t4 = api.mcAutoMaintainTick ? api.mcAutoMaintainTick() : { ran: 0 };
+assert(t4.ran === 0, "41.2d 关闭后不再自动执行，实际 ran=" + t4.ran);
+api.mcAutoSet("temple", true);
+V.housekeeping = 1200; V.tending = 1200; V.temple_quarters = 55; V.temple_garden = 60;
+global.Time = { days: 103 };
+var t5 = api.mcAutoMaintainTick ? api.mcAutoMaintainTick() : { ran: 0 };
+assert(t5.ran === 1 && V.temple_quarters === 100 && V.temple_garden === 100, "41.2d 自动神殿维护生效（宿舍/花园=100），实际 ran=" + t5.ran + " tq=" + V.temple_quarters + " tg=" + V.temple_garden);
+api.mcAutoSet("temple", false);
+/* 持久化跨"重载"验证：lastDay=103 保留 → 同日不重复 */
+var t6 = api.mcAutoMaintainTick ? api.mcAutoMaintainTick() : { ran: 0 };
+assert(t6.ran === 0, "41.2d 重载后 lastDay=103 保留、同日不重复，实际 ran=" + t6.ran);
+if (oldTime41 !== undefined) { global.Time = oldTime41; } else { delete global.Time; }
+if (oldLS41 !== undefined) { global.localStorage = oldLS41; } else { delete global.localStorage; }
+delete V.housekeeping; delete V.tending; delete V.temple_quarters; delete V.temple_garden;
 
 /* 41.3）新适配器探测：Dol-Optimization（window.DolOptimization）/ Wraith（V 根）/ DoLSims（window.MirrorHypnoVariableRefresh） */
 global.window = { DolOptimization: {}, MirrorHypnoVariableRefresh: function () {} };
@@ -2854,10 +2910,10 @@ assert(c2.ok && V.skulduggery === 0, "42.4 skulduggery 写 -50 被钳制到 0，
 var c3 = api.quickWrite("purity", 9999);
 assert(c3.ok && V.purity === 2000, "42.4 purity 写 9999 被钳制到 2000，实际 " + V.purity);
 
-/* 42.5）v1.8.12 适配器工作流审计：8 适配器全部健康，无错误/警告 */
+/* 42.5）v1.8.12 适配器工作流审计：9 适配器全部健康，无错误/警告 */
 var aud = api.auditAdapters();
-assert(aud.total === 8, "42.5 审计覆盖 8 个适配器，实际 " + aud.total);
-assert(aud.healthy === 8, "42.5 全部适配器健康（注册键=entry.modId、项 key/name/varPath 完整、有 detect），实际 healthy=" + aud.healthy);
+assert(aud.total === 9, "42.5 审计覆盖 9 个适配器（8 旧 + Cattery），实际 " + aud.total);
+assert(aud.healthy === 9, "42.5 全部适配器健康（注册键=entry.modId、项 key/name/varPath 完整、有 detect），实际 healthy=" + aud.healthy);
 assert(aud.errors.length === 0, "42.5 审计无错误，实际 " + JSON.stringify(aud.errors));
 assert(aud.warnings.length === 0, "42.5 审计无警告（无空适配器），实际 " + JSON.stringify(aud.warnings));
 assert(aud.healthy === aud.total, "42.5 healthy 与 total 一致（全部可渲染）");
@@ -3234,6 +3290,67 @@ delete V.mbCE_wrote; delete V.mock45_stage; delete V.mock45_ability; delete V.mo
 const css45 = dHead44.children.filter(c => c.id === "mce-style")[0].textContent;
 assert(css45.indexOf("contain:content") !== -1, "45.8 .mce-grp contain:content 已注入");
 assert(css45.indexOf("overscroll-behavior:contain") !== -1, "45.8 .mce-body overscroll-behavior:contain 已注入");
+
+/* ============ 47）Cattery 猫舍 v1.1.8.2 适配（顶层标量 + catArr 数组联动 + 数字语义） ============
+   状态模型：无根对象，全部为顶层标量（$rentingahouse/$pchaveCat/$pcfood_cake/$catArr 等）；
+   判定均为 is 1 / gte 1 严格比较，禁 boolean、全走数字通道；养猫写 1 联动补 catArr + 品种。 */
+V.cattery_time = 0; V.pcfood_cake = 0; V.rentingahouse = 0; V.pchaveCat = 0;
+var ct42 = api.getCheatMods().filter(function (x) { return x.modId === "cattery"; })[0];
+assert(ct42 && ct42.stages.filter(function (s) { return s.varPath === "rentingahouse"; }).length === 1, "47.1 适配器探测命中（V 顶层标量）");
+assert(ct42.values.filter(function (v) { return v.varPath === "catArr.0.love"; })[0].max === 40, "47.1 猫好感 0-40 钳制上限");
+/* 47.2 出租屋阶段写入 */
+var rr42 = api.setCheatStage("cattery", "cat_rent", 1);
+assert(rr42.ok && V.rentingahouse === 1, "47.2 租屋阶段写入 1");
+/* 47.3 养猫联动：写 1 自动补 catArr + 品种 */
+var rc42 = api.setCheatStage("cattery", "cat_owncat", 1);
+assert(rc42.ok && V.pchaveCat === 1, "47.3 养猫阶段写入 1");
+assert(Array.isArray(V.catArr) && V.catArr[0] && V.catArr[0].name === "咪咪" && V.catArr[0].love === 0, "47.3 联动补猫数据（catArr）");
+assert(V.firstCat_variety === "橘猫", "47.3 联动补品种（橘猫）");
+/* 47.3b 幂等：已有猫数据时不覆盖（v1.9.10 自查修复，防重置玩家已养猫） */
+V.catArr = [{ name: "玩家自己养的猫", love: 21, play: 15 }];
+var ri42 = api.setCheatStage("cattery", "cat_owncat", 1);
+assert(ri42.ok && V.catArr[0].name === "玩家自己养的猫" && V.catArr[0].love === 21 && V.catArr[0].play === 15, "47.3b 已有猫数据不被覆盖（ifMissing 幂等）");
+assert(V.firstCat_variety === "橘猫", "47.3b 品种联动正常（覆盖无害）");
+V.catArr = [{ name: "咪咪", love: 0, play: 0 }]; /* 还原供 47.4 继续 */
+/* 47.4 写 0 不触发联动（sync if min:1），联动键保留 */
+api.setCheatStage("cattery", "cat_owncat", 0);
+assert(V.pchaveCat === 0 && Array.isArray(V.catArr) && V.catArr[0].name === "咪咪", "47.4 写 0 只降主键，联动键保留");
+/* 47.5 恢复养猫 + 猫好感/玩力写入与钳制 */
+api.setCheatStage("cattery", "cat_owncat", 1);
+api.applyCheatModValue("cattery", "cat_love", 40);
+assert(V.catArr[0].love === 40, "47.5 猫好感写入 40");
+api.applyCheatModValue("cattery", "cat_love", 50);
+assert(V.catArr[0].love === 40, "47.5 猫好感越上限钳制到 40");
+/* 47.5b 好感联动：写 ≥40 自动补 firstCat_loveMax=1（模组特质「金牌饲养员」触发条件），写低值不撤销 */
+assert(V.firstCat_loveMax === 1, "47.5b 写 love=40 自动补 firstCat_loveMax=1（金牌饲养员触发条件成立），实际 " + V.firstCat_loveMax);
+api.applyCheatModValue("cattery", "cat_love", 20);
+assert(V.firstCat_loveMax === 1, "47.5b 写低值不撤销 loveMax（模组仅电脑降级操作归 0），实际 " + V.firstCat_loveMax);
+api.applyCheatModValue("cattery", "cat_love", 40);
+api.applyCheatModValue("cattery", "cat_play", 33);
+assert(V.catArr[0].play === 33, "47.5 猫玩力写入 33");
+/* 47.6 飞行解锁 + 书房藏书（数字语义，is 1 / gte 1 兼容） */
+api.setCheatStage("cattery", "cat_fly", 1);
+assert(V.birdFly === 1 && typeof V.birdFly === "number", "47.6 飞行解锁写入数字 1");
+api.setCheatStage("cattery", "cat_book1", 1);
+assert(V.pcHouseBook1 === 1 && typeof V.pcHouseBook1 === "number", "47.6 书房藏书 1 写入数字 1");
+/* 47.7 食材/菜品数值 + 钳制 */
+api.applyCheatModValue("cattery", "cat_food_milk", 12);
+assert(V.pc_milk === 12, "47.7 牛奶写入 12");
+api.applyCheatModValue("cattery", "cat_cook_gbjd", 5);
+assert(V.cookok_gbjd === 5, "47.7 宫保鸡丁次数写入 5");
+api.applyCheatModValue("cattery", "cat_cook_gbjd", 200);
+assert(V.cookok_gbjd === 99, "47.7 菜品越上限钳制到 99");
+/* 47.8 猫数据缺失 → 宿主拒绝（未领养时 catArr 不存在，防崩） */
+delete V.catArr; delete V.firstCat_variety;
+var rn42 = api.applyCheatModValue("cattery", "cat_love", 10);
+assert(!rn42.ok, "47.8 catArr 缺失时拒绝写入（防崩）");
+/* 47.9 回退（最后一次写入 47.5 写 1 的 before=0） */
+var bu42 = api.undoCheatModValue("cattery", "stage_set:cat_owncat");
+assert(bu42.ok && V.pchaveCat === 0, "47.9 养猫阶段回退到 0");
+/* 47.10 卸载后探测自动消失 */
+delete V.cattery_time; delete V.pcfood_cake; delete V.rentingahouse; delete V.pchaveCat; delete V.birdFly;
+delete V.pcHouseBook1; delete V.pc_milk; delete V.cookok_gbjd; delete V.catArr; delete V.firstCat_variety; delete V.firstCat_loveMax; delete V.mbCE_wrote;
+assert(api.getCheatMods().filter(function (x) { return x.modId === "cattery"; }).length === 0, "47.10 卸载后 Cattery 适配器自动消失");
 
 /* ============ 46）存档卫生：新游戏不继承旧存档的 CE 写入 ============
    背景：用户实测疑虑"之前用模组改过数值，开新游戏会不会继承"。

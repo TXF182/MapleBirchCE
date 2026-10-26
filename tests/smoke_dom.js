@@ -289,22 +289,22 @@ const btBtns = [].slice.call(globalPane.querySelectorAll("button")).filter(funct
 assert(btBtns.length === 1, "战斗终结「自我了断」按钮存在");
 if (btBtns[0]) { btBtns[0].click(); }
 assert(V.pain === 1000, "点击自我了断 → V.pain=1000，实际 " + V.pain);
-const feedBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("一键投喂艾弗里") !== -1; });
-assert(feedBtn.length === 1, "庄园维护「一键投喂艾弗里」按钮存在");
-const farmBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("一键农场维护") !== -1; });
-assert(farmBtn.length === 1, "庄园维护「一键农场维护」按钮存在");
+const feedBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动投喂艾弗里") !== -1; });
+assert(feedBtn.length === 1, "庄园维护「自动投喂艾弗里」按钮存在");
+const farmBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动农场维护") !== -1; });
+assert(farmBtn.length === 1, "庄园维护「自动农场维护」按钮存在");
 /* v1.8.10 维护扩展按钮：神殿/伊甸/补给/打扫 */
-const templeBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("一键神殿维护") !== -1; });
-assert(templeBtn.length === 1, "庄园维护「一键神殿维护」按钮存在");
+const templeBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动神殿维护") !== -1; });
+assert(templeBtn.length === 1, "庄园维护「自动神殿维护」按钮存在");
 if (templeBtn[0]) { templeBtn[0].click(); }
-const edenBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("一键伊甸维护") !== -1; });
-assert(edenBtn.length === 1, "庄园维护「一键伊甸维护」按钮存在");
+const edenBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动伊甸维护") !== -1; });
+assert(edenBtn.length === 1, "庄园维护「自动伊甸维护」按钮存在");
 if (edenBtn[0]) { edenBtn[0].click(); }
-const restockBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("一键补给") !== -1; });
-assert(restockBtn.length === 1, "庄园维护「一键补给」按钮存在");
+const restockBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动补给") !== -1; });
+assert(restockBtn.length === 1, "庄园维护「自动补给」按钮存在");
 if (restockBtn[0]) { restockBtn[0].click(); }
-const cleanBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("一键庄园打扫") !== -1; });
-assert(cleanBtn.length === 1, "庄园维护「一键庄园打扫」按钮存在");
+const cleanBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动庄园打扫") !== -1; });
+assert(cleanBtn.length === 1, "庄园维护「自动庄园打扫」按钮存在");
 if (cleanBtn[0]) { cleanBtn[0].click(); }
 /* v1.8.8 三个新适配器：注入探测 mock 后 Mod作弊 页出现 */
 window.DolOptimization = {};

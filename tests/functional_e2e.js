@@ -42,7 +42,7 @@ try {
   });
 } catch (e) { console.error("WARN: patch select.type 失败:", e.message); }
 
-/* ---------- 2. 游戏全局 + 8 适配器探测键 + 模组特质注入全命中 mock ---------- */
+/* ---------- 2. 游戏全局 + 9 适配器探测键 + 模组特质注入全命中 mock ---------- */
 const V = {
   player: { virginity: { vaginal: true, penile: false }, name: "X", penissize: 2 },
   skill: { housekeeping: 1000, tending: 1000 },
@@ -56,6 +56,8 @@ const V = {
   Phone: { Owned: 1, photography: 1 },
   /* Wraith 根 + Dol-Optimization 原版根缝隙 options.opt */
   WraithsReflection: 1, options: { opt: {} },
+  /* Cattery 探测根（顶层标量） */
+  cattery_time: 0, pcfood_cake: 0,
   loveInterest: [], passage: "Room", scenePassages: []
 };
 global.V = V;
@@ -100,14 +102,14 @@ function clickTabSafe(name) {
   assert(t.indexOf("THREW") === -1 && t.length > 0, "A. " + pair[1] + "页渲染不崩，实际 " + t.slice(0, 40));
 });
 
-/* ---------- B. 8 适配器全命中 ---------- */
+/* ---------- B. 9 适配器全命中 ---------- */
 const mods = api.getCheatMods();
-assert(mods.length === 8, "B. 8 适配器全部探测命中，实际 " + mods.length + " → " + mods.map(function (m) { return m.modId; }).join(","));
+assert(mods.length === 9, "B. 9 适配器全部探测命中，实际 " + mods.length + " → " + mods.map(function (m) { return m.modId; }).join(","));
 mods.forEach(function (m) {
   assert(!!m.modId && Array.isArray(m.stages) && Array.isArray(m.abilities) && Array.isArray(m.values), "B. " + m.modId + " 声明结构完整（stages/abilities/values 数组）");
 });
 const modsTxt = document.querySelector('[data-pane="mods"]').textContent;
-["枯木逢春", "Dol-Optimization", "幽灵的倒影", "DoLSims", "归途", "More Love Interests", "DomRobin", "SmartPhone"].forEach(function (kw) {
+["枯木逢春", "Dol-Optimization", "幽灵的倒影", "DoLSims", "归途", "More Love Interests", "DomRobin", "SmartPhone", "Cattery"].forEach(function (kw) {
   assert(modsTxt.indexOf(kw) !== -1, "B. Mod作弊 主容器含 " + kw + " 入口，实际 " + modsTxt.slice(0, 200));
 });
 
@@ -314,6 +316,8 @@ if (combatGrp) {
 const farmGrp = sections.filter(function (g) { return g.textContent.indexOf("庄园自动维护") !== -1; })[0];
 assert(!!farmGrp, "E. 全局页含「庄园自动维护」区");
 if (farmGrp) {
+  /* v1.9.x 神殿维护改为 V 顶层技能判定（原版实证）→ E2E 场景需预设达标技能值 */
+  V.housekeeping = 1200; V.tending = 1200;
   let threw = 0, done = 0;
   [].slice.call(farmGrp.querySelectorAll("button")).forEach(function (b) {
     try { b.click(); done++; } catch (e) { threw++; console.error("FAIL: 庄园维护按钮[" + b.textContent + "]抛错: " + e.message); }

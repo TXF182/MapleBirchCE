@@ -1,10 +1,10 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**8 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**9 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.9**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v1.9.10**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 安装（快速开始）
 
@@ -57,21 +57,22 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.9.9）
+## Mod作弊 适配器一览（v1.9.10）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.5.0 | 阶段 13 / 能力 65 / 数值 55 | `maplebirch.get("DeadwoodReblooms")` |
-| 归途之书 · Revelation | 1.4.0 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
+| 枯木逢春 · Deadwood Reblooms | 2.5.1 | 阶段 13 / 能力 65 / 数值 55 | `maplebirch.get("DeadwoodReblooms")` |
+| 归途之书 · Revelation | 1.4.1 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
 | DomRobin | 0.0.8 | 阶段 1 / 能力 11 / 数值 2 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
 | 原版优化 Dol-Optimization | 1.1.2.1 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
 | Wraith'sReflection · 幽灵的倒影 | 1.3.4 | 阶段 4 / 能力 4 / 数值 2 | `V` 自有根并集（WraithsReflection/HelpAsk/项链系） |
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
+| 猫舍 Cattery（猫咖/出租屋/养宠/飞行） | 1.1.8.2 | 阶段 9 / 数值 39（租屋/养猫/菜品/食材/飞行/书房/清洁） | `window.createCafePC`（或 V 顶层键兜底） |
 | maplebirch 框架本体 | 5.5.6 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
-> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**9 渠道全覆盖**：8 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims）+ 框架本体。
+> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**10 渠道全覆盖**：9 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery）+ 框架本体。
 > **自动替换旧模组包**：`tools/check_mod_updates.js --apply` 检测到适配模组有新版时，自动下载官方最新包（api.github.com assets 端点 + 302 跟随）并替换 `game` 内旧模组包（按 gameGlob 匹配删除旧包后放入新包）；框架渠道不自动替换（升版前必须人工跑 `check_framework_api.js` 核对 API 兼容）。GitHub API 未认证有速率限制（403）时，设置 `GITHUB_TOKEN` 环境变量（仅内存使用）即可。已装模组包即官方最新版时，替换为幂等覆盖。
 
 ## 常见问题（FAQ）

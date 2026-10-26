@@ -24,7 +24,9 @@
 	}
 	/* 联动写入（v1.9.6 扩展）：条目可声明 sync 字段，主键写入成功后按序执行联动，
 	   保持模组状态机一致（如写 dress.active 时同步清 proposal / 升 highest / 清试行期）。
-	   联动键不留痕（属主写入的伴随修正）；联动失败不影响主写入结果。 */
+	   联动键不留痕（属主写入的伴随修正）；联动失败不影响主写入结果。
+	   v1.9.10 自查扩展：s.ifMissing = true 时仅在目标键不存在（undefined）才写入，
+	   防覆盖玩家已有数据（如 Cattery 养猫联动补 catArr，已有猫不重置）。 */
 	function applyCheatSync(V, syncData, newVal) {
 		try {
 			if (!syncData || typeof syncData !== "object") { return; }
@@ -38,8 +40,9 @@
 				syncData.set.forEach(function (s) {
 					var r = cheatResolvePath(s.path);
 					/* v1.9.9 sync.set 条件扩展：s.if = { min / max } 按「主写入后的新值」判定，
-					   不满足则跳过该联动（如写 shrine.stage=0 重置时不补 feeds/init）。无 if 字段=无条件，兼容旧声明。 */
-					if (r.ok && (!s.if || ((typeof s.if.min !== "number" || newVal >= s.if.min) && (typeof s.if.max !== "number" || newVal <= s.if.max)))) {
+					   不满足则跳过该联动（如写 shrine.stage=0 重置时不补 feeds/init）。无 if 字段=无条件，兼容旧声明。
+					   v1.9.10：s.ifMissing 时目标已存在（r.exists）则跳过，防覆盖玩家数据。 */
+					if (r.ok && !(s.ifMissing && r.exists) && (!s.if || ((typeof s.if.min !== "number" || newVal >= s.if.min) && (typeof s.if.max !== "number" || newVal <= s.if.max)))) {
 						r.parent[r.leaf] = typeof s.value === "function" ? s.value(V) : s.value;
 					}
 				});

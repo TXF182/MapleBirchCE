@@ -2,6 +2,33 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.10（2026-10-26 · 已发布）
+
+**猫舍 Cattery 兼容适配（第 9 个适配器）+ 枯木逢春 2.5.1 / 归途之书 1.4.1 适配（2026-10-26）**
+
+**Cattery 猫舍 v1.1.8.2 兼容适配（第 9 个适配器）**
+
+- **新增「猫舍 Cattery」适配器**（repo `Maomaoi/Degrees-of-Lewdity-Cattery`，对照源码 `tools/_modcache/cat1182`，40 文件无根对象、全顶层标量）：**9 阶段 + 39 数值、全数字通道**（模组全部 `is 1`/`gte 1` 严格比较判定，禁 boolean）；探测 `window.createCafePC`（函数）或 V 顶层键兜底（cattery_time/pcfood_cake/rentingahouse/pchaveCat）；
+- **出租屋线**：`rentingahouse` 阶段键（每月 1 日交租、养宠减清洁，源码 home1.twee 实证）；
+- **养猫线**：`pchaveCat` 领养键 + **sync 联动**（写 1 自动补 `firstCat_variety="橘猫"` + `catArr=[{name:"咪咪",love:0,play:0}]`，防模组 `catArr[0]` 读取崩溃）；`cat_love`/`cat_play` = `catArr.0.love`/`catArr.0.play`（0-40，未领养时父级缺失拒绝写入防崩）；12 种品种键；
+- **菜品/食材**：11 个菜品计数键（地三鲜/酸辣土豆丝/茄香鸡柳/青椒肉丝/奶香茄子煲/椒盐土豆/白菜炖鸡脯/土豆炒肉片/宫保鸡丁/清炒白菜/自创，0-99）+ 13 个食材键（pc_food/pcfood_cake/pc_cabbages/pc_aubergine/pc_potato/pc_green_pepper/pc_fillet/pc_chicken_breast/pc_Sichuan_pepper/pc_cream/pc_cake_flour/pc_cocoa_powder/pc_milk）；
+- **飞行/花园/书房/清洁**：`birdFly` 飞行解锁 + 训练 `pcfly` 0-6 + 目的地 `flycattery`；`pcGardenupgrade` 花园 0/1；`pcHouseBook1-5` 书房藏书 0/1；`pcHome_clean` 清洁 0-40（源码 clamp 锁死上限）；`pcEntranceFront_clean`/`pcEntranceAfter_clean` 0-3；`pchouse_drawing` 0-100；
+- **测试同步**：新增 §47 测试（探测命中 → 租屋/养猫阶段写入 → sync 联动补 catArr/品种 → 写 0 不联动 → 好感/玩力写入与 40 上限钳制 → 飞行/书房数字语义 → 食材/菜品写入与 99 钳制 → catArr 缺失拒绝防崩 → 回退 → 卸载后探测消失）；E2E 适配器断言 8→9（mock 补 cattery_time/pcfood_cake 探测根 + 关键词补 Cattery）；42.5 审计断言 8→9。
+
+**枯木逢春 2.5.1 / 归途之书 1.4.1 适配（每日更新检测检出）**
+
+- **枯木逢春 `2.5.0 → 2.5.1`**（对照 `tools/_modcache/dw251` 源码工程）：文件级 diff 仅 7 个文件变更（StreetLife.ts 读取方式重构、Intimacy/PropertyLife 互动细节补 Robin trauma/Kylar rage/Whitney dom 结算、School/OrphanDoctor/Stories 文案与 capture 修复）——**零 varPath 变更**，仅升声明版本；audit 35 条"缺失"经 resolve_missing 定案 KEEP（含 investment.agreed——`$RobinExpansion?.investment.agreed` 可选链访问致静态扫描盲区，Adrian.twee 实证存活，不删）+ REVIEW 8 条全保留（raven.met/Tsukihan dom·init/treasure 三键/Finance.company 两键，动态键形态，复核保留）；**REMOVE 0 条**；
+- **归途之书 `v1.4.0 → v1.4.1`**（对照 `tools/_modcache/rv141` 源码工程）：覆盖 55/57、resolve KEEP 55 + REVIEW 1（TempleDuties.watch.phase）——**零 varPath 变更**，仅升声明版本；
+- **更新检测渠道扩容**：`tools/check_mod_updates.js` 渠道表新增第 10 渠道 `cattery`（repo `Maomaoi/Degrees-of-Lewdity-Cattery`，pickAsset 补裸 `.zip` 资产兜底——该模组只发 `.zip` 不认 `.modpack`/`.mod.zip`）；
+- 升版 1.9.10 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）；全链 6 步全绿 + codegraph sync；打包 + 装入 game。
+
+**庄园维护全自动改造 + v1.9.10 核查优化（2026-10-26 追加，并入 v1.9.10）**
+
+- **庄园维护修复与全自动改造**（AutoClean 0.1.5 对照 + 原版 64.6MB 实证）：神殿技能判断路径修复——旧判 `V.skill.*`（原版 0 处，恒 false 根因），改为顶层 `V.housekeeping/V.tending`（0-1000，`earnFeat("Majordomo")` 判 `housekeeping>=1000`）；农场/补给/打扫对齐 AutoClean 实证语义（`farm_stock_init` stock 键 truffles/eggs/milk/cream vs 原版食物键、`temple_quarters/garden` 入 0/每日-10/clamp 0-100、`$soap/$salve` Twee 顶层消耗键、`avery_mansion` 十房间全 `to 0`）；6 键 UI 改**自动开关**（自动维护/自动投喂），**每日全自动调度器**（`mcAutoState/mcAutoSave` localStorage `mbCE_auto` + `Time.days` 日锚，不写 V 不污染存档、新档不继承；`07f-pins` passage 钩子 try/catch 调用）；投喂修复 2 处：`avery_food_select` 移出"最高难度菜谱"分支、喂食后无条件刷新（艾弗里不再永远吃同一种菜），开启当日 `lastDay=当日` 去重（按钮开启已即时执行一次，防投喂双扣食材）；维护键实证核查（`$soap/$salve` 伊甸小屋消耗、`V.eden_soap/eden_salve` 仅只读映射、`cream` 原版 479 处无食物键、`avery_food_select` widget 存在、`Time.days` 开档总天数）；
+- **Cattery 适配器核查优化**（对照 cat1182 源码逐键实证）：45 键全部存活（catArr {name,love,play} 结构与 `setup.firstCat` 一致、love/play `Math.clamp(0,40)`、pcHome_clean 顶层宿主 30/35/40、门口/后院 clamp 0-3、绘画 0-100、藏书 1-5、cookok 系列、birdFly/flycattery 73 处地点编号）；**修复真实缺陷**：模组「金牌饲养员」特质触发链 = love≥40 且 `firstCat_loveMax≠1` 时置 loveMax=1（Cathave_speciality widget 实证），CE 此前只写 love 不写 loveMax → 特质永不出现——`cat_love` 加 sync 联动（写 ≥40 自动补 `firstCat_loveMax=1`，写低值不撤销，对齐模组"仅电脑降级归 0"）；note 修正（cat_rent 清洁度 35→30/35/40 实证）；测试补 47.5b 两条联动断言；
+- **Cattery 本体包就位 + 对照源码清理**：`game\Cattery-1.1.8.2-fixed-jumping_rope-icons.zip` 缺 `.mod` 后缀不会被 ModLoader 扫描 → 改名 `Cattery.mod.zip`（893,790 B，createCafePC/birdFly/flycattery 符号实证）；`tools\_modcache` 删旧对照 dw250/rv140/deadwood-2.4.7/revelation-1.3.13（只保留当前 dw251/rv141/fw556/mli0180/opt1121/sp0391/wr134/cat1182）；tools 未跟踪残留清零（_deadwood_probe/_revelation_src/_tmp_v199_* 共 13 项）；git 未跟踪归零；
+- **发布前核验**：全链 6 步全绿（build → syntax → DOM 冒烟 → 回归含 47.5b → E2E 9 适配器 → 性别集成）+ codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4；SHA256 见资产核对。
+
 ## v1.9.9（2026-10-26 · 已发布）
 
 **枯木逢春 2.5.0 说明页内容补全作弊项 + 月羽译名更正（2026-10-26）**
