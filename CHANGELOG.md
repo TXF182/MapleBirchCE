@@ -2,7 +2,7 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v1.9.15（2026-10-28 · 未发布）
+## v1.9.15（2026-10-28 · 已发布）
 
 **数值固定（Lock Values）+ UI 动效六项全量发布（2026-10-28）**
 
@@ -28,7 +28,7 @@
 
 - 三层断言全过：DOM 冒烟数值固定 3 条 + 回归 44.9 十二条（锁定/更新/取消/非法拒绝/不存在键不创建/空段拒绝/立即写回）+ E2E L 区块 9 条（真实点击链路）；
 - 全链 6 步全绿（build → syntax → smoke → 回归 → E2E → 性别集成 24/24）+ codegraph sync；zip 正斜杠 4/4、verifier 4/4；
-- 打包 SHA256 见资产核对；已装入 `game\MapleBirchCE.mod.zip`（双向 SHA 一致）。
+- **已发布**：Release v1.9.15（id 425752035，tag v1.9.15，url https://github.com/TXF182/MapleBirchCE/releases/tag/v1.9.15），资产 MapleBirchCE.mod.zip 206027 B；API 回读 SHA `B6CB5CA3E60F0AA44633E618614E032204AC00C0EA1C71578E7AEA9086F13D90` 与本地一致（SIZE_MATCH=1 / SHA_MATCH=1）；远端 main 已推送（commit 8a71afd8）；game 内已装同 SHA 包。
 
 ## v1.9.14（2026-10-27 · 随 v1.9.15 发布）
 
