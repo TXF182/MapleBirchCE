@@ -312,6 +312,14 @@ const wcTxt = globalPane.textContent;
 assert(wcTxt.indexOf("世界腐化") !== -1 && wcTxt.indexOf("world_corruption_hard") !== -1 && wcTxt.indexOf("world_corruption_soft") !== -1,
   "全局页含「世界腐化」区（硬/软腐化两行），实际 " + wcTxt.slice(0, 200));
 assert(wcTxt.indexOf("当前 2") !== -1 && wcTxt.indexOf("当前 0") !== -1, "世界腐化行显示原版初始值（hard=2 / soft=0），实际 " + wcTxt.slice(0, 200));
+/* v1.9.15 全局页新区：数值固定（防游戏机制改动，07f-lock.js） */
+const lockTxtSm = globalPane.textContent;
+assert(lockTxtSm.indexOf("数值固定") !== -1 && lockTxtSm.indexOf("maplebirch.transformation.raven.build") !== -1 && lockTxtSm.indexOf("fallenangel") !== -1,
+  "全局页含「数值固定」区（渡鸦/堕天使等预设行），实际 " + lockTxtSm.slice(-500));
+const lockRowsSm = [].slice.call(globalPane.querySelectorAll('.mce-row[data-lockpath]'));
+assert(lockRowsSm.length === api.MB_CE_LOCK_PRESETS.length, "数值固定预设行渲染 " + api.MB_CE_LOCK_PRESETS.length + " 项, 实际 " + lockRowsSm.length);
+assert(lockTxtSm.indexOf("自由添加") !== -1, "数值固定区含自由添加 varPath 输入行");
+delete V.mbCE_lock;
 /* v1.8.8 三个新适配器：注入探测 mock 后 Mod作弊 页出现 */
 window.DolOptimization = {};
 window.MirrorHypnoVariableRefresh = function () {};
@@ -512,9 +520,10 @@ setTimeout(function () {
   assert(V.mock_ability === true, "能力勾选写入 V.mock_ability=true，实际 " + V.mock_ability);
   assert(abBox.checked === true, "能力勾选局部回显 checked=true");
   assert(mpane.querySelectorAll(".mce-row").length === rowsBefore, "能力勾选后行数不变（局部更新）");
-  const vinp = [].slice.call(mpane.querySelectorAll("input.mce-inp"))[0];
-  vinp.value = "+5";
   const applyV = [].slice.call(mpane.querySelectorAll("button")).filter(function (b) { return b.textContent === "应用修改"; })[0];
+  /* v1.9.13 数值搜索框独立 class 后 input.mce-inp 仅剩数值输入框；仍按「应用修改」按钮所在行取输入框，双保险防未来新控件插队 */
+  const vinp = applyV.parentNode.querySelector("input.mce-inp");
+  vinp.value = "+5";
   applyV.click();
   assert(V.mock_value === 15, "相对 +5 写入 V.mock_value=15，实际 " + V.mock_value);
   assert(vinp.value === "15", "数值输入框局部回显 15，实际 " + vinp.value);
@@ -811,6 +820,17 @@ setTimeout(function () {
       assert(js.indexOf("modRowQueue.length = 0;") !== -1, "16.1 重建时清残留分片任务（renderModCheatDetail 入口，源码）");
       assert(js.indexOf("if (modRowBatchTimer) { clearTimeout(modRowBatchTimer); modRowBatchTimer = null; }") !== -1, "16.1 重建时先清分片定时器（源码）");
       delete setup.mbCE_modCheats;
+      /* ---------- 17. v1.9.14 UI 动效：CSS 规则与工具函数源码断言（CSS 串内嵌构建产物） ---------- */
+      assert(js.indexOf(".mce-btn:active{transform:scale(.96)}") !== -1, "17 .mce-btn 按压缩放 scale(.96)（效果1）");
+      assert(js.indexOf("#mce-root button:active{transform:scale(.96)}") !== -1, "17 面板内全部按钮统一按压缩放（效果1）");
+      assert(js.indexOf("#mce-toggle:active{transform:scale(.94)}") !== -1, "17 悬浮球按压缩放 scale(.94)");
+      assert(js.indexOf("translateY(-1px)") !== -1 && js.indexOf(".mce-btn.mce-gold:hover") !== -1, "17 金色按钮 hover 上浮+阴影（效果3）");
+      assert(js.indexOf("transition:background .12s ease,transform .12s ease,box-shadow .12s ease") !== -1, "17 按钮过渡 12ms（效果1/3）");
+      assert(js.indexOf("@keyframes mce-pop-in") !== -1 && js.indexOf("@keyframes mce-pop-out") !== -1, "17 面板开合 keyframes（效果6）");
+      assert(js.indexOf("#mce-root.mce-closing{animation:mce-pop-out .12s ease-in forwards}") !== -1, "17 面板关闭淡出 class（效果6）");
+      assert(js.indexOf("@keyframes mce-fade-in") !== -1 && js.indexOf('data-collapsed=\\"0\\"]{animation:mce-fade-in .2s ease-out}') !== -1, "17 折叠组展开淡入规则（效果4）");
+      assert(js.indexOf(".mce-flash{animation:mce-flash .6s ease-out}") !== -1 && js.indexOf("@keyframes mce-flash") !== -1, "17 写入成功闪烁规则（效果2）");
+      assert(js.indexOf("function mbCEFlash(node)") !== -1 && js.indexOf("function mbCEFlashAfterRender(stageKey)") !== -1, "17 mbCEFlash/mbCEFlashAfterRender 工具在位（效果2）");
     }, 800);
   } catch (e16) {
     failures++;

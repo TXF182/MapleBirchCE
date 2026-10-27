@@ -18,8 +18,11 @@ const fs = require("fs"), path = require("path");
 const GAME_DIR = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game";
 const DOWNLOAD_DIR = path.join(__dirname, "_modcache");
 
-const SRC = path.join(__dirname, "..", "javascript", "src", "04a-modcheat-adapters.js");
-const js = fs.readFileSync(SRC, "utf8");
+/* 适配器声明自 v1.9.13 起按模组拆分为 src/04a-00-core.js + 04a-01..09-*.js；
+   此处读目录下全部 04a-*.js 拼接后解析（与 tools/build_js.js 的 sort 顺序一致） */
+const ADAPTER_DIR = path.join(__dirname, "..", "javascript", "src");
+const js = fs.readdirSync(ADAPTER_DIR).filter(f => /^04a-.*\.js$/.test(f)).sort()
+  .map(f => fs.readFileSync(path.join(ADAPTER_DIR, f), "utf8")).join("\n");
 
 /* 渠道表：适配器 modId → GitHub repo；extract 为从 modName 提取声明版本的匹配。
  * gameGlob：--apply 时在 game 目录匹配旧模组包的文件名模式（用于删除替换）。 */

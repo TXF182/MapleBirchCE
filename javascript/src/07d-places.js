@@ -19,7 +19,26 @@
 		}, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
 		{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) {
 			return n.indexOf("Elk Compound") === 0;
-		}, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/怨灵线/附身线等 70+ 子场景）" }
+		}, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/怨灵线/附身线等 70+ 子场景）" },
+		/* v1.9.13 场景直达补充 6 组（段落前缀均经本体 0.5.12.13 实证） */
+		{ id: "asylum", name: "精神病院 · Asylum", match: function (n) {
+			return n === "Asylum" || n.indexOf("Asylum ") === 0;
+		}, main: "Asylum", note: "精神病院（评估/病房/深渊/镜像等线；$location=asylum）" },
+		{ id: "police_prison", name: "警局与监狱 · Police/Prison", match: function (n) {
+			return n.indexOf("Police ") === 0 || n.indexOf("Prison ") === 0;
+		}, main: "Police Cell", note: "警局（羁押/社区服务）与监狱（囚犯线/Wren 线等）" },
+		{ id: "docks", name: "码头 · Docks", match: function (n) {
+			return n === "Docks" || n.indexOf("Docks_") === 0 || n.indexOf("Docks ") === 0;
+		}, main: "Docks", note: "码头（$location=docks；罗宾码头线 Docks_Robin 系列在此）" },
+		{ id: "lake", name: "湖畔 · Lake", match: function (n) {
+			return n.indexOf("Lake ") === 0;
+		}, main: "Lake Stroll", note: "湖畔（$location=lake；散步/昆虫/黄金/遗迹等线）" },
+		{ id: "wolf_territory", name: "森林深处 · 狼群领地", match: function (n) {
+			return n.indexOf("Wolf ") === 0 || n.indexOf("Forest Wolf") === 0;
+		}, main: "Wolf Pack", note: "森林深处的狼群领地（Wolf Pack 遭遇/狼穴/狼孩线）" },
+		{ id: "hospital", name: "医院 · Hospital", match: function (n) {
+			return n.indexOf("Hospital ") === 0;
+		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" }
 	];
 	var PLACE_CN = {
 		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
@@ -268,8 +287,10 @@
 				mDec.type = "button";
 				mDec.setAttribute("data-op", "dec");
 				mDec.addEventListener("click", function () {
-					placeStageWrite(it.path, placeStageRead(it.path) - 1, 0, it.max);
+					var r = placeStageWrite(it.path, placeStageRead(it.path) - 1, 0, it.max);
 					renderPlaces();
+					if (r && r.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
+					else { setStatus(r && r.message ? r.message : "写入失败", "mce-err"); }
 				});
 				var mInc = el("button", "mce-btn", "+1");
 				mInc.type = "button";
@@ -278,15 +299,19 @@
 					/* +1 是档位微调：钳到 [0, it.max]（阶段档位语义，防点出不存在档位） */
 					var nx = placeStageRead(it.path) + 1;
 					if (nx > it.max) { nx = it.max; }
-					placeStageWrite(it.path, nx, 0, it.max);
+					var rInc = placeStageWrite(it.path, nx, 0, it.max);
 					renderPlaces();
+					if (rInc && rInc.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
+					else { setStatus(rInc && rInc.message ? rInc.message : "写入失败", "mce-err"); }
 				});
 				var mMax = el("button", "mce-btn mce-gold", "拉满");
 				mMax.type = "button";
 				mMax.setAttribute("data-op", "max");
 				mMax.addEventListener("click", function () {
-					placeStageWrite(it.path, it.max, 0, it.max);
+					var rMax = placeStageWrite(it.path, it.max, 0, it.max);
 					renderPlaces();
+					if (rMax && rMax.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
+					else { setStatus(rMax && rMax.message ? rMax.message : "写入失败", "mce-err"); }
 				});
 				row.appendChild(mDec);
 				row.appendChild(mInc);
@@ -302,6 +327,7 @@
 							var r = placeStageUndo(it.path);
 							renderPlaces();
 							setStatus(r.message || "", r.ok ? "mce-ok" : "mce-err");
+							if (r && r.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2 */
 						});
 						row.appendChild(mUndo);
 					}

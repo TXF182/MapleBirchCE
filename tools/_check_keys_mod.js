@@ -16,8 +16,10 @@ if (!modId || !root || !fs.existsSync(root)) {
 }
 const listOnly = process.argv[4] === "--list";
 
-const SRC = path.join(__dirname, "..", "javascript", "src", "04a-modcheat-adapters.js");
-const js = fs.readFileSync(SRC, "utf8");
+/* 适配器源码按模组拆分（04a-00..09-*.js，v1.9.13）：目录扫描拼接，顺序与 build_js.js sort 一致 */
+const ADAPTER_DIR = path.join(__dirname, "..", "javascript", "src");
+const js = fs.readdirSync(ADAPTER_DIR).filter(f => /^04a-.*\.js$/.test(f)).sort()
+  .map(f => fs.readFileSync(path.join(ADAPTER_DIR, f), "utf8")).join("\n");
 const i = js.indexOf('CHEAT_ADAPTERS["' + modId + '"]');
 if (i === -1) { console.error("适配器不存在: " + modId); process.exit(1); }
 let start = js.indexOf("{", i), depth = 0, end = -1;

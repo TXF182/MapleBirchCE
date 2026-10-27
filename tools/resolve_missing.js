@@ -30,11 +30,14 @@ const path = require("path");
 const KEEP = "KEEP", REVIEW = "REVIEW", REMOVE = "REMOVE";
 
 const ROOT = path.join(__dirname, "..");
-const ADAPTER_SRC = path.join(ROOT, "javascript", "src", "04a-modcheat-adapters.js");
+/* 适配器声明自 v1.9.13 起按模组拆分（src/04a-00-core.js + 04a-01..09-*.js），
+   此处读目录下全部 04a-*.js 拼接后按块提取（与 build_js.js sort 顺序一致） */
+const ADAPTER_DIR = path.join(ROOT, "javascript", "src");
 
 /* ---------- 1. 提取适配器全部 varPath ---------- */
 function extractVarPaths(modId) {
-	const text = fs.readFileSync(ADAPTER_SRC, "utf8");
+	const text = fs.readdirSync(ADAPTER_DIR).filter(f => /^04a-.*\.js$/.test(f)).sort()
+		.map(f => fs.readFileSync(path.join(ADAPTER_DIR, f), "utf8")).join("\n");
 	const key = `CHEAT_ADAPTERS["${modId}"]`;
 	const start = text.indexOf(key);
 	if (start === -1) throw new Error("适配器未找到: " + modId);

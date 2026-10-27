@@ -6,7 +6,7 @@
  *
  * 干什么：maplebirchFramework 发布新版时，核对 MapleBirchCE 运行时依赖的框架
  * API 是否全部保留（不兼容就不能把"当前兼容版本"记录更新上去）。
- * 核对项 = 04a-modcheat-adapters.js / 01-core.js / 02-romance.js / 06b-traits-eval.js 里实际用到的
+ * 核对项 = src/04a-*.js（按模组拆分的适配器） / 01-core.js / 02-romance.js / 06b-traits-eval.js 里实际用到的
  * 框架接口（见 APIS 数组注释的源码出处）。打包产物是压缩单行，用子串/正则
  * 匹配（变量名被压缩，属性访问路径如 .temporary.traitLists 保留原样）。
  *
@@ -24,7 +24,7 @@ const t = fs.readFileSync(f, "utf8");
 const APIS = [
   /* 01-core.js:19 框架解析：window.maplebirch 全局对象（主路径） */
   ["window.maplebirch 全局导出", /window\.maplebirch\s*=|maplebirch\s*=\s*\{|globalThis\.maplebirch|\.maplebirch=/],
-  /* 04a-modcheat-adapters.js:4/205 探测键：window.maplebirch.get("RobinTemple"/"DeadwoodReblooms"/"TempleChoir") */
+  /* src/04a-01-revelation.js / 04a-04-deadwood.js 探测键：window.maplebirch.get("RobinTemple"/"DeadwoodReblooms"/"TempleChoir") */
   ["maplebirch.get 模块状态读取", /maplebirch\.get\s*=|\.get\s*=\s*function|get\(\s*["']?[A-Za-z_]/],
   /* 02-romance.js:16/288/305 maplebirch.npc 注册池（.data 为 Map / 按名索引） */
   ["maplebirch.npc 注册池", /maplebirch\.npc|\.npc\s*=|npc:\s*\{/],

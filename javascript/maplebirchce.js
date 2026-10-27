@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.12";
+	var MCE_VERSION = "1.9.15";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1567,26 +1567,26 @@
 		"vaginal": "阴道的", "handholding": "牵手", "kiss": "亲吻", "virgin": "处子", "chastity": "贞操",
 		/* 属性数值 */
 		"love": "爱意", "lust": "欲望", "stress": "压力", "trauma": "创伤", "awareness": "意识",
-		"arousal": "兴奋", "pain": "疼痛", "control": "控制", "deviancy": "堕落", "promiscuity": "滥交",
+		"arousal": "情欲", "pain": "疼痛", "control": "控制", "deviancy": "异种癖", "promiscuity": "淫乱",
 		"fame": "名声", "reputation": "声誉", "dominance": "支配欲", "confidence": "自信", "sanity": "理智",
 		"health": "健康", "willpower": "意志", "swim": "游泳", "tenderness": "温柔", "sensitivity": "敏感",
-		"familiarity": "熟悉度", "pheromones": "信息素", "sass": "傲慢", "beauty": "美貌",
+		"familiarity": "熟悉度", "pheromones": "信息素", "sass": "傲慢", "beauty": "容貌",
 		"paraphilia": "性癖", "weirdness": "怪诞", "addiction": "上瘾", "corruption": "腐化",
-		"whoring": "卖淫", "exhibitionism": "裸露癖", "submissive": "顺从", "submissiveness": "顺从度",
+		"whoring": "卖淫", "exhibitionism": "暴露癖", "submissive": "顺从", "submissiveness": "顺从度",
 		"tolerances": "耐受", "tolerance": "耐受", "spunk": "精液", "life": "生命", "dead": "死亡",
-		"physique": "体格", "purity": "纯洁", "drugged": "药物影响", "tiredness": "疲劳",
-		"history": "经历", "inventory": "物品栏", "map": "地图", "position": "姿势", "target": "目标",
+		"physique": "体能", "purity": "纯洁", "drugged": "药物影响", "tiredness": "疲劳",
+		"history": "历史", "inventory": "物品栏", "map": "地图", "position": "姿势", "target": "目标",
 		"state": "状态", "seen": "已被看见", "action": "动作", "hide": "隐藏", "beastRut": "兽性发情",
 		"reputation_fame": "声名", "reputation_rep": "声誉值",
 		/* 技能（常见派生键） */
-		"skulduggery": "开锁技巧", "english": "英语", "maths": "数学", "science": "科学",
+		"skulduggery": "诡术", "english": "语文", "maths": "数学", "science": "科学",
 		"historytrait": "历史才能", "english_exam": "英语考试", "maths_exam": "数学考试",
 		"science_exam": "科学考试", "history_exam": "历史考试",
-		"handskill": "手部技巧", "oralskill": "口部技巧", "penileskill": "阴茎技巧",
-		"vaginalskill": "阴道技巧", "analSkill": "肛部技巧", "analskill": "肛部技巧",
-		"thighskill": "腿部技巧", "feetskill": "足部技巧", "chestskill": "胸部技巧",
-		"bottomskill": "臀部技巧", "swimmingskill": "游泳技巧", "seductionskill": "诱惑技巧",
-		"danceskill": "舞蹈技巧", "feetuse": "足交使用", "neckuse": "颈部使用",
+		"handskill": "手部", "oralskill": "口部", "penileskill": "阴茎",
+		"vaginalskill": "小穴", "analSkill": "后庭", "analskill": "后庭",
+		"thighskill": "大腿", "feetskill": "足部", "chestskill": "胸部",
+		"bottomskill": "臀部", "swimmingskill": "游泳", "seductionskill": "魅惑",
+		"danceskill": "舞蹈", "feetuse": "足交使用", "neckuse": "颈部使用",
 		/* 模组键 */
 		"RobinTemple": "罗宾神殿", "TempleChoir": "神殿唱诗班", "LostLamb": "迷途羔羊",
 		"TempleDuties": "神殿职责", "DeadwoodReblooms": "枯木逢春", "DeadwoodRebloomsAttitudes": "枯木逢春·态度",
@@ -1594,15 +1594,16 @@
 		"SoftWet": "SoftWet 湿润系统", "ModHub": "模组中心", "DomRobin": "DomRobin", "MLI": "MLI 恋爱扩展",
 		"stage": "阶段", "secret": "秘密", "rite_stage": "仪式阶段", "followup": "后续", "allowed": "允许",
 		"discovered": "已发现",
-		/* 游戏属性面板（颜色分级）快捷编辑 */
-		"purity": "纯洁", "beauty": "容貌", "physique": "体能", "awareness": "意识",
-		"promiscuity": "淫乱", "exhibitionism": "暴露癖", "deviancy": "异种癖",
-		"skulduggery": "诡术", "danceskill": "舞蹈", "swimmingskill": "游泳", "athletics": "运动",
-		"tending": "护理", "housekeeping": "家务",
-		"seductionskill": "魅惑", "chestskill": "胸部", "handskill": "手部", "bottomskill": "臀部",
-		"penileskill": "阴茎", "vaginalskill": "小穴", "analskill": "后庭", "thighskill": "大腿",
-		"feetskill": "足部", "science": "科学", "maths": "数学", "history": "历史",
-		"spray": "防狼喷雾", "baton": "短棍", "whip": "鞭子", "net": "网", "pickaxe": "镐", "prof": "武器技能"
+		/* 快捷编辑补充键（v1.9.13 翻译表收敛：旧区无同名键才在此列；
+		   PANEL_QUICK_GROUPS 的 label 经 zhKey(path) 动态生成，本表为单一事实源） */
+		"athletics": "运动", "tending": "护理", "housekeeping": "家务",
+		"spray": "防狼喷雾", "baton": "短棍", "whip": "鞭子", "net": "网", "pickaxe": "镐", "prof": "武器技能",
+		"prof.spray": "防狼喷雾", "prof.baton": "短棍", "prof.whip": "鞭子", "prof.net": "网", "prof.pickaxe": "镐",
+		/* 负面状态（v1.9.13） */
+		"anxiety": "焦虑", "delinquency": "不良", "drunk": "醉酒",
+		/* 名声子键（v1.9.13） */
+		"fame.prostitution": "卖淫名声", "fame.sex": "性名声", "fame.rape": "施暴名声",
+		"fame.exhibitionism": "暴露名声", "fame.bestiality": "异种名声", "fame.good": "善行名声"
 	};
 	var ZH_TYPES = { "number": "数值", "boolean": "布尔", "string": "文本", "object": "对象", "function": "函数", "undefined": "未定义", "null": "空" };
 	function zhKey(k) { return ZH_KEYS[k] || String(k); }
@@ -1620,6 +1621,12 @@
 	   constants/temple-choir.ts）、V.LostLamb（迷途羔羊，constants/lost-lamb*.ts 共 5 文件）、
 	   V.TempleDuties（神殿值勤，constants/temple-duties.ts）。
 	   只声明模组自建键，不碰原版 V.temple_rank / V.templePromised / V.temple_chastity_timer 等。 */
+/* ============ v1.9.13 拆分：Mod 作弊适配器声明（CHEAT_ADAPTERS 注册表容器） ============
+   原 04a-modcheat-adapters.js（80KB）按模组拆分为本文件（注册表声明）+ 04a-01..09-*.js（各模组块）。
+   构建 tools/build_js.js 按文件名 sort() 拼接：04a-00-core.js 排最前，先执行 var CHEAT_ADAPTERS = {}，
+   各块文件随后执行 CHEAT_ADAPTERS["modId"] = {...} 赋值。
+   工具脚本（check_mod_updates / audit_adapters / resolve_missing）已改读目录下全部 04a-*.js 拼接解析。 */
+var CHEAT_ADAPTERS = {};
 	CHEAT_ADAPTERS["revelation-the-book-of-return"] = {
 		detect: function () {
 			try {
@@ -2442,6 +2449,7 @@
 	};
 
 
+
 	function cheatIsVanillaRoot(root) {
 		var i;
 		for (i = 0; i < CHEAT_VANILLA_ROOTS.length; i++) {
@@ -2898,6 +2906,11 @@
 	   改为：组头常驻、组体默认收起（data-collapsed=1）、行闭包进 pending 点击展开才建
 	   （学 06-traits 九巡懒渲染模式）；展开状态经 mbCEUiCollapsed 持久化
 	   （key "mods:<modId>:<组名>"），重建后按持久化恢复。 */
+	/* v1.9.13 模组数值搜索态：按名称/键名/写入路径过滤「4. 自定义数值修改」组；
+	   输入防抖 250ms 重建子页（mceSchedule 桶 "search"），返回模组列表时清空 */
+	var modValueFilter = "";
+	/* v1.9.13 搜索态设置（外部/测试通道；UI 输入框直接改闭包变量） */
+	function setModValueFilter(v) { modValueFilter = String(v == null ? "" : v); }
 	function renderModCheatDetail(modId) {
 		var pane = root.querySelector('[data-pane="mods"]');
 		if (!pane) { return; }
@@ -2914,7 +2927,7 @@
 		}
 		var back = el("button", "", "← 返回模组列表");
 		back.type = "button";
-		back.addEventListener("click", function () { curCheatModId = ""; renderModCheats(); });
+		back.addEventListener("click", function () { curCheatModId = ""; modValueFilter = ""; renderModCheats(); });
 		pane.appendChild(back);
 		pane.appendChild(el("div", "mce-hint", "【" + m.modName + "】作弊控制"));
 		pane.appendChild(el("div", "mce-hint", "所有操作仅作用于 " + m.modName + " 的新增内容，不会改动游戏本体与其他模组数据。"));
@@ -2944,6 +2957,26 @@
 		});
 		toolRow.appendChild(bAllOpen); toolRow.appendChild(bAllClose);
 		pane.appendChild(toolRow);
+		/* v1.9.13 数值搜索框：仅该模组声明了数值项时显示；输入防抖重建（数值组过滤见 renderCheatValues） */
+		if (m.values.length) {
+			var fRow = el("div", "mce-row");
+			fRow.appendChild(el("span", "mce-row-lbl", "数值搜索："));
+			var fInp = el("input", "mce-search-inp");
+			fInp.type = "text";
+			fInp.value = modValueFilter;
+			fInp.placeholder = "按名称 / 键名 / 写入路径过滤自定义数值";
+			fInp.addEventListener("input", function () {
+				modValueFilter = fInp.value.replace(/^\s+|\s+$/g, "");
+				mceSchedule(function () { renderModCheatDetail(modId); }, 250, "search");
+			});
+			var fClear = el("button", "", "清除"); fClear.type = "button";
+			fClear.addEventListener("click", function () {
+				modValueFilter = "";
+				renderModCheatDetail(modId);
+			});
+			fRow.appendChild(fInp); fRow.appendChild(fClear);
+			pane.appendChild(fRow);
+		}
 		/* 分组容器：gkey -> { head, body, count, pending }（渲染过程局部缓存） */
 		var groups = {};
 		function grpFor(gkey, title) {
@@ -3067,7 +3100,10 @@
 		box.checked = !!cheatReadSafe(m.modId, a.varPath);
 		box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId, "abilities:" + a.key); });
 		row.appendChild(box);
-		row.appendChild(el("span", "mce-row-lbl", "能力 · " + (a.name || a.key) + (a.varPath ? "（" + a.varPath + "）" : "")));
+		var abl = el("span", "mce-row-lbl", "能力 · " + (a.name || a.key));
+		/* v1.9.13 排版：写入路径移出 label（折叠「说明」与悬停 title 均可查），label 变短不再挤压按钮区 */
+		if (a.varPath) { abl.title = a.varPath; }
+		row.appendChild(abl);
 		/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
 		var det = el("details", "mce-ab-detail");
 		det.appendChild(el("summary", "mce-ab-sum", "说明"));
@@ -3123,7 +3159,9 @@
 					actCheat(applyCheatModValue(m.modId, it.key, { value: opt, on: box.checked }), m.modId, "values:" + it.key + ":" + opt);
 				});
 				brow.appendChild(box);
-				brow.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt + "（" + it.varPath + "）"));
+				var lbl = el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt);
+				if (it.varPath) { lbl.title = it.varPath; }
+				brow.appendChild(lbl);
 				var und = el("button", "", "回退"); und.type = "button";
 				und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key + ":" + opt), m.modId, "values:" + it.key + ":" + opt); });
 				brow.appendChild(und);
@@ -3133,7 +3171,9 @@
 		}
 		var row = el("div", "mce-row");
 		row.setAttribute("data-mce-key", "values:" + it.key);
-		row.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + "（" + it.varPath + "）"));
+		var vlbl = el("span", "mce-row-lbl", it.name || it.key);
+		if (it.varPath) { vlbl.title = it.varPath; }
+		row.appendChild(vlbl);
 		var inp = el("input", "mce-inp");
 		inp.type = it.type === "boolean" ? "checkbox" : "text";
 		if (it.type !== "boolean") {
@@ -3169,19 +3209,37 @@
 		row.appendChild(det);
 		return row;
 	}
+	/* v1.9.13 数值项搜索命中判定（纯函数，可测）：q 为空恒命中；否则匹配 名称/键名/写入路径 */
+	function cheatValueMatches(it, q) {
+		if (!q) { return true; }
+		var hay = ((it.name || "") + " " + it.key + " " + (it.varPath || "")).toLowerCase();
+		return hay.indexOf(q) !== -1;
+	}
 	function renderCheatValues(m, grpFor, buildRows) {
 		var g = grpFor("values", "4. 自定义数值修改");
+		/* v1.9.13 搜索过滤：命中名称/键名/写入路径才计入；搜索态强制该组展开（过滤结果立即可见） */
+		var q = modValueFilter ? modValueFilter.toLowerCase() : "";
 		m.values.forEach(function (it) {
+			if (!cheatValueMatches(it, q)) { return; }
 			g.count++;
 			g.pending.push(function () { return buildCheatValueRow(m, it); });
 		});
+		if (q && g.body) { g.body.setAttribute("data-collapsed", "0"); }
 	}
 	function actCheat(res, modId, key) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
 		/* 五巡：操作后局部刷新目标行（不再全量重建整个模组页——高频操作下 DOM churn 是卡顿/闪退累积源之一） */
 		if (modId && key) {
 			var pane = root.querySelector('[data-pane="mods"]');
-			if (pane && refreshModRow(pane, modId, key)) { return; }
+			if (pane && refreshModRow(pane, modId, key)) {
+				/* v1.9.14 效果2：写入成功 → 刷新回显后的目标行金底闪烁（反馈落在可见新值上） */
+				if (res && res.ok) {
+					var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
+					var newRow = pane.querySelector('[data-mce-key="' + esc + '"]');
+					if (newRow) { mbCEFlash(newRow); }
+				}
+				return;
+			}
 		}
 		if (modId) { renderModCheatDetail(modId); }
 	}
@@ -3266,6 +3324,8 @@
 					var meta = (PANEL_QUICK_PATH_INDEX && PANEL_QUICK_PATH_INDEX[path]) || null;
 					lbl.textContent = (meta ? meta.label : path) + "（当前 " + (typeof cur === "number" ? cur : "—") + "）";
 				}
+				/* v1.9.14 效果2：写入成功 → 该行金底闪烁 */
+				if (res && res.ok) { mbCEFlash(row); }
 				return;
 			}
 		}
@@ -3276,48 +3336,71 @@
 	   （999999 仅防误输入，非游戏上限；v1.8.19 体能 physique 由 0-100 提为无上限）；技能/性技能/成绩/武器 0-1000（百分比量纲）。 */
 	var PANEL_QUICK_GROUPS = [
 		{ title: "核心属性", items: [
-			{ path: "purity", label: "纯洁", min: 0, max: 2000, note: "面板显示 0-100%，内部 0-2000" },
-			{ path: "beauty", label: "容貌", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "physique", label: "体能", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "willpower", label: "意志", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "awareness", label: "意识", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "promiscuity", label: "淫乱", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "exhibitionism", label: "暴露癖", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "deviancy", label: "异种癖", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "money", label: "资金", min: 0, max: 99999999, note: "单位 £，建议输入整数；上限已放开（防误输入）" }
+			{ path: "purity", label: zhKey("purity"), min: 0, max: 2000, note: "面板显示 0-100%，内部 0-2000" },
+			{ path: "beauty", label: zhKey("beauty"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "physique", label: zhKey("physique"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "willpower", label: zhKey("willpower"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "awareness", label: zhKey("awareness"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "promiscuity", label: zhKey("promiscuity"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "exhibitionism", label: zhKey("exhibitionism"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "deviancy", label: zhKey("deviancy"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "money", label: zhKey("money"), min: 0, max: 99999999, note: "单位 £，建议输入整数；上限已放开（防误输入）" }
 		] },
 		{ title: "基础技能", items: [
-			{ path: "skulduggery", label: "诡术", min: 0, max: 1000 },
-			{ path: "danceskill", label: "舞蹈", min: 0, max: 1000 },
-			{ path: "swimmingskill", label: "游泳", min: 0, max: 1000 },
-			{ path: "athletics", label: "运动", min: 0, max: 1000 },
-			{ path: "tending", label: "护理", min: 0, max: 1000 },
-			{ path: "housekeeping", label: "家务", min: 0, max: 1000 }
+			{ path: "skulduggery", label: zhKey("skulduggery"), min: 0, max: 1000 },
+			{ path: "danceskill", label: zhKey("danceskill"), min: 0, max: 1000 },
+			{ path: "swimmingskill", label: zhKey("swimmingskill"), min: 0, max: 1000 },
+			{ path: "athletics", label: zhKey("athletics"), min: 0, max: 1000 },
+			{ path: "tending", label: zhKey("tending"), min: 0, max: 1000 },
+			{ path: "housekeeping", label: zhKey("housekeeping"), min: 0, max: 1000 }
 		] },
 		{ title: "性技能", items: [
-			{ path: "seductionskill", label: "魅惑", min: 0, max: 1000 },
-			{ path: "oralskill", label: "口部", min: 0, max: 1000 },
-			{ path: "chestskill", label: "胸部", min: 0, max: 1000 },
-			{ path: "handskill", label: "手部", min: 0, max: 1000 },
-			{ path: "bottomskill", label: "臀部", min: 0, max: 1000 },
-			{ path: "penileskill", label: "阴茎", min: 0, max: 1000 },
-			{ path: "vaginalskill", label: "小穴", min: 0, max: 1000 },
-			{ path: "analskill", label: "后庭", min: 0, max: 1000 },
-			{ path: "thighskill", label: "大腿", min: 0, max: 1000 },
-			{ path: "feetskill", label: "足部", min: 0, max: 1000 }
+			{ path: "seductionskill", label: zhKey("seductionskill"), min: 0, max: 1000 },
+			{ path: "oralskill", label: zhKey("oralskill"), min: 0, max: 1000 },
+			{ path: "chestskill", label: zhKey("chestskill"), min: 0, max: 1000 },
+			{ path: "handskill", label: zhKey("handskill"), min: 0, max: 1000 },
+			{ path: "bottomskill", label: zhKey("bottomskill"), min: 0, max: 1000 },
+			{ path: "penileskill", label: zhKey("penileskill"), min: 0, max: 1000 },
+			{ path: "vaginalskill", label: zhKey("vaginalskill"), min: 0, max: 1000 },
+			{ path: "analskill", label: zhKey("analskill"), min: 0, max: 1000 },
+			{ path: "thighskill", label: zhKey("thighskill"), min: 0, max: 1000 },
+			{ path: "feetskill", label: zhKey("feetskill"), min: 0, max: 1000 }
 		] },
 		{ title: "学校成绩", items: [
-			{ path: "science", label: "科学", min: 0, max: 1000 },
-			{ path: "maths", label: "数学", min: 0, max: 1000 },
-			{ path: "english", label: "语文", min: 0, max: 1000 },
-			{ path: "history", label: "历史", min: 0, max: 1000 }
+			{ path: "science", label: zhKey("science"), min: 0, max: 1000 },
+			{ path: "maths", label: zhKey("maths"), min: 0, max: 1000 },
+			{ path: "english", label: zhKey("english"), min: 0, max: 1000 },
+			{ path: "history", label: zhKey("history"), min: 0, max: 1000 }
 		] },
 		{ title: "武器技能", items: [
-			{ path: "prof.spray", label: "防狼喷雾", min: 0, max: 1000 },
-			{ path: "prof.baton", label: "短棍", min: 0, max: 1000 },
-			{ path: "prof.whip", label: "鞭子", min: 0, max: 1000 },
-			{ path: "prof.net", label: "网", min: 0, max: 1000 },
-			{ path: "prof.pickaxe", label: "镐", min: 0, max: 1000 }
+			{ path: "prof.spray", label: zhKey("prof.spray"), min: 0, max: 1000 },
+			{ path: "prof.baton", label: zhKey("prof.baton"), min: 0, max: 1000 },
+			{ path: "prof.whip", label: zhKey("prof.whip"), min: 0, max: 1000 },
+			{ path: "prof.net", label: zhKey("prof.net"), min: 0, max: 1000 },
+			{ path: "prof.pickaxe", label: zhKey("prof.pickaxe"), min: 0, max: 1000 }
+		] },
+		/* v1.9.13 负面状态：原版 V 键实证存在（stress/trauma 等均不在原版黑名单，
+		   玩家面板通道可直写；上限不钳制，下限 0 防负值破坏） */
+		{ title: "负面状态", items: [
+			{ path: "stress", label: zhKey("stress"), min: 0, max: 999999, note: "原版上限 V.stressmax（每日钳制），CE 直写不钳" },
+			{ path: "trauma", label: zhKey("trauma"), min: 0, max: 999999, note: "原版上限 V.traumamax；≥1000 触发创伤安全屋线" },
+			{ path: "pain", label: zhKey("pain"), min: 0, max: 999999, note: "原版伤害值（HP 相关），0 即满血" },
+			{ path: "arousal", label: zhKey("arousal"), min: 0, max: 999999, note: "原版上限 V.arousalmax，面板显示为百分比" },
+			{ path: "tiredness", label: zhKey("tiredness"), min: 0, max: 999999, note: "原版上限 C.tiredness.max；≥上限 75% 触发昏倒" },
+			{ path: "anxiety", label: zhKey("anxiety"), min: 0, max: 999999, note: "原版档位 0-2（≥2 触发事件），直写不钳" },
+			{ path: "delinquency", label: zhKey("delinquency"), min: -100, max: 999999, note: "品行值：≤0 老师宠儿、≥1000 老师噩梦（feat 阈值）" },
+			{ path: "drugged", label: zhKey("drugged"), min: 0, max: 1000, note: "原版 0-1000，越高药效越强" },
+			{ path: "drunk", label: zhKey("drunk"), min: 0, max: 999999, note: "≥240 判定醉酒；写 0 直接醒酒" }
+		] },
+		/* v1.9.13 名声：fame 为原版 V 对象（fame.prostitution 等子键实证存在，
+		   玩家面板通道直写对象子键，父级 V.fame 存在即合法） */
+		{ title: "名声（fame）", items: [
+			{ path: "fame.prostitution", label: zhKey("fame.prostitution"), min: 0, max: 999999 },
+			{ path: "fame.sex", label: zhKey("fame.sex"), min: 0, max: 999999 },
+			{ path: "fame.rape", label: zhKey("fame.rape"), min: 0, max: 999999 },
+			{ path: "fame.exhibitionism", label: zhKey("fame.exhibitionism"), min: 0, max: 999999 },
+			{ path: "fame.bestiality", label: zhKey("fame.bestiality"), min: 0, max: 999999 },
+			{ path: "fame.good", label: zhKey("fame.good"), min: 0, max: 999999, note: "善行积累（≥1000 触发 A Good Reputation 线）" }
 		] }
 	];
 	/* v1.8.12 功能13：数据表路径索引（quickWrite 查 min/max 用，懒建） */
@@ -3326,9 +3409,16 @@
 		try {
 			var V2 = getV();
 			if (!V2) { return null; }
-			if (String(path).indexOf("prof.") === 0) {
-				var leaf = String(path).split(".")[1];
-				return (V2.prof && typeof V2.prof === "object") ? V2.prof[leaf] : undefined;
+			/* v1.9.13：通用点路径读取（prof.spray / fame.prostitution 等对象子键，
+			   逐级下探，父级不存在返回 undefined，不抛错） */
+			var parts = String(path).split(".");
+			if (parts.length > 1) {
+				var cur = V2;
+				for (var qi = 0; qi < parts.length - 1; qi++) {
+					if (cur == null || typeof cur[parts[qi]] !== "object") { return undefined; }
+					cur = cur[parts[qi]];
+				}
+				return cur[parts[parts.length - 1]];
 			}
 			return V2[path];
 		} catch (e) { return null; }
@@ -3382,12 +3472,69 @@
 		pane.appendChild(row);
 	}
 	function renderQuickPanel(pane) {
+		/* v1.9.13 预设模板：一键批量写入（逐项走 quickWrite 统一留痕，可单独回退） */
+		var psec = el("div", "mce-section", "一键方案（预设模板）");
+		var pWrap = el("div", "mce-row");
+		var presets = [
+			{ key: "max", name: "全属性拉满", desc: "全部核心/技能/性技能/成绩/武器写满 + 负面清零 + 名声清零" },
+			{ key: "fresh", name: "经典开局", desc: "资金 5000 + 技能/成绩/武器 100 + 负面清零 + 名声清零" }
+		];
+		presets.forEach(function (p) {
+			var b = el("button", "mce-btn mce-gold", p.name); b.type = "button";
+			b.title = p.desc;
+			b.addEventListener("click", function () {
+				var r = applyQuickPreset(p.key);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				renderPlayerEdit();
+			});
+			pWrap.appendChild(b);
+		});
+		psec.appendChild(pWrap);
+		psec.appendChild(el("div", "mce-hint", "预设为固定值批量写入，逐项留痕（「回退」可逐项还原）；如需微调请在各分组手动改。"));
+		pane.appendChild(psec);
 		PANEL_QUICK_GROUPS.forEach(function (g) {
 			var box = el("div", "mce-grp");
 			box.appendChild(el("div", "mce-grp-t", g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）"));
 			g.items.forEach(function (it) { renderQuickRow(box, it); });
 			pane.appendChild(box);
 		});
+	}
+	/* v1.9.13 预设模板执行器：固定值表 × PANEL_QUICK_GROUPS 逐项写入（统一走 quickWrite 留痕）。
+	   值语义：核心属性 max 写 999（无上限属性的“很高”量纲）/ purity 2000（满）/ 资金 999999；
+	   技能/性技能/成绩/武器 fresh=100、max=1000；负面与名声一律清零。
+	   组归属判断用组标题（面板文案），改名时需同步本函数。 */
+	function applyQuickPreset(kind) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			var map = {};
+			if (kind === "fresh") {
+				map.money = 5000; map.purity = 2000;
+			} else {
+				map.purity = 2000; map.beauty = 999; map.physique = 999; map.willpower = 999; map.awareness = 999;
+				map.promiscuity = 999; map.exhibitionism = 999; map.deviancy = 999; map.money = 999999;
+			}
+			var skillVal = kind === "fresh" ? 100 : 1000;
+			PANEL_QUICK_GROUPS.forEach(function (g) {
+				if (g.title === "负面状态" || g.title === "名声（fame）") { return; } /* 末尾统一清零 */
+				g.items.forEach(function (it) {
+					if (map[it.path] !== undefined) { return; }
+					map[it.path] = skillVal;
+				});
+			});
+			["stress", "trauma", "pain", "arousal", "tiredness", "anxiety", "delinquency", "drugged", "drunk",
+			 "fame.prostitution", "fame.sex", "fame.rape", "fame.exhibitionism", "fame.bestiality", "fame.good"].forEach(function (p) {
+				map[p] = 0;
+			});
+			var done = 0, fails = 0;
+			Object.keys(map).forEach(function (path) {
+				var r = quickWrite(path, map[path]);
+				if (r && r.ok) { done++; } else { fails++; }
+			});
+			return { ok: fails === 0, message: "预设「" + (kind === "max" ? "全属性拉满" : "经典开局") + "」已写入 " + done + " 项" + (fails ? "，失败 " + fails + " 项" : "") };
+		} catch (e) {
+			return { ok: false, message: "预设执行异常：" + (e && e.message ? e.message : e) };
+		}
 	}
 	/* 原版特质静态表（v1.8.0 自本体 traits widget 提取） */
 var VANILLA_TRAITS_RAW = [
@@ -4402,18 +4549,53 @@ function renderPlayerEdit() {
 		return node;
 	}
 
+	/* v1.9.14 效果2：写入成功闪烁——目标行/按钮加 .mce-flash（金底 0.6s→透明），
+	   同一 timer 统一清理全部 flash 节点（连点不堆积；强制 reflow 保证同一节点动画重放） */
+	var mbCEFlashTimer = null;
+	function mbCEFlash(node) {
+		try {
+			if (!node || !node.classList || !node.classList.add) { return; }
+			node.classList.remove("mce-flash");
+			void node.offsetWidth; /* 强制 reflow：同节点连闪时重放动画 */
+			node.classList.add("mce-flash");
+			if (mbCEFlashTimer) { clearTimeout(mbCEFlashTimer); }
+			mbCEFlashTimer = setTimeout(function () {
+				mbCEFlashTimer = null;
+				var els = root ? root.querySelectorAll(".mce-flash") : [];
+				for (var i = 0; i < els.length; i++) { els[i].classList.remove("mce-flash"); }
+			}, 650);
+		} catch (e) {}
+	}
+	function mbCEFlashRow(btnOrEl) {
+		try {
+			var n = btnOrEl && btnOrEl.closest ? btnOrEl.closest(".mce-row, .mce-statrow, .mce-stage") : null;
+			mbCEFlash(n || btnOrEl);
+		} catch (e) {}
+	}
+	/* v1.9.14 效果2：全量重建页（renderPlaces 等）重渲染后按 data-stagekey 定位新行闪烁——render 同步执行完 DOM 已建 */
+	function mbCEFlashAfterRender(stageKey) {
+		try {
+			if (!stageKey) { return; }
+			var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(stageKey) : String(stageKey).replace(/["\\]/g, "\\$&");
+			var row = root ? root.querySelector('[data-stagekey="' + esc + '"]') : null;
+			if (row) { mbCEFlash(row); }
+		} catch (e) {}
+	}
+
 	var CSS = "" +
 		"#mce-root{display:none;position:fixed;top:8px;right:0;bottom:8px;width:430px;max-width:96vw;z-index:2147483000;" +
 		"background:rgba(5,5,5,.96);border:1px solid #3c3c3c;border-right:none;box-shadow:0 12px 34px rgba(0,0,0,.7);" +
 		"color:#f2f2f2;flex-direction:column;overflow:hidden;" +
 		"font-family:'Noto Serif SC','Source Han Serif SC','Microsoft YaHei',serif;font-size:13px;line-height:1.5}" +
-		"#mce-root.mce-open{display:flex}" +
+		"#mce-root.mce-open{display:flex;animation:mce-pop-in .15s ease-out}" +
+		"#mce-root.mce-closing{animation:mce-pop-out .12s ease-in forwards}" +
 		"#mce-toggle{position:fixed;right:14px;bottom:14px;z-index:2147482999;width:52px;height:52px;border-radius:50%;" +
 		"background:#d4a73c;color:#111;border:2px solid #b38a2a;font-size:15px;font-weight:700;cursor:pointer;" +
 		"box-shadow:0 4px 14px rgba(0,0,0,.6);font-family:inherit;touch-action:none;" +
-		"user-select:none;-webkit-user-select:none}" +
+		"user-select:none;-webkit-user-select:none;transition:background .12s ease,transform .12s ease,box-shadow .12s ease}" +
 		"#mce-toggle:hover{background:#e0b44a}" +
-		"#mce-toggle.mce-dragging{cursor:grabbing!important;background:#e0b44a}" +
+		"#mce-toggle:active{transform:scale(.94)}" +
+		"#mce-toggle.mce-dragging{cursor:grabbing!important;background:#e0b44a;transform:none!important}" +
 		".mce-header{display:flex;align-items:center;height:42px;padding:0 10px;background:#1a1a1a;" +
 		"border-bottom:1px solid #3c3c3c;color:#d4a73c;font-weight:700;font-size:15px}" +
 		".mce-header .mce-title{flex:1;text-align:center}" +
@@ -4442,10 +4624,13 @@ function renderPlayerEdit() {
 		".mce-statrow{display:flex;align-items:center;gap:6px;margin:5px 0;flex-wrap:wrap}" +
 		".mce-label{color:#d8d8d8;min-width:56px}" +
 		".mce-value{color:#d4a73c;font-weight:700;min-width:44px;text-align:right}" +
-		".mce-btn{background:#222;color:#eee;border:1px solid #3c3c3c;border-radius:2px;padding:3px 9px;cursor:pointer;font-size:12px;font-family:inherit}" +
+		".mce-btn{background:#222;color:#eee;border:1px solid #3c3c3c;border-radius:2px;padding:3px 9px;cursor:pointer;font-size:12px;font-family:inherit;" +
+		"transition:background .12s ease,transform .12s ease,box-shadow .12s ease}" +
 		".mce-btn:hover{background:#333}" +
+		".mce-btn:active{transform:scale(.96)}" +
 		".mce-btn.mce-gold{background:#d4a73c;color:#111;border-color:#b38a2a;font-weight:700}" +
-		".mce-btn.mce-gold:hover{background:#e0b44a}" +
+		".mce-btn.mce-gold:hover{background:#e0b44a;transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}" +
+		".mce-btn.mce-gold:active{transform:scale(.96);box-shadow:none}" +
 		".mce-btn.mce-red{background:#5a2323;color:#ff9c9c;border-color:#7a3030}" +
 		".mce-btn.mce-red:hover{background:#6e2b2b}" +
 		".mce-btn:disabled{opacity:.45;cursor:not-allowed}" +
@@ -4482,12 +4667,15 @@ function renderPlayerEdit() {
 		".mce-collapse-head{cursor:pointer;user-select:none}" +
 		".mce-collapse-head:hover{color:#f0d070}" +
 		".mce-grp-body[data-collapsed=\"1\"]{display:none}" +
+		/* v1.9.14 效果4：折叠组展开淡入（display:none→block 切换时动画自动重放，覆盖 Mod 作弊/特质/角色/剧情全部折叠组） */
+		".mce-grp-body[data-collapsed=\"0\"]{animation:mce-fade-in .2s ease-out}" +
 		".mce-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:1px solid #1f1f1f;font-size:12px}" +
 		".mce-row-lbl{color:#e6e6e6;flex:1;min-width:120px;word-break:break-all}" +
 		".mce-row button{background:#181818;color:#ccc;border:1px solid #3a3a3a;border-radius:2px;padding:3px 8px;cursor:pointer;font-size:12px;font-family:inherit}" +
 		".mce-row button:hover{border-color:#d4a73c;color:#d4a73c}" +
 		".mce-inp{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 6px;font-size:12px;width:90px;font-family:Consolas,Menlo,monospace}" +
-		".mce-sel{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 4px;font-size:12px;font-family:inherit}" +
+		".mce-search-inp{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 6px;font-size:12px;width:220px;font-family:Consolas,Menlo,monospace}" +
+		".mce-sel{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 4px;font-size:12px;font-family:inherit;max-width:170px;flex:0 1 auto}" +
 		/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档） */
 		".mce-ab-detail{margin-left:4px;font-size:11px}" +
 		".mce-ab-sum{cursor:pointer;color:#8a8a8a;user-select:none;display:inline-block}" +
@@ -4506,7 +4694,15 @@ function renderPlayerEdit() {
 		".mce-errbox.mce-on{display:block}" +
 		".mce-errrow{border-top:1px solid #2a1515;padding:4px 0;font-size:11px;color:#ffb0b0;font-family:Consolas,Menlo,monospace;word-break:break-all}" +
 		".mce-errrow .mce-err-msg{color:#ffd0d0}" +
-		".mce-errrow .mce-err-src{color:#a07070;font-size:10px}";
+		".mce-errrow .mce-err-src{color:#a07070;font-size:10px}" +
+		/* v1.9.14 UI 动效：面板内全部按钮统一按压反馈（缩放）与过渡；写入成功闪烁 + 面板开合/折叠淡入 keyframes */
+		"#mce-root button{transition:background .12s ease,color .12s ease,transform .12s ease,box-shadow .12s ease}" +
+		"#mce-root button:active{transform:scale(.96)}" +
+		".mce-flash{animation:mce-flash .6s ease-out}" +
+		"@keyframes mce-pop-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}" +
+		"@keyframes mce-pop-out{from{opacity:1}to{opacity:0}}" +
+		"@keyframes mce-fade-in{from{opacity:0}to{opacity:1}}" +
+		"@keyframes mce-flash{0%{background:rgba(212,167,60,.55);box-shadow:0 0 0 1px #d4a73c}100%{background:transparent;box-shadow:none}}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }
@@ -5009,7 +5205,26 @@ function renderPlayerEdit() {
 		}, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
 		{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) {
 			return n.indexOf("Elk Compound") === 0;
-		}, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/怨灵线/附身线等 70+ 子场景）" }
+		}, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/怨灵线/附身线等 70+ 子场景）" },
+		/* v1.9.13 场景直达补充 6 组（段落前缀均经本体 0.5.12.13 实证） */
+		{ id: "asylum", name: "精神病院 · Asylum", match: function (n) {
+			return n === "Asylum" || n.indexOf("Asylum ") === 0;
+		}, main: "Asylum", note: "精神病院（评估/病房/深渊/镜像等线；$location=asylum）" },
+		{ id: "police_prison", name: "警局与监狱 · Police/Prison", match: function (n) {
+			return n.indexOf("Police ") === 0 || n.indexOf("Prison ") === 0;
+		}, main: "Police Cell", note: "警局（羁押/社区服务）与监狱（囚犯线/Wren 线等）" },
+		{ id: "docks", name: "码头 · Docks", match: function (n) {
+			return n === "Docks" || n.indexOf("Docks_") === 0 || n.indexOf("Docks ") === 0;
+		}, main: "Docks", note: "码头（$location=docks；罗宾码头线 Docks_Robin 系列在此）" },
+		{ id: "lake", name: "湖畔 · Lake", match: function (n) {
+			return n.indexOf("Lake ") === 0;
+		}, main: "Lake Stroll", note: "湖畔（$location=lake；散步/昆虫/黄金/遗迹等线）" },
+		{ id: "wolf_territory", name: "森林深处 · 狼群领地", match: function (n) {
+			return n.indexOf("Wolf ") === 0 || n.indexOf("Forest Wolf") === 0;
+		}, main: "Wolf Pack", note: "森林深处的狼群领地（Wolf Pack 遭遇/狼穴/狼孩线）" },
+		{ id: "hospital", name: "医院 · Hospital", match: function (n) {
+			return n.indexOf("Hospital ") === 0;
+		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" }
 	];
 	var PLACE_CN = {
 		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
@@ -5258,8 +5473,10 @@ function renderPlayerEdit() {
 				mDec.type = "button";
 				mDec.setAttribute("data-op", "dec");
 				mDec.addEventListener("click", function () {
-					placeStageWrite(it.path, placeStageRead(it.path) - 1, 0, it.max);
+					var r = placeStageWrite(it.path, placeStageRead(it.path) - 1, 0, it.max);
 					renderPlaces();
+					if (r && r.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
+					else { setStatus(r && r.message ? r.message : "写入失败", "mce-err"); }
 				});
 				var mInc = el("button", "mce-btn", "+1");
 				mInc.type = "button";
@@ -5268,15 +5485,19 @@ function renderPlayerEdit() {
 					/* +1 是档位微调：钳到 [0, it.max]（阶段档位语义，防点出不存在档位） */
 					var nx = placeStageRead(it.path) + 1;
 					if (nx > it.max) { nx = it.max; }
-					placeStageWrite(it.path, nx, 0, it.max);
+					var rInc = placeStageWrite(it.path, nx, 0, it.max);
 					renderPlaces();
+					if (rInc && rInc.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
+					else { setStatus(rInc && rInc.message ? rInc.message : "写入失败", "mce-err"); }
 				});
 				var mMax = el("button", "mce-btn mce-gold", "拉满");
 				mMax.type = "button";
 				mMax.setAttribute("data-op", "max");
 				mMax.addEventListener("click", function () {
-					placeStageWrite(it.path, it.max, 0, it.max);
+					var rMax = placeStageWrite(it.path, it.max, 0, it.max);
 					renderPlaces();
+					if (rMax && rMax.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
+					else { setStatus(rMax && rMax.message ? rMax.message : "写入失败", "mce-err"); }
 				});
 				row.appendChild(mDec);
 				row.appendChild(mInc);
@@ -5292,6 +5513,7 @@ function renderPlayerEdit() {
 							var r = placeStageUndo(it.path);
 							renderPlaces();
 							setStatus(r.message || "", r.ok ? "mce-ok" : "mce-err");
+							if (r && r.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2 */
 						});
 						row.appendChild(mUndo);
 					}
@@ -5795,6 +6017,213 @@ function renderPlayerEdit() {
 		return "未知动作";
 	}
 
+/* ============================================================
+ * 07f-lock.js — 数值固定（Lock Values）
+ * 需求实证（玩家反馈 + 模组对照源码核对 dw252）：
+ *  - 枯木逢春渡鸦转化 maplebirch.transformation.raven.build：未戴「渡鸦羽毛项链」时
+ *    每日衰减（Raven.ts decayConditions: build≥1 && 项链≠raven feather necklace）
+ *  - 原版天使转化 angel：无三位一体（VanillaPlus.divineTransformations.trinity）时
+ *    成长点数仍会减少（Trinity 特质说明 "their development points no longer decrease"）
+ *  - 堕天使每日纯洁流失 / 恶魔高于最低纯洁结束日压力（VanillaPlus 特质文本）
+ *  - 亡灵转化 maplebirch.transformation.undead.level：诅咒每游戏小时 Psyche -2 + 压力
+ *    （Undead.ts regTimeEvent onSec deadwood-undead-curse），来源为金币洞穴诅咒
+ * 机制：锁定向存 V.mbCE_lock（[{path,target}]，存档内持久，读档自动恢复）；
+ *      常驻 1s 定时器遍历写回（直写不留痕，复用 setPathVal；无锁定向空转直接返回）。
+ *      UI 挂「全局」页 renderGlobal 末尾（mbCERenderLock）。
+ * ============================================================ */
+
+/* 预设推荐项：真实键名全部来自 CE 适配器声明/模组对照源码（dw252）与 DoL 原版转化键 */
+var MB_CE_LOCK_PRESETS = [
+	{ path: "maplebirch.transformation.raven.build", name: "渡鸦转化点数", note: "未戴渡鸦羽毛项链时每日衰减" },
+	{ path: "maplebirch.transformation.horse.build", name: "马转化点数", note: "build≥1 后模组自带停止衰减，可锁" },
+	{ path: "maplebirch.transformation.whale.build", name: "鲸转化点数", note: "" },
+	{ path: "maplebirch.transformation.undead.level", name: "亡灵转化等级", note: "锁 0 解除亡灵诅咒（每游戏小时扣 Psyche/涨压力）" },
+	{ path: "angel", name: "天使转化等级", note: "无三位一体时成长点数会减少/失贞掉级" },
+	{ path: "fallenangel", name: "堕落天使等级", note: "≥4 堕天使判定；每日纯洁流失" },
+	{ path: "demon", name: "恶魔转化等级", note: "" },
+	{ path: "purity", name: "纯洁（0-2000 内部）", note: "面板显示 0-100%，内部 0-2000" }
+];
+
+/* 锁定向：V.mbCE_lock = [{ path, target }]（target 恒 number，0/1 也按 number 写，防 ===1 语义破坏） */
+function mbCELockData() {
+	var Vp = getV();
+	if (!Vp || typeof Vp !== "object") { return null; }
+	if (!Array.isArray(Vp.mbCE_lock)) { Vp.mbCE_lock = []; }
+	return Vp.mbCE_lock;
+}
+function mbCELockHas(path) {
+	var list = mbCELockData();
+	if (!list) { return false; }
+	for (var i = 0; i < list.length; i++) { if (list[i] && list[i].path === path) { return true; } }
+	return false;
+}
+function mbCELockTarget(path) {
+	var list = mbCELockData();
+	if (!list) { return undefined; }
+	for (var i = 0; i < list.length; i++) { if (list[i] && list[i].path === path) { return list[i].target; } }
+	return undefined;
+}
+function mbCELockSet(path, target) {
+	var Vp = getV();
+	if (!Vp || !path) { return { ok: false, message: "存档变量不可用或路径为空" }; }
+	/* 路径段校验：拒绝空段（"a..b"）与纯点串，防建脏键 */
+	var pParts = String(path).split(".");
+	for (var pi = 0; pi < pParts.length; pi++) { if (!pParts[pi]) { return { ok: false, message: "路径格式无效（存在空段）：" + path }; } }
+	var num = Number(target);
+	if (!isFinite(num)) { return { ok: false, message: "锁定目标必须是有限数值" }; }
+	var list = mbCELockData();
+	if (!list) { return { ok: false, message: "存档变量不可用" }; }
+	for (var i = 0; i < list.length; i++) {
+		if (list[i] && list[i].path === path) { list[i].target = num; mbCELockEnsureTimer(); mbCELockTick(); return { ok: true, message: "已更新锁定 " + path + " = " + num }; }
+	}
+	list.push({ path: path, target: num });
+	mbCELockEnsureTimer();
+	mbCELockTick(); /* 立即生效：点击即改值，不等下个 1s tick（不存在的键仍跳过，不凭空创建） */
+	return { ok: true, message: "已锁定 " + path + " = " + num };
+}
+function mbCELockRemove(path) {
+	var Vp = getV();
+	var list = Vp && Vp.mbCE_lock;
+	if (!list) { return { ok: false, message: "无锁定记录" }; }
+	for (var i = 0; i < list.length; i++) {
+		if (list[i] && list[i].path === path) { list.splice(i, 1); mbCELockEnsureTimer(); return { ok: true, message: "已取消锁定 " + path }; }
+	}
+	return { ok: false, message: "该路径未锁定" };
+}
+
+/* 深路径读取（只读不建壳；宿主缺失返回 undefined） */
+function mbCELockRead(V, path) {
+	var parts = String(path).split(".");
+	var cur = V;
+	for (var i = 0; i < parts.length; i++) {
+		if (cur == null || typeof cur !== "object") { return undefined; }
+		cur = cur[parts[i]];
+	}
+	return cur;
+}
+
+/* 强制写回：当前值 ≠ 锁定目标 → 直写（不留痕，复用 setPathVal）。
+   安全边界：当前值不存在（undefined）时跳过——只固定「已存在」的值，
+   绝不因锁定而 setPathVal 凭空创建字段（防把未触发的转化/未开的键造出来）。 */
+function mbCELockTick() {
+	var Vp = getV();
+	var list = Vp && Vp.mbCE_lock;
+	if (!Vp || !Array.isArray(list) || !list.length) { return; }
+	for (var i = 0; i < list.length; i++) {
+		var it = list[i];
+		if (!it || !it.path) { continue; }
+		var cur = mbCELockRead(Vp, it.path);
+		if (cur === undefined) { continue; }
+		if (Number(cur) !== Number(it.target)) { setPathVal(Vp, it.path, Number(it.target)); }
+	}
+}
+
+/* 惰性定时器：有锁定向才启动 1s 写回（无锁定向不空转——防 jsdom/测试进程被挂起句柄拖住），
+   启动时机：mbCELockSet/Remove 成功后、renderGlobal 渲染锁定区块时、模块加载时兜底（读档恢复） */
+var mbCELockTimer = null;
+function mbCELockEnsureTimer() {
+	try {
+		var Vp = getV();
+		var list = Vp && Vp.mbCE_lock;
+		var has = Array.isArray(list) && list.length > 0;
+		if (has && !mbCELockTimer) {
+			mbCELockTimer = setInterval(function () { try { mbCELockTick(); } catch (e) {} }, 1000);
+		} else if (!has && mbCELockTimer) {
+			clearInterval(mbCELockTimer);
+			mbCELockTimer = null;
+		}
+	} catch (e) {}
+}
+
+/* 全局页区块渲染（由 renderGlobal 在末尾调用；pane = [data-pane="global"] 容器） */
+function mbCERenderLock(pane) {
+	if (!pane) { return; }
+	mbCELockEnsureTimer(); /* 开面板兜底：读档后已有锁定向时恢复写回 */
+	var sec = el("div", "mce-section", "数值固定（防游戏机制改动）");
+	pane.appendChild(sec);
+	sec.appendChild(el("div", "mce-hint", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。"));
+	var Vg = getV();
+	var presetPaths = {};
+	MB_CE_LOCK_PRESETS.forEach(function (p) { presetPaths[p.path] = true; });
+	var makeRow = function (it, locked) {
+		var row = el("div", "mce-row");
+		row.setAttribute("data-lockpath", it.path);
+		var lbl = el("span", "mce-row-lbl", it.name + "（" + it.path + "）当前 ");
+		var val = el("span", "mce-value", String(mbCELockRead(Vg, it.path) === undefined ? "—" : mbCELockRead(Vg, it.path)));
+		lbl.appendChild(val);
+		if (it.note) { lbl.appendChild(el("span", "mce-ab-note", " " + it.note)); }
+		row.appendChild(lbl);
+		var inp = el("input", "mce-inp");
+		inp.type = "number";
+		inp.value = String(locked ? it.target : (Number(mbCELockRead(Vg, it.path)) || 0));
+		inp.placeholder = "目标值";
+		row.appendChild(inp);
+		var btn = el("button", "mce-btn" + (locked ? " mce-gold" : ""), locked ? "更新目标" : "锁定");
+		btn.type = "button";
+		btn.addEventListener("click", function () {
+			var r = mbCELockSet(it.path, Number(inp.value));
+			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			if (r.ok) { renderGlobal(); }
+		});
+		/* v1.9.15 输入框回车即提交（等价点击按钮） */
+		inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { btn.click(); } });
+		row.appendChild(btn);
+		if (locked) {
+			var ub = el("button", "mce-btn mce-red", "取消");
+			ub.type = "button";
+			ub.addEventListener("click", function () {
+				var r = mbCELockRemove(it.path);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				if (r.ok) { renderGlobal(); }
+			});
+			row.appendChild(ub);
+		}
+		sec.appendChild(row);
+	};
+	/* 预设行：未锁定 → 「锁定」；已锁定 → 「更新目标/取消」 */
+	MB_CE_LOCK_PRESETS.forEach(function (p) { makeRow(p, mbCELockHas(p.path)); });
+	/* 已锁定的自定义项（不在预设列表）也显示，便于取消 */
+	var list = mbCELockData();
+	if (list) {
+		for (var i = 0; i < list.length; i++) {
+			var li = list[i];
+			if (!li || !li.path || presetPaths[li.path]) { continue; }
+			makeRow({ path: li.path, name: "自定义", note: "" }, true);
+		}
+	}
+	/* 自由添加 */
+	var addRow = el("div", "mce-row");
+	addRow.appendChild(el("span", "mce-row-lbl", "自由添加（任意 varPath，按数值写回）："));
+	var addPath = el("input", "mce-inp");
+	addPath.type = "text";
+	addPath.value = "";
+	addPath.placeholder = "如 more_love_interests.x.love";
+	addPath.style.width = "200px";
+	addRow.appendChild(addPath);
+	var addVal = el("input", "mce-inp");
+	addVal.type = "number";
+	addVal.value = "0";
+	addVal.placeholder = "目标值";
+	addRow.appendChild(addVal);
+	var addBtn = el("button", "mce-btn mce-gold", "添加");
+	addBtn.type = "button";
+	addBtn.addEventListener("click", function () {
+		var p = String(addPath.value || "").trim();
+		if (!p) { setStatus("请填写要固定的 varPath", "mce-err"); return; }
+		var r = mbCELockSet(p, Number(addVal.value));
+		setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		if (r.ok) { renderGlobal(); }
+	});
+	/* v1.9.15 自由添加输入框回车即提交 */
+	var submitAdd = function (e) { if (e.key === "Enter") { addBtn.click(); } };
+	addPath.addEventListener("keydown", submitAdd);
+	addVal.addEventListener("keydown", submitAdd);
+	addRow.appendChild(addBtn);
+	sec.appendChild(addRow);
+}
+
+/* 模块加载兜底：读档后 V 已有锁定向时恢复写回（V 未就绪时静默跳过，开面板时 mbCERenderLock 再补） */
+mbCELockEnsureTimer();
 	/* ============ 固定触发（v1.1）：把某个剧情钉住，下次推进剧情（遇见角色）自动重放
 	     复用原版 $replayScene 重放通道（Scene viewer redirect）：startPassage/passages
 	     内段落正常播放，离开场景自动回 Scene Viewer End 并返回原位；「回退」即取消。
@@ -7122,6 +7551,47 @@ function renderPlayerEdit() {
 		return t.revert();
 	}
 
+	/* v1.9.13 时间调节（全局页）：DoL 0.5.12.13 时间系统 = 全局 Time 对象（非 V.timer 行动点）：
+	   Time.set(V.timeStamp + delta*60) 快进（V.timeStamp 为秒级存档键）、
+	   Time.setTime(h, m) 跳指定时分（日期/星期随引擎联动）。
+	   直接改全局时间、不写 V 存档键 → 不进 mbCE_wrote 留痕，即时生效、无需回退。 */
+	function mcTimeNow() {
+		try {
+			if (typeof Time === "undefined" || !Time) { return null; }
+			return {
+				hour: typeof Time.hour === "number" ? Time.hour : 0,
+				minute: typeof Time.minute === "number" ? Time.minute : 0,
+				weekDay: typeof Time.weekDay === "number" ? Time.weekDay : 0
+			};
+		} catch (e) { return null; }
+	}
+	function mcTimeAdvance(minutes) {
+		try {
+			var V = getV();
+			if (!V || typeof Time === "undefined" || !Time || typeof Time.set !== "function") {
+				return { ok: false, message: "时间系统不可用（需在游戏内运行）" };
+			}
+			var delta = Math.max(0, Number(minutes) || 0);
+			var ts = Number(V.timeStamp);
+			if (!Number.isFinite(ts)) { ts = 0; }
+			Time.set(ts + delta * 60);
+			return { ok: true, message: "时间已前进 " + delta + " 分钟" };
+		} catch (e) {
+			return { ok: false, message: "时间前进失败：" + (e && e.message ? e.message : e) };
+		}
+	}
+	function mcTimeJump(hour, minute) {
+		try {
+			if (typeof Time === "undefined" || !Time || typeof Time.setTime !== "function") {
+				return { ok: false, message: "时间系统不可用（Time.setTime 缺失）" };
+			}
+			var h = Number(hour) || 0, m = Number(minute) || 0;
+			Time.setTime(h, m);
+			return { ok: true, message: "时间已设为 " + h + ":" + (m < 10 ? "0" : "") + m };
+		} catch (e) {
+			return { ok: false, message: "时间调整失败：" + (e && e.message ? e.message : e) };
+		}
+	}
 	function renderGlobal() {
 		var pane = root.querySelector('[data-pane="global"]');
 		pane.textContent = "";
@@ -7188,6 +7658,36 @@ function renderPlayerEdit() {
 		actions.appendChild(b3);
 		actions.appendChild(b4);
 		pane.appendChild(actions);
+		/* v1.9.13 时间调节区：快进即时生效，跳时段把时分设到指定点（日期/星期由引擎联动） */
+		var tsec = el("div", "mce-section", "时间调节（直接改游戏时钟，即时生效）");
+		pane.appendChild(tsec);
+		var tnow = mcTimeNow();
+		var tInfo = tnow
+			? ("当前 " + tnow.hour + ":" + (tnow.minute < 10 ? "0" : "") + tnow.minute + (tnow.weekDay ? " · 周" + tnow.weekDay : ""))
+			: "时间系统不可用（需在游戏内运行）";
+		tsec.appendChild(el("div", "mce-hint", tInfo + "；快进按钮即时前进，跳时段按钮把时分设到指定点。直接改全局时钟、不进留痕。"));
+		var tAdv = el("div", "mce-row");
+		[{ n: "+1 小时", v: 60 }, { n: "+3 小时", v: 180 }, { n: "+8 小时", v: 480 }, { n: "+1 天", v: 1440 }, { n: "+3 天", v: 4320 }].forEach(function (d) {
+			var b = el("button", "mce-btn mce-gold", d.n); b.type = "button";
+			b.addEventListener("click", function () {
+				var r = mcTimeAdvance(d.v);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				renderGlobal();
+			});
+			tAdv.appendChild(b);
+		});
+		tsec.appendChild(tAdv);
+		var tJump = el("div", "mce-row");
+		[{ n: "早 8:00", h: 8, m: 0 }, { n: "午 12:00", h: 12, m: 0 }, { n: "傍晚 18:00", h: 18, m: 0 }, { n: "夜 22:00", h: 22, m: 0 }, { n: "深 2:00", h: 2, m: 0 }].forEach(function (d) {
+			var b = el("button", "mce-btn", d.n); b.type = "button";
+			b.addEventListener("click", function () {
+				var r = mcTimeJump(d.h, d.m);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				renderGlobal();
+			});
+			tJump.appendChild(b);
+		});
+		tsec.appendChild(tJump);
 		/* v1.5.0：誓言修复 + NPC 特质获取（游戏「特质」页对应分组） */
 		var vsec = el("div", "mce-section", "誓言修复 · NPC 特质（对应游戏「特质」页）");
 		pane.appendChild(vsec);
@@ -7402,6 +7902,9 @@ function renderPlayerEdit() {
 			} catch (e) {}
 			wcsec.appendChild(row);
 		});
+
+		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
+		mbCERenderLock(pane);
 	}
 
 	function render() {
@@ -7438,15 +7941,30 @@ function renderPlayerEdit() {
 		setStatus("就绪：" + chars.length + " 个角色", "mce-ok");
 	}
 
+	/* v1.9.14 效果6：关闭淡出定时器（open 复位时清掉，防关闭动画残留） */
+	var mceCloseTimer = null;
 	function open() {
 		openFlag = true;
-		if (root) { root.classList.add("mce-open"); }
+		if (root) {
+			if (mceCloseTimer) { clearTimeout(mceCloseTimer); mceCloseTimer = null; }
+			root.classList.remove("mce-closing");
+			root.classList.add("mce-open"); /* v1.9.14 效果6：display:none→flex 重放 pop-in 缩放淡入 */
+		}
 		mbCEUpdateErrBadge(true); /* 四巡：面板打开时立即刷新错误徽标（关闭期只记数据不写 DOM） */
 		render();
 	}
 	function close() {
 		openFlag = false;
-		if (root) { root.classList.remove("mce-open"); }
+		if (root) {
+			/* v1.9.14 效果6：先播 0.12s 淡出，再移除 mce-open（display:none）；打开复位见 open() */
+			root.classList.add("mce-closing");
+			if (mceCloseTimer) { clearTimeout(mceCloseTimer); }
+			mceCloseTimer = setTimeout(function () {
+				mceCloseTimer = null;
+				root.classList.remove("mce-open");
+				root.classList.remove("mce-closing");
+			}, 130);
+		}
 	}
 	function toggle() {
 		if (openFlag) { close(); } else { open(); }
@@ -7821,6 +8339,13 @@ function renderPlayerEdit() {
 				isFavTrait: isFavTrait,
 				toggleFavTrait: toggleFavTrait,
 				VANILLA_TRAITS_RAW: VANILLA_TRAITS_RAW,
+				/* v1.9.15 数值固定（07f-lock.js）：锁定向/强制写回/取消 */
+				mbCELockSet: mbCELockSet,
+				mbCELockRemove: mbCELockRemove,
+				mbCELockHas: mbCELockHas,
+				mbCELockTick: mbCELockTick,
+				mbCELockRead: mbCELockRead,
+				MB_CE_LOCK_PRESETS: MB_CE_LOCK_PRESETS,
 				/* 兼容导出（v1.7.x 保留） */
 				isModOnlyRoot: isModOnlyRoot,
 				ORIGINAL_V_ROOT_KEYS: ORIGINAL_V_ROOT_KEYS,
@@ -7834,6 +8359,10 @@ function renderPlayerEdit() {
 				quickReadValue: quickReadValue,
 				quickWrite: quickWrite,
 				ensureProfShell: ensureProfShell,
+				/* v1.9.13 预设模板 / 时间调节 / 数值搜索（全局页 + 玩家自己页 + Mod 作弊页） */
+				applyQuickPreset: applyQuickPreset,
+				mcTimeNow: mcTimeNow, mcTimeAdvance: mcTimeAdvance, mcTimeJump: mcTimeJump,
+				setModValueFilter: setModValueFilter, cheatValueMatches: cheatValueMatches, renderCheatValues: renderCheatValues,
 				/* v1.9.0 性别切换（玩家自己页）：原版键 penisExist/vaginaExist/penissize/gender_body */
 				getPlayerGender: getPlayerGender,
 				applyPlayerGender: applyPlayerGender,

@@ -17,12 +17,13 @@ if (!MOD_ID || !MOD_SRC || !fs.existsSync(MOD_SRC)) {
   process.exit(2);
 }
 
-/* ---------- 1. 从 04a-modcheat-adapters.js 提取适配器声明 ---------- */
-const SRC_MOD = path.join(__dirname, "..", "javascript", "src", "04a-modcheat-adapters.js");
-const raw = fs.readFileSync(SRC_MOD, "utf8");
+/* ---------- 1. 从 src/04a-*.js（按模组拆分）提取适配器声明 ---------- */
+const ADAPTER_DIR = path.join(__dirname, "..", "javascript", "src");
+const raw = fs.readdirSync(ADAPTER_DIR).filter(f => /^04a-.*\.js$/.test(f)).sort()
+  .map(f => fs.readFileSync(path.join(ADAPTER_DIR, f), "utf8")).join("\n");
 const segRe = new RegExp('CHEAT_ADAPTERS\\["' + MOD_ID.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '"\\] = \\{([\\s\\S]*?)\\n\\t\\};', "m");
 const segM = segRe.exec(raw);
-if (!segM) { console.error("未在 04a-modcheat-adapters.js 找到适配器: " + MOD_ID); process.exit(2); }
+if (!segM) { console.error("未在 src/04a-*.js 找到适配器: " + MOD_ID); process.exit(2); }
 const seg = segM[1];
 const declared = [];
 const vpRe = /varPath:\s*"([^"]+)"/g;

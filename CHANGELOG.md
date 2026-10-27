@@ -2,9 +2,96 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.15（2026-10-28 · 未发布）
+
+**数值固定（Lock Values）+ UI 动效六项全量发布（2026-10-28）**
+
+> 说明：v1.9.14（UI 动效）当时未发布，内容并入本版一并发布。
+
+### 数值固定（新增，全局页新区块）
+
+- **8 个预设推荐行** + 自由添加任意 varPath：锁定 / 更新目标 / 取消三态，输入框回车即提交；
+- **写回机制**：锁定后每 1 秒强制写回目标值 + 锁定/更新时**立即生效**（不等 tick）；锁定表存存档 `V.mbCE_lock`，**读档自动恢复**；
+- **安全边界（深层自查）**：当前值不存在时不凭空创建字段（不污染未触发的转化/未开的键）；路径空段（`a..b`）拒绝；定时器**惰性**——有锁定向才启动，无锁定向零空转（防 jsdom 测试进程挂起）；
+- **预设实证键**：渡鸦 `maplebirch.transformation.raven.build`（未戴羽毛项链每日衰减）/ 马 build / 鲸 build / 亡灵 `undead.level`（锁 0 解除亡灵诅咒）/ 天使 `angel`（无三位一体成长点减少）/ 堕天使 `fallenangel`（每日纯洁流失）/ 恶魔 `demon` / 纯洁 `purity`（内部 0-2000）。
+
+### UI 动效（v1.9.14 内容并入）
+
+- **按压反馈**：全部按钮 `:active` 缩放 `scale(.96)`（悬浮球 `.94`）+ 12ms 过渡；
+- **悬停微动效**：金色按钮上浮 + 阴影；红色按钮变亮；悬浮球 hover/拖动态高亮；
+- **写入成功闪烁**：Mod 作弊 / 快捷面板 / 地点档位（−1/+1/拉满/回退）操作成功 → 目标行金底 `mce-flash` 0.6s（`mbCEFlash/mbCEFlashRow/mbCEFlashAfterRender` + 单一 timer 清理，连点不堆积；**失败不闪**——地点页 flash 失败分支修复）；
+- **折叠组展开淡入**：`[data-collapsed="0"]` 0.2s `mce-fade-in`（覆盖全部折叠组）；
+- **面板开合动画**：打开 pop-in 0.15s / 关闭淡出 0.12s 再隐藏（`mceCloseTimer` 复位防竞态）；
+- 动画只用 `transform/opacity/background/box-shadow`，不碰布局属性。
+
+### 测试与验证
+
+- 三层断言全过：DOM 冒烟数值固定 3 条 + 回归 44.9 十二条（锁定/更新/取消/非法拒绝/不存在键不创建/空段拒绝/立即写回）+ E2E L 区块 9 条（真实点击链路）；
+- 全链 6 步全绿（build → syntax → smoke → 回归 → E2E → 性别集成 24/24）+ codegraph sync；zip 正斜杠 4/4、verifier 4/4；
+- 打包 SHA256 见资产核对；已装入 `game\MapleBirchCE.mod.zip`（双向 SHA 一致）。
+
+## v1.9.14（2026-10-27 · 随 v1.9.15 发布）
+
+**UI 动效六项：按钮按压/悬停反馈 + 写入成功闪烁 + 折叠组展开淡入 + 面板开合动画（2026-10-27）**
+
+### UI 动效
+
+- **按压反馈**：面板内全部按钮统一 `:active` 按压缩放 `scale(.96)`（悬浮球 `scale(.94)`）+ 12ms 过渡——Mod 作弊/阶段/场景/剧情/全局/快捷面板/特质页全部按钮手感统一；
+- **悬停微动效**（桌面端）：金色按钮 hover 上浮 `translateY(-1px)` + 阴影，按压时覆盖为缩放（`.mce-gold:active` 后置同特异性覆盖）；红色按钮 hover 变亮；悬浮球 hover/拖动态高亮；
+- **写入成功闪烁**：Mod 作弊页（actCheat）与快捷面板（actPlayer）局部刷新行 + 地点档位（−1/+1/拉满/回退）重渲染后，目标行金底 `mce-flash` 0.6s 闪烁——新增 `mbCEFlash/mbCEFlashRow/mbCEFlashAfterRender` 三工具 + 单一 timer 统一清理（连点不堆积；强制 reflow 保证同一节点动画重放）；
+- **折叠组展开淡入**：一条 CSS 规则覆盖全部折叠组（Mod 作弊/特质/角色/剧情页）——`[data-collapsed="0"]` 展开时 `mce-fade-in` 0.2s（display:none→block 切换自动重放，含初始展开组）；
+- **面板开合动画**：打开 `mce-pop-in` 缩放淡入 0.15s；关闭先播 0.12s 淡出（`mce-closing` class）再 `display:none`——`mceCloseTimer` 复位防残留，open() 先清定时器防关闭动画竞态；
+- **悬浮球**：加过渡 + 按压缩放；拖动中 `transform:none!important`（拖动不缩放）。
+
+### 性能与兼容约束
+
+- 动画只用 `transform/opacity/background/box-shadow`，不碰布局属性（防 DoL-Game-UI 式每帧 rAF 扫描叠加压力）；
+- 不动 data-mce-key / 按钮文案 / DOM 结构，测试断言全兼容。
+
+### 测试与验证
+
+- DOM 冒烟补 CSS 效果断言（`.mce-btn:active` 缩放 / transition / `@keyframes` pop-in・pop-out・fade-in・flash / `.mce-flash` 规则存在）；
+- E2E 补：Mod 作弊页数值应用 → 目标行含 `mce-flash` class；地点页 `+1` → 行闪烁；
+- 全链 6 步全绿（build → syntax → DOM 冒烟 → 回归 → E2E → 性别集成）+ codegraph sync；zip 正斜杠 4/4、verifier 4/4；SHA256 见资产核对。
+
+## v1.9.13（2026-10-27 · 已发布）
+
+**8 项功能扩充 + 四轮自查优化 + Mod 作弊页排版优化（2026-10-27）**
+
+### 功能扩充
+
+- **全局页时间调节**：当前时间/日期显示 + 前进 1 小时/6 小时/1 天 + 跳转指定时刻（`mcTimeNow/mcTimeAdvance/mcTimeJump`，只用 `Time.set/setTime` 改游戏时钟，**绝不触碰 `V.timer` 行动点**）；
+- **快捷面板补负面属性组**：紧张/创伤/痛苦/兴奋/疲劳/焦虑/违规/迷幻/醉酒 9 键（原版根键非黑名单，直写）；
+- **Mod 自定义数值搜索框**：按名称/键名/写入路径实时过滤（`mce-search-inp` 独立 class，250ms 防抖重建，命中 `cheatValueMatches` 子串判定，搜索态强制展开）；
+- **预设模板**：「全属性拉满」「经典开局」一键应用（快捷面板）；
+- **场景直达补充 6 地点**：精神病院 Asylum / 警局牢房 Police Cell / 码头 Docks / 湖畔 Lake Stroll / 狼群领地 Wolf Pack / 医院前门 Hospital front（**入口段落名均对照本体 HTML 实证**，`Wolf Pack` pid=208 确认存在；地点页合计 14 组）；
+- **04a 适配器按模组拆分**：`04a-modcheat-adapters.js` 拆为 `04a-00-core.js`（注册表容器）+ 01-09 九个模组块文件；行级等价性 `old 821 lines merged 821 identical: true`；工具脚本（check_mod_updates/audit_adapters/resolve_missing/_check_keys_mod/scan_mod_vars）统一改 src 目录扫描（`^04a-.*\.js$` sort 拼接，与 build 同序）；
+- **翻译表收敛**：ZH_KEYS 单源（190 键无重复）+ PANEL 全部 49 处 label 动态化 `zhKey(path)` + 补负面/名声/器械键 + 断言 49.9。
+
+### 自查优化（四轮）
+
+- **第一轮 · 工具旧路径修复**：`_check_keys_mod.js`/`scan_mod_vars.js` 仍引用已删 `04a-modcheat-adapters.js` 的旧路径 → 改 src 目录扫描；实跑验证枯木 133 varPath 提取正常；
+- **第二轮 · 翻译统一 + E2E 补盲**：`analSkill` 旧值"肛部技巧"→"后庭"（与 `analskill` 同值）；E2E 补 N 区块 5 断言（搜索框存在/不污染 `input.mce-inp`/过滤 2 行/清空恢复）；
+- **第三轮 · 文档与稳定性**：README 补「地点页」小节（14 组 + 段落实证）与搜索框说明；build 稳定性验证（连续两次 SHA 一致）；SHA 差异定位为 pack.ps1 将 README 打进 zip（文档同步所致，预期）；
+- **第四轮 · 无新缺陷确认**：时间函数只用 `Time` 不碰 `V.timer`、预设执行器组归属注释自警、搜索防抖 `mceSchedule` 定义在位、场景 6 新组 match/main 实证正确、04a 容器与 9 块注册表顺序正确；src 单文件语法检查 2 个 FAIL 均为设计使然——00-preamble 空壳占位、09-exports 跨文件 IIFE 片段，构建产物整体 `node --check` PASS。
+
+### Mod 作弊页排版优化
+
+- 能力行/数值行/list 行 label 去掉冗余 `（varPath）`：写入路径保留在「说明」折叠与悬停 title，行变短不挤压按钮区；
+- 阶段下拉 select 限宽 `max-width:170px`：长枚举配合 flex-wrap 自动换行；
+- 不碰 data-mce-key / 按钮文案 / input 类名，测试断言全兼容。
+
+### 测试与验证
+
+- 全链 6 步全绿（build→syntax→冒烟→回归→E2E 含 N/W 区块→性别集成 24/24）+ verifier 4/4 + zip 正斜杠 4/4 + codegraph sync 完成；
+- 产物装入 game：200430 B，SHA `8BD6B306B294E01282E76552F233F5C3E8B26AB65428D881158AC34000491BC0`；
+- **已发布**：Release v1.9.13（id 425609877，tag v1.9.13，url https://github.com/TXF182/MapleBirchCE/releases/tag/v1.9.13），资产 MapleBirchCE.mod.zip 200430 B；GitHub asset digest `sha256:8bd6b306…491bc0` 与本地 SHA 一致，下载回读 SHA 逐字节比对 MATCH=True。
+
 ## v1.9.12（2026-10-26 · 已发布）
 
 **全局页新增「世界腐化（原版 World Corruption）」数值调整 + 自查优化（2026-10-26）**
+
+### 功能
 
 - **新增原版世界腐化数值调整区（全局页末尾，庄园自动维护之后）**：
   - **世界硬腐化 `world_corruption_hard`**：罪孽/净化计数，原版新档初始 2；原版宏 `worldCorruption("hard", n)` 硬钳 **[-30, 30]**（宏注释"Unclamp or adjust upper limit once world corruption effects are added"）；
@@ -12,8 +99,30 @@
   - **写入通道**：复用地点页 `placeStageWrite/placeStageUndo`（绕过原版根键黑名单直写顶层键，留痕 `place:world_corruption_hard/soft`，before 保留首次写入前状态可回退删字段）；**上限不钳制**（传 max=Infinity，直填多少就是多少，对齐用户"上限是多少就是多少"口径；原版宏只在事件触发时 clamp 不钳存量）、**下限按原版语义保留**（hard min=-30 / soft min=0，防负值破坏）；
   - **UI**：两行各自 当前值 + 数值输入框（type=number 支持负值域）+ 应用 + 回退；应用/回退**局部刷新行内值，不重建整页不丢滚动**；已有写入留痕时初始即显示回退；回退按钮 title 标注"还原到首次写入前状态"；
   - **自查优化**：渲染读取 getV() 缓存一次（forEach 前取 `Vg`，不再逐行调两次）；回退按钮复用 `makeWcUndo` 工厂（应用与初始留痕两处共用，无重复代码）；
+### 测试与验证（用户显式验收）
+
 - **自行测试（用户显式验收）**：回归新增 §48 共 15 条（48.0 前置初始 2/0 → 48.1 直写绕过黑名单 + 留痕 → 48.2/48.3 上限不钳制 hard=50 / soft=150 原样 → 48.4 下限钳制 hard=-40→-30 / soft=-5→0 → 48.5 既有值回退还原 + 清留痕 → 48.6 无字段写入后回退删字段）；功能级 E2E 新增 W 区块共 11 条（区块渲染 → 两行 data-wckey → 输入框+应用按钮 → 初始无留痕不显示回退 → 应用 hard=50 写入+留痕+回退按钮出现 → 回退还原原值 2+清留痕 → 软腐化填 -5 钳 0）；DOM 冒烟补全局页世界腐化区断言（区块 + 初始值回显 2/0）；
+### 升版与发布
+
 - 升版 1.9.12 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）；README/CHANGELOG 同步；全链 6 步全绿（build→syntax→冒烟→回归含 48.x→E2E 含 W→性别集成 24/24）+ codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4 + 装入 game；**已发布**（Release v1.9.12 id 424375718，tag v1.9.12，资产 MapleBirchCE.mod.zip 190901 B，SHA256 `DA043171…AB5E0`，GitHub 资产 digest 回读一致）。
+
+## v1.9.11（2026-10-26 · 已发布）
+
+**悬浮球可拖动 + 全局页固定入口 + 自查优化（今晚改动归版 v1.9.11）**
+
+### 功能
+
+- **右下角金色「解锁」悬浮球改可拖动**：pointer 拖拽全链（pointerdown/move/up/cancel），3px 阈值区分「点击开关」与「拖动挪位」，拖动后吞掉本次 click 防误触；位置 clamp 在视口内（按按钮实际尺寸减 4px 边距，不再硬编码 64）；**rAF 节流**写入 style（拖动不再逐事件直写主线程）；位置持久化 `mbCE_toggle_pos_v1`、**拖动锁持久化 `mbCE_toggle_lock_v1`**；CSS 加 `touch-action/user-select` 防拖动误选文本，拖动态 `mce-dragging` 类显示 grabbing 光标；
+- **全局页（global）顶部新增固定按钮「面板悬浮入口」**：按当前锁定态切换「锁定悬浮球拖动/解锁悬浮球拖动」，点击写 `mbCE_toggle_lock_v1` 并即时重渲染——**锁定后悬浮球固定不动（不再误拖/挡操作），点击悬浮球本身仍可正常开关面板**；悬浮球是面板唯一入口，**废除「隐藏」功能（隐藏即死锁，无法再进面板）**——自动清理旧 `mbCE_toggle_hidden_v1` 键并强制恢复显示；锁定/解锁时悬浮球 title 同步提示；
+### 健壮性
+
+- **健壮性**：`ensureDom` 对已存在 `#mce-toggle` 复用（ModLoader 重载不产生第二个按钮）+ **`__mbCEBound` 绑定守卫**（复用同一按钮时跳过重复 addEventListener，防 click 监听堆叠导致一次点击多次开关面板）；`isConnected` 判空后才 append；位置恢复 JSON 解析容错；
+### 自查优化
+
+- **自查优化**：拖拽 rAF 节流（pointermove 不再逐事件直写 style，主线程更顺滑）；限位改按按钮实际渲染尺寸（不再硬编码 64px，任何尺寸/缩放下不出界）；拖动态 `mce-dragging` 光标（grabbing + 高亮）；
+### 升版与发布
+
+- **升版 1.9.11 双源完成**（src/01-core.js MCE_VERSION 与 boot.json version）；README/CHANGELOG 同步；全链 6 步全绿 + codegraph sync；打包 verifier 4/4 + 装入 game；已发布（Release v1.9.11，资产 SHA 见核对）。
 
 ## v1.9.10（2026-10-26 · 已发布）
 
@@ -42,19 +151,11 @@
 - **Cattery 本体包就位 + 对照源码清理**：`game\Cattery-1.1.8.2-fixed-jumping_rope-icons.zip` 缺 `.mod` 后缀不会被 ModLoader 扫描 → 改名 `Cattery.mod.zip`（893,790 B，createCafePC/birdFly/flycattery 符号实证）；`tools\_modcache` 删旧对照 dw250/rv140/deadwood-2.4.7/revelation-1.3.13（只保留当前 dw251/rv141/fw556/mli0180/opt1121/sp0391/wr134/cat1182）；tools 未跟踪残留清零（_deadwood_probe/_revelation_src/_tmp_v199_* 共 13 项）；git 未跟踪归零；
 - **发布前核验**：全链 6 步全绿（build → syntax → DOM 冒烟 → 回归含 47.5b → E2E 9 适配器 → 性别集成）+ codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4；SHA256 见资产核对。
 
-## v1.9.11（2026-10-26 · 已发布）
-
-**悬浮球可拖动 + 全局页固定入口 + 自查优化（今晚改动归版 v1.9.11）**
-
-- **右下角金色「解锁」悬浮球改可拖动**：pointer 拖拽全链（pointerdown/move/up/cancel），3px 阈值区分「点击开关」与「拖动挪位」，拖动后吞掉本次 click 防误触；位置 clamp 在视口内（按按钮实际尺寸减 4px 边距，不再硬编码 64）；**rAF 节流**写入 style（拖动不再逐事件直写主线程）；位置持久化 `mbCE_toggle_pos_v1`、**拖动锁持久化 `mbCE_toggle_lock_v1`**；CSS 加 `touch-action/user-select` 防拖动误选文本，拖动态 `mce-dragging` 类显示 grabbing 光标；
-- **全局页（global）顶部新增固定按钮「面板悬浮入口」**：按当前锁定态切换「锁定悬浮球拖动/解锁悬浮球拖动」，点击写 `mbCE_toggle_lock_v1` 并即时重渲染——**锁定后悬浮球固定不动（不再误拖/挡操作），点击悬浮球本身仍可正常开关面板**；悬浮球是面板唯一入口，**废除「隐藏」功能（隐藏即死锁，无法再进面板）**——自动清理旧 `mbCE_toggle_hidden_v1` 键并强制恢复显示；锁定/解锁时悬浮球 title 同步提示；
-- **健壮性**：`ensureDom` 对已存在 `#mce-toggle` 复用（ModLoader 重载不产生第二个按钮）+ **`__mbCEBound` 绑定守卫**（复用同一按钮时跳过重复 addEventListener，防 click 监听堆叠导致一次点击多次开关面板）；`isConnected` 判空后才 append；位置恢复 JSON 解析容错；
-- **自查优化**：拖拽 rAF 节流（pointermove 不再逐事件直写 style，主线程更顺滑）；限位改按按钮实际渲染尺寸（不再硬编码 64px，任何尺寸/缩放下不出界）；拖动态 `mce-dragging` 光标（grabbing + 高亮）；
-- **升版 1.9.11 双源完成**（src/01-core.js MCE_VERSION 与 boot.json version）；README/CHANGELOG 同步；全链 6 步全绿 + codegraph sync；打包 verifier 4/4 + 装入 game；已发布（Release v1.9.11，资产 SHA 见核对）。
-
 ## v1.9.9（2026-10-26 · 已发布）
 
 **枯木逢春 2.5.0 说明页内容补全作弊项 + 月羽译名更正（2026-10-26）**
+
+### 功能
 
 - **心智系统**：新增 `Psyche.sanity`（理智，-500~1000 初始 1000）与 `Psyche.fear`（恐惧，0~1000 初始 0）两个数值键——8 档状态（混乱/迷乱/心乱/恍惚/动摇/安定/清醒/专注）与学习收益（60%~120%）由理智自动结算（源码 `src/module/Psyche.ts` 实证）；
 - **PC 动物转化**：新增马/鲸/渡鸦三个转化点数键（`maplebirch.transformation.horse/whale/raven.build`，0-100）——各六阶段、进度在角色属性页、外观在镜子里选择，build≥1 停止衰减（隐藏部位不失去能力）；
@@ -62,18 +163,28 @@
 - **月羽（Tsukihan）**：新增好感/任性/欲望数值键 + 已认识（init）数值键 + 恋人列表键（`loveInterestList`，list 型追加/移除 Tsukihan）——小屋门禁=神社线完成（stage 3）+已认识（init=1）+NPC 活跃（源码 `DarkfeatherShrine/HomeWidgets.twee` 实证），好感档位作用于互动（≥20 聊天/亲密、≥30 受邀文案、≥50 独处）；敲门 07-09/12-13/18-22、同睡/洗澡 20:00-20:30 雨中 18:00、潜入诡术 500/300；
 - **果园计数**：新增订单/合同/销售收入/常客到访 4 键（`Orchard.orders_completed/contracts_completed/sales_income/regular_visits`）；
 - **译名更正**：`tsukihan` 由「月半」改为「月羽」（枯木 2.5.0 官方中文译名，`src/script/DarkfeatherShrine/Tsukihan.ts` 的 CN 映射实证）；
+### 测试与验证
+
 - **测试同步**：21.1 分组断言更新（≥13/≥65/≥55）；40.1 译名断言 月半→月羽；新增 21.11-21.13（新键写入/钳制/sync 条件联动含 raven.met 补全/恋人列表追加移除）；枯木声明 阶段 12→13 / 能力 64→65 / 数值 40→55；
+### 升版与发布前自查
+
 - 升版 1.9.9 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）；发布前全面自查：心智/转化/神社/月羽/果园/便利店/遇欲/投资/归途键逐一对照 dw250/opt1121/rv140 源码核验存活与判定，修复神社线阶段联动缺口（raven.met 补全）与 3 处说明文案，测试补 3 条联动断言，全链 6 步全绿 + codegraph sync。
 
 ## v1.9.8（2026-10-26 · 未发布）
 
 **枯木逢春 2.5.0 / 归途之书 1.4.0 适配 + 便利店"遇欲"补全 + 面板按钮合并（2026-10-26）**
 
+### 功能
+
 - **模组更新适配**：枯木逢春 `2.4.7 → 2.5.0`（对照 `_modcache/dw250` 替换 dw247，audit 56 键 10 REVIEW 全部核实保留）：投资键重构——`RobinExpansion.investment.share` / `.valuation` 两键已删（2.5.0 移除，删除作弊项），`invested_total/returned_total/dividends_total` 改指新键 `contributed/returned/dividends`（键名改造，同条目换 varPath），新增 `treasury`（店铺周转金，2.5.0 新键）；`r_invest_agreed` 勾选联动由"补 share 10%"改为**联动四门店开启**（shop/shop_flowers/shop_popcorn/shop_balloons，对齐 2.5.0 投资=店铺扩张语义）；枯木 values 41 → 40；
 - 归途之书 `v1.3.13 → v1.4.0`（对照 `_modcache/rv140` 替换 rv1313，56 键 55 存活 + 1 动态键零删，仅升声明）；
 - **便利店"遇欲"补全（Dol-Optimization）**：全 8 适配器排查确认"遇欲便利店"非独立模组、属 Dol-Optimization；`opt_needmeet` 显示名改"遇欲（Needmeet）· 好感"并富化说明（≥80 解锁恋爱线）；新增 **12 个便利店库存键**（`daily.conveniencestoregoods.中文键`：避孕套/验孕棒/香烟/醒酒药/降火药/能量饮料/洗面奶/洗发水/鸡蛋/番茄/苹果/橙子，0-99），note 注明需存档已进过便利店（`daily.conveniencestoregoods` 初始化）否则写入拒绝；
 - **面板按钮合并**：右上角「收起」与「关闭」行为完全一致（均收起面板、由右下角解锁按钮重开），删除「收起」只留「关闭」（用户实测确认无区别）；
+### 测试与验证
+
 - **测试同步（5 处断言更新）**：31.1 归途 `/v1.3.\d+/ → /v1.4.\d+/`；32.1 枯木 `/2.4.\d+/ → /2.5.\d+/`；32.7.3 投资联动断言改四门店 + share 保持 0（2.5.0 无此键）；37.2 面板标题断言「收起」→「关闭」；全链 6 步全绿（build → 语法 → DOM 冒烟 → 回归 → E2E 8 适配器 → 性别集成 24/24）+ codegraph sync；
+### 升版与对照清理
+
 - **对照源码清理**：`_modcache` 删除 dw247/rv1313 旧对照（被 dw250/rv140 取代）；升版 1.9.8 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）。
 
 ## v1.9.7（2026-10-25 · 已发布）
@@ -175,13 +286,15 @@
 
 **性别切换盲区修复（实测路径=测试路径）+ 操作反馈 + 集成测试入全链**（10-23 22:00 前批次）
 
+### 功能与修复
+
 - **盲区修复**：`applyPlayerGender` 写完七键后立即触发原版引擎收敛 `exposedcheck(true)`——原版 `gender_appearance` 由 `exposure()`→`exposedcheck()` 在场景更新时重算，此前切完性别外观性别要等下一场景才同步；现同场景立即生效（战斗内也强制收敛；环境无引擎函数时静默跳过，不影响七键结果）；
 - **测试补强**：`tests/integration_gender.js` 注入 fake `exposedcheck`，三态（男/女/双性）各加「立即触发收敛」断言；修正测试中原版 HTML 路径指向不存在的 `Desktop\DoL-ModLoader-...`（此前该集成测试永远 SKIP）→ 改为 `game\Degrees of Lewdity.html`；
 - **集成测试入全链**：`tools/run_all.ps1` 新增 [6/6] 性别集成测试步骤（原版 HTML 缺失时 SKIP 不误报）；
 - **操作反馈**：性别切换按钮点击后 `setStatus` 提示成功（「性别已切换为 X」）/失败原因（mce-err），不再静默无反馈；
 - 全链 build→syntax→smoke→regression→E2E→integration_gender 全绿；未 git 提交、未发布（等实测拍板）。
 
-## v1.9.2（2026-10-23 · 已发布 Release）
+## v1.9.2（2026-10-23 · 已发布）
 
 **四模组适配跟进 + DoL-Game-UI 冲突修复**——本版全部内容见下（含 2026-10-23 发布后补充：list 链路测试 M 段 8 断言 + _modcache 旧对照清理）。发布提交：远端 main=`6870dfdb`（Git Data API 重建），资产 158,563 B SHA=`83476F98...`。
 
@@ -205,9 +318,29 @@
 - **测试扩展**：test_mce 45.x 懒渲染回归段 8 断言（收起不建行/点击补建/计数/工具行/持久化恢复/不重复建行/contain 注入）+ smoke_dom/E2E 同步（进子页先展开分组再断言）；修 mock 选择器对 `data-mce-*` 连字符属性名的支持；
 - 全链 build→syntax→smoke→regression→E2E 5/5 绿；zip 内 JS 与 build 产物 SHA 一致；未 git 提交、未发布（等实测拍板）
 
-## v1.9.0（2026-10-22）
+## v1.9.1（2026-10-22 · 已发布）
+
+**新功能：玩家自己页「性别切换」（男 / 女 / 双性）+ 资金上限放开**
+
+### 功能
+
+- **性别切换**：玩家自己页快捷编辑区下方新增「性别切换」区——男 / 女 / 双性 三按钮一键切换，当前性别高亮 ✓。原版权威键实证（0.5.12.13 源码）：`V.player.penisExist` / `V.player.vaginaExist` / `V.player.penissize`（0-6，0=N/A）/ `V.player.gender_body`（"m"=男 "f"=女 "a"=双性外观）。男=阴茎保留+无阴道；女=无阴茎（penissize 置 0）+有阴道；双性=两者兼有；`V.player` 缺失时建壳兜底不崩，未知参数返回 FAIL 不写坏。导出 `getPlayerGender` / `applyPlayerGender`
+- **（自查轮修复，同版本）**：性别切换首版只写 4 键，遗漏原版权威键——深查 0.5.12.13 实证玩家性别实际是 **7 键**体系：`V.player.sex`（"m"/"f"/"h"=herm，生殖器性别权威键，isGenitalMismatch/crossdressing 判定/服装分型/成就 "Being a Boy" 都读它）、`V.player.gender`（社会性别，新游戏预设 herm=gender"h"）、`V.player.ballsExist`（新游戏预设男/女 false、双性 true）。漏写后果：切女后 sex 仍 "m" → 原版 genital 显示错乱（`sex==="f"?parasite:...`）、`gender!==sex` 被误判 crossdressing、服装按男分型；切双性后无 herm 判定。现补全三态七键写入，对齐新游戏预设（男：gender=m/gender_body=m/sex=m/ballsExist=false；女：gender=f/gender_body=f/sex=f/ballsExist=false；双性：gender=h/gender_body=a/sex=h/ballsExist=true）；`getPlayerGender` 改为优先读 sex 推断；gender_appearance 由引擎 genderappearancecheck 按 sex 自动重算，不手写。37.4/D5 断言升级为七键校验，全链 5/5 绿
+- **（集成测试，同版本）**：新增 `tests/integration_gender.js`——**不用 mock**：运行时从原版 Degrees of Lewdity.html 抽取真实性别判定函数（isGenitalMismatch / isCrossdressing / isHermOrCrossdresser / 服装分型 / 战斗性器官分型），注入构建产物的 applyPlayerGender/getPlayerGender，用切换后的玩家状态直接跑原版真实逻辑断言。21 条断言：三态七键写入 + 原版判定（切男/女/双性后 mismatch/crossdressing/herm 判定全部正确、服装分型 male/female 正确、双性 gender_body=a 时 breastsize≤3→male / ≥4→female、战斗性器官切女=parasite）+ 回归护栏（模拟旧实现只写四键 → 原版服装仍 male、性器官显示 herm，实证修复必要性）。原版文件缺失时显式 SKIP 不误报
+- **资金上限放开**：快捷编辑区「资金」上限 1,000,000 → 99,999,999（仅防误输入，实际无上限；`cheatWriteValue` 对 max 非 number 不钳制，故保留极高上限兜底）
+### 测试扩展
+
+- **测试扩展**：37.4 数据层 12 条（三态七键写入 / getPlayerGender 推断 / 幂等不重置 penissize / V.player 缺壳兜底 / 未知性别 FAIL）+ E2E D5 点击级 8 条（性别区渲染 / 初始男高亮 / 点击女写七键 / 重渲染高亮 / 点击双性 / 点击男保留阴茎）；资金上限经 PANEL_QUICK_GROUPS 数据表核对（1000000→99999999）
+- 全链 build→syntax→smoke→regression→E2E 5/5 绿；版本双源 `01-core.js` MCE_VERSION + `boot.json` version 同步 1.9.1；未发布（等用户实测拍板）
+### 发布
+
+- **（发布）**：已发布 v1.9.1 到 GitHub Release（2026-10-23，tag=v1.9.1，资产 `MapleBirchCE.mod.zip` 155,413 B / SHA256=7EAA5DDF...，下载回读比对一致）；git 经 Git Data API 推送（github.com:443 被断，远端 main=cb12625f，内容树与本地 80f14fa+813660f 一致，SHA 不同属预期，网络恢复后 fetch+reset 对齐）；归档 `tools/release_v191.js` + `tools/push_api_v191.js`；坑位沉淀 3 条（Node fetch IPv6 优先假象 / PowerShell git credential fill 交互挂起用 Node 通道 / here-string 中文 body PATCH 400）
+
+## v1.9.0（2026-10-22 · 已发布）
 
 **新功能：角色页按类型拆子页面（模组/恋爱/普通/持久NPC）+ 场景页新增「地点」子界面（地点阶段任务作弊区）+ 持久 NPC 收录（经理/校医/守卫囚犯等）**
+
+### 功能
 
 - **角色页精细化（按类型命名子页面，全部按钮展开/收起，默认收起）**：模组角色 / 恋爱角色 / 普通角色 / 持久NPC 四组折叠区块（标题带数量，▸/▾ 点击展开收起，状态记忆持久化）。分类依据：持久NPC > 模组 > 恋爱 > 普通——持久 NPC 按 `allowed_npcs` 注册表实证判定（精确键或 `xxx_guard`/`xxx_inmate`/`saddled_steed` 角色族变体，"guardian" 前缀不误判）；原版命名 NPC 取 `setup.NPCNameList` 运行时清单（兜底内置 DoL 0.5.12.13 实证 32 人）；恋爱角色 = 官方恋人清单 `setup.loveInterestNpc`（10 人）+ 框架恋爱条件 + 框架 loveInterest 标记
 - **持久 NPC 收录**：V.per_npc 实证枚举（只在存档已生成时出现）——经理（随机名显示"经理（Helen）"）、校医、黑客·米奇（name_known=1 用 V.mickeyName）、主教/左右侍、守卫四变体、囚犯、黑狗、皮奇、坐骑、内衣贼、艾利克斯父母、惠特尼姑/叔、惠特尼父母公寓；卡片显示爱意/支配/情欲/警戒（findNpcEx 直读 per_npc），阶段页数值 ±10/一键补齐走 per_npc 对象
@@ -219,8 +352,12 @@
   - 每行 −1 / +1 / 拉满（钳制 min/max），写入留痕 `V.mbCE_wrote["place:<path>"]` 可回退（还原首次写入前状态，before 为 undefined 则删字段）
 - **数据层**：`placeStageWrite` 为五面板专用通道，绕过原版变量黑名单直写原版阶段键（farm_stage 等），嵌套宿主仅 town_projects 允许自动建壳
 - **对外 API 新增**：charCategory / isVanillaNPC / isVanillaLoveInterest / isPerNpcRole / isLoveCharacter / perNpcDisplayName / displayNameEx / findNpcEx / renderCards / renderPlaces / PLACE_STAGE_GROUPS / placeStageRead / placeStageWrite / placeStageUndo
+### 测试扩展
+
 - **测试扩展（第 44 节 44.1-44.5）**：分类纯函数、持久 NPC 枚举、地点写入（建壳/钳制/黑名单绕过/留痕/回退）、DOM 四区块默认收起+点击展开+经理卡、场景页双层页签+道路拉满=5；同步修正 mkNode mock 的 textContent 语义（真实 DOM：设置 textContent 替换全部子节点）
 - 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED、功能 E2E 全 PASS、zip 正斜杠、verifier 4/4；安装包与 SHA 见交付
+### 自查优化（五轮，不升版本）
+
 - **（同日自查优化，不升版本）**：① 修复留痕语义 bug——`placeStageWrite` 二次写入把 before 覆盖为当前值，导致「建壳字段多次写入后回退」还原成上次值而非删除字段；改用 `"before" in prev` 保留首次写入前状态（44.7 新增断言覆盖：两次 +1 后 undo 删字段、既有值 3→5 后 undo 还原 3）；② 滚动保持补齐——renderCards/renderPlaces 重建后恢复 pane.scrollTop（对齐五巡 mods/特质区行为，长列表点击不跳顶）；③ 持久 NPC 变体键（saddled_steed/stray_guard）显示族中文名（坐骑/守卫），不再裸显英文键名；④ 测试补盲 44.6（地点步进 +1/−1 钳制、建壳回退删字段、placesTab localStorage 持久化恢复、变体名、空档不枚举 per_npc）+ jsdom 冒烟补角色页折叠/场景页双层页签真实 DOM 语义断言（按钮重渲染后重新查询，修正旧引用断言）
 - **（第二轮自查优化，不升版本）**：⑤ 修复 cheatWriteValue/cheatWriteListValue 留痕语义——与地点通道同源的 before 覆盖 bug（叶子字段原本不存在时，二次写入把 before 覆盖成当前值，回退残留而非删除）；统一改为 `"before" in prev` 保留首次面板写入前状态（traitWriteValue 通道同源受益）；18.8 旧断言原依赖 bug 行为（score 首次不存在却期望还原 5）→ 修正为正确语义并补 18.8b 既有值还原；新增 44.8 测试覆盖 cheat 通道两次写入后 undo 删字段 + 既有值还原。17 个源码文件全量精读一遍，全链 5/5 绿
 - **（第三轮自查优化，不升版本）**：⑥ 角色页收起组懒渲染——收起的分组不再全量渲染角色卡片 DOM（buildCharCards 收起不建卡片、展开补建、防重复补建），长角色列表收起状态下 DOM 开销归零；⑦ 模组特质数值可改——discoverModTraits 为字符串 has 模组特质生成 values（数字比较变量 gte/is/gt 非 NaN，仿原版编译逻辑），renderTraitRow 放开 isMod 限制，模组注入特质行同样渲染「改数值 / 回退」控件（写入走 player-self 留痕通道，traitWriteValue/undoCheatModValue 数据层零改动）；⑧ tools 目录卫生——55 个临时日志（_*.log / _head_blob*）清理不入库，scan_dol_vanilla 系列 / debug_dom44 / release_v190 / push_api_v190 共 19 个工具脚本按惯例归档进 git
@@ -228,19 +365,7 @@
 - **（第四轮自查优化，不升版本）**：⑨ 修复 gt（严格大于）条件特质「获取后判定未获得」——traitWriteSatisfy 对 gt 与 gte/is 共用分支写 num，写后 `x > num` 恒 false，获取按钮显示已写但 traitOwned 仍 false（原版受影响：Purity Boost `$featsPurityBoost gt 0`、Bratty `$submissive lte 850 and gt 500`）；改为 gt 写 num+1 满足严格大于。新增 37.3d 断言（Purity Boost 获取写 1 + 判定已拥有 / 移除写 0 + 判定未获得 / Bratty 复合条件获取后已拥有）；全链 5/5 绿。另：git fetch 被断（github.com:443 网络波动），3 个本地 commit 仍未推送，待网络窗口
 - **（第五轮自查优化，不升版本）**：⑩ 修复 gt 条件「改数值」默认值与获取通道不一致——discoverModTraits/compileVanillaTraits 对 gt 生成 values.val=num（如 gt 0 → 0），与 traitWriteSatisfy 的 num+1 语义矛盾：改数值输入框默认 0，不输入直接点「改数值」写 0 恒不满足。统一 gt values.val=num+1。新增 E2E D4 点击级断言 11 条（模组 gt 特质「纯洁增幅（模组）」获取写 1 判定已拥有 / 改数值默认值=满足值 1 / 移除归 0）；全链 5/5 绿。同轮核对：快捷编辑区 6 项 999999 上限与实测截图一致、unfreezePlayerStats hook 幂等 guard 无重复包装
 
-## v1.9.1（2026-10-22）
-
-**新功能：玩家自己页「性别切换」（男 / 女 / 双性）+ 资金上限放开**
-
-- **性别切换**：玩家自己页快捷编辑区下方新增「性别切换」区——男 / 女 / 双性 三按钮一键切换，当前性别高亮 ✓。原版权威键实证（0.5.12.13 源码）：`V.player.penisExist` / `V.player.vaginaExist` / `V.player.penissize`（0-6，0=N/A）/ `V.player.gender_body`（"m"=男 "f"=女 "a"=双性外观）。男=阴茎保留+无阴道；女=无阴茎（penissize 置 0）+有阴道；双性=两者兼有；`V.player` 缺失时建壳兜底不崩，未知参数返回 FAIL 不写坏。导出 `getPlayerGender` / `applyPlayerGender`
-- **（自查轮修复，同版本）**：性别切换首版只写 4 键，遗漏原版权威键——深查 0.5.12.13 实证玩家性别实际是 **7 键**体系：`V.player.sex`（"m"/"f"/"h"=herm，生殖器性别权威键，isGenitalMismatch/crossdressing 判定/服装分型/成就 "Being a Boy" 都读它）、`V.player.gender`（社会性别，新游戏预设 herm=gender"h"）、`V.player.ballsExist`（新游戏预设男/女 false、双性 true）。漏写后果：切女后 sex 仍 "m" → 原版 genital 显示错乱（`sex==="f"?parasite:...`）、`gender!==sex` 被误判 crossdressing、服装按男分型；切双性后无 herm 判定。现补全三态七键写入，对齐新游戏预设（男：gender=m/gender_body=m/sex=m/ballsExist=false；女：gender=f/gender_body=f/sex=f/ballsExist=false；双性：gender=h/gender_body=a/sex=h/ballsExist=true）；`getPlayerGender` 改为优先读 sex 推断；gender_appearance 由引擎 genderappearancecheck 按 sex 自动重算，不手写。37.4/D5 断言升级为七键校验，全链 5/5 绿
-- **（集成测试，同版本）**：新增 `tests/integration_gender.js`——**不用 mock**：运行时从原版 Degrees of Lewdity.html 抽取真实性别判定函数（isGenitalMismatch / isCrossdressing / isHermOrCrossdresser / 服装分型 / 战斗性器官分型），注入构建产物的 applyPlayerGender/getPlayerGender，用切换后的玩家状态直接跑原版真实逻辑断言。21 条断言：三态七键写入 + 原版判定（切男/女/双性后 mismatch/crossdressing/herm 判定全部正确、服装分型 male/female 正确、双性 gender_body=a 时 breastsize≤3→male / ≥4→female、战斗性器官切女=parasite）+ 回归护栏（模拟旧实现只写四键 → 原版服装仍 male、性器官显示 herm，实证修复必要性）。原版文件缺失时显式 SKIP 不误报
-- **资金上限放开**：快捷编辑区「资金」上限 1,000,000 → 99,999,999（仅防误输入，实际无上限；`cheatWriteValue` 对 max 非 number 不钳制，故保留极高上限兜底）
-- **测试扩展**：37.4 数据层 12 条（三态七键写入 / getPlayerGender 推断 / 幂等不重置 penissize / V.player 缺壳兜底 / 未知性别 FAIL）+ E2E D5 点击级 8 条（性别区渲染 / 初始男高亮 / 点击女写七键 / 重渲染高亮 / 点击双性 / 点击男保留阴茎）；资金上限经 PANEL_QUICK_GROUPS 数据表核对（1000000→99999999）
-- 全链 build→syntax→smoke→regression→E2E 5/5 绿；版本双源 `01-core.js` MCE_VERSION + `boot.json` version 同步 1.9.1；未发布（等用户实测拍板）
-- **（发布）**：已发布 v1.9.1 到 GitHub Release（2026-10-23，tag=v1.9.1，资产 `MapleBirchCE.mod.zip` 155,413 B / SHA256=7EAA5DDF...，下载回读比对一致）；git 经 Git Data API 推送（github.com:443 被断，远端 main=cb12625f，内容树与本地 80f14fa+813660f 一致，SHA 不同属预期，网络恢复后 fetch+reset 对齐）；归档 `tools/release_v191.js` + `tools/push_api_v191.js`；坑位沉淀 3 条（Node fetch IPv6 优先假象 / PowerShell git credential fill 交互挂起用 Node 通道 / here-string 中文 body PATCH 400）
-
-## v1.8.23（2026-10-22）
+## v1.8.23（2026-10-22 · 已发布）
 
 **十七巡：3 个模组适配器跟进新版（枯木逢春 2.4.4 / 归途之书 1.3.10 / 框架 5.5.3）+ 新增内容甄别补录 2 项**
 
@@ -256,7 +381,7 @@
 - **测试同步**：test_mce 19.1（能力 22）/21.1（阶段 9）/31.1（1.3.10）/32.1（2.4.4）+ 21.2 根键白名单 + MoreTransformations + 新增 21.10（泽菲尔阶段写入 4/越界钳制）/31.11（项链归还启用/禁用）断言
 - 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED、功能 E2E 全 PASS、zip 正斜杠 4/4、verifier 4/4；安装包 145,944 B，SHA256=68F7DA825D59EED8A1BA105E3FB072AD11A64D0C94C1EBB79E438D00356B54A1
 
-## v1.8.22（2026-10-21）
+## v1.8.22（2026-10-21 · 已发布）
 
 **十六巡：自查优化收尾（README 版本表同步 + 条目文案去版本号依赖 + 模组注册名实证）**
 
@@ -265,7 +390,7 @@
 - **模组注册名实证（补十五巡验证盲区）**：枯木逢春 2.4.3 main.ts 确认 `maplebirch.get('DeadwoodReblooms')` 注册名保留；归途之书 1.3.9 main.ts 确认 `get('RobinTemple')/get('TempleChoir')/get('TempleDuties')` 保留——两适配器 detect 探测键在新版全部仍成立
 - 全链验证：全量回归 ALL TESTS PASSED（31.1/32.1 适配器声明断言 PASS）、功能 E2E 全 PASS、zip 正斜杠、verifier 4/4；安装包 145,654 B，SHA256=D3AFC885693A6983BEC8D3A0401A701EDB9B1E17611F2D6477E1B2A7D334B437
 
-## v1.8.21（2026-10-21）
+## v1.8.21（2026-10-21 · 未发布）
 
 **十五巡：3 个第三方模组适配器跟随上游更新（枯木逢春 2.4.3 / 归途之书 1.3.9 / 框架 5.5.2）+ 更新检测脚本补全**
 
@@ -278,7 +403,7 @@
 - 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED（含 31.1/32.1 新版断言、43.6 physique/43.7 译名回归）、功能 E2E 全 PASS；安装包 145,662 B，SHA256=D0D335E5E49AAC093814CE5ED6E2181D93B4443ED453CCF6945C70BC626F21D4
 - 备注：更新检测实跑 9 渠道 8 个实测全对（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraiths/DolSims 均无更新）；框架渠道当轮撞 GitHub API 60 次/小时限流（core 0/60，19:44 恢复），以本地 compareVersions 模拟确认 decl 5.5.2 == tag 5.5.2 判"无更新"，逻辑正确；定时任务每日 21:15 单次调用不撞限流
 
-## v1.8.20（2026-10-21）
+## v1.8.20（2026-10-21 · 未发布）
 
 **十四巡：剧情页页首「使用提示」文案还原为固定触发原始说明全文（用户要求）**
 
@@ -288,7 +413,7 @@
 - 保留能力不动：v1.8.19 的 unfreeze hook 播放结束清理 / unpinScene 防困重构 / physique 无上限 / Seath·Alice·Liddell 译名，均不回滚
 - 全链验证：DOM 冒烟全 PASS（剧情页渲染可见还原文案）、全量回归 ALL TESTS PASSED（含 30.1 还原断言）、功能 E2E 全 PASS；安装包 145,662 B，SHA256=6E566F9A5DA5736DEDA4AEA3690784D26E1C7895BBB1354FDAA4637F79BCDF06
 
-## v1.8.19（2026-10-21）
+## v1.8.19（2026-10-21 · 未发布）
 
 **十三巡：用户实测 3 处 bug 修复（播放结束自动清理 / 播放器内取消防困 / 体能无上限 / 角色译名补齐）**
 
@@ -299,7 +424,7 @@
 - 测试：test_mce 新增第 43 节 17 断言（unfreeze hook 安装/播放结束清理/原版手动重放不越权/播放器内取消跳回原位/back 空保留不跳转/physique 无上限/新译名）；同步 42.4 physique 断言、40.1 译名断言
 - 全链验证：DOM 冒烟全 PASS、全量回归 ALL TESTS PASSED、功能 E2E 全 PASS；安装包 145,666 B，SHA256=3FC9537ED2420D646C166B3997282682C50853D1CC75ED1B036AF49C8730D07C
 
-## v1.8.18（2026-10-21）
+## v1.8.18（2026-10-21 · 未发布）
 
 **十二巡全源码深度自查（17 文件约 5500 行逐行审查至收敛，修复 3 处）**
 
@@ -309,7 +434,48 @@
 - 其余 14 个文件逐行复核无问题（恋爱/转化/格威岚/场景直达/固定触发/Mod作弊 8 适配器/庄园维护/战斗终结/错误熔断/懒渲染/留痕裁剪/数值钳制 34 项/API 导出完整性）
 - 测试：test_mce 新增 42.6 节 8 断言（Broken Vow isnot true 获取写 false/移除写 true、isnot undefined 写 1、isnot N 写 N-1、isnot false 写 true）
 
-## v1.8.12（2026-10-21）
+## v1.8.17（2026-10-21 · 未发布，并入 v1.8.22）
+
+**十一巡：自查修复 + 快速面板补资金**
+
+- **修复留痕排序失效**：恋爱对象留痕条目缺 `t` 时间戳，trim 裁剪按时间升序时兜底 0 导致该条目永远被当成最旧、优先裁剪。补 `t: Date.now()`；
+- **快速面板新增「资金」项**：V.money 直接读写（min 0 / max 100万，单位 £，建议整数），支持 +N/-N 相对调整与回退，走统一钳制与留痕；
+- 测试：test_mce 42.4 数据表 33→34（9+6+10+4+5）。
+
+## v1.8.16（2026-10-21 · 未发布，并入 v1.8.22）
+
+**十巡：自查修复（懒渲染搜索边界）**
+
+- **修复搜索被懒渲染吞掉**：搜索词命中但目标特质分类处于收起状态时，匹配行落在收起组里不可见（懒渲染 1.8.15 引入）。修复：搜索态（q 非空）强制所有组展开并建行（仅改 DOM 收起标记，不写持久化折叠状态，搜索结束恢复默认收起）；
+- 测试：smoke 13.7（全部收起 + 搜索「童贞」→ 匹配行可见）。
+
+## v1.8.15（2026-10-21 · 未发布，并入 v1.8.22）
+
+**九巡：用户批准三项优化 1/2/3**
+
+- **① 特质区收起组懒渲染**：折叠分组初始不再建行（行闭包进组 pending），点击展开/全部展开时才补建——面板开合与切页 DOM 显著减少（特质区 124 行中收起组不再占 DOM）；
+- **② 面板写入留痕有界化**：`V.mbCE_wrote` 条目数 > 400 时按时间戳升序裁剪最旧一半（5 个写入点统一调用 mbCEWroteTrim），防存档无限膨胀；被裁条目的回退窗口随之关闭；
+- **③ 第三方噪音源折叠扩展**：除 DoLGameUI 特效层外，新增 DependenceChecker / TweeReplacer / Paperdoll+ ReplacePatcher / Terraria Expand Mod / Simple Frameworks ModOrderContainer 归一化（各归一同源，命中单源熔断，不再独立刷屏）；
+- 测试：smoke 13.4b（5 种第三方噪音 25 条折叠 ≤6）+ 13.5（懒渲染：初始 33 行 <60、展开补建、全部展开 >100）+ 13.6（450 条留痕裁剪 ≤400 且保留最新）。
+
+## v1.8.14（2026-10-21 · 未发布，并入 v1.8.22）
+
+**八巡：用户指令（意志/意识/淫乱/暴露癖/异种癖改无上限 + 整体核查）**
+
+- **5 属性无上限**：willpower/awareness/promiscuity/exhibitionism/deviancy 钳制上限 2000 → 999999（仅防误输入，非游戏上限）；purity（原版内部 0-2000）、physique（0-100）保持不变；
+- **整体核查**：核心属性表 8 项 / 基础技能 6 项 / 性技能 10 项 / 成绩 4 项 / 武器 5 项 min-max 全表审计通过（技能与成绩 0-1000 百分比量纲）；8 适配器 80 处数值项审计通过（次数 999 / 进度 100 / 金钱 10 万+ / 开关 0-1，无异常钳制）；
+- 测试：smoke 13.3 扩展（5 属性写入 5000 验证无上限）。
+
+## v1.8.13（2026-10-21 · 未发布，并入 v1.8.22）
+
+**七巡：实测反馈修复（核心属性/模组数值上限被钳 + DoLGameUI 特效层错误 50 条刷屏）**
+
+- **钳制上限修正**：核心属性数据表 max 配错（willpower/awareness/promiscuity/exhibitionism/deviancy 误配 100，应为内部值域 2000；beauty 误配 100，原版无硬上限 → 999999 防误输入）→ 应用大值不再被钳死；
+- **模组数值上限放宽**：LostLamb doubt/fear/notice 100→1000；TempleDuties archive.roof 99→100、shelves 99→999（实测当前值 108 超原上限）；
+- **错误噪音归一化**：DoLGameUI 特效层 4 种 layer 消息（spotlight/glow/linearGradient/flatColorOverlay）交替刷屏时各成独立源绕过单源熔断 → 归一为同一源，命中「单源 ≥20 熔断」；50 条风暴折叠为 0-1 条；
+- 测试：smoke 13.3（意志 2000 / 容貌 50000 写入）+ 13.4（24 条特效层错误折叠 ≤1）。
+
+## v1.8.12（2026-10-21 · 未发布，并入 v1.8.22）
 
 **七项能力升级：收藏 / 错误收集 / 状态持久化 / 数据驱动 / 相对值 / 适配器审计 / 性能**
 
@@ -361,33 +527,7 @@
 - **CSS.escape 兜底 bug 修复**：无全局 CSS 环境（node/eval）走兜底时漏拼 "quick:" 前缀 → 行查找失败静默回退全量重建（优化失效）；修复后与主分支等价，此坑已入错题本
 - 测试：smoke 第 13 节（mock 适配器局部行更新：阶段应用/能力勾选/数值相对修改后行数不变 + 回显更新）+ 13.2（快速面板 +10 局部回显）
 
-**v1.8.13 七巡（实测反馈：核心属性/模组数值上限被钳 + DoLGameUI 特效层错误 50 条刷屏）**：
-- **钳制上限修正**：核心属性数据表 max 配错（willpower/awareness/promiscuity/exhibitionism/deviancy 误配 100，应为内部值域 2000；beauty 误配 100，原版无硬上限 → 999999 防误输入）→ 应用大值不再被钳死
-- **模组数值上限放宽**：LostLamb doubt/fear/notice 100→1000；TempleDuties archive.roof 99→100、shelves 99→999（实测当前值 108 超原上限）
-- **错误噪音归一化**：DoLGameUI 特效层 4 种 layer 消息（spotlight/glow/linearGradient/flatColorOverlay）交替刷屏时各成独立源绕过单源熔断 → 归一为同一源，命中「单源 ≥20 熔断」；50 条风暴折叠为 0-1 条
-- 测试：smoke 13.3（意志 2000 / 容貌 50000 写入）+ 13.4（24 条特效层错误折叠 ≤1）
-
-**v1.8.14 八巡（用户指令：意志/意识/淫乱/暴露癖/异种癖改无上限 + 整体核查）**：
-- **5 属性无上限**：willpower/awareness/promiscuity/exhibitionism/deviancy 钳制上限 2000 → 999999（仅防误输入，非游戏上限）；purity（原版内部 0-2000）、physique（0-100）保持不变
-- **整体核查**：核心属性表 8 项 / 基础技能 6 项 / 性技能 10 项 / 成绩 4 项 / 武器 5 项 min-max 全表审计通过（技能与成绩 0-1000 百分比量纲）；8 适配器 80 处数值项审计通过（次数 999 / 进度 100 / 金钱 10 万+ / 开关 0-1，无异常钳制）
-- 测试：smoke 13.3 扩展（5 属性写入 5000 验证无上限）
-
-**v1.8.15 九巡（用户批准三项优化 1/2/3）**：
-- **① 特质区收起组懒渲染**：折叠分组初始不再建行（行闭包进组 pending），点击展开/全部展开时才补建——面板开合与切页 DOM 显著减少（特质区 124 行中收起组不再占 DOM）
-- **② 面板写入留痕有界化**：`V.mbCE_wrote` 条目数 > 400 时按时间戳升序裁剪最旧一半（5 个写入点统一调用 mbCEWroteTrim），防存档无限膨胀；被裁条目的回退窗口随之关闭
-- **③ 第三方噪音源折叠扩展**：除 DoLGameUI 特效层外，新增 DependenceChecker / TweeReplacer / Paperdoll+ ReplacePatcher / Terraria Expand Mod / Simple Frameworks ModOrderContainer 归一化（各归一同源，命中单源熔断，不再独立刷屏）
-- 测试：smoke 13.4b（5 种第三方噪音 25 条折叠 ≤6）+ 13.5（懒渲染：初始 33 行 <60、展开补建、全部展开 >100）+ 13.6（450 条留痕裁剪 ≤400 且保留最新）
-
-**v1.8.16 十巡（自查修复：懒渲染搜索边界）**：
-- **修复搜索被懒渲染吞掉**：搜索词命中但目标特质分类处于收起状态时，匹配行落在收起组里不可见（懒渲染 1.8.15 引入）。修复：搜索态（q 非空）强制所有组展开并建行（仅改 DOM 收起标记，不写持久化折叠状态，搜索结束恢复默认收起）
-- 测试：smoke 13.7（全部收起 + 搜索「童贞」→ 匹配行可见）
-
-**v1.8.17 十一巡（自查修复 + 快速面板补资金）**：
-- **修复留痕排序失效**：恋爱对象留痕条目缺 `t` 时间戳，trim 裁剪按时间升序时兜底 0 导致该条目永远被当成最旧、优先裁剪。补 `t: Date.now()`
-- **快速面板新增「资金」项**：V.money 直接读写（min 0 / max 100万，单位 £，建议整数），支持 +N/-N 相对调整与回退，走统一钳制与留痕
-- 测试：test_mce 42.4 数据表 33→34（9+6+10+4+5）
-
-## v1.8.11（2026-10-20）
+## v1.8.11（2026-10-20 · 已发布）
 
 **模组特质可直接获取：特质管理区对模组注入特质不再只读**
 
@@ -400,7 +540,7 @@
 - 适配完整性核对结论：8 适配器功能面全覆盖，特质类条目（枯木逢春铁意志/受虐狂、DoLSims 14 号书 5 封印等）经 Mod作弊 页 abilities 勾选直接获得
 - 打包修复 ERR-20261020-001：zip 条目正斜杠分隔符（Compress-Archive 反斜杠导致 ModLoader cannot get file → ZipArchive 手动写入 + 打包分隔符校验）
 
-## v1.8.10（2026-10-20）
+## v1.8.10（2026-10-20 · 未发布，并入 v1.8.22）
 
 **审查补全：庄园自动维护扩至 AutoClean 全维护面 + 点菜刷新对齐**
 
@@ -414,7 +554,7 @@
 - 测试：全量回归新增 41.2c 断言（技能条件锁 / 无条件锁 / 补货 / 动态打扫四组行为，实测 rooms=3 且 man 对象不动）；冒烟 +4 断言（四新按钮存在且点击不崩）
 - 全链验证：冒烟 + 全量回归 600+ 断言全绿
 
-## v1.8.9（2026-10-20）
+## v1.8.9（2026-10-20 · 未发布，并入 v1.8.22）
 
 **审查优化：对齐 AutoClean 行为 + 数据层下沉 + 边界标注**
 
@@ -425,7 +565,7 @@
 - 边界标注：DoLSims 适配器 恶魔化/天使化/堕落天使 三项补 note（复用原版转化键，会同时推进原版转化阶段）；wraiths-reflection 状态键注释补全 necklaceThiefWR（探测键与文档一致）
 - 测试：全量回归新增 41.2b 断言（含 cream 四类库存全部收获并清零）；41.1 断言改为「未达喂食阶段不计数」；冒烟 + 全量回归 590+ 断言全绿
 
-## v1.8.8（2026-10-20）
+## v1.8.8（2026-10-20 · 未发布，并入 v1.8.22）
 
 **5 模组适配落地：全局页同功能（学 CombatTerminator + AutoClean）+ 三新适配器（DoLSims / Dol-Optimization / Wraith'sReflection）**
 
@@ -440,7 +580,7 @@
 - 测试扩展：冒烟 +6 断言（全局页两区渲染、战斗按钮点击生效、三新适配器渲染）；全量回归新增第 41 节 21 断言（喂食/农场逻辑、写入钳制、枚举拒绝、宿主缺失拒绝、卸载消失）
 - 全链验证：冒烟 43 条 + 全量回归 590+ 断言全绿
 
-## v1.8.7（2026-10-20）
+## v1.8.7（2026-10-20 · 未发布，并入 v1.8.22）
 
 **学 CE 落地②**：模组变量探查器 + 能力项逐项数值文档
 
@@ -454,7 +594,7 @@
   - 冒烟新增 3 断言：说明折叠渲染 / 含写入路径+类型 / note 手写说明渲染
 - 全链验证：冒烟 37 条 + 全量回归 570+ 全绿
 
-## v1.8.6（2026-10-20）
+## v1.8.6（2026-10-20 · 已发布）
 
 **发布**：SmartPhone 第 5 适配器 + 07 模块化拆分 + 自动更新检测
 
@@ -471,14 +611,14 @@
 - 归途之书 1.3.7 → **1.3.8**：resolve_missing 56 条全 KEEP
 - 框架 5.5.0 → **5.5.1**：check_framework_api 核心 6 项全过
 
-## v1.8.5（2026-10-19）
+## v1.8.5（2026-10-19 · 未发布）
 
 **修复**：特质栏消失严重 bug
 
 - 修复 `select.type` 只读 getter 赋值崩溃（Cannot set property type of #<HTMLSelectElement> which has only a getter）
 - 错误编号 ERR-007 / ERR-008，已入错题本
 
-## v1.8.4（2026-10-19）
+## v1.8.4（2026-10-19 · 未发布）
 
 **三需求**：
 

@@ -762,26 +762,26 @@
 		"vaginal": "阴道的", "handholding": "牵手", "kiss": "亲吻", "virgin": "处子", "chastity": "贞操",
 		/* 属性数值 */
 		"love": "爱意", "lust": "欲望", "stress": "压力", "trauma": "创伤", "awareness": "意识",
-		"arousal": "兴奋", "pain": "疼痛", "control": "控制", "deviancy": "堕落", "promiscuity": "滥交",
+		"arousal": "情欲", "pain": "疼痛", "control": "控制", "deviancy": "异种癖", "promiscuity": "淫乱",
 		"fame": "名声", "reputation": "声誉", "dominance": "支配欲", "confidence": "自信", "sanity": "理智",
 		"health": "健康", "willpower": "意志", "swim": "游泳", "tenderness": "温柔", "sensitivity": "敏感",
-		"familiarity": "熟悉度", "pheromones": "信息素", "sass": "傲慢", "beauty": "美貌",
+		"familiarity": "熟悉度", "pheromones": "信息素", "sass": "傲慢", "beauty": "容貌",
 		"paraphilia": "性癖", "weirdness": "怪诞", "addiction": "上瘾", "corruption": "腐化",
-		"whoring": "卖淫", "exhibitionism": "裸露癖", "submissive": "顺从", "submissiveness": "顺从度",
+		"whoring": "卖淫", "exhibitionism": "暴露癖", "submissive": "顺从", "submissiveness": "顺从度",
 		"tolerances": "耐受", "tolerance": "耐受", "spunk": "精液", "life": "生命", "dead": "死亡",
-		"physique": "体格", "purity": "纯洁", "drugged": "药物影响", "tiredness": "疲劳",
-		"history": "经历", "inventory": "物品栏", "map": "地图", "position": "姿势", "target": "目标",
+		"physique": "体能", "purity": "纯洁", "drugged": "药物影响", "tiredness": "疲劳",
+		"history": "历史", "inventory": "物品栏", "map": "地图", "position": "姿势", "target": "目标",
 		"state": "状态", "seen": "已被看见", "action": "动作", "hide": "隐藏", "beastRut": "兽性发情",
 		"reputation_fame": "声名", "reputation_rep": "声誉值",
 		/* 技能（常见派生键） */
-		"skulduggery": "开锁技巧", "english": "英语", "maths": "数学", "science": "科学",
+		"skulduggery": "诡术", "english": "语文", "maths": "数学", "science": "科学",
 		"historytrait": "历史才能", "english_exam": "英语考试", "maths_exam": "数学考试",
 		"science_exam": "科学考试", "history_exam": "历史考试",
-		"handskill": "手部技巧", "oralskill": "口部技巧", "penileskill": "阴茎技巧",
-		"vaginalskill": "阴道技巧", "analSkill": "肛部技巧", "analskill": "肛部技巧",
-		"thighskill": "腿部技巧", "feetskill": "足部技巧", "chestskill": "胸部技巧",
-		"bottomskill": "臀部技巧", "swimmingskill": "游泳技巧", "seductionskill": "诱惑技巧",
-		"danceskill": "舞蹈技巧", "feetuse": "足交使用", "neckuse": "颈部使用",
+		"handskill": "手部", "oralskill": "口部", "penileskill": "阴茎",
+		"vaginalskill": "小穴", "analSkill": "后庭", "analskill": "后庭",
+		"thighskill": "大腿", "feetskill": "足部", "chestskill": "胸部",
+		"bottomskill": "臀部", "swimmingskill": "游泳", "seductionskill": "魅惑",
+		"danceskill": "舞蹈", "feetuse": "足交使用", "neckuse": "颈部使用",
 		/* 模组键 */
 		"RobinTemple": "罗宾神殿", "TempleChoir": "神殿唱诗班", "LostLamb": "迷途羔羊",
 		"TempleDuties": "神殿职责", "DeadwoodReblooms": "枯木逢春", "DeadwoodRebloomsAttitudes": "枯木逢春·态度",
@@ -789,15 +789,16 @@
 		"SoftWet": "SoftWet 湿润系统", "ModHub": "模组中心", "DomRobin": "DomRobin", "MLI": "MLI 恋爱扩展",
 		"stage": "阶段", "secret": "秘密", "rite_stage": "仪式阶段", "followup": "后续", "allowed": "允许",
 		"discovered": "已发现",
-		/* 游戏属性面板（颜色分级）快捷编辑 */
-		"purity": "纯洁", "beauty": "容貌", "physique": "体能", "awareness": "意识",
-		"promiscuity": "淫乱", "exhibitionism": "暴露癖", "deviancy": "异种癖",
-		"skulduggery": "诡术", "danceskill": "舞蹈", "swimmingskill": "游泳", "athletics": "运动",
-		"tending": "护理", "housekeeping": "家务",
-		"seductionskill": "魅惑", "chestskill": "胸部", "handskill": "手部", "bottomskill": "臀部",
-		"penileskill": "阴茎", "vaginalskill": "小穴", "analskill": "后庭", "thighskill": "大腿",
-		"feetskill": "足部", "science": "科学", "maths": "数学", "history": "历史",
-		"spray": "防狼喷雾", "baton": "短棍", "whip": "鞭子", "net": "网", "pickaxe": "镐", "prof": "武器技能"
+		/* 快捷编辑补充键（v1.9.13 翻译表收敛：旧区无同名键才在此列；
+		   PANEL_QUICK_GROUPS 的 label 经 zhKey(path) 动态生成，本表为单一事实源） */
+		"athletics": "运动", "tending": "护理", "housekeeping": "家务",
+		"spray": "防狼喷雾", "baton": "短棍", "whip": "鞭子", "net": "网", "pickaxe": "镐", "prof": "武器技能",
+		"prof.spray": "防狼喷雾", "prof.baton": "短棍", "prof.whip": "鞭子", "prof.net": "网", "prof.pickaxe": "镐",
+		/* 负面状态（v1.9.13） */
+		"anxiety": "焦虑", "delinquency": "不良", "drunk": "醉酒",
+		/* 名声子键（v1.9.13） */
+		"fame.prostitution": "卖淫名声", "fame.sex": "性名声", "fame.rape": "施暴名声",
+		"fame.exhibitionism": "暴露名声", "fame.bestiality": "异种名声", "fame.good": "善行名声"
 	};
 	var ZH_TYPES = { "number": "数值", "boolean": "布尔", "string": "文本", "object": "对象", "function": "函数", "undefined": "未定义", "null": "空" };
 	function zhKey(k) { return ZH_KEYS[k] || String(k); }

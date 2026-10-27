@@ -473,14 +473,33 @@ const PLACE_NAMES = [
   "Mansion Bed", "Mansion Pool", "Mansion Bathroom", "Mansion Wardrobe", "Mansion Intro Orphanage Avery",
   "Gwylan Ritual Start Garden", "Pregnancy Birth Forest Shop", "Gwylan Garden Trim",
   "Adult Shop Approach Sirris", "Sirris Shop Assistant 1", "School Sirris Help", "Sydney Ride Home",
-  "Orphanage", "Temple", "ManorHall", "Forest Shop", "Avery", "Kylar Abduction Intro"
+  "Orphanage", "Temple", "ManorHall", "Forest Shop", "Avery", "Kylar Abduction Intro",
+  /* v1.9.13 场景直达补充 6 组：精神病院/警局监狱/码头/湖畔/狼群领地/医院（段落名均经本体实证） */
+  "Asylum", "Asylum Wardrobe",
+  "Docks", "Docks_Robin Swap",
+  "Lake Stroll", "Lake Insect",
+  "Police Cell", "Police Community Start", "Prison Wren Intro",
+  "Wolf Pack", "Forest Wolf Cave Intro",
+  "Hospital front", "Hospital Foyer"
 ];
 // 模拟 SugarCube 2.36.1：无 Story.passages，场景页经 lookupWith 枚举段落名
 global.Story = { has: (n) => PLACE_NAMES.indexOf(n) !== -1, lookupWith: (fn) => PLACE_NAMES.map(n => ({ name: n, text: "" })).filter(fn) };
 let lap10 = api.listAllPassages();
 assert(lap10.length === PLACE_NAMES.length, "listPlaceGroups 经 lookupWith 枚举全部段落, 实际 " + lap10.length);
 let pGroups = api.listPlaceGroups();
-assert(pGroups.length === 8, "场景分组 8 组（v1.7.0 新增多伦公寓/麋鹿街大院）, 实际 " + pGroups.length);
+assert(pGroups.length === 14, "场景分组 14 组（v1.9.13 新增 6 地点：精神病院/警局监狱/码头/湖畔/狼群领地/医院）, 实际 " + pGroups.length);
+let asy = pGroups.find(x => x.group.id === "asylum");
+assert(asy.group.name.indexOf("精神病院") === 0 && asy.items.length === 2 && asy.items[0] === "Asylum", "精神病院组 2 段主置顶, 实际 " + JSON.stringify(asy.items));
+let dp = pGroups.find(x => x.group.id === "police_prison");
+assert(dp.group.name.indexOf("警局") === 0 && dp.items.length === 3 && dp.items[0] === "Police Cell", "警局与监狱组 3 段主置顶, 实际 " + JSON.stringify(dp.items));
+let dk = pGroups.find(x => x.group.id === "docks");
+assert(dk.group.name.indexOf("码头") === 0 && dk.items.length === 2 && dk.items[0] === "Docks", "码头组 2 段主置顶, 实际 " + JSON.stringify(dk.items));
+let lk = pGroups.find(x => x.group.id === "lake");
+assert(lk.group.name.indexOf("湖畔") === 0 && lk.items.length === 2 && lk.items[0] === "Lake Stroll", "湖畔组 2 段主置顶, 实际 " + JSON.stringify(lk.items));
+let wf = pGroups.find(x => x.group.id === "wolf_territory");
+assert(wf.group.name.indexOf("森林深处") === 0 && wf.items.length === 2 && wf.items[0] === "Wolf Pack", "狼群领地组 2 段主置顶, 实际 " + JSON.stringify(wf.items));
+let hp = pGroups.find(x => x.group.id === "hospital");
+assert(hp.group.name.indexOf("医院") === 0 && hp.items.length === 2 && hp.items[0] === "Hospital front", "医院组 2 段主置顶, 实际 " + JSON.stringify(hp.items));
 let og = pGroups.find(x => x.group.id === "orphanage_loft");
 assert(og.items.length === 4 && og.items[0] === "Orphanage Loft", "阁楼组 4 段且主场景置顶, 实际 " + JSON.stringify(og.items));
 let kg = pGroups.find(x => x.group.id === "kylar_manor");
@@ -494,7 +513,7 @@ assert(ag.items.length === 5 && ag.items[0] === "Mansion Bed", "艾弗里庄园�
 let gg = pGroups.find(x => x.group.id === "gwylan_garden");
 assert(gg.items.length === 4 && gg.items[0] === "Gwylan Ritual Start Garden", "格威岚花园组 4 段主置顶, 实际 " + JSON.stringify(gg.items));
 let totalItems = pGroups.reduce((s, x) => s + x.items.length, 0);
-assert(totalItems === 24, "干扰段落不误入（总 24 段）, 实际 " + totalItems);
+assert(totalItems === 37, "干扰段落不误入（v1.9.13 全段归组，总 37 段）, 实际 " + totalItems);
 let cn = api.placeNameCN ? api.placeNameCN("Orphanage Loft Kitchen") : "";
 assert(typeof cn === "string" && cn.indexOf("厨房") !== -1, "段落名中文提示：厨房, 实际 " + cn);
 // teleportTo：无 Engine 时不抛错（setStatus 安全空转）
@@ -509,7 +528,7 @@ delete global.Engine;
 global.Story = { has: () => false, passages: PLACE_NAMES.map(n => ({ name: n, text: "" })) };
 let lapC = api.listAllPassages();
 assert(lapC.length === PLACE_NAMES.length, "旧版 Story.passages 兼容路径可用, 实际 " + lapC.length);
-assert(api.listPlaceGroups().reduce((s, x) => s + x.items.length, 0) === 24, "兼容路径下场景分组总数不变");
+assert(api.listPlaceGroups().reduce((s, x) => s + x.items.length, 0) === 37, "兼容路径下场景分组总数不变（37 段）");
 
 // 11) 固定触发队列 / 回退 / 联动解锁（v1.2）：按顺序触发 + 一次性 + 场景解锁
 global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT }].filter(fn) };
@@ -2476,7 +2495,7 @@ delete V.temple_burden; delete V.RobinTemple; delete V.player; delete V.mbCE_wro
 // ============ 第 38 节：游戏属性面板（颜色分级）快捷编辑（v1.7.2，用户指定"改这些面板数值"） ============
 // 38.1) 组清单：5 组覆盖 核心属性/基础技能/性技能/学校成绩/武器技能
 let g38 = api.PANEL_QUICK_GROUPS;
-assert(g38.length === 5 && g38[0].title === "核心属性" && g38[4].title === "武器技能", "38.1 快捷区 5 组（核心/基础/性/成绩/武器）, 实际 " + JSON.stringify(g38.map(x => x.title)));
+assert(g38.length === 7 && g38[0].title === "核心属性" && g38[4].title === "武器技能" && g38[5].title === "负面状态" && g38[6].title === "名声（fame）", "38.1 快捷区 7 组（核心/基础/性/成绩/武器/负面状态/名声）, 实际 " + JSON.stringify(g38.map(x => x.title)));
 let all38 = g38.reduce((a, g) => a.concat(g.items), []);
 let names38 = all38.map(x => x.label);
 ["纯洁", "容貌", "体能", "意志", "意识", "淫乱", "暴露癖", "异种癖", "诡术", "舞蹈", "游泳", "运动", "护理", "家务", "魅惑", "口部", "胸部", "手部", "臀部", "阴茎", "小穴", "后庭", "大腿", "足部", "科学", "数学", "语文", "历史", "防狼喷雾", "短棍", "鞭子"].forEach(n => {
@@ -2904,7 +2923,7 @@ api.mbCEUiSave({ tab: "char", filter: "" });
 
 /* 42.4）v1.8.12 能力项数据驱动重构：items 对象化（path/label/min/max/note）+ 范围钳制走数据表 */
 var ddAll = api.PANEL_QUICK_GROUPS.reduce(function (a, g) { return a.concat(g.items); }, []);
-assert(ddAll.length === 34, "42.4 数据表共 34 个能力项（9+6+10+4+5，含十巡新增资金），实际 " + ddAll.length);
+assert(ddAll.length === 49, "42.4 数据表共 49 个能力项（9 核心+6 技能+10 性技能+4 成绩+5 武器+9 负面状态+6 名声，v1.9.13 新增 15）, 实际 " + ddAll.length);
 assert(ddAll.every(function (it) { return typeof it.path === "string" && typeof it.label === "string" && typeof it.min === "number" && typeof it.max === "number"; }), "42.4 每项均含 path/label/min/max（声明式数据表），缺失项 " + JSON.stringify(ddAll.filter(function (it) { return !(typeof it.path === "string" && typeof it.label === "string" && typeof it.min === "number" && typeof it.max === "number"); })[0]));
 var ddPurity = ddAll.filter(function (it) { return it.path === "purity"; })[0];
 assert(!!ddPurity && ddPurity.max === 2000 && ddPurity.min === 0, "42.4 purity 范围 0-2000（面板 0-100% 内部量纲），实际 " + ddPurity.min + "-" + ddPurity.max);
@@ -3245,6 +3264,42 @@ api44.undoCheatModValue("t", "k2");
 assert(V.modtest.exist === 3, "44.8 既有值回退还原首次前值 3, 实际 " + V.modtest.exist);
 delete V.modtest; delete V.mbCE_wrote;
 
+/* 44.9 v1.9.15 数值固定（Lock Values）：数据层 + tick 强制写回（防渡鸦/天使/转化值被游戏机制改动） */
+delete V.mbCE_lock;
+let rLock49 = api44.mbCELockSet("maplebirch.transformation.raven.build", 0);
+assert(rLock49 && rLock49.ok, "44.9 锁定渡鸦转化 build=0, 实际 " + (rLock49 && rLock49.message));
+assert(api44.mbCELockHas("maplebirch.transformation.raven.build"), "44.9 mbCELockHas 命中已锁定路径");
+assert(!api44.mbCELockHas("angel"), "44.9 未锁定路径 mbCELockHas 不误命中");
+V.maplebirch.transformation = V.maplebirch.transformation || {};
+V.maplebirch.transformation.raven = V.maplebirch.transformation.raven || {};
+V.maplebirch.transformation.raven.build = 42;
+api44.mbCELockTick();
+assert(V.maplebirch.transformation.raven.build === 0, "44.9 改值 42 → tick 强制写回 0, 实际 " + V.maplebirch.transformation.raven.build);
+let rUp49 = api44.mbCELockSet("maplebirch.transformation.raven.build", 5);
+assert(rUp49 && rUp49.ok && V.mbCE_lock.length === 1, "44.9 更新目标 5 不重复追加（1 条）, 实际 " + V.mbCE_lock.length);
+assert(V.maplebirch.transformation.raven.build === 5, "44.9 更新目标后立即写回 5（不等 tick）, 实际 " + V.maplebirch.transformation.raven.build);
+api44.mbCELockTick();
+assert(V.maplebirch.transformation.raven.build === 5, "44.9 更新目标后 tick 保持 5, 实际 " + V.maplebirch.transformation.raven.build);
+let rRm49 = api44.mbCELockRemove("maplebirch.transformation.raven.build");
+assert(rRm49 && rRm49.ok && !api44.mbCELockHas("maplebirch.transformation.raven.build"), "44.9 取消锁定成功");
+V.maplebirch.transformation.raven.build = 9;
+api44.mbCELockTick();
+assert(V.maplebirch.transformation.raven.build === 9, "44.9 取消后 tick 不再写回（保持 9）, 实际 " + V.maplebirch.transformation.raven.build);
+let rBad49 = api44.mbCELockSet("purity", "abc");
+assert(rBad49 && !rBad49.ok && !api44.mbCELockHas("purity"), "44.9 非数值目标拒绝且不写入");
+let rEmpty49 = api44.mbCELockSet("", 1);
+assert(rEmpty49 && !rEmpty49.ok, "44.9 空路径拒绝");
+/* 自查边界：锁定不存在的键 → tick 不凭空创建字段；空段路径拒绝 */
+delete V.maplebirch.transformation;
+api44.mbCELockSet("maplebirch.transformation.raven.build", 0);
+api44.mbCELockTick();
+assert(!V.maplebirch.transformation || !V.maplebirch.transformation.raven,
+  "44.9 锁定不存在的键 → tick 不凭空创建（raven 仍不存在）");
+api44.mbCELockRemove("maplebirch.transformation.raven.build");
+let rDot49 = api44.mbCELockSet("a..b", 1);
+assert(rDot49 && !rDot49.ok, "44.9 空段路径（a..b）拒绝");
+delete V.mbCE_lock; delete V.maplebirch.transformation;
+
 /* 45.x）v1.9.1（DoL-Game-UI 冲突排查）：Mod作弊 子页四分组默认收起 + 懒渲染——
    用户实测「滑动卡住截断 / 展开过多卡住闪退」：子页一次全量建数百行 + DGU 每帧 rAF 扫描抢主线程。
    修复 = 组头常驻、组体默认收起、行闭包进 pending 点击展开才建（学 06-traits 九巡）；展开态持久化。 */
@@ -3486,6 +3541,99 @@ assert(w48g.ok && V.world_corruption_soft === 30, "48.6 无字段建写 soft=30,
 var w48h = api48.placeStageUndo("world_corruption_soft");
 assert(w48h.ok && ("world_corruption_soft" in V) === false, "48.6 回退删字段（before=undefined → delete）, soft 存在=" + ("world_corruption_soft" in V));
 delete V.mbCE_wrote;
+
+/* ============ 49）v1.9.13 全面优化：负面属性快捷项 + 预设模板 + 时间调节 + 数值搜索 ============
+   背景：用户要求三方面全面优化（作弊/游戏遗漏/代码），8 项优化中本节能覆盖的 4 项：
+   #127 快捷面板补负面属性（原版 V 键实证 + 名声子键点路径直写）
+   #129 预设模板（全属性拉满 / 经典开局，逐项留痕）
+   #126 全局页时间调节（Time 全局对象快进 + 跳时段，非 V.timer 行动点）
+   #128 Mod 数值搜索（cheatValueMatches 纯过滤 + renderCheatValues 计数/展开态） */
+const api49 = setup.mbStageCE;
+assert(!!api49 && typeof api49.applyQuickPreset === "function" && typeof api49.mcTimeAdvance === "function" && typeof api49.cheatValueMatches === "function", "49.0 前置：api49 导出预设/时间/搜索函数");
+/* 武器技能走 prof.* 点路径，父级需有壳（与玩家页 ensureProfShell 语义一致） */
+global.V.prof = {};
+/* 49.1 负面状态 + 名声组存在（原版键实证：stress/trauma/pain/arousal/tiredness/anxiety/delinquency/drugged/drunk
+   + fame.prostitution 等子键；均不在 CHEAT_VANILLA_ROOTS 黑名单，玩家面板通道可直写） */
+var negGrp49 = api49.PANEL_QUICK_GROUPS.find(function (g) { return g.title === "负面状态"; });
+assert(!!negGrp49 && negGrp49.items.length === 9, "49.1 负面状态组 9 项, 实际 " + (negGrp49 ? negGrp49.items.length : "无"));
+var famGrp49 = api49.PANEL_QUICK_GROUPS.find(function (g) { return g.title === "名声（fame）"; });
+assert(!!famGrp49 && famGrp49.items.length === 6 && famGrp49.items[0].path === "fame.prostitution", "49.1 名声组 6 项且首项 fame.prostitution, 实际 " + (famGrp49 ? JSON.stringify(famGrp49.items.map(x => x.path)) : "无"));
+["stress", "trauma", "pain", "arousal", "tiredness", "anxiety", "delinquency", "drugged", "drunk"].forEach(function (p) {
+  assert(!!negGrp49.items.find(function (it) { return it.path === p; }), "49.1 负面项存在：" + p);
+});
+/* 49.2 点路径写入：fame.prostitution（父级 V.fame 存在 → cheatResolvePath 通过） */
+global.V.fame = { prostitution: 5, sex: 0 };
+var qw49 = api49.quickWrite("fame.prostitution", 100);
+assert(qw49.ok && V.fame.prostitution === 100, "49.2 点路径写入 fame.prostitution=100, 实际 " + V.fame.prostitution);
+var ur49 = api49.undoPlayerValue("fame.prostitution");
+assert(ur49.ok && V.fame.prostitution === 5, "49.2 回退还原 fame.prostitution=5, 实际 " + V.fame.prostitution);
+/* 保留 V.fame 父级给 49.3/49.4 预设复用（预设含 fame 清零项） */
+V.fame = { prostitution: 5, sex: 0 };
+delete V.mbCE_wrote;
+/* 49.3 预设「经典开局」：资金 5000 + 技能/成绩/武器 100 + 负面清零 + 名声清零 */
+var r49a = api49.applyQuickPreset("fresh");
+assert(r49a.ok && V.money === 5000, "49.3 经典开局 money=5000, 实际 " + V.money);
+assert(V.stress === 0 && V.trauma === 0 && V.drunk === 0 && V.delinquency === 0, "49.3 经典开局负面清零, 实际 stress=" + V.stress + " trauma=" + V.trauma);
+assert(V.handskill === 100 && V.oralskill === 100 && V.maths === 100 && V.prof.spray === 100, "49.3 经典开局技能/成绩/武器=100, 实际 hand=" + V.handskill + " oral=" + V.oralskill + " maths=" + V.maths + " spray=" + V.prof.spray);
+assert(V.beauty === 100 && V.purity === 2000, "49.3 经典开局核心属性=100 / purity=2000, 实际 beauty=" + V.beauty + " purity=" + V.purity);
+/* 49.4 预设「全属性拉满」：核心 999 / purity 2000 / 资金 999999 / 技能 1000 + 负面清零 */
+delete V.mbCE_wrote;
+var r49b = api49.applyQuickPreset("max");
+assert(r49b.ok && V.money === 999999 && V.purity === 2000 && V.willpower === 999, "49.4 拉满 money/purity/willpower, 实际 " + V.money + "/" + V.purity + "/" + V.willpower);
+assert(V.handskill === 1000 && V.maths === 1000 && V.prof.baton === 1000 && V.deviancy === 999, "49.4 拉满技能/成绩/武器=1000、异种癖=999, 实际 " + V.handskill + "/" + V.maths + "/" + V.prof.baton + "/" + V.deviancy);
+assert(V.stress === 0 && V.pain === 0, "49.4 拉满负面清零, 实际 stress=" + V.stress + " pain=" + V.pain);
+/* 49.5 留痕可回退：预设写入项均在 mbCE_wrote 留痕（key=p:path） */
+assert(!!V.mbCE_wrote && !!V.mbCE_wrote["cheat:player-self:p:stress"], "49.5 预设留痕存在（cheat:player-self:p:stress）, 实际 keys=" + Object.keys(V.mbCE_wrote || {}).length);
+delete V.mbCE_wrote;
+/* 49.6 时间调节：Time mock（set 秒级快进 / setTime 跳时分）；V.timer 是行动点不是时钟，不误写 */
+var tTime49 = { ts: 0, h: -1, m: -1, hour: 8, minute: 30, weekDay: 3, set: function (ts) { this.ts = ts; }, setTime: function (h, m) { this.h = h; this.m = m; } };
+var oldTime49 = global.Time;
+global.Time = tTime49;
+V.timeStamp = 1000000;
+var ta49 = api49.mcTimeAdvance(60);
+assert(ta49.ok && tTime49.ts === 1000000 + 60 * 60, "49.6 快进 60 分钟 → Time.set(ts+3600), 实际 ts=" + tTime49.ts);
+var tj49 = api49.mcTimeJump(18, 0);
+assert(tj49.ok && tTime49.h === 18 && tTime49.m === 0, "49.6 跳时段 → Time.setTime(18,0), 实际 " + tTime49.h + ":" + tTime49.m);
+var tn49 = api49.mcTimeNow();
+assert(tn49 && tn49.hour === 8 && tn49.minute === 30 && tn49.weekDay === 3, "49.6 mcTimeNow 读取当前 8:30 周3, 实际 " + JSON.stringify(tn49));
+/* 时间调节不写 V 存档键（V.timer 是行动点，误写会拨回当日 0 点——README FAQ 警示） */
+assert(V.timer === undefined || V.timer === 0, "49.6 时间调节未触碰 V.timer 行动点, 实际 " + V.timer);
+if (oldTime49 !== undefined) { global.Time = oldTime49; } else { delete global.Time; }
+/* 49.7 数值搜索纯过滤：cheatValueMatches 命中 名称/键名/路径，q 空恒命中 */
+var m49 = { values: [
+  { key: "prost_peak", name: "卖淫巅峰", varPath: "DeadWood.prost.peak" },
+  { key: "sword_skill", name: "武艺", varPath: "Fight.sword" }
+] };
+assert(api49.cheatValueMatches(m49.values[0], "") === true, "49.7 空搜索恒命中");
+assert(api49.cheatValueMatches(m49.values[0], "prost") === true, "49.7 键名 prost 命中, 实际 " + api49.cheatValueMatches(m49.values[0], "prost"));
+assert(api49.cheatValueMatches(m49.values[0], "卖淫") === true, "49.7 中文名 卖淫 命中, 实际 " + api49.cheatValueMatches(m49.values[0], "卖淫"));
+assert(api49.cheatValueMatches(m49.values[0], "Fight") === false, "49.7 路径 Fight 不命中卖淫项");
+/* 49.8 搜索态渲染：renderCheatValues 过滤计数 + 搜索态强制组展开（grp mock 每次新建，count 不串号） */
+function grp49() { return { count: 0, pending: [], body: { setAttribute: function (k, v) { this[k] = v; } } }; }
+api49.setModValueFilter("sword");
+var g49 = grp49();
+api49.renderCheatValues(m49, function () { return g49; }, function () { return null; });
+assert(g49.count === 1 && g49.pending.length === 1, "49.8 搜索 sword 只计 1 项, 实际 count=" + g49.count);
+assert(g49.body["data-collapsed"] === "0", "49.8 搜索态强制数值组展开, 实际 " + g49.body["data-collapsed"]);
+api49.setModValueFilter("xyz");
+var g49b = grp49();
+api49.renderCheatValues(m49, function () { return g49b; }, function () { return null; });
+assert(g49b.count === 0, "49.8 搜索 xyz 无命中 count=0, 实际 " + g49b.count);
+api49.setModValueFilter("");
+var g49c = grp49();
+api49.renderCheatValues(m49, function () { return g49c; }, function () { return null; });
+assert(g49c.count === 2, "49.8 清空搜索恢复 2 项, 实际 " + g49c.count);
+/* 49.9 翻译表收敛验收（v1.9.13）：PANEL_QUICK_GROUPS 的 label 必须与 zhKey(path) 一致（单一事实源） */
+var qg49 = api38.PANEL_QUICK_GROUPS;
+var zhMismatch = [];
+for (var gi49 = 0; gi49 < qg49.length; gi49++) {
+	for (var it49 = 0; it49 < qg49[gi49].items.length; it49++) {
+		var itm49 = qg49[gi49].items[it49];
+		if (itm49.label !== api.zhKey(itm49.path)) { zhMismatch.push(itm49.path + ":" + itm49.label + "!=" + api.zhKey(itm49.path)); }
+	}
+}
+assert(zhMismatch.length === 0, "49.9 快捷组 label 与 zhKey(path) 全一致（翻译单一事实源）, 不一致 " + zhMismatch.join(","));
+assert(api.zhKey("anxiety") === "焦虑" && api.zhKey("drunk") === "醉酒" && api.zhKey("english") === "语文" && api.zhKey("arousal") === "情欲", "49.9 新增/统一翻译键: anxiety=焦虑 drunk=醉酒 english=语文 arousal=情欲, 实际 " + api.zhKey("anxiety") + "/" + api.zhKey("drunk") + "/" + api.zhKey("english") + "/" + api.zhKey("arousal"));
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

@@ -362,7 +362,8 @@ if (fabRowF) {
   toggleEl.click();
   assert(document.querySelector("#mce-root").classList.contains("mce-open"), "F. 锁定时点击悬浮球 → 面板仍打开");
   toggleEl.click();
-  assert(!document.querySelector("#mce-root").classList.contains("mce-open"), "F. 锁定时再次点击悬浮球 → 面板仍关闭");
+  const rootLockedF = document.querySelector("#mce-root");
+  assert(rootLockedF.classList.contains("mce-closing") || !rootLockedF.classList.contains("mce-open"), "F. 锁定时再次点击悬浮球 → 面板已触发关闭（v1.9.14 关闭动画 mce-closing 中或已移除 mce-open）");
   /* 重渲染后按钮变「解锁悬浮球拖动」，再点恢复 */
   const fabUnlockF = findFabRow() && findFabRow().querySelector("button");
   assert(!!fabUnlockF && fabUnlockF.textContent.indexOf("解锁悬浮球拖动") !== -1, "F. 锁定后按钮文案变「解锁悬浮球拖动」，实际 " + (fabUnlockF ? fabUnlockF.textContent : "(无)"));
@@ -375,7 +376,8 @@ if (fabRowF) {
 toggleEl.click();
 assert(document.querySelector("#mce-root").classList.contains("mce-open"), "F. 点击悬浮球 → 面板打开");
 toggleEl.click();
-assert(!document.querySelector("#mce-root").classList.contains("mce-open"), "F. 再次点击悬浮球 → 面板关闭");
+const rootF = document.querySelector("#mce-root");
+assert(rootF.classList.contains("mce-closing") || !rootF.classList.contains("mce-open"), "F. 再次点击悬浮球 → 面板已触发关闭（v1.9.14 关闭动画 mce-closing 中或已移除 mce-open）");
 /* 拖拽事件链最小验证：pointerdown 派发不抛错（jsdom 无真实坐标，仅验证监听器已注册且不崩） */
 (function () {
   let threw = false;
@@ -406,6 +408,7 @@ assert(!!boxM && boxM.checked === false, "M. list 行初始未勾选");
 if (boxM) { boxM.click(); }
 assert(Array.isArray(V.mocklist_tags) && V.mocklist_tags.indexOf("alpha") !== -1, "M. 勾选 alpha → 写入数组, 实际 " + JSON.stringify(V.mocklist_tags));
 assert(listRowsM[0].querySelector('input[type="checkbox"]').checked === true, "M. 局部刷新回显勾选态（refreshModRow list 分支）");
+assert(listRowsM[0].classList.contains("mce-flash"), "M. 写入成功 → 目标行 mce-flash 闪烁反馈（v1.9.14 效果2）");
 const undM = [].slice.call(listRowsM[0].querySelectorAll("button")).filter(function (b) { return b.textContent === "回退"; })[0];
 assert(!!undM, "M. list 行回退按钮存在");
 if (undM) { undM.click(); }
@@ -415,6 +418,38 @@ api.renderModCheatDetail("mocklist");
 const listRowsM2 = [].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-mce-key") === "values:tags:alpha"; });
 assert(!!listRowsM2[0] && listRowsM2[0].querySelector('input[type="checkbox"]').checked === false, "M. 重渲染后回显未勾选");
 delete V.mocklist_tags; setup.mbCE_modCheats = [];
+
+/* ---------- N. v1.9.13 数值搜索框（独立 class + 过滤重建，走真实渲染/API/DOM） ---------- */
+const mockNMod = {
+  modId: "mocksrch", modName: "搜索测试模组", tasks: [], stages: [], abilities: [], scenes: [],
+  values: [
+    { key: "v1", name: "张力值", varPath: "mock_tension" },
+    { key: "v2", name: "好感度", varPath: "mock_love" },
+    { key: "v3", name: "张力上限", varPath: "mock_tension_max" }
+  ]
+};
+setup.mbCE_modCheats = [mockNMod];
+V.mock_tension = 0; V.mock_love = 0; V.mock_tension_max = 100;
+clickTabSafe("mods");
+api.renderModCheatDetail("mocksrch");
+const paneN = document.querySelector('[data-pane="mods"]');
+[].slice.call(paneN.querySelectorAll(".mce-collapse-head")).forEach(function (h) { try { h.click(); } catch (e) {} });
+const srchInpN = paneN.querySelector("input.mce-search-inp");
+assert(!!srchInpN, "N. 数值搜索框存在（.mce-search-inp 独立 class）");
+const valInpCountN = paneN.querySelectorAll("input.mce-inp").length;
+assert(valInpCountN === 3, "N. 搜索框不污染 input.mce-inp（数值输入框恰 3 个）, 实际 " + valInpCountN);
+const rowsAllN = [].slice.call(paneN.querySelectorAll('.mce-row[data-mce-key^="values:"]')).length;
+assert(rowsAllN === 3, "N. 初始渲染 3 行数值, 实际 " + rowsAllN);
+api.setModValueFilter("张力");
+api.renderModCheatDetail("mocksrch");
+const rowsFilN = [].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll('.mce-row[data-mce-key^="values:"]')).length;
+assert(rowsFilN === 2, "N. 搜索「张力」过滤后 2 行（张力值/张力上限，好感度隐藏）, 实际 " + rowsFilN);
+api.setModValueFilter("");
+api.renderModCheatDetail("mocksrch");
+[].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll(".mce-collapse-head")).forEach(function (h) { try { h.click(); } catch (e) {} });
+const rowsBackN = [].slice.call(document.querySelector('[data-pane="mods"]').querySelectorAll('.mce-row[data-mce-key^="values:"]')).length;
+assert(rowsBackN === 3, "N. 清空搜索后重新展开恢复 3 行, 实际 " + rowsBackN);
+delete V.mock_tension; delete V.mock_love; delete V.mock_tension_max; setup.mbCE_modCheats = [];
 
 /* ---------- W. 全局页世界腐化数值调整（v1.9.12）：直填不钳上限 + 下限保留 + 留痕回退 ---------- */
 const wcSecW = [].slice.call(globalPane.querySelectorAll(".mce-section")).filter(function (s) { return s.textContent.indexOf("世界腐化") !== -1; })[0];
@@ -451,6 +486,37 @@ if (softInpW && softApplyW) {
   softApplyW.click();
   assert(V.world_corruption_soft === 0, "W. 软腐化填 -5 → 钳到原版下限 0, 实际 " + V.world_corruption_soft);
 }
+
+/* ---------- L. 数值固定（v1.9.15）：预设行 + 锁定写回 + 取消（防渡鸦/天使/转化值被游戏机制改动） ---------- */
+const lockSecL = [].slice.call(globalPane.querySelectorAll(".mce-section")).filter(function (s) { return s.textContent.indexOf("数值固定") !== -1; })[0];
+assert(!!lockSecL, "L. 全局页含「数值固定（防游戏机制改动）」区块");
+const lockRowsL = [].slice.call(lockSecL.querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-lockpath"); });
+assert(lockRowsL.length === api.MB_CE_LOCK_PRESETS.length, "L. 预设推荐行渲染（" + api.MB_CE_LOCK_PRESETS.length + " 项）, 实际 " + lockRowsL.length + " 项");
+function lockRowL(path) { return lockRowsL.filter(function (r) { return r.getAttribute("data-lockpath") === path; })[0]; }
+assert(!!lockRowL("maplebirch.transformation.raven.build"), "L. 渡鸦转化预设行存在（data-lockpath=maplebirch.transformation.raven.build）");
+const lockBtnL = [].slice.call(lockRowL("maplebirch.transformation.raven.build").querySelectorAll("button")).filter(function (b) { return b.textContent === "锁定"; })[0];
+assert(!!lockBtnL, "L. 未锁定态显示「锁定」按钮");
+if (lockBtnL) { lockBtnL.click(); }
+assert(!!V.mbCE_lock && V.mbCE_lock.length >= 1, "L. 点击锁定 → V.mbCE_lock 写入");
+const ravenLockL = (V.mbCE_lock || []).filter(function (x) { return x.path === "maplebirch.transformation.raven.build"; })[0];
+assert(!!ravenLockL && ravenLockL.target === 0, "L. 渡鸦锁定目标 = 渲染时刻当前值（0）, 实际 " + (ravenLockL && ravenLockL.target));
+/* tick 强制写回：改值 42 → tick → 还原 0 */
+if (!V.maplebirch) { V.maplebirch = {}; }
+if (!V.maplebirch.transformation) { V.maplebirch.transformation = {}; }
+V.maplebirch.transformation.raven = V.maplebirch.transformation.raven || {};
+V.maplebirch.transformation.raven.build = 42;
+api.mbCELockTick();
+assert(V.maplebirch.transformation.raven.build === 0, "L. 改值 42 后 tick 强制写回 0, 实际 " + V.maplebirch.transformation.raven.build);
+/* 取消锁定 → 改值不再被写回 */
+const lockRowsL2 = [].slice.call(globalPane.querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-lockpath") === "maplebirch.transformation.raven.build"; })[0];
+const cancelL = lockRowsL2 && [].slice.call(lockRowsL2.querySelectorAll("button")).filter(function (b) { return b.textContent === "取消"; })[0];
+assert(!!cancelL, "L. 锁定态显示「取消」按钮");
+if (cancelL) { cancelL.click(); }
+assert(!api.mbCELockHas("maplebirch.transformation.raven.build"), "L. 取消后锁定表移除该路径");
+V.maplebirch.transformation.raven.build = 9;
+api.mbCELockTick();
+assert(V.maplebirch.transformation.raven.build === 9, "L. 取消后 tick 不再写回（保持 9）, 实际 " + V.maplebirch.transformation.raven.build);
+delete V.maplebirch.transformation.raven.build; delete V.mbCE_lock;
 
 /* ---------- 收尾 ---------- */
 console.log(failures === 0 ? "\nFUNCTIONAL E2E ALL PASSED" : "\nFUNCTIONAL E2E " + failures + " FAILURES");

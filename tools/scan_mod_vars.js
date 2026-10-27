@@ -19,7 +19,8 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const ADAPTER_SRC = path.join(ROOT, "javascript", "src", "04a-modcheat-adapters.js");
+/* 适配器源码按模组拆分（04a-00..09-*.js，v1.9.13）：目录扫描拼接，顺序与 build_js.js sort 一致 */
+const ADAPTER_DIR = path.join(ROOT, "javascript", "src");
 const GLOBAL_SRC = path.join(ROOT, "javascript", "src", "03-global.js");
 
 const srcDir = process.argv[2];
@@ -32,7 +33,8 @@ if (!srcDir || !fs.existsSync(srcDir)) {
 
 /* ---------- 1. 提取适配器声明 varPath ---------- */
 function extractAdapterPaths() {
-	const text = fs.readFileSync(ADAPTER_SRC, "utf8");
+	const text = fs.readdirSync(ADAPTER_DIR).filter(f => /^04a-.*\.js$/.test(f)).sort()
+	  .map(f => fs.readFileSync(path.join(ADAPTER_DIR, f), "utf8")).join("\n");
 	const out = {};
 	const re = /CHEAT_ADAPTERS\["([^"]+)"\]\s*=\s*\{/g;
 	let m;

@@ -33,15 +33,30 @@
 		setStatus("就绪：" + chars.length + " 个角色", "mce-ok");
 	}
 
+	/* v1.9.14 效果6：关闭淡出定时器（open 复位时清掉，防关闭动画残留） */
+	var mceCloseTimer = null;
 	function open() {
 		openFlag = true;
-		if (root) { root.classList.add("mce-open"); }
+		if (root) {
+			if (mceCloseTimer) { clearTimeout(mceCloseTimer); mceCloseTimer = null; }
+			root.classList.remove("mce-closing");
+			root.classList.add("mce-open"); /* v1.9.14 效果6：display:none→flex 重放 pop-in 缩放淡入 */
+		}
 		mbCEUpdateErrBadge(true); /* 四巡：面板打开时立即刷新错误徽标（关闭期只记数据不写 DOM） */
 		render();
 	}
 	function close() {
 		openFlag = false;
-		if (root) { root.classList.remove("mce-open"); }
+		if (root) {
+			/* v1.9.14 效果6：先播 0.12s 淡出，再移除 mce-open（display:none）；打开复位见 open() */
+			root.classList.add("mce-closing");
+			if (mceCloseTimer) { clearTimeout(mceCloseTimer); }
+			mceCloseTimer = setTimeout(function () {
+				mceCloseTimer = null;
+				root.classList.remove("mce-open");
+				root.classList.remove("mce-closing");
+			}, 130);
+		}
 	}
 	function toggle() {
 		if (openFlag) { close(); } else { open(); }
@@ -416,6 +431,13 @@
 				isFavTrait: isFavTrait,
 				toggleFavTrait: toggleFavTrait,
 				VANILLA_TRAITS_RAW: VANILLA_TRAITS_RAW,
+				/* v1.9.15 数值固定（07f-lock.js）：锁定向/强制写回/取消 */
+				mbCELockSet: mbCELockSet,
+				mbCELockRemove: mbCELockRemove,
+				mbCELockHas: mbCELockHas,
+				mbCELockTick: mbCELockTick,
+				mbCELockRead: mbCELockRead,
+				MB_CE_LOCK_PRESETS: MB_CE_LOCK_PRESETS,
 				/* 兼容导出（v1.7.x 保留） */
 				isModOnlyRoot: isModOnlyRoot,
 				ORIGINAL_V_ROOT_KEYS: ORIGINAL_V_ROOT_KEYS,
@@ -429,6 +451,10 @@
 				quickReadValue: quickReadValue,
 				quickWrite: quickWrite,
 				ensureProfShell: ensureProfShell,
+				/* v1.9.13 预设模板 / 时间调节 / 数值搜索（全局页 + 玩家自己页 + Mod 作弊页） */
+				applyQuickPreset: applyQuickPreset,
+				mcTimeNow: mcTimeNow, mcTimeAdvance: mcTimeAdvance, mcTimeJump: mcTimeJump,
+				setModValueFilter: setModValueFilter, cheatValueMatches: cheatValueMatches, renderCheatValues: renderCheatValues,
 				/* v1.9.0 性别切换（玩家自己页）：原版键 penisExist/vaginaExist/penissize/gender_body */
 				getPlayerGender: getPlayerGender,
 				applyPlayerGender: applyPlayerGender,

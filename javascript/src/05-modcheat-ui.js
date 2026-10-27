@@ -206,6 +206,11 @@
 	   改为：组头常驻、组体默认收起（data-collapsed=1）、行闭包进 pending 点击展开才建
 	   （学 06-traits 九巡懒渲染模式）；展开状态经 mbCEUiCollapsed 持久化
 	   （key "mods:<modId>:<组名>"），重建后按持久化恢复。 */
+	/* v1.9.13 模组数值搜索态：按名称/键名/写入路径过滤「4. 自定义数值修改」组；
+	   输入防抖 250ms 重建子页（mceSchedule 桶 "search"），返回模组列表时清空 */
+	var modValueFilter = "";
+	/* v1.9.13 搜索态设置（外部/测试通道；UI 输入框直接改闭包变量） */
+	function setModValueFilter(v) { modValueFilter = String(v == null ? "" : v); }
 	function renderModCheatDetail(modId) {
 		var pane = root.querySelector('[data-pane="mods"]');
 		if (!pane) { return; }
@@ -222,7 +227,7 @@
 		}
 		var back = el("button", "", "← 返回模组列表");
 		back.type = "button";
-		back.addEventListener("click", function () { curCheatModId = ""; renderModCheats(); });
+		back.addEventListener("click", function () { curCheatModId = ""; modValueFilter = ""; renderModCheats(); });
 		pane.appendChild(back);
 		pane.appendChild(el("div", "mce-hint", "【" + m.modName + "】作弊控制"));
 		pane.appendChild(el("div", "mce-hint", "所有操作仅作用于 " + m.modName + " 的新增内容，不会改动游戏本体与其他模组数据。"));
@@ -252,6 +257,26 @@
 		});
 		toolRow.appendChild(bAllOpen); toolRow.appendChild(bAllClose);
 		pane.appendChild(toolRow);
+		/* v1.9.13 数值搜索框：仅该模组声明了数值项时显示；输入防抖重建（数值组过滤见 renderCheatValues） */
+		if (m.values.length) {
+			var fRow = el("div", "mce-row");
+			fRow.appendChild(el("span", "mce-row-lbl", "数值搜索："));
+			var fInp = el("input", "mce-search-inp");
+			fInp.type = "text";
+			fInp.value = modValueFilter;
+			fInp.placeholder = "按名称 / 键名 / 写入路径过滤自定义数值";
+			fInp.addEventListener("input", function () {
+				modValueFilter = fInp.value.replace(/^\s+|\s+$/g, "");
+				mceSchedule(function () { renderModCheatDetail(modId); }, 250, "search");
+			});
+			var fClear = el("button", "", "清除"); fClear.type = "button";
+			fClear.addEventListener("click", function () {
+				modValueFilter = "";
+				renderModCheatDetail(modId);
+			});
+			fRow.appendChild(fInp); fRow.appendChild(fClear);
+			pane.appendChild(fRow);
+		}
 		/* 分组容器：gkey -> { head, body, count, pending }（渲染过程局部缓存） */
 		var groups = {};
 		function grpFor(gkey, title) {
@@ -375,7 +400,10 @@
 		box.checked = !!cheatReadSafe(m.modId, a.varPath);
 		box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId, "abilities:" + a.key); });
 		row.appendChild(box);
-		row.appendChild(el("span", "mce-row-lbl", "能力 · " + (a.name || a.key) + (a.varPath ? "（" + a.varPath + "）" : "")));
+		var abl = el("span", "mce-row-lbl", "能力 · " + (a.name || a.key));
+		/* v1.9.13 排版：写入路径移出 label（折叠「说明」与悬停 title 均可查），label 变短不再挤压按钮区 */
+		if (a.varPath) { abl.title = a.varPath; }
+		row.appendChild(abl);
 		/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档）：写入路径/类型/钳制/手写说明 */
 		var det = el("details", "mce-ab-detail");
 		det.appendChild(el("summary", "mce-ab-sum", "说明"));
@@ -431,7 +459,9 @@
 					actCheat(applyCheatModValue(m.modId, it.key, { value: opt, on: box.checked }), m.modId, "values:" + it.key + ":" + opt);
 				});
 				brow.appendChild(box);
-				brow.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt + "（" + it.varPath + "）"));
+				var lbl = el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt);
+				if (it.varPath) { lbl.title = it.varPath; }
+				brow.appendChild(lbl);
 				var und = el("button", "", "回退"); und.type = "button";
 				und.addEventListener("click", function () { actCheat(undoCheatModValue(m.modId, "value_set:" + it.key + ":" + opt), m.modId, "values:" + it.key + ":" + opt); });
 				brow.appendChild(und);
@@ -441,7 +471,9 @@
 		}
 		var row = el("div", "mce-row");
 		row.setAttribute("data-mce-key", "values:" + it.key);
-		row.appendChild(el("span", "mce-row-lbl", (it.name || it.key) + "（" + it.varPath + "）"));
+		var vlbl = el("span", "mce-row-lbl", it.name || it.key);
+		if (it.varPath) { vlbl.title = it.varPath; }
+		row.appendChild(vlbl);
 		var inp = el("input", "mce-inp");
 		inp.type = it.type === "boolean" ? "checkbox" : "text";
 		if (it.type !== "boolean") {
@@ -477,19 +509,37 @@
 		row.appendChild(det);
 		return row;
 	}
+	/* v1.9.13 数值项搜索命中判定（纯函数，可测）：q 为空恒命中；否则匹配 名称/键名/写入路径 */
+	function cheatValueMatches(it, q) {
+		if (!q) { return true; }
+		var hay = ((it.name || "") + " " + it.key + " " + (it.varPath || "")).toLowerCase();
+		return hay.indexOf(q) !== -1;
+	}
 	function renderCheatValues(m, grpFor, buildRows) {
 		var g = grpFor("values", "4. 自定义数值修改");
+		/* v1.9.13 搜索过滤：命中名称/键名/写入路径才计入；搜索态强制该组展开（过滤结果立即可见） */
+		var q = modValueFilter ? modValueFilter.toLowerCase() : "";
 		m.values.forEach(function (it) {
+			if (!cheatValueMatches(it, q)) { return; }
 			g.count++;
 			g.pending.push(function () { return buildCheatValueRow(m, it); });
 		});
+		if (q && g.body) { g.body.setAttribute("data-collapsed", "0"); }
 	}
 	function actCheat(res, modId, key) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
 		/* 五巡：操作后局部刷新目标行（不再全量重建整个模组页——高频操作下 DOM churn 是卡顿/闪退累积源之一） */
 		if (modId && key) {
 			var pane = root.querySelector('[data-pane="mods"]');
-			if (pane && refreshModRow(pane, modId, key)) { return; }
+			if (pane && refreshModRow(pane, modId, key)) {
+				/* v1.9.14 效果2：写入成功 → 刷新回显后的目标行金底闪烁（反馈落在可见新值上） */
+				if (res && res.ok) {
+					var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
+					var newRow = pane.querySelector('[data-mce-key="' + esc + '"]');
+					if (newRow) { mbCEFlash(newRow); }
+				}
+				return;
+			}
 		}
 		if (modId) { renderModCheatDetail(modId); }
 	}
@@ -574,6 +624,8 @@
 					var meta = (PANEL_QUICK_PATH_INDEX && PANEL_QUICK_PATH_INDEX[path]) || null;
 					lbl.textContent = (meta ? meta.label : path) + "（当前 " + (typeof cur === "number" ? cur : "—") + "）";
 				}
+				/* v1.9.14 效果2：写入成功 → 该行金底闪烁 */
+				if (res && res.ok) { mbCEFlash(row); }
 				return;
 			}
 		}
@@ -584,48 +636,71 @@
 	   （999999 仅防误输入，非游戏上限；v1.8.19 体能 physique 由 0-100 提为无上限）；技能/性技能/成绩/武器 0-1000（百分比量纲）。 */
 	var PANEL_QUICK_GROUPS = [
 		{ title: "核心属性", items: [
-			{ path: "purity", label: "纯洁", min: 0, max: 2000, note: "面板显示 0-100%，内部 0-2000" },
-			{ path: "beauty", label: "容貌", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "physique", label: "体能", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "willpower", label: "意志", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "awareness", label: "意识", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "promiscuity", label: "淫乱", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "exhibitionism", label: "暴露癖", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "deviancy", label: "异种癖", min: 0, max: 999999, note: "无硬上限，仅防误输入" },
-			{ path: "money", label: "资金", min: 0, max: 99999999, note: "单位 £，建议输入整数；上限已放开（防误输入）" }
+			{ path: "purity", label: zhKey("purity"), min: 0, max: 2000, note: "面板显示 0-100%，内部 0-2000" },
+			{ path: "beauty", label: zhKey("beauty"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "physique", label: zhKey("physique"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "willpower", label: zhKey("willpower"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "awareness", label: zhKey("awareness"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "promiscuity", label: zhKey("promiscuity"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "exhibitionism", label: zhKey("exhibitionism"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "deviancy", label: zhKey("deviancy"), min: 0, max: 999999, note: "无硬上限，仅防误输入" },
+			{ path: "money", label: zhKey("money"), min: 0, max: 99999999, note: "单位 £，建议输入整数；上限已放开（防误输入）" }
 		] },
 		{ title: "基础技能", items: [
-			{ path: "skulduggery", label: "诡术", min: 0, max: 1000 },
-			{ path: "danceskill", label: "舞蹈", min: 0, max: 1000 },
-			{ path: "swimmingskill", label: "游泳", min: 0, max: 1000 },
-			{ path: "athletics", label: "运动", min: 0, max: 1000 },
-			{ path: "tending", label: "护理", min: 0, max: 1000 },
-			{ path: "housekeeping", label: "家务", min: 0, max: 1000 }
+			{ path: "skulduggery", label: zhKey("skulduggery"), min: 0, max: 1000 },
+			{ path: "danceskill", label: zhKey("danceskill"), min: 0, max: 1000 },
+			{ path: "swimmingskill", label: zhKey("swimmingskill"), min: 0, max: 1000 },
+			{ path: "athletics", label: zhKey("athletics"), min: 0, max: 1000 },
+			{ path: "tending", label: zhKey("tending"), min: 0, max: 1000 },
+			{ path: "housekeeping", label: zhKey("housekeeping"), min: 0, max: 1000 }
 		] },
 		{ title: "性技能", items: [
-			{ path: "seductionskill", label: "魅惑", min: 0, max: 1000 },
-			{ path: "oralskill", label: "口部", min: 0, max: 1000 },
-			{ path: "chestskill", label: "胸部", min: 0, max: 1000 },
-			{ path: "handskill", label: "手部", min: 0, max: 1000 },
-			{ path: "bottomskill", label: "臀部", min: 0, max: 1000 },
-			{ path: "penileskill", label: "阴茎", min: 0, max: 1000 },
-			{ path: "vaginalskill", label: "小穴", min: 0, max: 1000 },
-			{ path: "analskill", label: "后庭", min: 0, max: 1000 },
-			{ path: "thighskill", label: "大腿", min: 0, max: 1000 },
-			{ path: "feetskill", label: "足部", min: 0, max: 1000 }
+			{ path: "seductionskill", label: zhKey("seductionskill"), min: 0, max: 1000 },
+			{ path: "oralskill", label: zhKey("oralskill"), min: 0, max: 1000 },
+			{ path: "chestskill", label: zhKey("chestskill"), min: 0, max: 1000 },
+			{ path: "handskill", label: zhKey("handskill"), min: 0, max: 1000 },
+			{ path: "bottomskill", label: zhKey("bottomskill"), min: 0, max: 1000 },
+			{ path: "penileskill", label: zhKey("penileskill"), min: 0, max: 1000 },
+			{ path: "vaginalskill", label: zhKey("vaginalskill"), min: 0, max: 1000 },
+			{ path: "analskill", label: zhKey("analskill"), min: 0, max: 1000 },
+			{ path: "thighskill", label: zhKey("thighskill"), min: 0, max: 1000 },
+			{ path: "feetskill", label: zhKey("feetskill"), min: 0, max: 1000 }
 		] },
 		{ title: "学校成绩", items: [
-			{ path: "science", label: "科学", min: 0, max: 1000 },
-			{ path: "maths", label: "数学", min: 0, max: 1000 },
-			{ path: "english", label: "语文", min: 0, max: 1000 },
-			{ path: "history", label: "历史", min: 0, max: 1000 }
+			{ path: "science", label: zhKey("science"), min: 0, max: 1000 },
+			{ path: "maths", label: zhKey("maths"), min: 0, max: 1000 },
+			{ path: "english", label: zhKey("english"), min: 0, max: 1000 },
+			{ path: "history", label: zhKey("history"), min: 0, max: 1000 }
 		] },
 		{ title: "武器技能", items: [
-			{ path: "prof.spray", label: "防狼喷雾", min: 0, max: 1000 },
-			{ path: "prof.baton", label: "短棍", min: 0, max: 1000 },
-			{ path: "prof.whip", label: "鞭子", min: 0, max: 1000 },
-			{ path: "prof.net", label: "网", min: 0, max: 1000 },
-			{ path: "prof.pickaxe", label: "镐", min: 0, max: 1000 }
+			{ path: "prof.spray", label: zhKey("prof.spray"), min: 0, max: 1000 },
+			{ path: "prof.baton", label: zhKey("prof.baton"), min: 0, max: 1000 },
+			{ path: "prof.whip", label: zhKey("prof.whip"), min: 0, max: 1000 },
+			{ path: "prof.net", label: zhKey("prof.net"), min: 0, max: 1000 },
+			{ path: "prof.pickaxe", label: zhKey("prof.pickaxe"), min: 0, max: 1000 }
+		] },
+		/* v1.9.13 负面状态：原版 V 键实证存在（stress/trauma 等均不在原版黑名单，
+		   玩家面板通道可直写；上限不钳制，下限 0 防负值破坏） */
+		{ title: "负面状态", items: [
+			{ path: "stress", label: zhKey("stress"), min: 0, max: 999999, note: "原版上限 V.stressmax（每日钳制），CE 直写不钳" },
+			{ path: "trauma", label: zhKey("trauma"), min: 0, max: 999999, note: "原版上限 V.traumamax；≥1000 触发创伤安全屋线" },
+			{ path: "pain", label: zhKey("pain"), min: 0, max: 999999, note: "原版伤害值（HP 相关），0 即满血" },
+			{ path: "arousal", label: zhKey("arousal"), min: 0, max: 999999, note: "原版上限 V.arousalmax，面板显示为百分比" },
+			{ path: "tiredness", label: zhKey("tiredness"), min: 0, max: 999999, note: "原版上限 C.tiredness.max；≥上限 75% 触发昏倒" },
+			{ path: "anxiety", label: zhKey("anxiety"), min: 0, max: 999999, note: "原版档位 0-2（≥2 触发事件），直写不钳" },
+			{ path: "delinquency", label: zhKey("delinquency"), min: -100, max: 999999, note: "品行值：≤0 老师宠儿、≥1000 老师噩梦（feat 阈值）" },
+			{ path: "drugged", label: zhKey("drugged"), min: 0, max: 1000, note: "原版 0-1000，越高药效越强" },
+			{ path: "drunk", label: zhKey("drunk"), min: 0, max: 999999, note: "≥240 判定醉酒；写 0 直接醒酒" }
+		] },
+		/* v1.9.13 名声：fame 为原版 V 对象（fame.prostitution 等子键实证存在，
+		   玩家面板通道直写对象子键，父级 V.fame 存在即合法） */
+		{ title: "名声（fame）", items: [
+			{ path: "fame.prostitution", label: zhKey("fame.prostitution"), min: 0, max: 999999 },
+			{ path: "fame.sex", label: zhKey("fame.sex"), min: 0, max: 999999 },
+			{ path: "fame.rape", label: zhKey("fame.rape"), min: 0, max: 999999 },
+			{ path: "fame.exhibitionism", label: zhKey("fame.exhibitionism"), min: 0, max: 999999 },
+			{ path: "fame.bestiality", label: zhKey("fame.bestiality"), min: 0, max: 999999 },
+			{ path: "fame.good", label: zhKey("fame.good"), min: 0, max: 999999, note: "善行积累（≥1000 触发 A Good Reputation 线）" }
 		] }
 	];
 	/* v1.8.12 功能13：数据表路径索引（quickWrite 查 min/max 用，懒建） */
@@ -634,9 +709,16 @@
 		try {
 			var V2 = getV();
 			if (!V2) { return null; }
-			if (String(path).indexOf("prof.") === 0) {
-				var leaf = String(path).split(".")[1];
-				return (V2.prof && typeof V2.prof === "object") ? V2.prof[leaf] : undefined;
+			/* v1.9.13：通用点路径读取（prof.spray / fame.prostitution 等对象子键，
+			   逐级下探，父级不存在返回 undefined，不抛错） */
+			var parts = String(path).split(".");
+			if (parts.length > 1) {
+				var cur = V2;
+				for (var qi = 0; qi < parts.length - 1; qi++) {
+					if (cur == null || typeof cur[parts[qi]] !== "object") { return undefined; }
+					cur = cur[parts[qi]];
+				}
+				return cur[parts[parts.length - 1]];
 			}
 			return V2[path];
 		} catch (e) { return null; }
@@ -690,10 +772,67 @@
 		pane.appendChild(row);
 	}
 	function renderQuickPanel(pane) {
+		/* v1.9.13 预设模板：一键批量写入（逐项走 quickWrite 统一留痕，可单独回退） */
+		var psec = el("div", "mce-section", "一键方案（预设模板）");
+		var pWrap = el("div", "mce-row");
+		var presets = [
+			{ key: "max", name: "全属性拉满", desc: "全部核心/技能/性技能/成绩/武器写满 + 负面清零 + 名声清零" },
+			{ key: "fresh", name: "经典开局", desc: "资金 5000 + 技能/成绩/武器 100 + 负面清零 + 名声清零" }
+		];
+		presets.forEach(function (p) {
+			var b = el("button", "mce-btn mce-gold", p.name); b.type = "button";
+			b.title = p.desc;
+			b.addEventListener("click", function () {
+				var r = applyQuickPreset(p.key);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				renderPlayerEdit();
+			});
+			pWrap.appendChild(b);
+		});
+		psec.appendChild(pWrap);
+		psec.appendChild(el("div", "mce-hint", "预设为固定值批量写入，逐项留痕（「回退」可逐项还原）；如需微调请在各分组手动改。"));
+		pane.appendChild(psec);
 		PANEL_QUICK_GROUPS.forEach(function (g) {
 			var box = el("div", "mce-grp");
 			box.appendChild(el("div", "mce-grp-t", g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）"));
 			g.items.forEach(function (it) { renderQuickRow(box, it); });
 			pane.appendChild(box);
 		});
+	}
+	/* v1.9.13 预设模板执行器：固定值表 × PANEL_QUICK_GROUPS 逐项写入（统一走 quickWrite 留痕）。
+	   值语义：核心属性 max 写 999（无上限属性的“很高”量纲）/ purity 2000（满）/ 资金 999999；
+	   技能/性技能/成绩/武器 fresh=100、max=1000；负面与名声一律清零。
+	   组归属判断用组标题（面板文案），改名时需同步本函数。 */
+	function applyQuickPreset(kind) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			var map = {};
+			if (kind === "fresh") {
+				map.money = 5000; map.purity = 2000;
+			} else {
+				map.purity = 2000; map.beauty = 999; map.physique = 999; map.willpower = 999; map.awareness = 999;
+				map.promiscuity = 999; map.exhibitionism = 999; map.deviancy = 999; map.money = 999999;
+			}
+			var skillVal = kind === "fresh" ? 100 : 1000;
+			PANEL_QUICK_GROUPS.forEach(function (g) {
+				if (g.title === "负面状态" || g.title === "名声（fame）") { return; } /* 末尾统一清零 */
+				g.items.forEach(function (it) {
+					if (map[it.path] !== undefined) { return; }
+					map[it.path] = skillVal;
+				});
+			});
+			["stress", "trauma", "pain", "arousal", "tiredness", "anxiety", "delinquency", "drugged", "drunk",
+			 "fame.prostitution", "fame.sex", "fame.rape", "fame.exhibitionism", "fame.bestiality", "fame.good"].forEach(function (p) {
+				map[p] = 0;
+			});
+			var done = 0, fails = 0;
+			Object.keys(map).forEach(function (path) {
+				var r = quickWrite(path, map[path]);
+				if (r && r.ok) { done++; } else { fails++; }
+			});
+			return { ok: fails === 0, message: "预设「" + (kind === "max" ? "全属性拉满" : "经典开局") + "」已写入 " + done + " 项" + (fails ? "，失败 " + fails + " 项" : "") };
+		} catch (e) {
+			return { ok: false, message: "预设执行异常：" + (e && e.message ? e.message : e) };
+		}
 	}

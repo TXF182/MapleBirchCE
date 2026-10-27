@@ -113,6 +113,47 @@
 		return t.revert();
 	}
 
+	/* v1.9.13 时间调节（全局页）：DoL 0.5.12.13 时间系统 = 全局 Time 对象（非 V.timer 行动点）：
+	   Time.set(V.timeStamp + delta*60) 快进（V.timeStamp 为秒级存档键）、
+	   Time.setTime(h, m) 跳指定时分（日期/星期随引擎联动）。
+	   直接改全局时间、不写 V 存档键 → 不进 mbCE_wrote 留痕，即时生效、无需回退。 */
+	function mcTimeNow() {
+		try {
+			if (typeof Time === "undefined" || !Time) { return null; }
+			return {
+				hour: typeof Time.hour === "number" ? Time.hour : 0,
+				minute: typeof Time.minute === "number" ? Time.minute : 0,
+				weekDay: typeof Time.weekDay === "number" ? Time.weekDay : 0
+			};
+		} catch (e) { return null; }
+	}
+	function mcTimeAdvance(minutes) {
+		try {
+			var V = getV();
+			if (!V || typeof Time === "undefined" || !Time || typeof Time.set !== "function") {
+				return { ok: false, message: "时间系统不可用（需在游戏内运行）" };
+			}
+			var delta = Math.max(0, Number(minutes) || 0);
+			var ts = Number(V.timeStamp);
+			if (!Number.isFinite(ts)) { ts = 0; }
+			Time.set(ts + delta * 60);
+			return { ok: true, message: "时间已前进 " + delta + " 分钟" };
+		} catch (e) {
+			return { ok: false, message: "时间前进失败：" + (e && e.message ? e.message : e) };
+		}
+	}
+	function mcTimeJump(hour, minute) {
+		try {
+			if (typeof Time === "undefined" || !Time || typeof Time.setTime !== "function") {
+				return { ok: false, message: "时间系统不可用（Time.setTime 缺失）" };
+			}
+			var h = Number(hour) || 0, m = Number(minute) || 0;
+			Time.setTime(h, m);
+			return { ok: true, message: "时间已设为 " + h + ":" + (m < 10 ? "0" : "") + m };
+		} catch (e) {
+			return { ok: false, message: "时间调整失败：" + (e && e.message ? e.message : e) };
+		}
+	}
 	function renderGlobal() {
 		var pane = root.querySelector('[data-pane="global"]');
 		pane.textContent = "";
@@ -179,6 +220,36 @@
 		actions.appendChild(b3);
 		actions.appendChild(b4);
 		pane.appendChild(actions);
+		/* v1.9.13 时间调节区：快进即时生效，跳时段把时分设到指定点（日期/星期由引擎联动） */
+		var tsec = el("div", "mce-section", "时间调节（直接改游戏时钟，即时生效）");
+		pane.appendChild(tsec);
+		var tnow = mcTimeNow();
+		var tInfo = tnow
+			? ("当前 " + tnow.hour + ":" + (tnow.minute < 10 ? "0" : "") + tnow.minute + (tnow.weekDay ? " · 周" + tnow.weekDay : ""))
+			: "时间系统不可用（需在游戏内运行）";
+		tsec.appendChild(el("div", "mce-hint", tInfo + "；快进按钮即时前进，跳时段按钮把时分设到指定点。直接改全局时钟、不进留痕。"));
+		var tAdv = el("div", "mce-row");
+		[{ n: "+1 小时", v: 60 }, { n: "+3 小时", v: 180 }, { n: "+8 小时", v: 480 }, { n: "+1 天", v: 1440 }, { n: "+3 天", v: 4320 }].forEach(function (d) {
+			var b = el("button", "mce-btn mce-gold", d.n); b.type = "button";
+			b.addEventListener("click", function () {
+				var r = mcTimeAdvance(d.v);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				renderGlobal();
+			});
+			tAdv.appendChild(b);
+		});
+		tsec.appendChild(tAdv);
+		var tJump = el("div", "mce-row");
+		[{ n: "早 8:00", h: 8, m: 0 }, { n: "午 12:00", h: 12, m: 0 }, { n: "傍晚 18:00", h: 18, m: 0 }, { n: "夜 22:00", h: 22, m: 0 }, { n: "深 2:00", h: 2, m: 0 }].forEach(function (d) {
+			var b = el("button", "mce-btn", d.n); b.type = "button";
+			b.addEventListener("click", function () {
+				var r = mcTimeJump(d.h, d.m);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				renderGlobal();
+			});
+			tJump.appendChild(b);
+		});
+		tsec.appendChild(tJump);
 		/* v1.5.0：誓言修复 + NPC 特质获取（游戏「特质」页对应分组） */
 		var vsec = el("div", "mce-section", "誓言修复 · NPC 特质（对应游戏「特质」页）");
 		pane.appendChild(vsec);
@@ -393,4 +464,7 @@
 			} catch (e) {}
 			wcsec.appendChild(row);
 		});
+
+		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
+		mbCERenderLock(pane);
 	}
