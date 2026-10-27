@@ -2,7 +2,7 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v1.9.12（2026-10-26 · 未发布）
+## v1.9.12（2026-10-26 · 已发布）
 
 **全局页新增「世界腐化（原版 World Corruption）」数值调整 + 自查优化（2026-10-26）**
 
@@ -13,7 +13,7 @@
   - **UI**：两行各自 当前值 + 数值输入框（type=number 支持负值域）+ 应用 + 回退；应用/回退**局部刷新行内值，不重建整页不丢滚动**；已有写入留痕时初始即显示回退；回退按钮 title 标注"还原到首次写入前状态"；
   - **自查优化**：渲染读取 getV() 缓存一次（forEach 前取 `Vg`，不再逐行调两次）；回退按钮复用 `makeWcUndo` 工厂（应用与初始留痕两处共用，无重复代码）；
 - **自行测试（用户显式验收）**：回归新增 §48 共 15 条（48.0 前置初始 2/0 → 48.1 直写绕过黑名单 + 留痕 → 48.2/48.3 上限不钳制 hard=50 / soft=150 原样 → 48.4 下限钳制 hard=-40→-30 / soft=-5→0 → 48.5 既有值回退还原 + 清留痕 → 48.6 无字段写入后回退删字段）；功能级 E2E 新增 W 区块共 11 条（区块渲染 → 两行 data-wckey → 输入框+应用按钮 → 初始无留痕不显示回退 → 应用 hard=50 写入+留痕+回退按钮出现 → 回退还原原值 2+清留痕 → 软腐化填 -5 钳 0）；DOM 冒烟补全局页世界腐化区断言（区块 + 初始值回显 2/0）；
-- 升版 1.9.12 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）；README/CHANGELOG 同步；全链 6 步全绿（build→syntax→冒烟→回归含 48.x→E2E 含 W→性别集成 24/24）+ codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4 + 装入 game；未发布（待发布指令）。
+- 升版 1.9.12 双源完成（src/01-core.js MCE_VERSION 与 boot.json version）；README/CHANGELOG 同步；全链 6 步全绿（build→syntax→冒烟→回归含 48.x→E2E 含 W→性别集成 24/24）+ codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4 + 装入 game；**已发布**（Release v1.9.12 id 424375718，tag v1.9.12，资产 MapleBirchCE.mod.zip 190901 B，SHA256 `DA043171…AB5E0`，GitHub 资产 digest 回读一致）。
 
 ## v1.9.10（2026-10-26 · 已发布）
 
