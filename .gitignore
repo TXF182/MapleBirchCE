@@ -12,3 +12,6 @@ tools/_modcache/
 
 # 归档的下载包（原始 tar.gz/zip，不入 git）
 tools/_legacy/downloads/
+# 内部工作文档（不入 git / 不上传）
+MapleBirchCE-记忆存档-*.md
+MapleBirchCE-新模组适配计划-*.md
