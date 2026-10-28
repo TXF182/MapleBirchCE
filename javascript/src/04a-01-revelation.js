@@ -7,7 +7,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.4.3",
+			modName: "默示录：归途之书 v1.4.4",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -55,12 +55,12 @@
 				{ key: "td_declaration", name: "神殿值勤 · 宣言方式", varPath: "TempleDuties.declaration",
 				  levels: ["private", "scar"],
 				  labels: ["私下", "伤疤"] },
-				{ key: "td_watch", name: "神殿值勤 · 守夜阶段", varPath: "TempleDuties.watch.phase",
-				  levels: ["threshold", "roots", "voices", "shadow", "seal", "passed", "failed"],
-				  labels: ["门槛", "根源", "声音", "阴影", "封印", "已通过", "已失败"] },
 				{ key: "td_case", name: "神殿值勤 · 案件阶段", varPath: "TempleDuties.case.stage",
 				  levels: ["field", "combat", "report"],
-				  labels: ["现场", "战斗", "汇报"] }
+				  labels: ["现场", "战斗", "汇报"] },
+				{ key: "td_ordination_stage", name: "神殿值勤 · 授职阶段（1.4.4 新增晋铎线）", varPath: "TempleDuties.ordination.stage",
+				  levels: ["prepare", "chant", "whispers", "care", "burden", "aid", "rest", "return", "testimony", "answer", "aftercare", "withdrawn", "complete"],
+				  labels: ["准备", "颂唱", "低语", "关怀", "重担", "援助", "休息", "回归", "见证", "回答", "善后", "退出", "完成"] }
 			],
 			abilities: [
 				{ key: "tc_joined", name: "唱诗班 · 已入团", varPath: "TempleChoir.joined", type: "boolean",

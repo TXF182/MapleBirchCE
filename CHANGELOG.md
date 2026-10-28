@@ -2,6 +2,47 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.18（2026-10-28 · 适配轮 + 自查优化 · 已发布）
+
+**四项 UI/测试优化 + 双模组适配更新：枯木逢春 2.5.5 + 归途之书 1.4.4（2026-10-28）**
+
+### ① 作弊面板 CSS 排版 token 化
+
+- 面板唯一 CSS 注入点（`07a-shell.js` 的 `injectCSS`）全部颜色/字号/圆角/间距改为 `var(--mce-*)`，`:root` 定义块含完整 71 个 token（含 `--mce-fs-*`、`--mce-radius-*`、`--mce-space*`）；多义色逐处拆分（`#111`→前景/卡片底色、`#333`→边框/悬停底、`#0f0f0f`→区块底、`#150b0b`→红框、`#ffb0b0`→红柔色）；54 个字面量色全部位于 `:root` 定义内（脚本实证 0 残留正文）；**自查修复**：`.mce-header` 高度 `42px` 字面量漏网 → `var(--mce-h-header)`（smoke_dom 补断言防回归）。
+
+### ② 面板容器自适应（sticky 页头 + 独立滚动）
+
+- `#mce-root` 加 `max-height:calc(100vh - 16px)`（防御 DoL-Game-UI 滚动截断历史坑）；`.mce-header,.mce-tabs{flex:none}` 固定页头；注入统一样式滚动条；smoke_dom 新增 8 条断言全 PASS。
+
+### ③ 适配器盲区收口（audit 29 条 + td_watch 定案）
+
+- **deadwood**：audit 重跑报 29 条"声明缺失" → resolve_missing 定案 **120 KEEP / 15 REVIEW / 1 REMOVE**；REVIEW 15 条实证复核：board/ascension/raven.met/treasure.coins/museumCoins/crewCoins/Tsukihan.dom/Tsukihan.init 8 条命中 KEEP、featsBoosts 6 条动态键既定案 KEEP（严禁 REMOVE）、**`Psyche.fear` 零命中 → 移除**（2.5.4 心智系统无 fear 字段，源码实证 `Psyche.ts` 仅 sanity/dread/fascination/mood；恐惧语义由 `Psyche.mood` 负数承担）；`RobinExpansion.investment.agreed` 的 REMOVE 判定经实证证伪（`Finance\Adrian.twee:285` `$RobinExpansion?.investment.agreed` 可选链写法真实存在）→ **保留**。净改动：**移除 1 键（ps_fear）**。
+- **revelation**：57 键 resolve 全 KEEP + REVIEW 仅 `TempleDuties.watch.phase`（td_watch）→ **定案移除**：1.4.3 对照源码零证据（TempleDuties twee/ts 均无 watch 字段；`phase` 15 处全在 RobinTemple 模块、`watch` 16 处全在 LostLamb），1.4.3 守夜线已重构为 `RobinTemple.vigil_*`（vigil_result/vigil_attending/vigil_with_robin 已有作弊项覆盖）。净改动：**移除 1 键（td_watch）**。
+- 测试同步：test_mce 19.1 阶段 17→16、31.1/31.5/31.8 守夜相关断言移除、21.11 fear 断言移除。
+
+### ④ 测试 mock 盲区闭环（核查结论）
+
+- 43.x 节已实现"显式调用被包装函数"真实链路：43.1 独立 eval 注册 hook（window 含真实原版函数）、43.2 播放结束清理 + 原版函数调用计数验证、43.3 手动重放不越权——`window.unfreezePlayerStats` 真实行为已被测试覆盖；11.x 节的 wikifier 记录 mock 仅覆盖"回退触发原版调用"契约，二者互补。**无需新增测试**，盲区已闭环。
+
+### ⑤ 适配轮：枯木 2.5.5 + 归途 1.4.4（2026-10-28 每日检测定时任务）
+
+- **检测**：deadwood-reblooms v2.5.5、revelation-the-book-of-return v1.4.4 有更新；框架 5.5.6（declOverride）及其余渠道（DomRobin/MLI/SmartPhone/DolOpt/Wraith/DoLSims/Cattery）全部无更新。
+- **核对（audit + resolve_missing）**：
+  - 枯木 2.5.5：140 条声明中 30 条非动态键"缺失" → 定案 **118 KEEP / 14 REVIEW / 1 REMOVE（证伪保留）**；`Transport.repair_tools.motor → SydneyExpansion` 疑似改名经源码证伪（`transport.state.repair_tools.motor` 别名访问存活于 `Transport.ts:49` + TravelEvents/Repairs 多处）→ **零真删失、零新功能键**。
+  - 归途 1.4.4：56 条声明 **100% 存活（0 缺失）**；新增候选 177 条以瞬态调度变量为主，仅补 1 条高价值核心键。
+- **改动**：deadwood `modName` 2.5.4→2.5.5（仅版本号）；revelation `modName` 1.4.3→1.4.4 + **新增 `td_ordination_stage`（神殿值勤·授职阶段，1.4.4 晋铎线核心，13 档 prepare→…→aftercare→withdrawn/complete，源码实证含善后期；complete 置末保证"跳最高"落完成而非退出）**（56→**57 键**）。
+- **测试**：19.1 阶段 16→17；新增 19.5b 断言（写入生效 / 非法值拒绝 / 善后期 aftercare 合法写入 / 跳最高落 complete / 回退初始，含宿主未初始化拒绝语义模拟）。
+
+### ⑥ 自查优化：授职阶段值域补档（aftercare 善后）
+
+- **发现 bug**：`td_ordination_stage` 初版值域 12 档漏 `aftercare`（善后）——`Ordination.twee:49` 的 `stage isnot 'aftercare'` 善后期特判实证该档存在，漏档后果：玩家在善后期无法经作弊器推进（枚举校验拒绝）。
+- **修复**：值域 12 档→**13 档**（补 `aftercare`；`complete` 置末保证"跳最高"落完成授职而非 `withdrawn` 退出），零通用函数改动；测试 19.5b 增强 2 条（善后期合法写入 + 跳最高落 complete 防回归）；AGENTS.md/CHANGELOG 档数表述同步。
+
+### 验证与发布
+
+- **验证**：run_all.ps1 6 步全绿（build → node --check → DOM 冒烟 → 全量回归 → E2E → 性别集成 24/24）+ codegraph sync；dev.ps1 打包 verifier 4/4、zip 正斜杠 4/4（boot.json / javascript/maplebirchce.js / README.md / twee/maplebirchce-widget.twee）。
+- **产物**：打包 SHA256 `417D900CA7EBBF30A4BCAFB91F90BC9963A7890529BC4CA03467557B51AC0C22`（208322 B），已装 game；已发布（Release v1.9.18，资产 SHA 回读一致）。
+
 ## v1.9.17（2026-10-28 · 适配轮 · 已发布）
 
 **双模组适配更新：枯木逢春 2.5.4 + Cattery 1.1.9（2026-10-28）**

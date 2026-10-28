@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.17**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v1.9.18**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -89,8 +89,8 @@
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.5.3 | 阶段 13 / 能力 65 / 数值 57 | `maplebirch.get("DeadwoodReblooms")` |
-| 归途之书 · Revelation | 1.4.3 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
+| 枯木逢春 · Deadwood Reblooms | 2.5.5 | 阶段 13 / 能力 65 / 数值 62 | `maplebirch.get("DeadwoodReblooms")` |
+| 归途之书 · Revelation | 1.4.4 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
 | DomRobin | 0.0.8 | 阶段 1 / 能力 11 / 数值 2 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
@@ -125,6 +125,14 @@
 
 ## 版本说明
 
+- **v1.9.18（2026-10-28 · 已发布）**：
+  - **双模组适配更新**：枯木逢春 `2.5.4 → 2.5.5`（仅版本号，140 键零删失、`repair_tools/parts.motor → SydneyExpansion` 疑似改名证伪保留）；归途之书 `1.4.3 → 1.4.4`（56 键 100% 存活 + **新增晋铎线核心键 `td_ordination_stage` 神殿值勤·授职阶段，13 档 prepare→…→aftercare→withdrawn/complete，complete 置末保证"跳最高"落完成而非退出**，56→57 键）；
+  - **自查修复（补档 bug）**：授职阶段值域初版漏 `aftercare`（善后）档——枚举校验会拒绝写入善后阶段；对照 rv144 源码 4 处独立证据（`Ordination.twee:35/46/49` + `Journal.twee:381`/`Office.twee:114`）确认 13 档全值域并修正；
+  - **四项 UI/测试优化**：①作弊面板 CSS 排版 71 token 全量变量化（54 字面量色 0 残留）；②面板容器自适应（max-height + sticky 页头 + 独立滚动）；③适配器盲区收口（`Psyche.fear`/`td_watch` 两键实证移除，`investment.agreed` 可选链证伪保留）；④测试 mock 盲区闭环（wikifier 真实链路模式）；
+  - **验证**：全链 6 步全绿 + codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4；SHA256 `417D900C…AC0C22` 已装 game；已发布（Release v1.9.18）；
+- **v1.9.17（2026-10-28 · 已发布）**：
+  - **双模组适配更新**：枯木逢春 `2.5.3 → 2.5.4`（新增 featsBoosts 6 条动态键 + 说明页键）；Cattery `1.1.8 → 1.1.9`（官方 5 处 bug 修复：图标破图/动作图标/无效地点 pchouse/枯木罗宾拓展冲突致租房入口消失/猫咖日记条目被吞，无新功能键，47 键全存活）；
+  - **验证**：全链 6 步全绿 + codegraph sync；打包 verifier 4/4 + 装 game；已发布（Release v1.9.17）；
 - **v1.9.16（2026-10-28 · 已发布）**：
   - **双模组适配更新**：枯木逢春 `2.5.2 → 2.5.3`（新增科学课系统作弊项 `scienceprogression` 0-4 档 + 心智核心值 `Psyche.mood` -1000~1000 恐惧/入迷，数值 55 → 57）；归途之书 `1.4.2 → 1.4.3`（修复版，无新键，仅升声明版本）；
   - **键存活核对**：枯木 audit 97/133 + resolve 122 KEEP / 9 REVIEW 全部保留（唯一 REMOVE 判定 `RobinExpansion.investment.agreed` 复核证伪——源码 `Finance\Adrian.twee:285` 为 `?.` 可选链写法，静态正则盲区误报，**保留声明**）；归途 55/57 + KEEP 全量保留；

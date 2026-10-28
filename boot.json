@@ -1,10 +1,10 @@
-﻿{
+{
   "name": "MapleBirchCE",
   "nickName": {
     "en": "Maplebirch CE - Auto Story Condition Unlocker",
     "cn": "Maplebirch CE · 全局全自动剧情条件解锁"
   },
-  "version": "1.9.17",
+  "version": "1.9.18",
   "styleFileList": [],
   "scriptFileList_inject_early": [
     "javascript/maplebirchce.js"

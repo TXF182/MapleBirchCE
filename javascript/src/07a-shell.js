@@ -47,118 +47,141 @@
 	}
 
 	var CSS = "" +
-		"#mce-root{display:none;position:fixed;top:8px;right:0;bottom:8px;width:430px;max-width:96vw;z-index:2147483000;" +
-		"background:rgba(5,5,5,.96);border:1px solid #3c3c3c;border-right:none;box-shadow:0 12px 34px rgba(0,0,0,.7);" +
-		"color:#f2f2f2;flex-direction:column;overflow:hidden;" +
-		"font-family:'Noto Serif SC','Source Han Serif SC','Microsoft YaHei',serif;font-size:13px;line-height:1.5}" +
+		/* ===== v1.9.18 排版 token 化：改主题/字号只动 :root 变量 ===== */
+		":root{" +
+		"--mce-accent:#d4a73c;--mce-accent-hover:#e0b44a;--mce-accent-dark:#b38a2a;--mce-accent-55:rgba(212,167,60,.55);" +
+		"--mce-gold-soft:#f0d070;--mce-gold-note:#8a6d3b;--mce-gold-bg:#2a2208;--mce-gold-txt:#f0d98c;" +
+		"--mce-bg-panel:rgba(5,5,5,.96);--mce-bg-deep:#0d0d0d;--mce-bg-base:#1a1a1a;--mce-bg-card:#111;--mce-bg-block:#0f0f0f;" +
+		"--mce-bg-stage:#101010;--mce-bg-detail:#141414;--mce-bg-ctl:#181818;--mce-bg-btn:#222;--mce-bg-hover:#333;--mce-bg-sel:#18150c;" +
+		"--mce-red:#ff6b6b;--mce-red-soft:#ff9c9c;--mce-red-deep:#c0392b;--mce-red-bg:#5a2323;--mce-red-bg-h:#6e2b2b;--mce-red-bg-b:#7a3030;" +
+		"--mce-red-badge:#3a1c1c;--mce-red-badge-b:#5a2e2e;--mce-red-row:#170d0d;--mce-red-err:#2a1515;--mce-red-err-txt:#ffd0d0;--mce-red-err-src:#a07070;--mce-red-err-soft:#ffb0b0;--mce-red-errbox:#150b0b;" +
+		"--mce-green:#7ed89a;--mce-green-deep:#2e9e52;--mce-green-badge:#1c3a24;--mce-green-badge-b:#2e5a3c;--mce-green-row:#0d1710;" +
+		"--mce-border:#3c3c3c;--mce-border-soft:#333;--mce-border-dim:#2a2a2a;--mce-border-faint:#1f1f1f;--mce-border-ctl:#3a3a3a;--mce-border-stage:#555;" +
+		"--mce-txt:#f2f2f2;--mce-txt-bright:#fff;--mce-txt-on-accent:#111;--mce-txt-hi:#e6e6e6;--mce-txt-label:#d8d8d8;--mce-txt-strong:#eee;" +
+		"--mce-txt-mid:#ccc;--mce-txt-dim:#b9b9b9;--mce-txt-faint:#aaa;--mce-txt-muted:#9c9c9c;--mce-txt-weak:#8a8a8a;--mce-txt-star:#666;" +
+		"--mce-fs-xl:16px;--mce-fs-lg:15px;--mce-fs-tab:14px;--mce-fs-base:13px;--mce-fs-btn:12px;--mce-fs-sm:11px;--mce-fs-xs:10px;" +
+		"--mce-radius:3px;--mce-radius-sm:2px;--mce-radius-pill:8px;" +
+		"--mce-space:8px;--mce-space-md:6px;--mce-space-sm:4px;--mce-h-header:42px;--mce-scroll:8px;" +
+		"}" +
+		"#mce-root{display:none;position:fixed;top:8px;right:0;bottom:8px;width:430px;max-width:96vw;max-height:calc(100vh - 16px);z-index:2147483000;" +
+		"background:var(--mce-bg-panel);border:1px solid var(--mce-border);border-right:none;box-shadow:0 12px 34px rgba(0,0,0,.7);" +
+		"color:var(--mce-txt);flex-direction:column;overflow:hidden;" +
+		"font-family:'Noto Serif SC','Source Han Serif SC','Microsoft YaHei',serif;font-size:var(--mce-fs-base);line-height:1.5}" +
 		"#mce-root.mce-open{display:flex;animation:mce-pop-in .15s ease-out}" +
 		"#mce-root.mce-closing{animation:mce-pop-out .12s ease-in forwards}" +
 		"#mce-toggle{position:fixed;right:14px;bottom:14px;z-index:2147482999;width:52px;height:52px;border-radius:50%;" +
-		"background:#d4a73c;color:#111;border:2px solid #b38a2a;font-size:15px;font-weight:700;cursor:pointer;" +
+		"background:var(--mce-accent);color:var(--mce-txt-on-accent);border:2px solid var(--mce-accent-dark);font-size:var(--mce-fs-lg);font-weight:700;cursor:pointer;" +
 		"box-shadow:0 4px 14px rgba(0,0,0,.6);font-family:inherit;touch-action:none;" +
 		"user-select:none;-webkit-user-select:none;transition:background .12s ease,transform .12s ease,box-shadow .12s ease}" +
-		"#mce-toggle:hover{background:#e0b44a}" +
+		"#mce-toggle:hover{background:var(--mce-accent-hover)}" +
 		"#mce-toggle:active{transform:scale(.94)}" +
-		"#mce-toggle.mce-dragging{cursor:grabbing!important;background:#e0b44a;transform:none!important}" +
-		".mce-header{display:flex;align-items:center;height:42px;padding:0 10px;background:#1a1a1a;" +
-		"border-bottom:1px solid #3c3c3c;color:#d4a73c;font-weight:700;font-size:15px}" +
+		"#mce-toggle.mce-dragging{cursor:grabbing!important;background:var(--mce-accent-hover);transform:none!important}" +
+		".mce-header{display:flex;align-items:center;height:var(--mce-h-header);padding:0 10px;background:var(--mce-bg-base);" +
+		"border-bottom:1px solid var(--mce-border);color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-lg)}" +
 		".mce-header .mce-title{flex:1;text-align:center}" +
-		".mce-header button{background:transparent;border:none;color:#ccc;font-size:16px;cursor:pointer;padding:0 7px}" +
-		".mce-header button:hover{color:#fff}" +
-		".mce-tabs{display:flex;background:#0d0d0d;border-bottom:1px solid #3c3c3c}" +
+		".mce-header button{background:transparent;border:none;color:var(--mce-txt-mid);font-size:var(--mce-fs-xl);cursor:pointer;padding:0 7px}" +
+		".mce-header button:hover{color:var(--mce-txt-bright)}" +
+		".mce-tabs{display:flex;background:var(--mce-bg-deep);border-bottom:1px solid var(--mce-border)}" +
 		".mce-tabs button{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;" +
-		"color:#b9b9b9;padding:9px 0;cursor:pointer;font-size:14px;font-family:inherit}" +
-		".mce-tabs button.mce-active{color:#d4a73c;border-bottom-color:#d4a73c}" +
+		"color:var(--mce-txt-dim);padding:9px 0;cursor:pointer;font-size:var(--mce-fs-tab);font-family:inherit}" +
+		".mce-tabs button.mce-active{color:var(--mce-accent);border-bottom-color:var(--mce-accent)}" +
 		".mce-body{flex:1;overflow-y:auto;padding:10px;min-height:120px;overscroll-behavior:contain}" +
+		/* v1.9.18 容器自适应：面板内滚动条统一（金色系，随 token 主题）+ 分页 sticky 页头（header/tabs 为 flex 固定行，明确防压缩） */
+		".mce-header,.mce-tabs{flex:none}" +
+		"#mce-root ::-webkit-scrollbar{width:var(--mce-scroll);height:var(--mce-scroll)}" +
+		"#mce-root ::-webkit-scrollbar-thumb{background:var(--mce-border-ctl);border-radius:var(--mce-radius-pill)}" +
+		"#mce-root ::-webkit-scrollbar-thumb:hover{background:var(--mce-border)}" +
+		"#mce-root ::-webkit-scrollbar-track{background:transparent}" +
+		"#mce-root{scrollbar-width:thin;scrollbar-color:var(--mce-border-ctl) transparent}" +
 		".mce-pane{display:none}.mce-pane.mce-active{display:block}" +
 		/* 角色卡片 */
-		".mce-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}" +
-		".mce-card{background:#111;border:1px solid #333;border-radius:3px;padding:8px;cursor:pointer}" +
-		".mce-card:hover{border-color:#d4a73c}" +
-		".mce-card.mce-sel{border-color:#d4a73c;background:#18150c}" +
+		".mce-cards{display:grid;grid-template-columns:1fr 1fr;gap:var(--mce-space)}" +
+		".mce-card{background:var(--mce-bg-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius);padding:8px;cursor:pointer}" +
+		".mce-card:hover{border-color:var(--mce-accent)}" +
+		".mce-card.mce-sel{border-color:var(--mce-accent);background:var(--mce-bg-sel)}" +
 		".mce-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}" +
-		".mce-card-name{color:#fff;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-		".mce-badge{font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap}" +
-		".mce-badge.mce-on{background:#1c3a24;color:#7ed89a;border:1px solid #2e5a3c}" +
-		".mce-badge.mce-off{background:#3a1c1c;color:#ff6b6b;border:1px solid #5a2e2e}" +
-		".mce-card-stats{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:11px;color:#9c9c9c}" +
-		".mce-card-stats b{color:#d4a73c}" +
+		".mce-card-name{color:var(--mce-txt-bright);font-weight:700;font-size:var(--mce-fs-base);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+		".mce-badge{font-size:var(--mce-fs-xs);padding:1px 6px;border-radius:var(--mce-radius-pill);white-space:nowrap}" +
+		".mce-badge.mce-on{background:var(--mce-green-badge);color:var(--mce-green);border:1px solid var(--mce-green-badge-b)}" +
+		".mce-badge.mce-off{background:var(--mce-red-badge);color:var(--mce-red);border:1px solid var(--mce-red-badge-b)}" +
+		".mce-card-stats{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:var(--mce-fs-sm);color:var(--mce-txt-muted)}" +
+		".mce-card-stats b{color:var(--mce-accent)}" +
 		/* 数据卡 */
-		".mce-section{font-size:12px;color:#9c9c9c;border-bottom:1px dashed #333;padding:2px 0 4px;margin:10px 0 6px}" +
-		".mce-statrow{display:flex;align-items:center;gap:6px;margin:5px 0;flex-wrap:wrap}" +
-		".mce-label{color:#d8d8d8;min-width:56px}" +
-		".mce-value{color:#d4a73c;font-weight:700;min-width:44px;text-align:right}" +
-		".mce-btn{background:#222;color:#eee;border:1px solid #3c3c3c;border-radius:2px;padding:3px 9px;cursor:pointer;font-size:12px;font-family:inherit;" +
+		".mce-section{font-size:var(--mce-fs-btn);color:var(--mce-txt-muted);border-bottom:1px dashed var(--mce-border-soft);padding:2px 0 4px;margin:10px 0 6px}" +
+		".mce-statrow{display:flex;align-items:center;gap:var(--mce-space-md);margin:5px 0;flex-wrap:wrap}" +
+		".mce-label{color:var(--mce-txt-label);min-width:56px}" +
+		".mce-value{color:var(--mce-accent);font-weight:700;min-width:44px;text-align:right}" +
+		".mce-btn{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border);border-radius:var(--mce-radius-sm);padding:3px 9px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit;" +
 		"transition:background .12s ease,transform .12s ease,box-shadow .12s ease}" +
-		".mce-btn:hover{background:#333}" +
+		".mce-btn:hover{background:var(--mce-bg-hover)}" +
 		".mce-btn:active{transform:scale(.96)}" +
-		".mce-btn.mce-gold{background:#d4a73c;color:#111;border-color:#b38a2a;font-weight:700}" +
-		".mce-btn.mce-gold:hover{background:#e0b44a;transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}" +
+		".mce-btn.mce-gold{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark);font-weight:700}" +
+		".mce-btn.mce-gold:hover{background:var(--mce-accent-hover);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}" +
 		".mce-btn.mce-gold:active{transform:scale(.96);box-shadow:none}" +
-		".mce-btn.mce-red{background:#5a2323;color:#ff9c9c;border-color:#7a3030}" +
-		".mce-btn.mce-red:hover{background:#6e2b2b}" +
+		".mce-btn.mce-red{background:var(--mce-red-bg);color:var(--mce-red-soft);border-color:var(--mce-red-bg-b)}" +
+		".mce-btn.mce-red:hover{background:var(--mce-red-bg-h)}" +
 		".mce-btn:disabled{opacity:.45;cursor:not-allowed}" +
-		".mce-actions{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}" +
+		".mce-actions{display:flex;flex-wrap:wrap;gap:var(--mce-space-md);margin:var(--mce-space) 0}" +
 		/* 内层标签 */
-		".mce-inner{display:flex;gap:4px;margin:8px 0;border-bottom:1px solid #2a2a2a;padding-bottom:6px}" +
-		".mce-inner button{background:#181818;color:#aaa;border:1px solid #333;border-radius:2px;padding:3px 10px;cursor:pointer;font-size:12px;font-family:inherit}" +
-		".mce-inner button.mce-active{background:#d4a73c;color:#111;border-color:#d4a73c}" +
+		".mce-inner{display:flex;gap:var(--mce-space-sm);margin:var(--mce-space) 0;border-bottom:1px solid var(--mce-border-dim);padding-bottom:6px}" +
+		".mce-inner button{background:var(--mce-bg-ctl);color:var(--mce-txt-faint);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-sm);padding:3px 10px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
+		".mce-inner button.mce-active{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent)}" +
 		/* 阶段列表 */
-		".mce-stages{display:flex;flex-direction:column;gap:6px}" +
-		".mce-stage{border-left:3px solid #555;background:#101010;border-radius:2px;padding:7px 9px}" +
-		".mce-stage.mce-pass{border-left-color:#2e9e52;background:#0d1710}" +
-		".mce-stage.mce-fail{border-left-color:#c0392b;background:#170d0d}" +
-		".mce-stage-head{display:flex;align-items:center;gap:8px}" +
+		".mce-stages{display:flex;flex-direction:column;gap:var(--mce-space-md)}" +
+		".mce-stage{border-left:3px solid var(--mce-border-stage);background:var(--mce-bg-stage);border-radius:var(--mce-radius-sm);padding:7px 9px}" +
+		".mce-stage.mce-pass{border-left-color:var(--mce-green-deep);background:var(--mce-green-row)}" +
+		".mce-stage.mce-fail{border-left-color:var(--mce-red-deep);background:var(--mce-red-row)}" +
+		".mce-stage-head{display:flex;align-items:center;gap:var(--mce-space)}" +
 		".mce-dot{width:9px;height:9px;border-radius:50%;flex:none}" +
-		".mce-pass .mce-dot{background:#2e9e52}" +
-		".mce-fail .mce-dot{background:#c0392b}" +
-		".mce-stage-name{color:#eee;font-weight:700;font-size:13px;flex:1}" +
-		".mce-stage-txt{color:#b9b9b9;font-size:11px;margin-top:4px;word-break:break-all;font-family:Consolas,Menlo,monospace}" +
-		".mce-stage-note{color:#8a6d3b;font-size:11px;margin-top:3px}" +
-		".mce-hint{color:#8a8a8a;font-size:12px;margin:4px 0}" +
+		".mce-pass .mce-dot{background:var(--mce-green-deep)}" +
+		".mce-fail .mce-dot{background:var(--mce-red-deep)}" +
+		".mce-stage-name{color:var(--mce-txt-strong);font-weight:700;font-size:var(--mce-fs-base);flex:1}" +
+		".mce-stage-txt{color:var(--mce-txt-dim);font-size:var(--mce-fs-sm);margin-top:4px;word-break:break-all;font-family:Consolas,Menlo,monospace}" +
+		".mce-stage-note{color:var(--mce-gold-note);font-size:var(--mce-fs-sm);margin-top:3px}" +
+		".mce-hint{color:var(--mce-txt-weak);font-size:var(--mce-fs-btn);margin:var(--mce-space-sm) 0}" +
 		/* v1.5.2 使用提示（剧情页页首警示框） */
-		".mce-warn{background:#2a2208;border:1px solid #d4a73c;color:#f0d98c;font-size:12px;margin:4px 0;padding:8px 10px;border-radius:3px;line-height:1.6}" +
-		".mce-err{color:#ff6b6b;font-size:13px}" +
-		".mce-ok{color:#7ed89a;font-size:13px}" +
-		".mce-status{min-height:18px;padding:6px 10px;border-top:1px solid #3c3c3c;background:#0d0d0d;color:#9c9c9c;font-size:12px}" +
-		".mce-type{display:inline-block;background:#1a1a1a;color:#ccc;border:1px solid #3c3c3c;border-radius:2px;padding:2px 8px;font-size:11px;margin:2px}" +
-		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:4px 0}" +
+		".mce-warn{background:var(--mce-gold-bg);border:1px solid var(--mce-accent);color:var(--mce-gold-txt);font-size:var(--mce-fs-btn);margin:var(--mce-space-sm) 0;padding:8px 10px;border-radius:var(--mce-radius);line-height:1.6}" +
+		".mce-err{color:var(--mce-red);font-size:var(--mce-fs-base)}" +
+		".mce-ok{color:var(--mce-green);font-size:var(--mce-fs-base)}" +
+		".mce-status{min-height:18px;padding:6px 10px;border-top:1px solid var(--mce-border);background:var(--mce-bg-deep);color:var(--mce-txt-muted);font-size:var(--mce-fs-btn)}" +
+		".mce-type{display:inline-block;background:var(--mce-bg-base);color:var(--mce-txt-mid);border:1px solid var(--mce-border);border-radius:var(--mce-radius-sm);padding:2px 8px;font-size:var(--mce-fs-sm);margin:2px}" +
+		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:var(--mce-space-sm) 0}" +
 		/* v1.4.0 Mod作弊页面 */
 		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，
 		   减少大列表下（如枯木逢春 28 数值项展开）对 DoL-Game-UI 每帧 rAF 全量扫描的主线程叠加压力 */
-		".mce-grp{border:1px solid #2a2a2a;border-radius:3px;margin:8px 0;padding:8px;background:#0f0f0f;contain:content}" +
-		".mce-grp-t{color:#d4a73c;font-weight:700;font-size:13px;margin-bottom:6px}" +
+		".mce-grp{border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);margin:var(--mce-space) 0;padding:8px;background:var(--mce-bg-block);contain:content}" +
+		".mce-grp-t{color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-base);margin-bottom:6px}" +
 		".mce-collapse-head{cursor:pointer;user-select:none}" +
-		".mce-collapse-head:hover{color:#f0d070}" +
+		".mce-collapse-head:hover{color:var(--mce-gold-soft)}" +
 		".mce-grp-body[data-collapsed=\"1\"]{display:none}" +
 		/* v1.9.14 效果4：折叠组展开淡入（display:none→block 切换时动画自动重放，覆盖 Mod 作弊/特质/角色/剧情全部折叠组） */
 		".mce-grp-body[data-collapsed=\"0\"]{animation:mce-fade-in .2s ease-out}" +
-		".mce-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:1px solid #1f1f1f;font-size:12px}" +
-		".mce-row-lbl{color:#e6e6e6;flex:1;min-width:120px;word-break:break-all}" +
-		".mce-row button{background:#181818;color:#ccc;border:1px solid #3a3a3a;border-radius:2px;padding:3px 8px;cursor:pointer;font-size:12px;font-family:inherit}" +
-		".mce-row button:hover{border-color:#d4a73c;color:#d4a73c}" +
-		".mce-inp{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 6px;font-size:12px;width:90px;font-family:Consolas,Menlo,monospace}" +
-		".mce-search-inp{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 6px;font-size:12px;width:220px;font-family:Consolas,Menlo,monospace}" +
-		".mce-sel{background:#0d0d0d;color:#eee;border:1px solid #3a3a3a;border-radius:2px;padding:3px 4px;font-size:12px;font-family:inherit;max-width:170px;flex:0 1 auto}" +
+		".mce-row{display:flex;align-items:center;gap:var(--mce-space);flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--mce-border-faint);font-size:var(--mce-fs-btn)}" +
+		".mce-row-lbl{color:var(--mce-txt-hi);flex:1;min-width:120px;word-break:break-all}" +
+		".mce-row button{background:var(--mce-bg-ctl);color:var(--mce-txt-mid);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius-sm);padding:3px 8px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
+		".mce-row button:hover{border-color:var(--mce-accent);color:var(--mce-accent)}" +
+		".mce-inp{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius-sm);padding:3px 6px;font-size:var(--mce-fs-btn);width:90px;font-family:Consolas,Menlo,monospace}" +
+		".mce-search-inp{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius-sm);padding:3px 6px;font-size:var(--mce-fs-btn);width:220px;font-family:Consolas,Menlo,monospace}" +
+		".mce-sel{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius-sm);padding:3px 4px;font-size:var(--mce-fs-btn);font-family:inherit;max-width:170px;flex:0 1 auto}" +
 		/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档） */
-		".mce-ab-detail{margin-left:4px;font-size:11px}" +
-		".mce-ab-sum{cursor:pointer;color:#8a8a8a;user-select:none;display:inline-block}" +
-		".mce-ab-sum:hover{color:#f0d070}" +
-		".mce-ab-body{background:#141414;border:1px solid #2a2a2a;border-radius:2px;padding:5px 8px;margin-top:3px;color:#b9b9b9;line-height:1.7;min-width:220px}" +
-		".mce-ab-note{color:#8a6d3b;margin-top:2px}" +
+		".mce-ab-detail{margin-left:4px;font-size:var(--mce-fs-sm)}" +
+		".mce-ab-sum{cursor:pointer;color:var(--mce-txt-weak);user-select:none;display:inline-block}" +
+		".mce-ab-sum:hover{color:var(--mce-gold-soft)}" +
+		".mce-ab-body{background:var(--mce-bg-detail);border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius-sm);padding:5px 8px;margin-top:3px;color:var(--mce-txt-dim);line-height:1.7;min-width:220px}" +
+		".mce-ab-note{color:var(--mce-gold-note);margin-top:2px}" +
 		/* v1.8.12 特质收藏星标 */
-		".mce-favstar{background:transparent;border:none;padding:0 5px;cursor:pointer;color:#666;font-size:12px;line-height:1}" +
-		".mce-favstar:hover{color:#f0d070}" +
-		".mce-favstar.mce-fav{color:#d4a73c}" +
+		".mce-favstar{background:transparent;border:none;padding:0 5px;cursor:pointer;color:var(--mce-txt-star);font-size:var(--mce-fs-btn);line-height:1}" +
+		".mce-favstar:hover{color:var(--mce-gold-soft)}" +
+		".mce-favstar.mce-fav{color:var(--mce-accent)}" +
 		/* v1.8.12 错误收集器 */
-		".mce-errbtn{background:#5a2323;color:#ff9c9c;border:1px solid #7a3030;border-radius:50%;" +
-		"min-width:20px;height:20px;line-height:18px;font-size:11px;font-weight:700;cursor:pointer;padding:0 4px;display:none}" +
+		".mce-errbtn{background:var(--mce-red-bg);color:var(--mce-red-soft);border:1px solid var(--mce-red-bg-b);border-radius:50%;" +
+		"min-width:20px;height:20px;line-height:18px;font-size:var(--mce-fs-sm);font-weight:700;cursor:pointer;padding:0 4px;display:none}" +
 		".mce-errbtn.mce-on{display:inline-block}" +
-		".mce-errbox{display:none;background:#150b0b;border-bottom:1px solid #3c3c3c;max-height:40%;overflow-y:auto;padding:6px 8px}" +
+		".mce-errbox{display:none;background:var(--mce-red-errbox);border-bottom:1px solid var(--mce-border);max-height:40%;overflow-y:auto;padding:6px 8px}" +
 		".mce-errbox.mce-on{display:block}" +
-		".mce-errrow{border-top:1px solid #2a1515;padding:4px 0;font-size:11px;color:#ffb0b0;font-family:Consolas,Menlo,monospace;word-break:break-all}" +
-		".mce-errrow .mce-err-msg{color:#ffd0d0}" +
-		".mce-errrow .mce-err-src{color:#a07070;font-size:10px}" +
+		".mce-errrow{border-top:1px solid var(--mce-red-err);padding:4px 0;font-size:var(--mce-fs-sm);color:var(--mce-red-err-soft);font-family:Consolas,Menlo,monospace;word-break:break-all}" +
+		".mce-errrow .mce-err-msg{color:var(--mce-red-err-txt)}" +
+		".mce-errrow .mce-err-src{color:var(--mce-red-err-src);font-size:var(--mce-fs-xs)}" +
 		/* v1.9.14 UI 动效：面板内全部按钮统一按压反馈（缩放）与过渡；写入成功闪烁 + 面板开合/折叠淡入 keyframes */
 		"#mce-root button{transition:background .12s ease,color .12s ease,transform .12s ease,box-shadow .12s ease}" +
 		"#mce-root button:active{transform:scale(.96)}" +
@@ -166,7 +189,7 @@
 		"@keyframes mce-pop-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}" +
 		"@keyframes mce-pop-out{from{opacity:1}to{opacity:0}}" +
 		"@keyframes mce-fade-in{from{opacity:0}to{opacity:1}}" +
-		"@keyframes mce-flash{0%{background:rgba(212,167,60,.55);box-shadow:0 0 0 1px #d4a73c}100%{background:transparent;box-shadow:none}}";
+		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }

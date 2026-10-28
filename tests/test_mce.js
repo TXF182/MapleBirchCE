@@ -1013,7 +1013,7 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:")
 global.window = { maplebirch: { get: function (n) { return (n === "RobinTemple" || n === "TempleChoir" || n === "LostLamb" || n === "TempleDuties") ? {} : undefined; } } };
 var rbr = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
 assert(rbr && rbr.declared === true, "19.1 探测命中：归途之书自动识别");
-assert(rbr.stages.length === 17 && rbr.abilities.length === 22 && rbr.scenes.length === 1 && rbr.values.length === 18, "19.1 分组齐全 阶段17/能力22/剧情1/数值18（v1.8.23 补 1.3.10 项链归还能力）, 实际 " + rbr.stages.length + "/" + rbr.abilities.length + "/" + rbr.scenes.length + "/" + rbr.values.length);
+assert(rbr.stages.length === 17 && rbr.abilities.length === 22 && rbr.scenes.length === 1 && rbr.values.length === 18, "19.1 分组齐全 阶段17/能力22/剧情1/数值18（v1.8.23 补 1.3.10 项链归还能力；1.9.x 移除失效 td_watch 守夜阶段；1.9.17 适配 1.4.4 补 td_ordination_stage 授职阶段）, 实际 " + rbr.stages.length + "/" + rbr.abilities.length + "/" + rbr.scenes.length + "/" + rbr.values.length);
 // 19.2) 隔离：适配器只声明模组自建键，不含原版神殿变量路径
 var allPaths = [];
 rbr.stages.concat(rbr.abilities).concat(rbr.values).forEach(function (it) { allPaths.push(it.varPath); });
@@ -1037,6 +1037,19 @@ api.jumpCheatStageMax("revelation-the-book-of-return", "rt_rite_stage");
 assert(V.RobinTemple.secret.rite_stage === 7, "19.5 跳至最高 7, 实际 " + V.RobinTemple.secret.rite_stage);
 api.resetCheatStage("revelation-the-book-of-return", "rt_rite_stage");
 assert(V.RobinTemple.secret.rite_stage === 0, "19.5 回退初始 0, 实际 " + V.RobinTemple.secret.rite_stage);
+// 19.5b) 1.4.4 新增授职阶段（td_ordination_stage）：合法/非法写入
+// 模拟模组已启动（TempleDuties 宿主存在；未初始化时写入器按 18.3 拒绝）
+V.TempleDuties = { ordination: { stage: "prepare", party: {}, choices: {}, completed: [], start: 0 } };
+api.setCheatStage("revelation-the-book-of-return", "td_ordination_stage", "chant");
+assert(V.TempleDuties.ordination.stage === "chant", "19.5b 授职阶段写入生效");
+var rBadOrd = api.setCheatStage("revelation-the-book-of-return", "td_ordination_stage", "bogus");
+assert(rBadOrd.ok === false && /不在枚举/.test(rBadOrd.message), "19.5b 授职阶段非法值拒绝（" + rBadOrd.message + "）");
+api.setCheatStage("revelation-the-book-of-return", "td_ordination_stage", "aftercare");
+assert(V.TempleDuties.ordination.stage === "aftercare", "19.5b 善后阶段（aftercare）合法写入");
+api.jumpCheatStageMax("revelation-the-book-of-return", "td_ordination_stage");
+assert(V.TempleDuties.ordination.stage === "complete", "19.5b 跳至最高 = 完成授职（complete）, 实际 " + V.TempleDuties.ordination.stage);
+api.resetCheatStage("revelation-the-book-of-return", "td_ordination_stage");
+assert(V.TempleDuties.ordination.stage === "prepare", "19.5b 授职阶段回退初始");
 // 19.6) 能力：唱诗入团 / 领唱 / 挂坠 / 双誓约
 api.toggleCheatAbility("revelation-the-book-of-return", "tc_joined", true);
 assert(V.TempleChoir.joined === true, "19.6 唱诗班入团 true");
@@ -1268,7 +1281,7 @@ api.toggleCheatAbility("deadwood-reblooms", "clothes_stored", true);
 assert(V.LifeSimulation.school.clothesStored === true, "21.9 校服已存放 true");
 // 21.11) v1.9.9 补枯木 2.5.0 说明页键：心智 Psyche、PC 马/鲸/渡鸦转化、神社线、月羽 npc、果园计数
 V.MoreTransformations = { shrine: { stage: 0, feeds: 0 }, raven: { met: false } };
-V.Psyche = { sanity: 1000, fear: 0 };
+V.Psyche = { sanity: 1000 };
 V.maplebirch = { transformation: { horse: { build: 0 }, whale: { build: 0 }, raven: { build: 0 } }, npc: { Tsukihan: { init: 1, love: 0, dom: 10, lust: 0 } } };
 V.Orchard = { orders_completed: 0, contracts_completed: 0, sales_income: 0, regular_visits: 0 };
 V.loveInterestList = [];
@@ -1276,10 +1289,6 @@ api.applyCheatModValue("deadwood-reblooms", "ps_sanity", 500);
 assert(V.Psyche.sanity === 500, "21.11 心智·理智写 500, 实际 " + V.Psyche.sanity);
 api.applyCheatModValue("deadwood-reblooms", "ps_sanity", -999);
 assert(V.Psyche.sanity === -500, "21.11 理智下限钳制 -500, 实际 " + V.Psyche.sanity);
-api.applyCheatModValue("deadwood-reblooms", "ps_fear", 800);
-assert(V.Psyche.fear === 800, "21.11 心智·恐惧写 800, 实际 " + V.Psyche.fear);
-api.applyCheatModValue("deadwood-reblooms", "ps_fear", 1500);
-assert(V.Psyche.fear === 1500, "21.11 恐惧上限不钳制（写 1500 原样）, 实际 " + V.Psyche.fear);
 api.applyCheatModValue("deadwood-reblooms", "pc_horse_build", 100);
 api.applyCheatModValue("deadwood-reblooms", "pc_whale_build", 100);
 api.applyCheatModValue("deadwood-reblooms", "pc_raven_build", 100);
@@ -1920,12 +1929,11 @@ assert(SRC_NOW.includes(".mce-warn{"), "30.3 mce-warn 警示样式已注入 CSS"
 global.window = { maplebirch: { npc: {}, get: function (n) { return (n === "RobinTemple" || n === "TempleChoir" || n === "LostLamb" || n === "TempleDuties" || n === "DeadwoodReblooms") ? {} : undefined; } } };
 delete V.mbCE_wrote;
 V.LostLamb = { recalled: false, active: false, scene: "", doubt: 0, fear: 10, notice: 0, ending: "", talkVow: "", known: { bishop: false, gwylan: false, auriga: false } };
-V.TempleDuties = { enrolled: false, review: false, duties: 0, oath: "", bishop: "none", manor: "none", declaration: "private", watch: { phase: "threshold" }, case: { stage: "field" }, archive: { roof: -1, shelves: -1, sorted: 0 }, candidates: { Robin: { agreed: false }, Sydney: { agreed: false } } };
+V.TempleDuties = { enrolled: false, review: false, duties: 0, oath: "", bishop: "none", manor: "none", declaration: "private", case: { stage: "field" }, archive: { roof: -1, shelves: -1, sorted: 0 }, candidates: { Robin: { agreed: false }, Sydney: { agreed: false } } };
 var r31 = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
 assert(r31 && r31.modName.indexOf("归途之书") !== -1 && /v1\.4\.\d+/.test(r31.modName), "31.1 适配器声明已升级到 1.4.x 最新（版本无关断言，当前 " + (r31 && r31.modName) + "）");
 assert(r31.stages.filter(function (s) { return s.key === "ll_vow"; }).length === 1 && r31.stages.filter(function (s) { return s.key === "td_oath"; }).length === 1 &&
-       r31.stages.filter(function (s) { return s.varPath === "TempleDuties.watch.phase"; }).length === 1 &&
-       r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·守夜·案件阶段已收录");
+       r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·案件阶段已收录");
 assert(r31.abilities.filter(function (a) { return a.varPath === "LostLamb.known.bishop"; }).length === 1 &&
        r31.abilities.filter(function (a) { return a.varPath === "TempleDuties.candidates.Robin.agreed"; }).length === 1 &&
        r31.abilities.filter(function (a) { return a.varPath === "RBR.necklace.returned"; }).length === 1, "31.1 秘密/候选/项链归还能力已收录");
@@ -1951,8 +1959,6 @@ var rtd = api.setCheatStage("revelation-the-book-of-return", "td_oath", "care");
 assert(rtd.ok && V.TempleDuties.oath === "care", "31.5 值勤誓言写入 care, 实际 " + V.TempleDuties.oath);
 var rtd2 = api.setCheatStage("revelation-the-book-of-return", "td_bishop", "accepted");
 assert(rtd2.ok && V.TempleDuties.bishop === "accepted", "31.5 主教进展写入 accepted");
-var rtd3 = api.setCheatStage("revelation-the-book-of-return", "td_watch", "seal");
-assert(rtd3.ok && V.TempleDuties.watch.phase === "seal", "31.5 守夜阶段写入 seal");
 var rtd4 = api.setCheatStage("revelation-the-book-of-return", "td_case", "report");
 assert(rtd4.ok && V.TempleDuties.case.stage === "report", "31.5 案件阶段写入 report");
 // 31.6) TempleDuties 数值
@@ -1965,11 +1971,6 @@ api.toggleCheatAbility("revelation-the-book-of-return", "td_enrolled", true);
 assert(V.TempleDuties.enrolled === true, "31.7 已加入值勤启用");
 api.toggleCheatAbility("revelation-the-book-of-return", "td_robin_agree", true);
 assert(V.TempleDuties.candidates.Robin.agreed === true, "31.7 罗宾候选同意启用");
-// 31.8) 宿主缺失拒绝：watch=null 时写守夜阶段 → 拒绝且不崩（防 undefined 写）
-V.TempleDuties.watch = null;
-var rnull = api.setCheatStage("revelation-the-book-of-return", "td_watch", "passed");
-assert(rnull.ok === false && /宿主不存在/.test(rnull.message), "31.8 watch=null 拒绝写入不崩（" + rnull.message + "）");
-V.TempleDuties.watch = { phase: "threshold" };
 // 31.9) 回退
 api.undoCheatModValue("revelation-the-book-of-return", "value_set:td_duties");
 assert(V.TempleDuties.duties === 0, "31.9 值勤次数回退到 0, 实际 " + V.TempleDuties.duties);

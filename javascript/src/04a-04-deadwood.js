@@ -7,7 +7,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.5.4",
+			modName: "枯木逢春 · Deadwood Reblooms 2.5.5",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -243,8 +243,6 @@
 				  note: "BountiesState.completed：已完结悬赏计数（成就「Deadwood First Bounty」判定 ≥1）" },
 				{ key: "ps_sanity", name: "心智 · 理智（2.5.0 说明页新增）", varPath: "Psyche.sanity", type: "number", min: -500, max: 1000,
 				  note: "心智系统：理智范围 -500~1000 初始 1000；8 档状态（混乱/迷乱/心乱/恍惚/动摇/安定/清醒/专注）与学习收益（60%~120%）由理智自动结算，影响课堂/读书等科学数学活动；睡/祈祷/写作可恢复（当日额度约 30 点、高位减半）；需枯木模组运行初始化（V.Psyche 由模组创建），未初始化写会被拒绝" },
-				{ key: "ps_fear", name: "心智 · 恐惧（2.5.0 说明页新增）", varPath: "Psyche.fear", type: "number", min: 0, max: 1000,
-				  note: "恐惧范围 0~1000 初始 0，短期受惊用；≥400 且非战斗/追猎/剧情强制时可安抚（冷却 cooldown_until，模组结算）；写 0 回平静，写 1000 满值；需枯木模组运行初始化（V.Psyche 由模组创建），未初始化写会被拒绝" },
 				{ key: "pc_horse_build", name: "转化 · 马（2.5.0 说明页新增）", varPath: "maplebirch.transformation.horse.build", type: "number", min: 0, max: 100,
 				  note: "马转化共六阶段：进度在角色属性页、外观在镜子选择；build≥1 后停止衰减（隐藏部位不失去能力）；正常成长=雷米骑术课/林间果实/追回受惊马匹/荒原骑乘；写 100 直达满级（模组按 build 结算阶段）" },
 				{ key: "pc_whale_build", name: "转化 · 鲸（2.5.0 说明页新增）", varPath: "maplebirch.transformation.whale.build", type: "number", min: 0, max: 100,

@@ -66,6 +66,18 @@ const api = setup.mbStageCE;
 assert(!!api && typeof api.renderPlayerEdit === "function", "setup.mbStageCE 挂载且 renderPlayerEdit 可用");
 assert(!!document.querySelector("#mce-root"), "init→ensureDom 创建面板 #mce-root");
 
+/* ---------- 3.5 v1.9.18 排版 token 化 + 容器自适应断言 ---------- */
+const mceCss = (document.getElementById("mce-style") || {}).textContent || "";
+assert(mceCss.indexOf(":root{--mce-accent:#d4a73c") !== -1, "CSS token：:root 定义 --mce-accent（改主题只动变量区）");
+assert(mceCss.indexOf("height:var(--mce-h-header)") !== -1, "CSS token：.mce-header 高度走 var(--mce-h-header)（自查抓漏：42px 字面量）");
+assert(mceCss.indexOf("background:var(--mce-bg-panel)") !== -1, "CSS token：面板背景走 var(--mce-bg-panel)");
+assert(mceCss.indexOf("font-size:var(--mce-fs-base)") !== -1, "CSS token：字号走 var(--mce-fs-base)");
+assert(mceCss.indexOf("max-height:calc(100vh - 16px)") !== -1, "容器自适应：#mce-root max-height 随视口（防御 DoL-Game-UI 滚动截断）");
+assert(mceCss.indexOf(".mce-body{flex:1;overflow-y:auto") !== -1, "容器自适应：.mce-body 内容区独立滚动");
+assert(mceCss.indexOf("::-webkit-scrollbar-thumb") !== -1, "容器自适应：面板滚动条样式已注入");
+assert(!!document.querySelector(".mce-body"), "容器自适应：.mce-body 滚动容器存在");
+assert(!!document.querySelector(".mce-header") && !!document.querySelector(".mce-tabs"), "容器自适应：header/tabs 固定行存在（sticky 页头）");
+
 /* ---------- 4. 玩家页冒烟（v1.8.4 select.type 崩溃路径） ---------- */
 api.renderPlayerEdit();
 const modsPane = document.querySelector('[data-pane="mods"]');
