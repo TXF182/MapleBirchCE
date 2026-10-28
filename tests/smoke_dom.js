@@ -428,9 +428,11 @@ const bAllOpen = [].slice.call(modsPane.querySelectorAll("button")).filter(funct
 const bAllClose = [].slice.call(modsPane.querySelectorAll("button")).filter(function (b) { return b.textContent === "全部收起"; })[0];
 assert(!!bAllOpen && !!bAllClose, "折叠工具行（全部展开/全部收起）存在");
 bAllOpen.click();
-const grpBodies = [].slice.call(modsPane.querySelectorAll(".mce-grp-body"));
+/* v1.9.16：属性分组已并入折叠结构（7 组 .mce-grp-body 独立折叠），「全部展开/收起」工具属特质区
+   （group 循环，06c-traits-ui 139-159）——断言限定特质区组（data-tcat），保持原语义 */
+const grpBodies = [].slice.call(modsPane.querySelectorAll(".mce-grp[data-tcat] .mce-grp-body"));
 assert(grpBodies.length > 0 && grpBodies.every(function (b) { return b.getAttribute("data-collapsed") === "0"; }), "全部展开后所有组 data-collapsed=0（共 " + grpBodies.length + " 组）");
-assert([].slice.call(modsPane.querySelectorAll(".mce-grp-t.mce-collapse-head")).every(function (h) { return h.textContent.indexOf("▾") === 0; }), "全部展开后组标题均为 ▾");
+assert([].slice.call(modsPane.querySelectorAll(".mce-grp[data-tcat] .mce-grp-t.mce-collapse-head")).every(function (h) { return h.textContent.indexOf("▾") === 0; }), "全部展开后组标题均为 ▾");
 bAllClose.click();
 assert(grpBodies.every(function (b) { return b.getAttribute("data-collapsed") === "1"; }), "全部收起后所有组 data-collapsed=1");
 api.mbCEUiSave({ collapsed: {} });
@@ -545,6 +547,22 @@ setTimeout(function () {
   /* 13.3 七巡：核心属性钳制上限修正——八巡扩展：5 属性无上限（写超 2000 应成功），beauty 无上限 */
   api.renderPlayerEdit();
   const qp2 = document.querySelector('[data-pane="mods"]');
+  /* v1.9.16：玩家属性分组改可折叠（默认收起，学特质页；jsdom 中 CSS 隐藏不影响 DOM 查询，
+     此处先验证折叠结构再展开，模拟真实用户路径。属性组头文案「（当前值即游戏面板原始量纲…」唯一，
+     按文案过滤避免误中特质区折叠头（特质区 wrap 同为 .mce-grp 嵌套结构）破坏 13.5 懒渲染前提） */
+  const qHeads = [].slice.call(qp2.querySelectorAll(".mce-grp .mce-collapse-head")).filter(function (h) {
+    return h.textContent.indexOf("（当前值即游戏面板原始量纲") !== -1;
+  });
+  assert(qHeads.length >= 7, "玩家属性分组全部可折叠（≥7 组折叠头）, 实际 " + qHeads.length);
+  assert(qHeads.filter(function (h) { return h.nextElementSibling && h.nextElementSibling.getAttribute("data-collapsed") === "1"; }).length >= 7, "属性组默认收起（data-collapsed=1）");
+  qHeads.forEach(function (h) { try { h.click(); } catch (e) {} });
+  assert(qHeads.filter(function (h) { return h.nextElementSibling && h.nextElementSibling.getAttribute("data-collapsed") === "0"; }).length >= 7, "点击后属性组展开（data-collapsed=0）");
+  /* v1.9.16 自查补：展开状态持久化往返——重建后 restoreOpen 应保持展开（读 collapsed["quick:组名"]） */
+  api.renderPlayerEdit();
+  const qHeads2 = [].slice.call(qp2.querySelectorAll(".mce-grp .mce-collapse-head")).filter(function (h) {
+    return h.textContent.indexOf("（当前值即游戏面板原始量纲") !== -1;
+  });
+  assert(qHeads2.filter(function (h) { return h.nextElementSibling && h.nextElementSibling.getAttribute("data-collapsed") === "0"; }).length >= 7, "展开状态持久化：重建后属性组仍展开（data-collapsed=0）");
   function quickRowByLabel(lbl) {
     return [].slice.call(qp2.querySelectorAll(".mce-row")).filter(function (r) { return r.textContent.indexOf(lbl) !== -1; })[0];
   }
@@ -670,6 +688,8 @@ setTimeout(function () {
       assert(sptxt.indexOf("THREW") === -1, "15 本体 111 键全量渲染不崩（THREW 检测）");
       assert(sptxt.indexOf("原版剧情（游戏本体注册，111 场景）") !== -1, "15 原版区计数 = 111，实际 " + sptxt.slice(sptxt.indexOf("原版剧情"), sptxt.indexOf("原版剧情") + 60));
       assert(sptxt.indexOf("MOD 剧情（第三方模组注册，2 场景）") !== -1, "15 MOD 区计数 = 2（widget 注入 1 + 运行时注入 1），实际 " + sptxt.slice(sptxt.indexOf("MOD 剧情"), sptxt.indexOf("MOD 剧情") + 60));
+      /* v1.9.16：角色译名统一——Alex 分组标题「亚历克斯」→「艾利克斯」（与 01-core 角色名表一致） */
+      assert(sptxt.indexOf("艾利克斯 Alex") !== -1 && sptxt.indexOf("亚历克斯 Alex") === -1, "15 角色译名：Alex 分组标题 = 艾利克斯 Alex（修复前显示 亚历克斯），实际 " + sptxt.slice(sptxt.indexOf("艾利克斯"), sptxt.indexOf("艾利克斯") + 30));
       /* v1.9.2 自查：MOD 场景区懒渲染折叠——收起时场景键不渲染，点击标题展开后才补建 */
       const scPane = document.querySelector('[data-pane="scenes"]');
       const modRegion = scPane.querySelector('.mce-grp[data-tcat="MOD 场景"]');

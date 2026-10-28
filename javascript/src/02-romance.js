@@ -195,7 +195,7 @@
 		try {
 			if (parsed.type === "set") {
 				v[parsed.path] = Number(parsed.value);
-				/* 一键完成亚历克斯农场阶段会把 $farm_stage 直接置高（绕过本体农场线初始化），
+				/* 一键完成艾利克斯农场阶段会把 $farm_stage 直接置高（绕过本体农场线初始化），
 				   若不补 $farm 空壳，之后任何含 <<social>> 的段落会崩（读 $farm.beasts/aggro）→ 写入点立即兜底 */
 				if (parsed.path === "farm_stage") { ensureFarmState(); }
 				return true;

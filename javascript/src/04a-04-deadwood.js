@@ -7,7 +7,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.5.2",
+			modName: "枯木逢春 · Deadwood Reblooms 2.5.3",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -271,7 +271,11 @@
 				{ key: "or_sales_income", name: "果园 · 累计销售收入（便士，2.5.0 说明页新增）", varPath: "Orchard.sales_income", type: "number", min: 0, max: 100000000,
 				  note: "果园供货累计收入（便士，1英镑=100便士）：仅统计口径，写高即账目好看" },
 				{ key: "or_regular_visits", name: "果园 · 常客到访次数（2.5.0 说明页新增）", varPath: "Orchard.regular_visits", type: "number", min: 0, max: 999,
-				  note: "果园常客线：regular_visits 累计到访次数（常客系统按次数推进）" }
+				  note: "果园常客线：regular_visits 累计到访次数（常客系统按次数推进）" },
+				{ key: "dw_science_progression", name: "科学课 · 事件进度（0-4，2.5.3 新增）", varPath: "scienceprogression", type: "number", min: 0, max: 4,
+				  note: "2.5.3 新增科学系统：scienceprogression 控制科学课演示事件档位（0 未开始 → 4 最高阶段）；演示触发另需 delinquency≥10 且衣着含裸露部位（Science.ts 判定），写 4 后配合该条件即达最高档演示" },
+				{ key: "psy_mood", name: "心智 · 恐惧/入迷（-1000~1000，2.5.3 新增）", varPath: "Psyche.mood", type: "number", min: -1000, max: 1000,
+				  note: "2.5.3 心智系统核心值：负数=入迷 Fascination、正数=恐惧 Dread，|值|>200 进入极端态（影响疲惫/特质污染判定）；写 -1000 拉满入迷或 1000 拉满恐惧（模组自带 PsycheCheats 页同键）" }
 			]
 		}
 	};

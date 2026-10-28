@@ -181,8 +181,8 @@
 			{ key: "bridge", name: "桥梁", path: "town_projects.bridge", max: 5, note: "桥梁工程（≥4 解锁穿桥去 Flats 公寓区）" },
 			{ key: "green", name: "绿地", path: "town_projects.green", max: 5, note: "绿地工程（≥4 解锁绿地社交场景）" }
 		]},
-		{ name: "农场（亚历克斯线）", note: "亚历克斯农场主线阶段系统", items: [
-			{ key: "farm_stage", name: "农场阶段", path: "farm_stage", max: 12, note: "亚历克斯农场主线阶段（≥7 满足恋人条件）" },
+		{ name: "农场（艾利克斯线）", note: "艾利克斯农场主线阶段系统", items: [
+			{ key: "farm_stage", name: "农场阶段", path: "farm_stage", max: 12, note: "艾利克斯农场主线阶段（≥7 满足恋人条件）" },
 			{ key: "farm_phase", name: "农场进程", path: "farm_phase", max: 1, note: "农场当季进程（0/1 二态）" }
 		]},
 		{ name: "城市与公寓", note: "公寓区/商店/阁楼/妓院地点阶段", items: [

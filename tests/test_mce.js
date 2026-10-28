@@ -1173,7 +1173,7 @@ var dwdPaths = [];
 dwd.stages.concat(dwd.abilities).concat(dwd.values).forEach(function (it) { dwdPaths.push(it.varPath); });
 var dwdRoots = [];
 dwdPaths.forEach(function (p) { if (dwdRoots.indexOf(p.split(".")[0]) === -1) { dwdRoots.push(p.split(".")[0]); } });
-assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "Transport", "maplebirch", "Psyche", "Orchard", "loveInterestList"].indexOf(r) !== -1; }),
+assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "Transport", "maplebirch", "Psyche", "Orchard", "loveInterestList", "scienceprogression"].indexOf(r) !== -1; }),
 	"21.2 声明根键均为模组模块状态, 实际 [" + dwdRoots + "]");
 // 隔离补充：一级键全为模组模块根（V.RobinExpansion 等），绝不落到原版顶层键上；
 // rebellion/victories/self_rent 等在模组里只是 RobinExpansion 对象内的自建副本（模组从不读写原版顶层同名键，已 grep 实证）
@@ -1298,9 +1298,24 @@ api.applyCheatModValue("deadwood-reblooms", "or_orders_completed", 5);
 api.applyCheatModValue("deadwood-reblooms", "or_contracts_completed", 2);
 api.applyCheatModValue("deadwood-reblooms", "or_sales_income", 10000);
 assert(V.Orchard.orders_completed === 5 && V.Orchard.contracts_completed === 2 && V.Orchard.sales_income === 10000, "21.13 果园 订单/合同/收入 写入");
+// 21.14) v2.5.3 新增键：科学课事件档位 + 心智恐惧/入迷（模组 PsycheCheats 页同键同界）
+var dwdSci = dwd.values.filter(function (x) { return x.key === "dw_science_progression"; })[0];
+assert(dwdSci && dwdSci.varPath === "scienceprogression" && dwdSci.min === 0 && dwdSci.max === 4, "21.14 科学课进度声明存在（scienceprogression 0-4）");
+api.applyCheatModValue("deadwood-reblooms", "dw_science_progression", 4);
+assert(V.scienceprogression === 4, "21.14 科学课进度写 4, 实际 " + V.scienceprogression);
+api.applyCheatModValue("deadwood-reblooms", "dw_science_progression", -1);
+assert(V.scienceprogression === 0, "21.14 科学课进度下限钳 0, 实际 " + V.scienceprogression);
+var dwdMood = dwd.values.filter(function (x) { return x.key === "psy_mood"; })[0];
+assert(dwdMood && dwdMood.varPath === "Psyche.mood" && dwdMood.min === -1000 && dwdMood.max === 1000, "21.14 心智 mood 声明存在（-1000~1000）");
+api.applyCheatModValue("deadwood-reblooms", "psy_mood", -1000);
+assert(V.Psyche.mood === -1000, "21.14 心智入迷写 -1000, 实际 " + V.Psyche.mood);
+api.applyCheatModValue("deadwood-reblooms", "psy_mood", 5000);
+assert(V.Psyche.mood === 5000, "21.14 心智恐惧写 5000 原样（v1.9.10 上限不钳制策略，max 仅 UI 提示、模组自钳）, 实际 " + V.Psyche.mood);
+api.applyCheatModValue("deadwood-reblooms", "psy_mood", -5000);
+assert(V.Psyche.mood === -1000, "21.14 心智入迷下限钳 -1000（min 声明生效）, 实际 " + V.Psyche.mood);
 // 清理 21 节
 delete V.RobinExpansion; delete V.LifeSimulation; delete V.StreetLife; delete V.BirdTower; delete global.window;
-delete V.MoreTransformations; delete V.Psyche; delete V.maplebirch; delete V.Orchard; delete V.loveInterestList;
+delete V.MoreTransformations; delete V.Psyche; delete V.maplebirch; delete V.Orchard; delete V.loveInterestList; delete V.scienceprogression;
 Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:deadwood-reblooms") === 0; }).forEach(function (k) { delete V.mbCE_wrote[k]; });
 
 // 22) v1.4.4 修复：原版 scenes 的 unlocked 全依赖 $scenePassages.includes(...)（已看段落表），

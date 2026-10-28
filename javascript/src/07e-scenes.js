@@ -321,7 +321,7 @@
 	function sceneRoleOf(key) {
 		var k = String(key || "");
 		var rules = [
-			{ test: /^NightmareAlex/, role: "亚历克斯 Alex" },
+			{ test: /^NightmareAlex/, role: "艾利克斯 Alex" },
 			{ test: /^NightmareEden/, role: "伊甸 Eden" },
 			{ test: /^NightmareHarper/, role: "哈珀 Harper" },
 			{ test: /^NightmareOffice/, role: "艾弗里 Avery" },
@@ -330,7 +330,7 @@
 			{ test: /^Kylar|^HalloweenKylar/, role: "凯拉尔 Kylar" },
 			{ test: /^Eden|^FreeTheBlackDog/, role: "伊甸 Eden" },
 			{ test: /^BlackWolf/, role: "黑狼 Black Wolf" },
-			{ test: /^Alex|^TheFarm$|^MoorFlower/, role: "亚历克斯 Alex" },
+			{ test: /^Alex|^TheFarm$|^MoorFlower/, role: "艾利克斯 Alex" },
 			{ test: /^Avery/, role: "艾弗里 Avery" },
 			{ test: /^Harper/, role: "哈珀 Harper" },
 			{ test: /^Temple/, role: "神殿 Temple" },

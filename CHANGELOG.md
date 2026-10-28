@@ -2,6 +2,21 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.16（2026-10-28 · 已发布）
+
+**双模组适配更新：枯木逢春 2.5.3 + 归途之书 1.4.3（2026-10-28）**
+
+### 适配器更新
+
+- **枯木逢春 2.5.2 → 2.5.3**：新增 **科学课系统** 作弊项——`scienceprogression`（0-4 档，控制科学课演示事件阶段，配合 delinquency 触发）；新增 **心智系统核心值** `Psyche.mood`（-1000~1000，负数=入迷/正数=恐惧，|值|>200 进极端态）；新增 `script/DeadwoodReblooms/Science.ts` + `twee/Science.twee` 两文件（84 文件变更）；
+- **归途之书 1.4.2 → 1.4.3**：小修复版（29 文件内容变更、无新增/删除文件、无新增作弊键），适配器版本号同步；
+- **键存活核对**：枯木 audit 97/133（73%，TS 动态键盲区），resolve_missing 汇总 122 KEEP + 9 REVIEW（按规则一律保留）；唯一 REMOVE 判定 `RobinExpansion.investment.agreed` 经人工复核证伪（源码 `Finance\Adrian.twee:285` 为 `$RobinExpansion?.investment.agreed` 可选链写法，静态正则盲区误报）→ **保留声明**；归途 audit 55/57（96%），KEEP 全量 + REVIEW `TempleDuties.watch.phase`（保留）。
+
+### 验证
+
+- 全链 6 步全绿（build → syntax → smoke → 回归 → E2E → 性别集成）+ codegraph sync；zip 正斜杠 4/4、verifier 4/4；
+- 打包 SHA 见交付说明；game 内旧模组包已替换为官方 2.5.3 / 1.4.3 版。
+
 ## v1.9.15（2026-10-28 · 已发布）
 
 **数值固定（Lock Values）+ UI 动效六项全量发布（2026-10-28）**

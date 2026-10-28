@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.15**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v1.9.16**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -89,8 +89,8 @@
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.5.2 | 阶段 13 / 能力 65 / 数值 55 | `maplebirch.get("DeadwoodReblooms")` |
-| 归途之书 · Revelation | 1.4.2 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
+| 枯木逢春 · Deadwood Reblooms | 2.5.3 | 阶段 13 / 能力 65 / 数值 57 | `maplebirch.get("DeadwoodReblooms")` |
+| 归途之书 · Revelation | 1.4.3 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
 | DomRobin | 0.0.8 | 阶段 1 / 能力 11 / 数值 2 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
@@ -125,6 +125,10 @@
 
 ## 版本说明
 
+- **v1.9.16（2026-10-28 · 已发布）**：
+  - **双模组适配更新**：枯木逢春 `2.5.2 → 2.5.3`（新增科学课系统作弊项 `scienceprogression` 0-4 档 + 心智核心值 `Psyche.mood` -1000~1000 恐惧/入迷，数值 55 → 57）；归途之书 `1.4.2 → 1.4.3`（修复版，无新键，仅升声明版本）；
+  - **键存活核对**：枯木 audit 97/133 + resolve 122 KEEP / 9 REVIEW 全部保留（唯一 REMOVE 判定 `RobinExpansion.investment.agreed` 复核证伪——源码 `Finance\Adrian.twee:285` 为 `?.` 可选链写法，静态正则盲区误报，**保留声明**）；归途 55/57 + KEEP 全量保留；
+  - **验证**：全链 6 步全绿 + codegraph sync；game 内官方模组包替换为 2.5.3 / 1.4.3；
 - **v1.9.12（2026-10-26 · 已发布）**：
   - **全局页新增「世界腐化（原版 World Corruption）」数值调整**：世界硬腐化 `world_corruption_hard`（罪孽/净化计数，原版宏钳 -30~30 初始 2）+ 世界软腐化 `world_corruption_soft`（世界异变程度，原版宏钳 0~100 初始 0，≥30 增怨灵聚合几率、≥70 触发校园衣物记忆）两行，每行当前值 + 数值输入框 + 应用 + 回退；复用地点页 `placeStageWrite/placeStageUndo` 通道（绕过原版根键黑名单直写，留痕 `place:` 前缀可回退）；**上限不钳制**（直填多少就是多少，原版事件驱动由游戏自身负责）、**下限按原版语义保留**（hard ≥ -30 / soft ≥ 0 防负值破坏）；应用/回退**局部刷新行内值不重建整页**（不丢滚动）；回退按钮 title 标注"还原到首次写入前状态"；
   - **自行测试（显式验收）**：回归新增 §48（15 条：直写绕过黑名单 / 上限不钳制 hard=50·soft=150 / 下限钳制 hard=-40→-30·soft=-5→0 / 既有值回退还原 / 无字段回退删字段）；E2E 新增 W 区块（11 条：区块渲染、两行 data-wckey、输入框+应用、应用→写入+留痕+回退按钮、回退还原+清留痕、软腐化负值钳 0）；smoke 补全局页世界腐化区断言（区块+初始值回显 2/0）；全链 6 步全绿 + codegraph sync；打包 verifier 4/4 + 装入 game；升版 1.9.12 双源完成；已发布（Release v1.9.12，资产 SHA256 `DA043171…AB5E0` 回读一致）；

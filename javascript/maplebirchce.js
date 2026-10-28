@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.15";
+	var MCE_VERSION = "1.9.16";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -657,7 +657,7 @@
 		try {
 			if (parsed.type === "set") {
 				v[parsed.path] = Number(parsed.value);
-				/* 一键完成亚历克斯农场阶段会把 $farm_stage 直接置高（绕过本体农场线初始化），
+				/* 一键完成艾利克斯农场阶段会把 $farm_stage 直接置高（绕过本体农场线初始化），
 				   若不补 $farm 空壳，之后任何含 <<social>> 的段落会崩（读 $farm.beasts/aggro）→ 写入点立即兜底 */
 				if (parsed.path === "farm_stage") { ensureFarmState(); }
 				return true;
@@ -828,7 +828,7 @@
 				fixed += unlockVanillaAll(name);
 			}
 		});
-		ensureFarmState(); /* 一键完成后兜底：若写入了 farm_stage（亚历克斯农场阶段），立即补 $farm 空壳防社交页崩 */
+		ensureFarmState(); /* 一键完成后兜底：若写入了 farm_stage（艾利克斯农场阶段），立即补 $farm 空壳防社交页崩 */
 		return { characters: chars.length, total: total, fixed: fixed };
 	}
 	function globalTransform() {
@@ -1636,7 +1636,7 @@ var CHEAT_ADAPTERS = {};
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.4.2",
+			modName: "默示录：归途之书 v1.4.3",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -1839,7 +1839,7 @@ var CHEAT_ADAPTERS = {};
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.5.2",
+			modName: "枯木逢春 · Deadwood Reblooms 2.5.3",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -2103,7 +2103,11 @@ var CHEAT_ADAPTERS = {};
 				{ key: "or_sales_income", name: "果园 · 累计销售收入（便士，2.5.0 说明页新增）", varPath: "Orchard.sales_income", type: "number", min: 0, max: 100000000,
 				  note: "果园供货累计收入（便士，1英镑=100便士）：仅统计口径，写高即账目好看" },
 				{ key: "or_regular_visits", name: "果园 · 常客到访次数（2.5.0 说明页新增）", varPath: "Orchard.regular_visits", type: "number", min: 0, max: 999,
-				  note: "果园常客线：regular_visits 累计到访次数（常客系统按次数推进）" }
+				  note: "果园常客线：regular_visits 累计到访次数（常客系统按次数推进）" },
+				{ key: "dw_science_progression", name: "科学课 · 事件进度（0-4，2.5.3 新增）", varPath: "scienceprogression", type: "number", min: 0, max: 4,
+				  note: "2.5.3 新增科学系统：scienceprogression 控制科学课演示事件档位（0 未开始 → 4 最高阶段）；演示触发另需 delinquency≥10 且衣着含裸露部位（Science.ts 判定），写 4 后配合该条件即达最高档演示" },
+				{ key: "psy_mood", name: "心智 · 恐惧/入迷（-1000~1000，2.5.3 新增）", varPath: "Psyche.mood", type: "number", min: -1000, max: 1000,
+				  note: "2.5.3 心智系统核心值：负数=入迷 Fascination、正数=恐惧 Dread，|值|>200 进入极端态（影响疲惫/特质污染判定）；写 -1000 拉满入迷或 1000 拉满恐惧（模组自带 PsycheCheats 页同键）" }
 			]
 		}
 	};
@@ -3493,10 +3497,24 @@ var CHEAT_ADAPTERS = {};
 		psec.appendChild(el("div", "mce-hint", "预设为固定值批量写入，逐项留痕（「回退」可逐项还原）；如需微调请在各分组手动改。"));
 		pane.appendChild(psec);
 		PANEL_QUICK_GROUPS.forEach(function (g) {
-			var box = el("div", "mce-grp");
-			box.appendChild(el("div", "mce-grp-t", g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）"));
-			g.items.forEach(function (it) { renderQuickRow(box, it); });
-			pane.appendChild(box);
+			/* v1.9.16：属性分组改可折叠（学特质页 .mce-collapse-head 机制，mbCEUiCollapsed 持久化，默认收起） */
+			var qkey = "quick:" + g.title;
+			var restoreOpen = (typeof mbCEUiState !== "undefined" && mbCEUiState && mbCEUiState.collapsed && mbCEUiState.collapsed[qkey] === 0);
+			var grp = el("div", "mce-grp");
+			var headTxt = (restoreOpen ? "▾ " : "▸ ") + g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）";
+			var head = el("div", "mce-grp-t mce-collapse-head", headTxt);
+			var body = el("div", "mce-grp-body");
+			body.setAttribute("data-collapsed", restoreOpen ? "0" : "1");
+			head.addEventListener("click", function () {
+				var open = body.getAttribute("data-collapsed") !== "1";
+				body.setAttribute("data-collapsed", open ? "1" : "0");
+				head.textContent = (open ? "▸ " : "▾ ") + g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）";
+				mbCEUiCollapsed(qkey, !open);
+			});
+			grp.appendChild(head);
+			grp.appendChild(body);
+			g.items.forEach(function (it) { renderQuickRow(body, it); });
+			pane.appendChild(grp);
 		});
 	}
 	/* v1.9.13 预设模板执行器：固定值表 × PANEL_QUICK_GROUPS 逐项写入（统一走 quickWrite 留痕）。
@@ -5172,8 +5190,8 @@ function renderPlayerEdit() {
 		"syndromeeden": "伊甸·专属综合征（已建立伊甸关系）",
 		"syndromewolves": "黑狼·狼群综合征",
 		"syndromebird": "巨鹰·鸟类综合征",
-		"farm_stage": "亚历克斯·农场阶段",
-		"alex_countdown": "亚历克斯·事件倒计时",
+		"farm_stage": "艾利克斯·农场阶段",
+		"alex_countdown": "艾利克斯·事件倒计时",
 		"auriga_artefact": "御夫座神器（艾弗里线剧情节点）",
 		"gwylanSeen": "格威岚·恋爱经历",
 		"lunaSeen": "露娜·恋爱经历",
@@ -5367,8 +5385,8 @@ function renderPlayerEdit() {
 			{ key: "bridge", name: "桥梁", path: "town_projects.bridge", max: 5, note: "桥梁工程（≥4 解锁穿桥去 Flats 公寓区）" },
 			{ key: "green", name: "绿地", path: "town_projects.green", max: 5, note: "绿地工程（≥4 解锁绿地社交场景）" }
 		]},
-		{ name: "农场（亚历克斯线）", note: "亚历克斯农场主线阶段系统", items: [
-			{ key: "farm_stage", name: "农场阶段", path: "farm_stage", max: 12, note: "亚历克斯农场主线阶段（≥7 满足恋人条件）" },
+		{ name: "农场（艾利克斯线）", note: "艾利克斯农场主线阶段系统", items: [
+			{ key: "farm_stage", name: "农场阶段", path: "farm_stage", max: 12, note: "艾利克斯农场主线阶段（≥7 满足恋人条件）" },
 			{ key: "farm_phase", name: "农场进程", path: "farm_phase", max: 1, note: "农场当季进程（0/1 二态）" }
 		]},
 		{ name: "城市与公寓", note: "公寓区/商店/阁楼/妓院地点阶段", items: [
@@ -5930,7 +5948,7 @@ function renderPlayerEdit() {
 	function sceneRoleOf(key) {
 		var k = String(key || "");
 		var rules = [
-			{ test: /^NightmareAlex/, role: "亚历克斯 Alex" },
+			{ test: /^NightmareAlex/, role: "艾利克斯 Alex" },
 			{ test: /^NightmareEden/, role: "伊甸 Eden" },
 			{ test: /^NightmareHarper/, role: "哈珀 Harper" },
 			{ test: /^NightmareOffice/, role: "艾弗里 Avery" },
@@ -5939,7 +5957,7 @@ function renderPlayerEdit() {
 			{ test: /^Kylar|^HalloweenKylar/, role: "凯拉尔 Kylar" },
 			{ test: /^Eden|^FreeTheBlackDog/, role: "伊甸 Eden" },
 			{ test: /^BlackWolf/, role: "黑狼 Black Wolf" },
-			{ test: /^Alex|^TheFarm$|^MoorFlower/, role: "亚历克斯 Alex" },
+			{ test: /^Alex|^TheFarm$|^MoorFlower/, role: "艾利克斯 Alex" },
 			{ test: /^Avery/, role: "艾弗里 Avery" },
 			{ test: /^Harper/, role: "哈珀 Harper" },
 			{ test: /^Temple/, role: "神殿 Temple" },
@@ -6432,7 +6450,7 @@ mbCELockEnsureTimer();
 			}
 			/* 防崩：农场依赖剧情需 $farm 已初始化（本体 farm_work_update 内 V.farm.clearing -= 1，未初始化直接崩） */
 			if (isFarmDependentScene({ startPassage: start, manualVariableChanges: def.manualVariableChanges || "" }) && !farmStateReady()) {
-				return { ok: false, message: "「" + (def.name || it.key) + "」依赖农场系统状态（$farm 未初始化）：直接播放会触发本体 farm_work_update 崩溃。请先推进游戏到亚历克斯农场线后再固定" };
+				return { ok: false, message: "「" + (def.name || it.key) + "」依赖农场系统状态（$farm 未初始化）：直接播放会触发本体 farm_work_update 崩溃。请先推进游戏到艾利克斯农场线后再固定" };
 			}
 			q.push({
 				key: it.key,

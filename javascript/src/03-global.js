@@ -23,7 +23,7 @@
 				fixed += unlockVanillaAll(name);
 			}
 		});
-		ensureFarmState(); /* 一键完成后兜底：若写入了 farm_stage（亚历克斯农场阶段），立即补 $farm 空壳防社交页崩 */
+		ensureFarmState(); /* 一键完成后兜底：若写入了 farm_stage（艾利克斯农场阶段），立即补 $farm 空壳防社交页崩 */
 		return { characters: chars.length, total: total, fixed: fixed };
 	}
 	function globalTransform() {

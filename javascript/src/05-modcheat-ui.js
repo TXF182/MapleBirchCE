@@ -793,10 +793,24 @@
 		psec.appendChild(el("div", "mce-hint", "预设为固定值批量写入，逐项留痕（「回退」可逐项还原）；如需微调请在各分组手动改。"));
 		pane.appendChild(psec);
 		PANEL_QUICK_GROUPS.forEach(function (g) {
-			var box = el("div", "mce-grp");
-			box.appendChild(el("div", "mce-grp-t", g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）"));
-			g.items.forEach(function (it) { renderQuickRow(box, it); });
-			pane.appendChild(box);
+			/* v1.9.16：属性分组改可折叠（学特质页 .mce-collapse-head 机制，mbCEUiCollapsed 持久化，默认收起） */
+			var qkey = "quick:" + g.title;
+			var restoreOpen = (typeof mbCEUiState !== "undefined" && mbCEUiState && mbCEUiState.collapsed && mbCEUiState.collapsed[qkey] === 0);
+			var grp = el("div", "mce-grp");
+			var headTxt = (restoreOpen ? "▾ " : "▸ ") + g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）";
+			var head = el("div", "mce-grp-t mce-collapse-head", headTxt);
+			var body = el("div", "mce-grp-body");
+			body.setAttribute("data-collapsed", restoreOpen ? "0" : "1");
+			head.addEventListener("click", function () {
+				var open = body.getAttribute("data-collapsed") !== "1";
+				body.setAttribute("data-collapsed", open ? "1" : "0");
+				head.textContent = (open ? "▸ " : "▾ ") + g.title + "（当前值即游戏面板原始量纲，输入目标值后点应用）";
+				mbCEUiCollapsed(qkey, !open);
+			});
+			grp.appendChild(head);
+			grp.appendChild(body);
+			g.items.forEach(function (it) { renderQuickRow(body, it); });
+			pane.appendChild(grp);
 		});
 	}
 	/* v1.9.13 预设模板执行器：固定值表 × PANEL_QUICK_GROUPS 逐项写入（统一走 quickWrite 留痕）。
