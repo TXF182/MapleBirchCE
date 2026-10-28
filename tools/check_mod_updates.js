@@ -45,6 +45,8 @@ const CHANNELS = [
     extractDecl: /(\d+(?:\.\d+)+)/, gameGlob: "DoLSims.mod.zip" },
   { modId: "cattery", repo: "Maomaoi/Degrees-of-Lewdity-Cattery",
     extractDecl: /(\d+(?:\.\d+)+)/, gameGlob: "Cattery*.zip" },
+  { modId: "more-farm-upgrade", repo: "Qsx0391/DOL-More-Farm-Upgrade-Mod",
+    extractDecl: /(\d+(?:\.\d+)+)/, gameGlob: "MoreFarmUpgrade*.zip" },
   { modId: "maplebirch-framework", repo: "MaplebirchLeaf/SCML-DOL-maplebirchFramework",
     /* 框架本体（非适配器）：declOverride = 本地实测兼容版本。升版前必须跑
        `node tools/check_framework_api.js <新版 inject_early.js>` 核对 CE 依赖的

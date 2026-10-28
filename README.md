@@ -1,6 +1,6 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**9 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**10 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
@@ -97,10 +97,11 @@
 | 原版优化 Dol-Optimization | 1.1.2.1 | 阶段 1 / 能力 4 / 数值 5 | `window.DolOptimization` |
 | Wraith'sReflection · 幽灵的倒影 | 1.3.4 | 阶段 4 / 能力 4 / 数值 2 | `V` 自有根并集（WraithsReflection/HelpAsk/项链系） |
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
-| 猫舍 Cattery（猫咖/出租屋/养宠/飞行） | 1.1.8.2 | 阶段 9 / 数值 39（租屋/养猫/菜品/食材/飞行/书房/清洁） | `window.createCafePC`（或 V 顶层键兜底） |
+| 猫舍 Cattery（猫咖/出租屋/养宠/飞行） | 1.1.9 | 阶段 9 / 能力 3 / 数值 39（租屋/养猫/菜品/食材/飞行/书房/清洁） | `window.createCafePC`（或 V 顶层键兜底） |
+| 更多农场升级 More Farm Upgrade | 1.0.8 | 数值 21 / 能力 16（11 设施/资源/农夫/温室田/许可） | `V.farm` 扩展字段并集（cultivator/seeder/harvester/compost/laboratory 等） |
 | maplebirch 框架本体 | 5.5.6 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
-> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**10 渠道全覆盖**：9 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery）+ 框架本体。
+> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**11 渠道全覆盖**：10 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade）+ 框架本体。
 > **自动替换旧模组包**：`tools/check_mod_updates.js --apply` 检测到适配模组有新版时，自动下载官方最新包（api.github.com assets 端点 + 302 跟随）并替换 `game` 内旧模组包（按 gameGlob 匹配删除旧包后放入新包）；框架渠道不自动替换（升版前必须人工跑 `check_framework_api.js` 核对 API 兼容）。GitHub API 未认证有速率限制（403）时，设置 `GITHUB_TOKEN` 环境变量（仅内存使用）即可。已装模组包即官方最新版时，替换为幂等覆盖。
 
 ## 常见问题（FAQ）
@@ -557,6 +558,7 @@ MapleBirchCE/（git 源码真相源）
 │   │   ├── 04a-07-wraiths.js       # 适配器：Wraith's Reflection
 │   │   ├── 04a-08-dolsims.js       # 适配器：DoLSims
 │   │   ├── 04a-09-cattery.js       # 适配器：Cattery
+│   │   ├── 04a-10-morefarm.js      # 适配器：More Farm Upgrade（农场 11 设施/资源/农夫）
 │   │   ├── 04b-modcheat-write.js  # 通用写入执行器 + 回退
 │   │   ├── 04c-modcheat-util.js   # 适配器标准化/审计工具
 │   │   ├── 05-modcheat-ui.js      # Mod作弊动态发现 + 渲染 + 玩家属性编辑

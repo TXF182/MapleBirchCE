@@ -2,6 +2,26 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.19（2026-10-28 · More Farm Upgrade 适配轮 + 三轮自查优化 · 已发布）
+
+**新适配器：More Farm Upgrade（DOL-More-Farm-Upgrade-Mod v1.0.8，Qsx0391）**
+
+### 适配内容（对照 `tools/_modcache/farm108` 官方源码实证）
+
+- **新适配器第 10 个**：`04a-10-morefarm.js`，modId `more-farm-upgrade`，注册进 CHEAT_ADAPTERS；
+- **数值 21 项**：
+  - 设施 11：耕地机 0-2（2=量子温室可用）/ 播种机 0-2 / 收割机 0-3（3=智能监控稳定高产）/ 施工机械 0-1（缩短建造）/ 温室大棚 0-9（逐块田覆盖）/ 实验室 0-1（花→催情剂）/ 冷藏库 0-1（库存 ×1.25）/ 堆肥 0-1（周产 1 袋肥）/ 农舍 0-1（可雇农夫）/ 坦克 0-1（袭击火力支援）/ 地下室 0-1（性爱机器）——等级由模组 `new_farm_build_day` 竣工写入（`cultivator/seeder/harvester` 用 `++` 逐级升），作弊直写等价"秒建"；
+  - 资源 5：诡异花储量 `flowers_stored`（1000/瓶）/ 催情剂药瓶 `phials_stored` / 肥料袋 `fertiliser_stored` / 堆肥周期 `compost_timer` / 蒸馏计时 `farm.still_timer`（实验室 1 天）；
+  - 农夫 5：欠薪 `farm.farmer_unpaid` / 耐心 `farm.farmer_patience`（每周一归 0、安抚置 1，boot.json `isnot 1` 触发催薪线——写 1 免催薪）/ 周薪 `farm.farmer_wage` / 耕作技能 `farm.farmer_skill` / 自动售货计时 `farmerSellTimer`；
+- **能力 16 项**：温室田 1-9 覆盖（`plots.farm.N.greenhouse`，模组 `is true` 严格布尔→布尔通道）+ 农夫在岗（`farm.farmer` numeric 0/1，辞退写 0 联动补 `farmer_can_hire=true`）+ 可雇许可（`farm.farmer_can_hire`）+ **农夫自动干活许可 5 项**（`farmerCanWater`/`farmerCanTill`/`farmerCanPlant`/`farmerCanHarvest`/`farmerCanSell`——FarmerEvents.js farmerTendingDay/farmerSell 实证：许可缺一即跳过对应动作，**雇佣链联动默认 water/till/plant=true、harvest/sell=false**，PubFarmer.twee:132-137）；
+- **联动初始化（自查优化轮补）**：直写建堆肥（compost=1）自动补 `compost_timer=7` + `fertiliser_stored=0`（竣工语义 :324-325；compost 段模组无兜底，每日事件 `--undefined`=NaN 卡死不产肥）；直写建实验室（laboratory=1）自动补 `still_timer=1`（模组有页面级 FarmLaboratory:20 + boot.json patch 兜底，CE 预置 1 双保险立即蒸馏）；**写农夫在岗=1 自动补雇佣链**（water/till/plant=true、harvest/sell=false、sellTimer=7、**farmerPlantable=[]**——第三轮核查实证：`getPlantableList()` 对 `V.farmerPlantable.forEach` 无条件执行（FarmerEvents.js:153），undefined 时每日 farmerTendingDay 一运行即 TypeError 崩，此键为崩溃级必需）；均 `ifMissing` 不覆盖已有进度、`if.min:1` 门控保证拆除/辞退（写 0）不误补；
+- **隔离纪律**：不声明原版既有键（`farm.build` 施工中 / `farm.stock` 原版库存 / `plots.farm` 原版田本体）；瞬态战斗/收割标记（`$isInTank` / `$more_by_harvester`）不作弊；`farmersProduce` 农贸对象结构复杂不作弊直接写；
+- **检测渠道接入**：`check_mod_updates.js` 渠道 10→**11**（+ `more-farm-upgrade`：Qsx0391/DOL-More-Farm-Upgrade-Mod，gameGlob `MoreFarmUpgrade*.zip`），每日检测自动覆盖；
+- **对照源码**：`tools/_modcache/farm108`（v1.0.8，codeload zip 31 条目：3 js + 16 twee + boot.json + 图 + README/LICENSE）；`_dl_farm.py` 保留作可复现下载，`_probe_farm.py` 一次性探查已随本轮弃用；
+- **核对结论**：audit 22/31 字面 KEEP + 9 条 greenhouse 误报 REMOVE（`$plots.farm[$farm.field_greenhouse-1].greenhouse` 动态下标盲区，同 featsBoosts 先例）→ **31/31 全存活 KEEP，零删失**；自查优化轮补 `farmer_patience`（FarmFarmer.twee:316/NewFarmEvents.js:9/boot.json:54 三处实证）+ **5 许可键（farmerCanWater/Till/Plant/Harvest/Sell，第二轮自查：雇佣链实证，初版漏声明会导致雇农夫不干活）** → **37 条 varPath（数值 21 + 能力 16）**；
+- **测试**：test_mce 新增 50.x 章节 16 组断言（探测命中/隔离原版键/数值写读回/下限钳制/温室布尔通道/农夫在岗+辞退联动/资源直写/温室等级联动语义/农夫耐心写回/堆肥联动补周期+防覆盖+拆除门控/实验室联动补计时+防覆盖/雇佣链补许可+防覆盖+辞退门控/许可独立开关）；42.5 适配器数断言改版本无关（9→≥9）；
+- **验证**：run_all.ps1 6 步全绿 + codegraph sync；dev.ps1 打包 verifier 4/4、zip 正斜杠、装进 game；已发布（Release v1.9.19，资产 SHA 回读一致，见文末发布记录）。
+
 ## v1.9.18（2026-10-28 · 适配轮 + 自查优化 · 已发布）
 
 **四项 UI/测试优化 + 双模组适配更新：枯木逢春 2.5.5 + 归途之书 1.4.4（2026-10-28）**

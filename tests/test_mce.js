@@ -2972,10 +2972,10 @@ assert(c2.ok && V.skulduggery === 0, "42.4 skulduggery 写 -50 被钳制到 0，
 var c3 = api.quickWrite("purity", 9999);
 assert(c3.ok && V.purity === 9999, "42.4 purity 写 9999 上限不钳制（原样），实际 " + V.purity);
 
-/* 42.5）v1.8.12 适配器工作流审计：9 适配器全部健康，无错误/警告 */
+/* 42.5）v1.8.12 适配器工作流审计：全部适配器健康，无错误/警告（版本无关：断言 ≥9，具体数随新增适配器增长） */
 var aud = api.auditAdapters();
-assert(aud.total === 9, "42.5 审计覆盖 9 个适配器（8 旧 + Cattery），实际 " + aud.total);
-assert(aud.healthy === 9, "42.5 全部适配器健康（注册键=entry.modId、项 key/name/varPath 完整、有 detect），实际 healthy=" + aud.healthy);
+assert(aud.total >= 9, "42.5 审计覆盖 ≥9 个适配器，实际 " + aud.total);
+assert(aud.healthy >= 9, "42.5 全部适配器健康（注册键=entry.modId、项 key/name/varPath 完整、有 detect），实际 healthy=" + aud.healthy);
 assert(aud.errors.length === 0, "42.5 审计无错误，实际 " + JSON.stringify(aud.errors));
 assert(aud.warnings.length === 0, "42.5 审计无警告（无空适配器），实际 " + JSON.stringify(aud.warnings));
 assert(aud.healthy === aud.total, "42.5 healthy 与 total 一致（全部可渲染）");
@@ -3665,6 +3665,96 @@ for (var gi49 = 0; gi49 < qg49.length; gi49++) {
 }
 assert(zhMismatch.length === 0, "49.9 快捷组 label 与 zhKey(path) 全一致（翻译单一事实源）, 不一致 " + zhMismatch.join(","));
 assert(api.zhKey("anxiety") === "焦虑" && api.zhKey("drunk") === "醉酒" && api.zhKey("english") === "语文" && api.zhKey("arousal") === "情欲", "49.9 新增/统一翻译键: anxiety=焦虑 drunk=醉酒 english=语文 arousal=情欲, 实际 " + api.zhKey("anxiety") + "/" + api.zhKey("drunk") + "/" + api.zhKey("english") + "/" + api.zhKey("arousal"));
+
+/* 50) MoreFarmUpgrade 适配器（DOL-More-Farm-Upgrade-Mod v1.0.8 适配轮）：农场 11 设施/资源/农夫键 */
+/* 50.1 探测命中：V.farm 扩展字段出现即识别 more-farm-upgrade */
+global.V.farm = { compost: 1 };
+var mf50 = api.getCheatMods().filter(function (x) { return x.modId === "more-farm-upgrade"; })[0];
+assert(mf50 && mf50.declared === true, "50.1 MoreFarmUpgrade 探测命中, 实际 " + (mf50 ? mf50.declared : "未识别"));
+assert(mf50.values.length === 21 && mf50.abilities.length === 16, "50.1 声明 21 数值 + 16 能力, 实际 " + mf50.values.length + "/" + mf50.abilities.length);
+/* 50.2 隔离：适配器不声明原版既有键（farm.build 施工中/farm.stock 原版库存/plots.farm 原版田） */
+var mf50Paths = mf50.values.concat(mf50.abilities).map(function (x) { return x.varPath; });
+assert(mf50Paths.indexOf("farm.build") === -1 && mf50Paths.indexOf("farm.stock") === -1 && mf50Paths.indexOf("plots.farm") === -1, "50.2 隔离原版键 farm.build/farm.stock/plots.farm 不声明");
+assert(mf50Paths.indexOf("plots.farm.0.greenhouse") !== -1 && mf50Paths.indexOf("farm.farmer_can_hire") !== -1 && mf50Paths.indexOf("flowers_stored") !== -1, "50.2 新键存在：温室田 1/可雇许可/诡异花储量");
+/* 50.3 数值写入读回：收割机 3 级（智能监控稳定高产） */
+var wv50 = api.applyCheatModValue("more-farm-upgrade", "mf_harvester", 3);
+assert(wv50.ok && V.farm.harvester === 3, "50.3 mf_harvester=3 写回, 实际 " + V.farm.harvester);
+/* 50.4 越下限钳制到 0（max 由面板输入框约束，apply 层不钳） */
+var wv50b = api.applyCheatModValue("more-farm-upgrade", "mf_harvester", -2);
+assert(wv50b.ok && V.farm.harvester === 0, "50.4 越下限 -2 钳制到 0, 实际 " + V.farm.harvester);
+/* 50.5 温室能力布尔通道：田 1 覆盖（模组 is true 严格布尔，禁 numeric 1） */
+global.V.plots = { farm: [{}, {}, {}] };
+var ga50 = api.toggleCheatAbility("more-farm-upgrade", "mf_gh1", true);
+assert(ga50.ok && V.plots.farm[0].greenhouse === true, "50.5 mf_gh1 勾选写 boolean true, 实际 " + V.plots.farm[0].greenhouse);
+var ga50b = api.toggleCheatAbility("more-farm-upgrade", "mf_gh1", false);
+assert(ga50b.ok && V.plots.farm[0].greenhouse === false, "50.5 mf_gh1 取消写 false, 实际 " + V.plots.farm[0].greenhouse);
+/* 50.6 农夫在岗 numeric 0/1 + 辞退 sync 补可雇许可 */
+var fa50 = api.toggleCheatAbility("more-farm-upgrade", "mf_farmer_active", true);
+assert(fa50.ok && V.farm.farmer === 1, "50.6 农夫在岗写 1, 实际 " + V.farm.farmer);
+V.farm.farmer_can_hire = false;
+var fa50b = api.toggleCheatAbility("more-farm-upgrade", "mf_farmer_active", false);
+assert(fa50b.ok && V.farm.farmer === 0 && V.farm.farmer_can_hire === true, "50.6 辞退写 0 且 sync 补 can_hire=true, 实际 farmer=" + V.farm.farmer + " can_hire=" + V.farm.farmer_can_hire);
+/* 50.7 资源直写：催情剂药瓶/诡异花/肥料袋 */
+var wr50 = api.applyCheatModValue("more-farm-upgrade", "mf_phials", 5);
+assert(wr50.ok && V.phials_stored === 5, "50.7 phials_stored=5, 实际 " + V.phials_stored);
+var wr50b = api.applyCheatModValue("more-farm-upgrade", "mf_flowers", 1000);
+assert(wr50b.ok && V.flowers_stored === 1000, "50.7 flowers_stored=1000, 实际 " + V.flowers_stored);
+var wr50c = api.applyCheatModValue("more-farm-upgrade", "mf_fertiliser", 3);
+assert(wr50c.ok && V.fertiliser_stored === 3, "50.7 fertiliser_stored=3, 实际 " + V.fertiliser_stored);
+/* 50.8 温室等级 + 逐田标记联动语义核对：写等级 2 后勾选田 1/2 即完整生效（作弊两步走，note 已说明） */
+var wg50 = api.applyCheatModValue("more-farm-upgrade", "mf_greenhouse", 2);
+assert(wg50.ok && V.farm.field_greenhouse === 2, "50.8 field_greenhouse=2 写回, 实际 " + V.farm.field_greenhouse);
+/* 50.9 农夫耐心（自查补键）：写 1 免催薪（boot.json isnot 1 判定）/写 0 进入催薪 */
+delete V.farm.farmer_patience;
+var wpat = api.applyCheatModValue("more-farm-upgrade", "mf_farmer_patience", 1);
+assert(wpat.ok && V.farm.farmer_patience === 1, "50.9 mf_farmer_patience=1 写回（免催薪语义）, 实际 " + V.farm.farmer_patience);
+var wpat2 = api.applyCheatModValue("more-farm-upgrade", "mf_farmer_patience", 0);
+assert(wpat2.ok && V.farm.farmer_patience === 0, "50.9 mf_farmer_patience=0 写回（触发催薪语义）, 实际 " + V.farm.farmer_patience);
+/* 50.10 直写堆肥联动补周期：写 compost=1 → ifMissing 补 compost_timer=7 + fertiliser_stored=0（竣工语义，模组每日事件无 undefined 兜底） */
+V.farm.compost = 0; delete V.compost_timer; delete V.fertiliser_stored;
+var wc50 = api.applyCheatModValue("more-farm-upgrade", "mf_compost", 1);
+assert(wc50.ok && V.farm.compost === 1 && V.compost_timer === 7 && V.fertiliser_stored === 0, "50.10 compost=1 联动补 timer=7/肥=0, 实际 timer=" + V.compost_timer + " 肥=" + V.fertiliser_stored);
+/* 50.10b 已有进度不被覆盖（ifMissing 防覆盖）：timer=3/肥=2 再写 1 → 保持 */
+V.compost_timer = 3; V.fertiliser_stored = 2;
+var wc50b = api.applyCheatModValue("more-farm-upgrade", "mf_compost", 1);
+assert(wc50b.ok && V.compost_timer === 3 && V.fertiliser_stored === 2, "50.10b 已有堆肥进度不被联动覆盖, 实际 timer=" + V.compost_timer + " 肥=" + V.fertiliser_stored);
+/* 50.10c 拆除（写 0）不触发补周期 */
+delete V.compost_timer;
+var wc50c = api.applyCheatModValue("more-farm-upgrade", "mf_compost", 0);
+assert(wc50c.ok && V.compost_timer === undefined, "50.10c 拆除堆肥不补周期（if.min 1 门控）, 实际 timer=" + V.compost_timer);
+/* 50.11 直写实验室联动补蒸馏计时：写 laboratory=1 → ifMissing 补 still_timer=1（实验室蒸馏 1 天） */
+delete V.farm.still_timer;
+var wl50 = api.applyCheatModValue("more-farm-upgrade", "mf_laboratory", 1);
+assert(wl50.ok && V.farm.laboratory === 1 && V.farm.still_timer === 1, "50.11 laboratory=1 联动补 still_timer=1, 实际 " + V.farm.still_timer);
+/* 50.11b 已有蒸馏进度不被覆盖 */
+V.farm.still_timer = 4;
+var wl50b = api.applyCheatModValue("more-farm-upgrade", "mf_laboratory", 1);
+assert(wl50b.ok && V.farm.still_timer === 4, "50.11b 已有蒸馏进度不被联动覆盖, 实际 " + V.farm.still_timer);
+/* 50.12 雇佣链联动（第二轮自查补：FarmerEvents 五个许可缺一即跳过对应动作，farmerTendingDay 依赖 water/till/plant/harvest；
+   第三轮自查补：farmerPlantable 必初始化——getPlantableList() 对 V.farmerPlantable.forEach 无条件执行（FarmerEvents.js:153），
+   undefined 时每日事件一运行即 TypeError 崩）：
+   写 farmer=1 → 补 water/till/plant=true + harvest/sell=false + sellTimer=7 + farmerPlantable=[]（PubFarmer.twee:132-138 实证） */
+V.farm.farmer = 0; V.farm.farmer_can_hire = true;
+delete V.farmerCanWater; delete V.farmerCanTill; delete V.farmerCanPlant; delete V.farmerCanHarvest; delete V.farmerCanSell; delete V.farmerSellTimer; delete V.farmerPlantable;
+var fe50 = api.toggleCheatAbility("more-farm-upgrade", "mf_farmer_active", true);
+assert(fe50.ok && V.farm.farmer === 1 && V.farmerCanWater === true && V.farmerCanTill === true && V.farmerCanPlant === true && V.farmerCanHarvest === false && V.farmerCanSell === false && V.farmerSellTimer === 7 && Array.isArray(V.farmerPlantable) && V.farmerPlantable.length === 0,
+  "50.12 雇佣联动补许可链 water/till/plant=true + harvest/sell=false + timer=7 + farmerPlantable=[], 实际 " + V.farmerCanWater + "/" + V.farmerCanTill + "/" + V.farmerCanPlant + "/" + V.farmerCanHarvest + "/" + V.farmerCanSell + "/" + V.farmerSellTimer + "/" + (V.farmerPlantable && V.farmerPlantable.length));
+/* 50.12b 玩家已有许可不被覆盖（ifMissing 防覆盖）：先手动开收获/售货再雇佣 → 保持 */
+V.farmerCanHarvest = true; V.farmerCanSell = true;
+V.farm.farmer = 0;
+var fe50b = api.toggleCheatAbility("more-farm-upgrade", "mf_farmer_active", true);
+assert(fe50b.ok && V.farm.farmer === 1 && V.farmerCanHarvest === true && V.farmerCanSell === true, "50.12b 已有许可不被雇佣联动覆盖, 实际 harvest=" + V.farmerCanHarvest + " sell=" + V.farmerCanSell);
+/* 50.12c 辞退（写 0）不触发许可链（if.min:1 门控），仅补 can_hire */
+V.farmerCanWater = true;
+var fe50c = api.toggleCheatAbility("more-farm-upgrade", "mf_farmer_active", false);
+assert(fe50c.ok && V.farm.farmer === 0 && V.farm.farmer_can_hire === true && V.farmerCanWater === true, "50.12c 辞退补 can_hire 且许可链不被清空, 实际 farmer=" + V.farm.farmer + " water=" + V.farmerCanWater);
+/* 50.13 农夫许可独立布尔开关：浇水/收获/售货写回 */
+var pl50 = api.toggleCheatAbility("more-farm-upgrade", "mf_can_water", false);
+assert(pl50.ok && V.farmerCanWater === false, "50.13 mf_can_water 取消写 false, 实际 " + V.farmerCanWater);
+var pl50b = api.toggleCheatAbility("more-farm-upgrade", "mf_can_harvest", true);
+assert(pl50b.ok && V.farmerCanHarvest === true, "50.13 mf_can_harvest 勾选写 true, 实际 " + V.farmerCanHarvest);
+var pl50c = api.toggleCheatAbility("more-farm-upgrade", "mf_can_sell", true);
+assert(pl50c.ok && V.farmerCanSell === true, "50.13 mf_can_sell 勾选写 true, 实际 " + V.farmerCanSell);
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);
