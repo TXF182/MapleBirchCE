@@ -38,6 +38,8 @@ const EXTS = new Set([".js", ".ts", ".jsx", ".tsx", ".twee", ".yaml", ".json"]);
 const NON_FIELD_TAILS = new Set(["includes", "pushUnique", "filter", "map", "forEach", "push", "pop", "splice", "slice", "join", "sort", "reverse", "reduce", "reduceRight", "keys", "values", "entries", "hasOwnProperty", "indexOf", "lastIndexOf", "find", "findIndex", "some", "every", "replace", "split", "trim", "toLowerCase", "toUpperCase", "toString", "valueOf", "concat", "flat", "flatMap", "at", "shift", "unshift", "length", "delete"]);
 const actualByRoot = {}; // root -> Set(路径)
 const allPaths = new Set();
+const dynamicPrefixes = new Set(); // ['<prefix>' + ...] 拼接访问的前缀（键名 = 前缀 + 运行时变量）
+const aliases = {}; // 别名绑定：const state = V.RobinTemple → { state: "RobinTemple" }（消除别名/解构盲区）
 function addPath(full) {
   const segs = full.split(".");
   while (segs.length > 1 && NON_FIELD_TAILS.has(segs[segs.length - 1])) { segs.pop(); }
@@ -61,10 +63,25 @@ function walk(dir) {
       try {
         const txt = fs.readFileSync(p, "utf8");
         /* 多段：V.Root.field（TS/JS 直访）与 $Root.field（SugarCube twee 宏）；
-           单段：V.key / $key（DomRobin 等顶层单键模组），仅赋值为显著形态也收录 */
-        const re = /(?:\bV\.|\$)([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g;
+           单段：V.key / $key（DomRobin 等顶层单键模组），仅赋值为显著形态也收录；
+           增强：引号键段（['x']/["x"]，含连字符/数字键）与可选链段（?.field）并入路径，
+           消除动态/可选链盲区；纯拼接前缀（['deadwood-' + ...]）另经 dynamicPrefixes 收集提示 */
+        const re = /(?:\bV\.|\$)([A-Za-z_$][\w$]*(?:(?:\.[A-Za-z_$][\w$]*)|(?:\?\.[A-Za-z_$][\w$]*)|(?:\[['"][A-Za-z0-9_$-]+['"]\]))*)/g;
         let m;
-        while ((m = re.exec(txt)) !== null) { addPath(m[1]); }
+        while ((m = re.exec(txt)) !== null) {
+          const norm = m[1].replace(/\?\./g, ".").replace(/\[['"]([^'"]+)['"]\]/g, ".$1");
+          addPath(norm);
+        }
+        const dynRe = /\[['"]([A-Za-z0-9_$-]+)['"]\s*\+/g;
+        while ((m = dynRe.exec(txt)) !== null) { dynamicPrefixes.add(m[1]); }
+        /* 别名绑定：const state = V.RobinTemple → state.faith_band 归位为 RobinTemple.faith_band */
+        const aliasRe = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:(?:V\.|\$))([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g;
+        let am;
+        while ((am = aliasRe.exec(txt)) !== null) { aliases[am[1]] = am[2]; }
+        const aliasAccRe = /\b([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g;
+        while ((am = aliasAccRe.exec(txt)) !== null) {
+          if (aliases[am[1]]) { addPath(aliases[am[1]] + "." + am[2]); }
+        }
       } catch (e) { /* 跳过不可读文件 */ }
     }
   }
@@ -102,7 +119,9 @@ console.log("源码扫描：V 访问路径 " + allPaths.size + " 条，涉及根
 console.log("\n[1] 声明缺失（源码未出现 —— 模组改名/删除/路径变动，需人工确认）");
 if (!missing.length) { console.log("  无 ✓"); }
 missing.forEach(d => {
-  console.log("  ✗ " + d);
+  const tail = d.split(".").slice(-1)[0];
+  const dyn = Array.from(dynamicPrefixes).find(p => tail.startsWith(p));
+  console.log("  ✗ " + d + (dyn ? "   [动态键前缀 '" + dyn + "' 拼接命中，非删除信号，KEEP]" : ""));
   const hint = renamedHints.find(h => h.d === d);
   if (hint && hint.renamed.length) {
     console.log("     疑似改名 → " + hint.renamed.join(" / "));
@@ -123,3 +142,5 @@ console.log("     缺失条目可能因此误报；模组源码版本与适配�
 console.log("\n[4] 源码中声明根之外的其它根（模组新增命名空间，仅提示）");
 const otherRoots = Object.keys(actualByRoot).filter(r => !declaredRoots.has(r)).slice(0, 30);
 console.log("  " + (otherRoots.length ? otherRoots.join(", ") : "无"));
+console.log("\n[5] 动态键拼接前缀（['<prefix>' + var] 形态，键名=前缀+运行时变量，静态无法确认完整键名，非删除信号）");
+console.log("  " + (dynamicPrefixes.size ? Array.from(dynamicPrefixes).join(", ") : "无"));

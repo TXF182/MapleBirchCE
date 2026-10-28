@@ -9,6 +9,8 @@ tests/mce_script.js
 *.zip
 
 tools/_modcache/
+tools/selfcheck/
+tools/_archive_releases/
 
 # 归档的下载包（原始 tar.gz/zip，不入 git）
 tools/_legacy/downloads/

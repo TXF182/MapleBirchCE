@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.16";
+	var MCE_VERSION = "1.9.17";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1839,7 +1839,7 @@ var CHEAT_ADAPTERS = {};
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.5.3",
+			modName: "枯木逢春 · Deadwood Reblooms 2.5.4",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -2107,7 +2107,19 @@ var CHEAT_ADAPTERS = {};
 				{ key: "dw_science_progression", name: "科学课 · 事件进度（0-4，2.5.3 新增）", varPath: "scienceprogression", type: "number", min: 0, max: 4,
 				  note: "2.5.3 新增科学系统：scienceprogression 控制科学课演示事件档位（0 未开始 → 4 最高阶段）；演示触发另需 delinquency≥10 且衣着含裸露部位（Science.ts 判定），写 4 后配合该条件即达最高档演示" },
 				{ key: "psy_mood", name: "心智 · 恐惧/入迷（-1000~1000，2.5.3 新增）", varPath: "Psyche.mood", type: "number", min: -1000, max: 1000,
-				  note: "2.5.3 心智系统核心值：负数=入迷 Fascination、正数=恐惧 Dread，|值|>200 进入极端态（影响疲惫/特质污染判定）；写 -1000 拉满入迷或 1000 拉满恐惧（模组自带 PsycheCheats 页同键）" }
+				  note: "2.5.3 心智系统核心值：负数=入迷 Fascination、正数=恐惧 Dread，|值|>200 进入极端态（影响疲惫/特质污染判定）；写 -1000 拉满入迷或 1000 拉满恐惧（模组自带 PsycheCheats 页同键）" },
+				{ key: "fb_willpower", name: "成就加成 · 意志力（0-60，2.5.4 新增）", varPath: "featsBoosts.upgrades.deadwood-willpower", type: "number", min: 0, max: 60,
+				  note: "2.5.4 成就加成系统（featsBoosts）：写满 60 即购买该项加成，效果=直接获得「意志力」VanillaPlus 特质（$VanillaPlus.traits.willpower=true+lock）；前置=对应成就「钢铁意志 Sovereign Will」已解锁（feats.allSaves 存在），未解锁写 60 也无效；重开菜单保留选购" },
+				{ key: "fb_physique", name: "成就加成 · 体格（0-60，2.5.4 新增）", varPath: "featsBoosts.upgrades.deadwood-physique", type: "number", min: 0, max: 60,
+				  note: "2.5.4 成就加成（featsBoosts）：写满 60 购买「体格」VanillaPlus 特质；前置成就「不可摧毁 Unbreakable」已解锁" },
+				{ key: "fb_beauty", name: "成就加成 · 美貌（0-60，2.5.4 新增）", varPath: "featsBoosts.upgrades.deadwood-beauty", type: "number", min: 0, max: 60,
+				  note: "2.5.4 成就加成（featsBoosts）：写满 60 购买「美貌」VanillaPlus 特质；前置成就「素面 Unadorned」已解锁" },
+				{ key: "fb_exhibitionism", name: "成就加成 · 暴露癖（0-60，2.5.4 新增）", varPath: "featsBoosts.upgrades.deadwood-exhibitionism", type: "number", min: 0, max: 60,
+				  note: "2.5.4 成就加成（featsBoosts）：写满 60 购买「暴露癖」VanillaPlus 特质；前置成就「超越羞耻 Beyond Shame」已解锁" },
+				{ key: "fb_deviancy", name: "成就加成 · 变态癖（0-60，2.5.4 新增）", varPath: "featsBoosts.upgrades.deadwood-deviancy", type: "number", min: 0, max: 60,
+				  note: "2.5.4 成就加成（featsBoosts）：写满 60 购买「变态癖」VanillaPlus 特质；前置成就「超越自然 Beyond Nature」已解锁" },
+				{ key: "fb_promiscuity", name: "成就加成 · 淫荡（0-60，2.5.4 新增）", varPath: "featsBoosts.upgrades.deadwood-promiscuity", type: "number", min: 0, max: 60,
+				  note: "2.5.4 成就加成（featsBoosts）：写满 60 购买「淫荡」VanillaPlus 特质；前置成就「每一寸 Every Inch」已解锁" }
 			]
 		}
 	};
@@ -2364,7 +2376,7 @@ var CHEAT_ADAPTERS = {};
 		},
 		entry: {
 			modId: "cattery",
-			modName: "猫舍 Cattery v1.1.8.2（猫咖/出租屋/养宠/飞行）",
+			modName: "猫舍 Cattery v1.1.9（猫咖/出租屋/养宠/飞行）",
 			tasks: [],
 			stages: [
 				{ key: "cat_rent", name: "出租屋 · 是否已租", varPath: "rentingahouse",

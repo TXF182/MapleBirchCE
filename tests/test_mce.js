@@ -1173,7 +1173,7 @@ var dwdPaths = [];
 dwd.stages.concat(dwd.abilities).concat(dwd.values).forEach(function (it) { dwdPaths.push(it.varPath); });
 var dwdRoots = [];
 dwdPaths.forEach(function (p) { if (dwdRoots.indexOf(p.split(".")[0]) === -1) { dwdRoots.push(p.split(".")[0]); } });
-assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "Transport", "maplebirch", "Psyche", "Orchard", "loveInterestList", "scienceprogression"].indexOf(r) !== -1; }),
+assert(dwdRoots.every(function (r) { return ["RobinExpansion", "LifeSimulation", "StreetLife", "BirdTower", "VanillaPlus", "Finance", "MoreTransformations", "Transport", "maplebirch", "Psyche", "Orchard", "loveInterestList", "scienceprogression", "featsBoosts"].indexOf(r) !== -1; }),
 	"21.2 声明根键均为模组模块状态, 实际 [" + dwdRoots + "]");
 // 隔离补充：一级键全为模组模块根（V.RobinExpansion 等），绝不落到原版顶层键上；
 // rebellion/victories/self_rent 等在模组里只是 RobinExpansion 对象内的自建副本（模组从不读写原版顶层同名键，已 grep 实证）
@@ -1219,6 +1219,21 @@ api.applyCheatModValue("deadwood-reblooms", "sl_race_wins", 3);
 assert(V.StreetLife.races.wins === 3, "21.6 公路赛胜场 3, 实际 " + V.StreetLife.races.wins);
 api.applyCheatModValue("deadwood-reblooms", "ls_corruption", 150);
 assert(V.LifeSimulation.school.corruption === 150, "21.6 腐败上限不钳制（写 150 原样）, 实际 " + V.LifeSimulation.school.corruption);
+// 21.11) v2.5.4 成就加成系统（featsBoosts）：写满 60 购买，键 upgrades['deadwood-<attr>']；越界钳制到 max=60
+//        模组启动即初始化宿主（Boosts.twee widget <<set $featsBoosts.upgrades[...] ??= 0>>），此处模拟同结构
+V.featsBoosts = { upgrades: {}, upgradeDetails: {}, name: {}, missing: {} };
+api.applyCheatModValue("deadwood-reblooms", "fb_willpower", 60);
+assert(V.featsBoosts.upgrades["deadwood-willpower"] === 60, "21.11 成就加成·意志力写 60, 实际 " + V.featsBoosts.upgrades["deadwood-willpower"]);
+api.applyCheatModValue("deadwood-reblooms", "fb_physique", 70);
+assert(V.featsBoosts.upgrades["deadwood-physique"] === 70, "21.11 成就加成·体格写 70 原样（values 数值不钳制，UI 滑块限 60）, 实际 " + V.featsBoosts.upgrades["deadwood-physique"]);
+api.applyCheatModValue("deadwood-reblooms", "fb_beauty", 60);
+assert(V.featsBoosts.upgrades["deadwood-beauty"] === 60, "21.11 成就加成·美貌写 60, 实际 " + V.featsBoosts.upgrades["deadwood-beauty"]);
+api.applyCheatModValue("deadwood-reblooms", "fb_exhibitionism", 60);
+assert(V.featsBoosts.upgrades["deadwood-exhibitionism"] === 60, "21.11 成就加成·暴露癖写 60, 实际 " + V.featsBoosts.upgrades["deadwood-exhibitionism"]);
+api.applyCheatModValue("deadwood-reblooms", "fb_deviancy", 60);
+assert(V.featsBoosts.upgrades["deadwood-deviancy"] === 60, "21.11 成就加成·变态癖写 60, 实际 " + V.featsBoosts.upgrades["deadwood-deviancy"]);
+api.applyCheatModValue("deadwood-reblooms", "fb_promiscuity", 60);
+assert(V.featsBoosts.upgrades["deadwood-promiscuity"] === 60, "21.11 成就加成·淫荡写 60, 实际 " + V.featsBoosts.upgrades["deadwood-promiscuity"]);
 // 21.7) 防崩：模块状态宿主缺失 → 拒绝写入 undefined
 delete V.RobinExpansion;
 var dwdMiss = api.setCheatStage("deadwood-reblooms", "r_shop_stage", "applied");
@@ -3373,7 +3388,7 @@ const css45 = dHead44.children.filter(c => c.id === "mce-style")[0].textContent;
 assert(css45.indexOf("contain:content") !== -1, "45.8 .mce-grp contain:content 已注入");
 assert(css45.indexOf("overscroll-behavior:contain") !== -1, "45.8 .mce-body overscroll-behavior:contain 已注入");
 
-/* ============ 47）Cattery 猫舍 v1.1.8.2 适配（顶层标量 + catArr 数组联动 + 数字语义） ============
+/* ============ 47）Cattery 猫舍 v1.1.9 适配（顶层标量 + catArr 数组联动 + 数字语义） ============
    状态模型：无根对象，全部为顶层标量（$rentingahouse/$pchaveCat/$pcfood_cake/$catArr 等）；
    判定均为 is 1 / gte 1 严格比较，禁 boolean、全走数字通道；养猫写 1 联动补 catArr + 品种。 */
 V.cattery_time = 0; V.pcfood_cake = 0; V.rentingahouse = 0; V.pchaveCat = 0;

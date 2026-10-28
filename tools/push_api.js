@@ -1,17 +1,13 @@
 #!/usr/bin/env node
 /* ============================================================================
- * push_api_v1823.js — github.com:443 被断时的 Git Data API 推送通道（v1.8.23）
- *
- * 流程（tool-gotchas ERR-20261019-009 实证通道）：
- *   1. git credential fill 从 GCM 取 OAuth token（gho_ 前缀，仅内存不落盘）
- *   2. GET   /repos/{o}/{r}/git/refs/heads/main → 远端 HEAD sha
- *   3. git ls-files 全量跟踪文件 → POST /git/blobs（每个文件一个 blob）
- *   4. POST  /git/trees（一次嵌套路径条目，目录自动建）
- *   5. POST  /git/commits（parent = 远端 HEAD，fast-forward）
- *   6. PATCH /git/refs/heads/main → 远端 main 指向新 commit
- *
- * 注意：API 重建的 commit SHA 与本地不同（内容树相同）；网络恢复后
- * 需 git fetch + git reset --hard origin/main 对齐本地。
+ * push_api_v1916.js — github.com:443 被断时的 Git Data API 推送通道（v1.9.16）
+ * 流程：git credential fill 取 token（仅内存）→ 远端 refs/heads/main SHA →
+ *       git ls-files 全量 → POST blobs → POST tree → POST commit（parent=远端 HEAD）
+ *       → PATCH refs（fast-forward）
+ * 注意：API 重建 commit SHA 与本地不同（内容树相同）；网络恢复后
+ *       git fetch + git reset --hard origin/main 对齐本地。
+ *       Node fetch 默认 IPv6 优先会把 api.github.com 判失败 → 设
+ *       NODE_OPTIONS=--dns-result-order=ipv4first。
  * ========================================================================== */
 "use strict";
 const { execFileSync } = require("child_process");
@@ -21,11 +17,12 @@ const path = require("path");
 const REPO = "TXF182/MapleBirchCE";
 const BRANCH = "main";
 const ROOT = path.join(__dirname, "..");
-const MSG = "v1.8.23 十七巡：3 模组适配器跟进新版（枯木逢春 2.4.4 / 归途之书 1.3.10 / 框架 5.5.3）+ 补录冷月港·泽菲尔线阶段与怨灵·项链已归还";
+const GIT = process.env.GIT_EXE || "C:\\Users\\27352\\Git\\cmd\\git.exe"; // 本机 git 绝对路径（node 子进程 PATH 不含 git）
+const MSG = execFileSync(GIT, ["log", "-1", "--format=%s"], { encoding: "utf8", cwd: ROOT }).trim();
 
 function tokenFromGitCredential() {
   const input = "protocol=https\nhost=github.com\n\n";
-  const out = execFileSync("git", ["credential", "fill"], { input, encoding: "utf8", cwd: ROOT });
+  const out = execFileSync(GIT, ["credential", "fill"], { input, encoding: "utf8", cwd: ROOT });
   const m = out.match(/^password=(.+)$/m);
   if (!m) throw new Error("git credential fill 未返回 password");
   return m[1].trim();
@@ -53,13 +50,11 @@ async function gh(token, method, urlPath, body) {
   const token = tokenFromGitCredential();
   console.log("token 获取成功（gho_ 前缀）");
 
-  // 1) 远端 HEAD
   const ref = await gh(token, "GET", `/repos/${REPO}/git/refs/heads/${BRANCH}`);
   const parentSha = ref.object.sha;
   console.log("远端 HEAD = " + parentSha);
 
-  // 2) 全量跟踪文件 → blobs（-z NUL 分隔，避免含空格文件名被引号转义）
-  const files = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8", cwd: ROOT })
+  const files = execFileSync(GIT, ["ls-files", "-z"], { encoding: "utf8", cwd: ROOT })
     .split("\0").filter(Boolean).sort();
   console.log("跟踪文件数 = " + files.length);
   const entries = [];
@@ -71,11 +66,9 @@ async function gh(token, method, urlPath, body) {
   }
   console.log("blobs 完成");
 
-  // 3) tree
   const tree = await gh(token, "POST", `/repos/${REPO}/git/trees`, { tree: entries });
   console.log("tree = " + tree.sha);
 
-  // 4) commit
   const commit = await gh(token, "POST", `/repos/${REPO}/git/commits`, {
     message: MSG,
     tree: tree.sha,
@@ -83,7 +76,6 @@ async function gh(token, method, urlPath, body) {
   });
   console.log("commit = " + commit.sha);
 
-  // 5) update ref
   const upd = await gh(token, "PATCH", `/repos/${REPO}/git/refs/heads/${BRANCH}`, { sha: commit.sha, force: false });
   console.log("ref 更新成功 → " + upd.object.sha);
   console.log("DONE_PUSH");

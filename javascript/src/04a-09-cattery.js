@@ -8,7 +8,7 @@
 		},
 		entry: {
 			modId: "cattery",
-			modName: "猫舍 Cattery v1.1.8.2（猫咖/出租屋/养宠/飞行）",
+			modName: "猫舍 Cattery v1.1.9（猫咖/出租屋/养宠/飞行）",
 			tasks: [],
 			stages: [
 				{ key: "cat_rent", name: "出租屋 · 是否已租", varPath: "rentingahouse",
