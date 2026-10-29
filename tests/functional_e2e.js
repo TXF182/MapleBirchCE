@@ -58,6 +58,13 @@ const V = {
   WraithsReflection: 1, options: { opt: {} },
   /* Cattery 探测根（顶层标量） */
   cattery_time: 0, pcfood_cake: 0,
+  /* DolMod 人物附加与生活质量提升 探测根（阿电状态 + 电脑 + 银行 + 转化） */
+  adian_met: 0, adian_romance: 0, adian_confession_state: "",
+  adian: { _inHospital: 0, _imprisoned: 0, _reported: 0, _jealousReady: 0, _loftRadioParts: 0, _loftRadioSet: 0, _stockholm: 0 },
+  computer: { assembled: false, parts: {}, performance: 0, location: null },
+  computerApps: {}, bank: { savings: 1000 },
+  rabbitbuild: 0, mermaidbuild: 0, ngplusCycle: 0,
+  indianStall_found: 0, seaPlatform_found: 0,
   /* 原版世界腐化（v1.9.12 全局页新区块） */
   world_corruption_hard: 2, world_corruption_soft: 0,
   loveInterest: [], passage: "Room", scenePassages: []
@@ -115,14 +122,14 @@ function clickTabSafe(name) {
   assert(t.indexOf("THREW") === -1 && t.length > 0, "A. " + pair[1] + "页渲染不崩，实际 " + t.slice(0, 40));
 });
 
-/* ---------- B. 9 适配器全命中 ---------- */
+/* ---------- B. 10 适配器全命中 ---------- */
 const mods = api.getCheatMods();
-assert(mods.length === 9, "B. 9 适配器全部探测命中，实际 " + mods.length + " → " + mods.map(function (m) { return m.modId; }).join(","));
+assert(mods.length === 10, "B. 10 适配器全部探测命中，实际 " + mods.length + " → " + mods.map(function (m) { return m.modId; }).join(","));
 mods.forEach(function (m) {
   assert(!!m.modId && Array.isArray(m.stages) && Array.isArray(m.abilities) && Array.isArray(m.values), "B. " + m.modId + " 声明结构完整（stages/abilities/values 数组）");
 });
 const modsTxt = document.querySelector('[data-pane="mods"]').textContent;
-["枯木逢春", "Dol-Optimization", "幽灵的倒影", "DoLSims", "归途", "More Love Interests", "DomRobin", "SmartPhone", "Cattery"].forEach(function (kw) {
+["枯木逢春", "Dol-Optimization", "幽灵的倒影", "DoLSims", "归途", "More Love Interests", "DomRobin", "SmartPhone", "Cattery", "人物附加与生活质量提升"].forEach(function (kw) {
   assert(modsTxt.indexOf(kw) !== -1, "B. Mod作弊 主容器含 " + kw + " 入口，实际 " + modsTxt.slice(0, 200));
 });
 

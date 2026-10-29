@@ -47,6 +47,11 @@ const CHANNELS = [
     extractDecl: /(\d+(?:\.\d+)+)/, gameGlob: "Cattery*.zip" },
   { modId: "more-farm-upgrade", repo: "Qsx0391/DOL-More-Farm-Upgrade-Mod",
     extractDecl: /(\d+(?:\.\d+)+)/, gameGlob: "MoreFarmUpgrade*.zip" },
+  { modId: "dolmod", repo: "doctor55555-55555/DolMod-",
+    /* 官方 release tag 是作者内部版本（如「1.9.4测试」，与包内版本无关），版本比较必须
+       从 release 资产名提取（如 `_v0.1.880.zip` → 0.1.880）；useAssetVersion=true 生效。
+       官方资产名两种形态：`_v<版本>.zip` 与 `人物附加与生活质量提升_v<版本>.zip`。 */
+    extractDecl: /(\d+(?:\.\d+)+)/, useAssetVersion: true, gameGlob: "*v0.1.*.zip" },
   { modId: "maplebirch-framework", repo: "MaplebirchLeaf/SCML-DOL-maplebirchFramework",
     /* 框架本体（非适配器）：declOverride = 本地实测兼容版本。升版前必须跑
        `node tools/check_framework_api.js <新版 inject_early.js>` 核对 CE 依赖的
@@ -246,7 +251,16 @@ function replaceInGame(gameGlob, newFileName) {
     if (rel.error) { row.note = "API 错误：" + rel.error; rows.push(row); continue; }
     const tag = rel.tag_name || "?";
     row.tag = tag;
-    const tv = (tag.match(/\d+(?:\.\d+)+/) || [""])[0];
+    /* 版本号来源：默认取 tag；useAssetVersion 渠道（如 dolmod）tag 与包版本无关，改从 release
+       资产名提取（如 `_v0.1.880.zip` → 0.1.880）；无资产时回退 tag 并标注需人工确认 */
+    let tv = (tag.match(/\d+(?:\.\d+)+/) || [""])[0];
+    if (ch.useAssetVersion) {
+      const a = pickAsset(rel.assets || []);
+      const an = a ? a.name : "";
+      const am = an.match(/(?:v)?(\d+(?:\.\d+)+)/);
+      tv = am ? am[1] : "";
+      if (!tv) { row.note = "release 无可用资产且 tag 版本（\"" + tag + "\"）与包版本无关，需人工确认"; rows.push(row); continue; }
+    }
     if (!tv) { row.note = "最新 tag 无法提取版本号，需人工确认：\"" + tag + "\""; rows.push(row); continue; }
     const c = compareVersions(decl, tv);
     if (c === null) { row.note = "声明版本无法提取，需人工确认"; rows.push(row); continue; }

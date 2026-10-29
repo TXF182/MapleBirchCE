@@ -2,6 +2,32 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.21（2026-10-29 · 新适配器：DolMod「人物附加与生活质量提升」· 未发布）
+
+**新适配器：DolMod-（MyFirstMod v0.1.880，doctor55555-55555）**
+
+### ① 新适配器第 12 个：`04a-11-dolmod.js`（modId `dolmod`）
+
+- **官方汉化名核对（三源一致）**：「人物附加与生活质量提升」——仓库 README 标题 / zip 内 `boot.json` `name` / 仓库内直传 zip 文件名「人物附加与生活质量提升_v0.1.801.zip」；作者英文自称 MyFirstMod，repo 名 DolMod-；适配器显示名用官方中文；
+- **声明结构**：阶段 1（阿电表白状态机 `adian_confession_state` 四态字符串：空/rejected/friend/lovers，走 setCheatStage 字符串通道，参照归途授职阶段先例）+ 能力 12 + 数值 17；
+- **能力 12**：阿电已认识（`adian_met`）/ 恋爱中（`adian_romance`）/ 住院（`adian._inHospital`）/ 入狱（`adian._imprisoned`）/ 举报（`adian._reported`）/ 吃醋就绪（`adian._jealousReady`）/ 电脑满配（`computer.assembled`，sync 补 10 顶级部件 + `performance=91` + `location=bedroom`，部件名逐字取自 `ComputerMod.PartsCatalog`："全塔工作站机箱"…"RTX 5090""客制化机械键盘"；拆件 uninstallPart 回库存不崩）/ 全应用（`computerApps`，sync **clear 9 键置 null + set 9 键 true** 实现卸载语义）/ 异国小吃摊（`indianStall_found`）/ 海上平台（`seaPlatform_found`）/ 阁楼广播零件/装好（`adian._loftRadioParts`/`_loftRadioSet`）；
+- **数值 17**：斯德哥尔摩值（`adian._stockholm` 0-100）/ **告白拒绝日（`adian_reject_day` Time.days 语义：拒绝当天写入 → 7 天房间冷处理，adian-confession.twee:70 + modscript.js:348-349 实证；填当天+状态 rejected=完整冷处理，留 0=无冷却）**/ **囚禁信任（`adian._captiveTrust` 0-100 主存，adiankidnap.twee:96/184/193 Math.clamp 实证；自由活动等级由信任派生 :321 trust≥80→3/≥50→2/≥20→1，同转化 stage 先例不暴露派生键，写 100=最高信任+3 级自由；宿主 adian 由 modscript.js:318 无条件兜底，父缺失拦截不触发，未囚禁写入不生效但无害，可先勾囚禁或先写信任再勾）**/ 银行活期（`bank.savings` 0-99999999，日息 0.0002 实证）/ 网课 8 键（科学/数学/英语/历史 × 等级 0-2 封顶 C+ + 进度 0-200 满触发本体 school_skill_up）/ 兔子+进度 / 人鱼+进度（阶段 0-3 阈值 [30,60,90]，写值需阶段与进度配套）/ NG+ 轮次（`ngplusCycle` 0-99）；
+- **隔离与防线**：`NPCName`/`loveInterest`/`money`/`adian.love` 均不声明（阿电 love/rage 本体属性走角色面板/框架，适配器拒写原版根）；父级对象缺失（`V.computer`/`V.bank` 未初始化）CE 拒绝写入并提示先进过电脑店/银行（模组 ensure() 初始化）；告白状态与恋爱槽位分离（`adian_romance===1` 即恋爱中，槽位缺失只影响显示）；
+- **探测防误命中**：首选 `window.ComputerMod/BankMod/NgPlus`（script 无条件挂载、装上即存在）；V 兜底用 `computerApps/computer/ngplusCycle` 或 `adian_met+adian_romance` **双键同时存在**；**不用** `rabbitbuild/mermaidbuild`（与本体转化键同名，会造成未装模组也误命中）与单键 `adian_*`（剧情触发前 undefined）。
+
+### ② 回归隔离
+
+- `test_mce.js` 新增 51 节 DolMod 段（51.1-51.8：探测/隔离/能力/阶段四态/满配拆机/全应用装删/银行转化网课 NG+/卸载消失）；
+- 18.0b/24.0 清理段补 DolMod 探测根删除——13 节恋爱测试写入的 `adian_met/adian_romance` 不再干扰 18.x/24.x 计数断言（首轮回归 8 FAIL → 二次收敛后全绿）；
+- `functional_e2e.js` B 段 9→10 适配器（真实断言 `mods.length === 10`）+ 关键词阵列加「人物附加与生活质量提升」。
+
+### ③ 验证与纳入每日检测
+
+- 全链 6 步（build→syntax→smoke→回归→E2E→性别集成）全绿（build 552039 B，SHA256 `9c0d67fc…`；回归 51 节含 51.7 拒绝日+囚禁信任）；未打包、未发布（等用户指令）。
+- **纳入每日自动检测（渠道 11→12）**：`tools/check_mod_updates.js` CHANNELS 加 dolmod 渠道（第 11 项，框架第 12）；官方 release tag（如「1.9.4测试」）是作者内部版本号、与包内版本无关——新增 `useAssetVersion:true` 分支从 release 资产名（`_v0.1.880.zip` → 0.1.880）提取版本比较，无资产时回退 tag 并标注需人工确认；实测 12 渠道输出 `[dolmod] 0.1.880 / 1.9.4测试 → 无更新（均为 0.1.880）` 正确不误报。
+- **自查优化（audit 对照定案 + 深度探查）**：`audit_adapters.js dolmod _modcache\dolmod0880` 声明 28→30 条；9 条「声明缺失」全部为**动态键盲区误报**——网课 8 键源码形态 `V[key + "_exam"]`/`V[key + "trait"]`（computer.js:508-533，key 遍历 science/maths/english/history）+ `computerApps.game_indie` 经 `V.computerApps[id]` 变量下标（computer.js:268，id 取 APPLICATIONS 表），audit 只扫 `V.` 字面故漏，实证源码全部存活 **KEEP 零删失**（同 featsBoosts/MoreFarm 温室下标动态键先例）；转化键复核：`_targetStage` 由 build 派生（transformation.js:105-106）、模组 `setStage` 会把 build 校准到阶段门槛（:193-194），适配器 note"阶段+进度配套写"语义正确；补 **dm_reject_day** + **dm_captive_trust**（见数值 17）。audit 盲区已记 `.learnings/ERRORS.md#ERR-20261029-002`。
+- **深度探查（对 v0.1.880 对照源码全量甄别）**：逐类定案不补面——银行定期/理财（玩法系统，活期已覆盖资金作弊）、钓鱼（0.5.12+ 本体兼容层 `setup.vanillaFishingOn()` 实证，`$fishing` 原版键隔离）、售货机库存/抢劫冷却（`vending_robbed` 7 天/`vending_*_stock` 每日随机，瞬态玩法）、收音机（hedgefunds.twee 实为 `radioChannel`/`radios` 收听系统）、NG+ 触发标记（`ngplus_trigger` 坏结局门）、`robindebtevent`（boot.json:189 注入锚点只读）、`_freedomLevel`（信任派生值）；**值得补仅 1 键 `_captiveTrust` 囚禁信任**（见数值 17）。
+
 ## v1.9.20（2026-10-29 · 适配更新轮：枯木逢春 2.5.7 + 归途之书 1.4.5 + 框架 5.5.7 · 未发布）
 
 **三渠道模组适配更新 + Mod 列表名称显示修复**

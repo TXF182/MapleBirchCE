@@ -895,6 +895,8 @@ assert(api.isGwylanGardenPassage && api.isGwylanGardenPassage("Gwylan Ritual Sta
 // 18) Mod作弊页面（v1.4.0）：动态发现 / 隔离 / 防崩 / 类型校验 / 留痕回退 / 原版过滤 / 重扫
 // 18.0) 清理角色恋爱节（15）写入的 Wraith 根，避免内置 wraiths-reflection 适配器误命中计数（v1.8.8 新增适配器回归隔离）
 delete V.WraithsReflection; delete V.HelpAsk; delete V.necklaceWR; delete V.necklaceThief; delete V.necklaceThiefWR; delete V.SilverConchWR; delete V.stealdailyMR; delete V.WRR;
+/* 18.0b) 清理 13 节恋爱测试写入的 DolMod 探测根（adian_met/adian_romance 等），本段只允许 2 个测试模组（v0.1.880 适配轮回归隔离） */
+delete V.adian_met; delete V.adian_romance; delete V.computer; delete V.computerApps; delete V.ngplusCycle;
 // 18.1) 扫描识别：setup.mbCE_modCheats 注册 2 个模组 → getCheatMods 返回 2（标准化结构）
 setup.mbCE_modCheats = [
 	{
@@ -3763,6 +3765,66 @@ var pl50b = api.toggleCheatAbility("more-farm-upgrade", "mf_can_harvest", true);
 assert(pl50b.ok && V.farmerCanHarvest === true, "50.13 mf_can_harvest 勾选写 true, 实际 " + V.farmerCanHarvest);
 var pl50c = api.toggleCheatAbility("more-farm-upgrade", "mf_can_sell", true);
 assert(pl50c.ok && V.farmerCanSell === true, "50.13 mf_can_sell 勾选写 true, 实际 " + V.farmerCanSell);
+
+/* 51) DolMod 人物附加与生活质量提升 适配器（doctor55555-55555/DolMod- v0.1.880 适配轮）：
+   阿电状态/电脑满配与全应用/银行活期/网课学习/兔人鱼转化/NG+ 键（官方中文名三源一致） */
+/* 51.1 探测命中（补 Adian/电脑/银行/平台根；V.rabbitbuild 已由 10.x 段设置） */
+V.adian_met = 0; V.adian_romance = 0; V.adian_confession_state = "";
+V.adian = { _inHospital: 0, _imprisoned: 0, _reported: 0, _jealousReady: 0, _loftRadioParts: 0, _loftRadioSet: 0, _stockholm: 0 };
+V.computer = { assembled: false, parts: {}, performance: 0, location: null };
+V.computerApps = {}; V.bank = { savings: 1000 }; V.ngplusCycle = 0;
+V.indianStall_found = 0; V.seaPlatform_found = 0;
+var dm51 = api.getCheatMods().filter(function (x) { return x.modId === "dolmod"; })[0];
+assert(dm51 && dm51.declared === true && dm51.modName.indexOf("人物附加与生活质量提升") !== -1, "51.1 DolMod 探测命中且显示官方中文名, 实际 " + (dm51 ? dm51.modName : "未识别"));
+assert(dm51.values.length === 17 && dm51.abilities.length === 12 && dm51.stages.length === 1, "51.1 声明 17 数值 + 12 能力 + 1 阶段, 实际 " + dm51.values.length + "/" + dm51.abilities.length + "/" + dm51.stages.length);
+/* 51.2 隔离：适配器不声明原版既有键（阿电本体属性走角色面板/NPCName 槽位/现金/恋爱槽位） */
+var dm51Paths = dm51.values.concat(dm51.abilities).map(function (x) { return x.varPath; });
+assert(dm51Paths.indexOf("NPCName") === -1 && dm51Paths.indexOf("loveInterest") === -1 && dm51Paths.indexOf("money") === -1 && dm51Paths.indexOf("adian.love") === -1, "51.2 隔离原版键 NPCName/loveInterest/money/adian.love 不声明");
+assert(dm51Paths.indexOf("adian_met") !== -1 && dm51Paths.indexOf("bank.savings") !== -1 && dm51Paths.indexOf("computer.assembled") !== -1 && dm51Paths.indexOf("rabbitbuild") !== -1, "51.2 新键存在：已认识/活期/电脑组装/兔子转化值");
+/* 51.3 阿电状态 numeric 能力通道（模组 is/isnot 1 严格比较）：已认识勾选写 1/0 读回 */
+var wm51 = api.toggleCheatAbility("dolmod", "dm_met", true);
+assert(wm51.ok && V.adian_met === 1, "51.3 dm_met 勾选写 1, 实际 " + V.adian_met);
+var wm51b = api.toggleCheatAbility("dolmod", "dm_met", false);
+assert(wm51b.ok && V.adian_met === 0, "51.3 dm_met 取消写 0（可重走相遇剧情）, 实际 " + V.adian_met);
+/* 51.4 表白状态字符串阶段通道：lovers 写回（四态 levels 实证）；跳最高=恋人 */
+delete V.adian_confession_state;
+var wc51 = api.setCheatStage("dolmod", "dm_conf_state", "lovers");
+assert(wc51.ok && V.adian_confession_state === "lovers", "51.4 dm_conf_state=lovers 阶段写回, 实际 " + V.adian_confession_state);
+var wc51b = api.setCheatStage("dolmod", "dm_conf_state", "bogus");
+assert(!wc51b.ok && V.adian_confession_state === "lovers", "51.4 非法阶段拒绝且原值保持, 实际 " + V.adian_confession_state);
+var wc51c = api.resetCheatStage("dolmod", "dm_conf_state");
+assert(wc51c.ok && V.adian_confession_state === "", "51.4 回退初始（空=未表白）, 实际 " + JSON.stringify(V.adian_confession_state));
+/* 51.5 满配电脑组合（写 1 → sync 补 10 顶级件 + 性能 91 + 卧室；ComputerMod.PartsCatalog 逐字名 + performance 桌面直读实证） */
+V.computer = { assembled: false, parts: {}, performance: 0, location: null };
+var pcf = api.toggleCheatAbility("dolmod", "dm_pc_full", true);
+assert(pcf.ok && V.computer.assembled === 1 && V.computer.parts.gpu === "RTX 5090" && V.computer.parts.case === "全塔工作站机箱" && V.computer.parts.kb === "客制化机械键盘" && V.computer.performance === 91 && V.computer.location === "bedroom",
+  "51.5 满配电脑 assembled=1 + GPU/机箱/键盘 + 性能91 + 卧室, 实际 " + JSON.stringify(V.computer));
+/* 51.5b 拆机（写 0）不清部件（保留可自行拆装，uninstallPart 库存回写不崩） */
+var pcfb = api.toggleCheatAbility("dolmod", "dm_pc_full", false);
+assert(pcfb.ok && V.computer.assembled === 0 && V.computer.parts.gpu === "RTX 5090", "51.5b 拆机 assembled=0 且部件保留, 实际 " + JSON.stringify(V.computer));
+/* 51.6 安装全部应用（写 1 → 10 应用 true；AppCatalog id 实证）；取消 → 其余 9 键 clear 置 null（主键 false） */
+V.computerApps = {};
+var pca = api.toggleCheatAbility("dolmod", "dm_pc_apps", true);
+assert(pca.ok && V.computerApps.game_aaa === true && V.computerApps.freelance === true && V.computerApps.office === true, "51.6 全应用安装 3A/接单/办公 true, 实际 " + JSON.stringify(V.computerApps).slice(0, 120));
+var pcab = api.toggleCheatAbility("dolmod", "dm_pc_apps", false);
+assert(pcab.ok && V.computerApps.game_indie === 0 && V.computerApps.game_aaa === null && V.computerApps.office === null, "51.6b 取消卸载全部（主键 0 + 其余 null）, 实际 " + JSON.stringify(V.computerApps).slice(0, 120));
+/* 51.7 银行/转化/学习/NG+/告白拒绝日 数值直写 */
+var bs = api.applyCheatModValue("dolmod", "dm_bank_savings", 50000);
+assert(bs.ok && V.bank.savings === 50000, "51.7 活期=50000, 实际 " + V.bank.savings);
+var rb = api.applyCheatModValue("dolmod", "dm_rabbit", 3);
+assert(rb.ok && V.rabbit === 3, "51.7 兔子阶段=3, 实际 " + V.rabbit);
+var ls = api.applyCheatModValue("dolmod", "dm_learn_sci", 2);
+assert(ls.ok && V.sciencetrait === 2, "51.7 网课科学等级=2（C+ 封顶）, 实际 " + V.sciencetrait);
+var ng = api.applyCheatModValue("dolmod", "dm_ngplus", 2);
+assert(ng.ok && V.ngplusCycle === 2, "51.7 NG+ 轮次=2, 实际 " + V.ngplusCycle);
+var rj = api.applyCheatModValue("dolmod", "dm_reject_day", 42);
+assert(rj.ok && V.adian_reject_day === 42, "51.7 告白拒绝日=42（Time.days 语义）, 实际 " + V.adian_reject_day);
+var ct = api.applyCheatModValue("dolmod", "dm_captive_trust", 88);
+assert(ct.ok && V.adian._captiveTrust === 88, "51.7 囚禁信任=88（自由等级派生≥3）, 实际 " + V.adian._captiveTrust);
+/* 51.8 卸载消失：清全部探测键后适配器自动消失 */
+delete V.adian_met; delete V.adian_romance; delete V.adian; delete V.adian_confession_state; delete V.adian_reject_day; delete V.computer; delete V.computerApps; delete V.bank; delete V.ngplusCycle; delete V.indianStall_found; delete V.seaPlatform_found; delete V.sciencetrait; delete V.mermaidbuild;
+assert(api.getCheatMods().filter(function (x) { return x.modId === "dolmod"; }).length === 0, "51.8 卸载后 DolMod 适配器自动消失");
+V.rabbitbuild = 0; V.rabbit = 0; /* 恢复 10.x 段基线 */
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

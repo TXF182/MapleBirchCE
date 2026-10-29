@@ -1,6 +1,6 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**10 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**12 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
@@ -85,7 +85,7 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.9.20）
+## Mod作弊 适配器一览（v1.9.21）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -99,9 +99,10 @@
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
 | 猫舍 Cattery（猫咖/出租屋/养宠/飞行） | 1.1.9 | 阶段 9 / 能力 3 / 数值 39（租屋/养猫/菜品/食材/飞行/书房/清洁） | `window.createCafePC`（或 V 顶层键兜底） |
 | 更多农场升级 More Farm Upgrade | 1.0.8 | 数值 21 / 能力 16（11 设施/资源/农夫/温室田/许可） | `V.farm` 扩展字段并集（cultivator/seeder/harvester/compost/laboratory 等） |
+| 人物附加与生活质量提升 DolMod-（MyFirstMod，阿电/电脑/银行/网课/转化/NG+） | 0.1.880 | 阶段 1 / 能力 12 / 数值 17（告白状态机/斯德哥尔摩/囚禁信任（未囚禁写入不生效但无害，先勾「已囚禁」或先写再勾均可）/拒绝日/活期/网课 8 键/转化/NG+） | `window.ComputerMod/BankMod/NgPlus`（V 兜底：computer/computerApps/ngplusCycle 或 adian 双键） |
 | maplebirch 框架本体 | 5.5.7 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
-> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**11 渠道全覆盖**：10 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade）+ 框架本体。
+> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**自动检测 12 渠道 + 适配 12 面**：12 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade/人物附加与生活质量提升/框架本体，全部已纳入每日检测——其中 DolMod 走资产名版本提取，框架走 check_framework_api.js API 兼容核对）。
 > **自动替换旧模组包**：`tools/check_mod_updates.js --apply` 检测到适配模组有新版时，自动下载官方最新包（api.github.com assets 端点 + 302 跟随）并替换 `game` 内旧模组包（按 gameGlob 匹配删除旧包后放入新包）；框架渠道不自动替换（升版前必须人工跑 `check_framework_api.js` 核对 API 兼容）。GitHub API 未认证有速率限制（403）时，设置 `GITHUB_TOKEN` 环境变量（仅内存使用）即可。已装模组包即官方最新版时，替换为幂等覆盖。
 
 ## 常见问题（FAQ）
@@ -126,6 +127,12 @@
 
 ## 版本说明
 
+- **v1.9.21（2026-10-29 · 未发布）**：
+  - **新适配器：人物附加与生活质量提升（第 11 个，doctor55555-55555/DolMod-，MyFirstMod v0.1.880）**：`04a-11-dolmod.js`，官方汉化名三源核对（README/boot.json/zip 文件名）；阶段 1（阿电告白状态机四态字符串）+ 能力 12（已认识/恋爱中/住院入狱举报/吃醋/电脑满配 sync 10 顶级件+性能 91/全应用 clear+set 卸载语义/小吃摊/海上平台/阁楼广播）+ 数值 17（斯德哥尔摩/囚禁信任/告白拒绝日/银行活期/网课 8 键 C+ 封顶/兔子人鱼转化配套进度/NG+）；隔离原版根（NPCName/loveInterest/money/adian.love 拒写）；**探测防误命中**：window.ComputerMod/BankMod/NgPlus 首选 + V 双键兜底，弃用 rabbitbuild/mermaidbuild（本体转化键同名）与单键 adian_*（剧情前 undefined）；
+  - **回归隔离**：test_mce 新增 51 节（51.1-51.8 全 PASS）+ 18.0b/24.0 清理段补 DolMod 探测根（首轮 8 FAIL → 二次收敛全绿）；E2E B 段 9→10 适配器（`mods.length === 10`）+ 关键词「人物附加与生活质量提升」；
+  - **纳入每日自动检测（渠道 11→12）**：`tools/check_mod_updates.js` CHANNELS 加 dolmod 渠道——官方 release tag（如「1.9.4测试」）是作者内部版本号、与包内版本无关，新增 `useAssetVersion:true` 从 release 资产名（`_v0.1.880.zip`）提取版本比较；实测 12 渠道输出 `[dolmod] 0.1.880 / 1.9.4测试 → 无更新` 不误报；
+  - **自查优化（audit 对照定案 + 深度探查）**：`audit_adapters.js dolmod _modcache\dolmod0880` 声明 28→30 条，9 条「声明缺失」全部为**动态键盲区误报**——网课 8 键 `V[key+"_exam"]`/`V[key+"trait"]` 拼接（computer.js:508-533）+ `computerApps.game_indie` 变量下标（computer.js:268，AppCatalog 定义 id），源码实证存活 KEEP 零删失（同 featsBoosts/温室下标先例）；转化键复核 `_targetStage` 由 build 派生（transformation.js:105）、`setStage` 会把 build 校准到门槛（:193-194），note 已写明"阶段+进度配套写"正确；补 **dm_reject_day**（阿电告白拒绝日，adian-confession.twee:70 设 Time.days + modscript.js:348-349 7 天冷处理实证，填当天+rejected=完整冷处理、留 0=无冷却）+ **dm_captive_trust**（囚禁信任主存 0-100，adiankidnap.twee:96/184/193 Math.clamp 实证；自由活动等级由信任派生 :321 trust≥80→3 级，同转化 stage 先例不暴露派生键；宿主 adian 由 modscript.js:318 无条件兜底、父缺失拦截不触发，**未囚禁写入不生效但无害**——先勾「已囚禁」再写，或先写信任再勾均可行）；audit 盲区记 .learnings/ERRORS.md#ERR-20261029-002；
+  - **验证**：全链 6 步全绿（build 551690 B SHA256 `5befe2ec…` / syntax / smoke / 回归 51 节含 51.7 拒绝日+囚禁信任 / E2E 10 适配器 / 性别 24-0）；未打包、未发布（需另行确认）；
 - **v1.9.20（2026-10-29 · 已发布）**：
   - **三渠道模组适配更新**：枯木逢春 `2.5.5 → 2.5.7`（对照 `tools/_modcache/dw257` 审计，140 条 varPath 全存活——resolve 122 KEEP / 14 REVIEW 全保留 / `RobinExpansion.investment.agreed` 可选链盲区误报 REMOVE 证伪保留）；归途之书 `1.4.4 → 1.4.5`（57/57 全存活零缺失，官方更新为纯 bug 修复无新功能键）；框架 `5.5.6 → 5.5.7`（`check_framework_api.js` 核对 8 项核心 API 全保留）；
   - **Mod 列表名称显示修复（长度统一）**：`.mce-card-name` 去 nowrap+ellipsis 改 flex 换行——Mod 作弊页长模组名（枯木逢春·Deadwood Reblooms 2.5.7 / Wraith'sReflection 1.3.4 等）完整显示不再截断，角色页/场景页同款卡片同步受益；
