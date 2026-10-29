@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.18**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v1.9.20**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -45,7 +45,7 @@
 面板顶部六个标签页，从上到下依次使用：
 
 ### 1. 角色页（人物一览）
-- 自动枚举 Maplebirch 注册池的全部角色：游戏本体 + 全部已加载 MOD 角色（实测 16 个，零硬编码）。
+- 自动枚举 Maplebirch 注册池的全部角色：游戏本体 + 全部已加载 MOD 角色（实测 45 个，零硬编码）。
 - 每张卡片显示：爱意 / 支配 / 情欲 / 警戒 四项数值与活跃状态。
 - 点击角色卡片进入该角色的「阶段页」。
 
@@ -85,7 +85,7 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.9.13）
+## Mod作弊 适配器一览（v1.9.20）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -126,6 +126,16 @@
 
 ## 版本说明
 
+- **v1.9.20（2026-10-29 · 已发布）**：
+  - **三渠道模组适配更新**：枯木逢春 `2.5.5 → 2.5.7`（对照 `tools/_modcache/dw257` 审计，140 条 varPath 全存活——resolve 122 KEEP / 14 REVIEW 全保留 / `RobinExpansion.investment.agreed` 可选链盲区误报 REMOVE 证伪保留）；归途之书 `1.4.4 → 1.4.5`（57/57 全存活零缺失，官方更新为纯 bug 修复无新功能键）；框架 `5.5.6 → 5.5.7`（`check_framework_api.js` 核对 8 项核心 API 全保留）；
+  - **Mod 列表名称显示修复（长度统一）**：`.mce-card-name` 去 nowrap+ellipsis 改 flex 换行——Mod 作弊页长模组名（枯木逢春·Deadwood Reblooms 2.5.7 / Wraith'sReflection 1.3.4 等）完整显示不再截断，角色页/场景页同款卡片同步受益；
+  - **④ 全作弊项条件审查（2026-10-29 并入本版）**：376 个作弊项逐项盘点 + 15 个 sync 联动块全部对照源码判定链核实；**修复 1 处真实缺漏**——冷月港·泽菲尔线 `cm_zephyr` 写阶段只写 `zephyr.stage`，而模组入口判定缺 `harbour.ship`/`npc.Zephyr.init` 即 exit 白写、交箱读 `fee` 显示 0、交付段落缺 `scene='zephyrPaid'` 误显未结清；补 4 条 sync 联动（写 1+ 补船+登场、写 2+ 补默认酬金 8000/12000 不覆盖谈判价、写 4 补交付场景、写 0 不撤销），新增 21.10b 断言 5 条；核实通过：Cattery 领养链/MoreFarm 雇佣链+崩溃级 farmerPlantable/枯木 dress·gym·金融·神社·投资线全判定无缺漏；
+  - **验证**：全链 6 步全绿 + codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4、SHA256 `9DD9B666…` 已装 game；已发布（Release v1.9.20，资产 SHA 回读一致）；
+- **v1.9.19（2026-10-28 · 已发布）**：
+  - **新适配器：More Farm Upgrade（第 10 个，Qsx0391/DOL-More-Farm-Upgrade-Mod v1.0.8）**：`04a-10-morefarm.js`，数值 21（耕地机/播种机/收割机 0-2/3、温室 0-9 逐块田、实验室/冷藏库/堆肥/农舍/坦克/地下室、诡异花/催情剂/肥料/堆肥周期/蒸馏计时、农夫欠薪/耐心/周薪/技能/售货计时）+ 能力 16（温室田 1-9 覆盖 + 农夫在岗/可雇许可 + **农夫自动干活 5 许可** water/till/plant/harvest/sell——缺一即跳过对应动作，雇佣链联动默认 water/till/plant=true、harvest/sell=false）；
+  - **联动初始化（崩溃级）**：直写建堆肥自动补 `compost_timer=7` + 肥料 0（模组无兜底，`--undefined`=NaN 卡死不产肥）；建实验室补 `still_timer=1` 双保险；**写农夫在岗=1 自动补 `farmerPlantable=[]`**（`getPlantableList()` 对 `forEach` 无条件执行，undefined 时每日 farmerTendingDay 一运行即 TypeError 崩——此键为崩溃级必需）；均 `ifMissing` 不覆盖已有进度、`if.min:1` 门控拆除不误补；
+  - **检测渠道 10→11**（每日自动检测 MoreFarm 更新）；对照源码 `tools/_modcache/farm108`；
+  - **验证**：全链 6 步全绿 + codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4；已发布（Release v1.9.19）；
 - **v1.9.18（2026-10-28 · 已发布）**：
   - **双模组适配更新**：枯木逢春 `2.5.4 → 2.5.5`（仅版本号，140 键零删失、`repair_tools/parts.motor → SydneyExpansion` 疑似改名证伪保留）；归途之书 `1.4.3 → 1.4.4`（56 键 100% 存活 + **新增晋铎线核心键 `td_ordination_stage` 神殿值勤·授职阶段，13 档 prepare→…→aftercare→withdrawn/complete，complete 置末保证"跳最高"落完成而非退出**，56→57 键）；
   - **自查修复（补档 bug）**：授职阶段值域初版漏 `aftercare`（善后）档——枚举校验会拒绝写入善后阶段；对照 rv144 源码 4 处独立证据（`Ordination.twee:35/46/49` + `Journal.twee:381`/`Office.twee:114`）确认 13 档全值域并修正；
@@ -612,13 +622,13 @@ MapleBirchCE/（git 源码真相源）
 **日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（build → 语法 → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
 
 **第三方模组升级核对（audit_adapters.js）**：模组发布新版后，运行
-`node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `smartphone`。
+`node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `smartphone` / `cattery` / `more-farm-upgrade`。
 
 **缺失条目自动定案（resolve_missing.js）**：`audit_adapters.js` 报出的"缺失"多为盲区假报（`this.state.xxx` 别名访问、twee 别名、动态键 `obj[_ordinand].leaf`），逐条人工 grep 验证很费时。运行
 `node tools/resolve_missing.js <适配器id> <新源码目录>` 自动判定每条缺失为 **KEEP**（源码确实存在，audit 误报）/ **REVIEW**（疑似存在需复核）/ **REMOVE**（零证据真缺失，模组删字段）。证据链六类：字面 V/$root 路径、连写 parent.leaf、父根定义块 leaf 类型/默认值、`this.state.leaf` + state 绑定属主校验、叶子键字符串/动态键、零证据。判定原则：宁可"存在"不误删，REMOVE 只给零证据或"属主不符+模块目录零出现"。已对枯木逢春 2.4.1（42 条全 KEEP，含 duties.completed）/ 归途之书 1.3.7（56 条全 KEEP，含 rite_round/faith_band/动态键）/ MLI 0.1.8.0（1 条 KEEP）实测，与人工 grep 结论一致。
 
 **框架兼容性核对（check_framework_api.js）**：maplebirchFramework 发布新版时，先下载新版 `.mod.zip` 解压出 `dist/inject_early.js`，运行
-`node tools/check_framework_api.js <inject_early.js 路径>` 核对 CE 运行时依赖的框架 API（`window.maplebirch` / `maplebirch.get` / `maplebirch.npc(.data)` / `maplebirch.temporary.traitLists`）是否全部保留。核心 API 全保留才把 `tools/check_mod_updates.js` 框架渠道的 `declOverride` 更新为新版本。已核对至 **5.5.6**（2026-10-25，对照 `fw556\unpacked\dist\inject_early.js`）：API 8 项全过；`setup.MapleBirch` / `maplebirch.patch` 缺失均为非 CE 依赖（CE 0 次调用 patch），与历史各版结论一致 → 判兼容。
+`node tools/check_framework_api.js <inject_early.js 路径>` 核对 CE 运行时依赖的框架 API（`window.maplebirch` / `maplebirch.get` / `maplebirch.npc(.data)` / `maplebirch.temporary.traitLists`）是否全部保留。核心 API 全保留才把 `tools/check_mod_updates.js` 框架渠道的 `declOverride` 更新为新版本。已核对至 **5.5.7**（2026-10-29，对照 `fw557\unpacked\dist\inject_early.js`）：API 8 项全过；`setup.MapleBirch` / `maplebirch.patch` 缺失均为非 CE 依赖（CE 0 次调用 patch），与历史各版结论一致 → 判兼容。
 
 **v1.8.4 select.type 崩溃的防再犯体系**（三层）：
 - 源码已删除对 `<select>` 赋值只读 `type` 的代码（留注释警示）；
