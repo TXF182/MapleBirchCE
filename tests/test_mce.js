@@ -1263,8 +1263,16 @@ api.setCheatStage("deadwood-reblooms", "dress_active", "free");
 assert(V.LifeSimulation.school.dress.active === "free", "21.9 着装规范写入 free（自由着装）, 实际 " + V.LifeSimulation.school.dress.active);
 // 21.10) v1.8.23 新增 2.4.4 冷月港·泽菲尔线阶段：写入 4 + 数字阶段越界钳制到最高（对齐 18.10/19.5 既有语义）
 V.MoreTransformations = { harbour: { zephyr: { stage: 0 } } };
+V.maplebirch = { npc: { Zephyr: { init: 0 } } };
 var cmOk = api.setCheatStage("deadwood-reblooms", "cm_zephyr", 4);
 assert(cmOk.ok && V.MoreTransformations.harbour.zephyr.stage === 4, "21.10 泽菲尔线阶段写入 4, 实际 " + V.MoreTransformations.harbour.zephyr.stage);
+// 21.10b) 2026-10-29 条件审查补联动：写 1+ 补船+泽菲尔登场、2+ 补默认酬金、4+ 补交付场景（缺任一则入口 exit / 交箱显示 0 / 交付段落误显已结清）
+assert(V.MoreTransformations.harbour.ship === true, "21.10b 写 4 联动补 harbour.ship（入口判定缺一即 exit）, 实际 " + V.MoreTransformations.harbour.ship);
+assert(V.maplebirch.npc.Zephyr.init === 1, "21.10b 写 4 联动补 Zephyr.init=1（对话入口判定）, 实际 " + V.maplebirch.npc.Zephyr.init);
+assert(V.MoreTransformations.harbour.zephyr.fee === 8000, "21.10b 写 4 联动补默认酬金 fee=8000（海盗 rank 未设）, 实际 " + V.MoreTransformations.harbour.zephyr.fee);
+assert(V.MoreTransformations.harbour.scene === "zephyrPaid", "21.10b 写 4 联动补 scene=zephyrPaid（交付段落判定）, 实际 " + V.MoreTransformations.harbour.scene);
+var cmReset = api.setCheatStage("deadwood-reblooms", "cm_zephyr", 0);
+assert(cmReset.ok && V.MoreTransformations.harbour.zephyr.stage === 0 && V.MoreTransformations.harbour.ship === true, "21.10b 写 0 重置只降阶段、不撤销联动（ship 保持）, 实际 stage=" + V.MoreTransformations.harbour.zephyr.stage + " ship=" + V.MoreTransformations.harbour.ship);
 var cmBad = api.setCheatStage("deadwood-reblooms", "cm_zephyr", 9);
 assert(V.MoreTransformations.harbour.zephyr.stage === 4, "21.10 阶段越界 9 钳制到最高 4（原值 4 保持）, 实际 " + V.MoreTransformations.harbour.zephyr.stage);
 api.setCheatStage("deadwood-reblooms", "dress_highest", "revealing");

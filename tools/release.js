@@ -41,7 +41,7 @@ const LOCAL_SHA = crypto.createHash("sha256").update(fs.readFileSync(ZIP)).diges
 /* ---------- Release body 自动取 CHANGELOG 对应版本章节 ---------- */
 function extractBody(version) {
   const md = fs.readFileSync(path.join(ROOT, "CHANGELOG.md"), "utf8");
-  const re = new RegExp("## v" + version.replace(/\./g, "\\.") + "[^\n]*\n([\\s\\S]*?)(?=\\n## v|$)", "m");
+    const re = new RegExp("## v" + version.replace(/\./g, "\\.") + "[^\\n]*\\n([\\s\\S]*?)(?=\\n## v|$)");
   const m = re.exec(md);
   if (!m) { console.error("FAIL: CHANGELOG 无 ## v" + version + " 章节"); process.exit(2); }
   return "**MapleBirchCE v" + version + "**（" + new Date().toISOString().slice(0, 10) + "）\n\n" + m[1].trim();

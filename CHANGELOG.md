@@ -2,6 +2,33 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.20（2026-10-29 · 适配更新轮：枯木逢春 2.5.7 + 归途之书 1.4.5 + 框架 5.5.7 · 未发布）
+
+**三渠道模组适配更新 + Mod 列表名称显示修复**
+
+### ① 适配器版本号更新（对照新版源码审计，零删失）
+
+- **枯木逢春 2.5.7**（`04a-04-deadwood.js` modName 2.5.5→2.5.7）：对照 `tools/_modcache/dw257` 审计，140 条 varPath 全存活——resolve 122 KEEP / 14 REVIEW（全部保留）/ 1 REMOVE（`RobinExpansion.investment.agreed`，静态盲区误报：`Finance\Adrian.twee:285` `$RobinExpansion?.investment.agreed` 可选链写法实证存活，证伪移除判定 → **保留**，与 2.5.5 轮判定一致）；
+- **归途之书 1.4.5**（`04a-01-revelation.js` modName 1.4.4→1.4.5）：对照 `tools/_modcache/rv145` 审计，57/57 全覆盖 KEEP，零缺失零删除；官方更新为纯 bug 修复（语言切换人称/衣物、告解/祈祷重复状态、津贴只领一次、迷途羔羊梦境时间核对、象牙怨灵返回链接），无新功能键；
+- **框架 5.5.7**（`check_mod_updates.js` declOverride 5.5.6→5.5.7）：`check_framework_api.js` 核对 5.5.7 `dist/inject_early.js`——CE 依赖 8 项核心 API（window.maplebirch / get / npc(.data) / temporary / traitLists / define / frameworkNotice）全保留；`setup.MapleBirch`（01-core 兜底分支，主路径存在不触发）/ `maplebirch.patch`（CE 0 次调用）缺失无害，与 5.5.3~5.5.6 历次结论一致；
+- 其余 8 渠道无更新；检测渠道维持 11。
+
+### ② Mod 列表名称显示修复（长度统一）
+
+- `07a-shell.js` `.mce-card-name`：`flex:1 1 auto;min-width:0;white-space:normal;line-height:1.4;word-break:break-word`（去掉 `nowrap+ellipsis`），`.mce-card-top` 加 `gap:8px`——Mod 作弊页所有条目名称区宽度统一占满、徽标固定右对齐，长名称（`枯木逢春 · Deadwood Reblooms 2.5.7`、`Wraith'sReflection 1.3.4（幽灵的倒影）`等）完整显示自动换行，不再截断；角色页/场景页同款卡片同步受益。
+
+### ③ 验证
+
+- 全链 6 步（build→syntax→smoke→回归→E2E→性别集成）全绿 + codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4、SHA 见交付记录；已装进 game 供实测（本次只升版适配，未发布）。
+
+### ④ 全作弊项条件审查（2026-10-29 · 并入本版，未另行升版）
+
+- **审查面**：11 个适配器 376 个作弊项逐项盘点（15 个带联动 sync / 7 个带 if 条件 / 156 个带 note 说明）；15 个 sync 联动块 + 写入执行器机制（`applyCheatSync` 的 ifMissing / if.min / copyMax）+ 场景页/全局页原版键 + note 前置键全部对照 `tools/_modcache` 源码判定链核实；
+- **核实通过（无缺漏）**：Cattery 3 项（领养补 catArr/品种枚举 "橘猫" 有效、loveMax 触发链 love≥40、特质判定 pchaveCat+loveMax 双键）；MoreFarm 3 项（雇佣链 5 许可 + 崩溃级 farmerPlantable=[] + still/compost 计时双保险）；deadwood 8 项（dress 状态机 proposal/trialUntil/highest 全命中、gym expires_at 精确防 onDay 重置、神社 feeds/raven.met/Tsukihan.init 前提、金融 opened+debit_card 判定、投资线入口 agreed 唯一门控）；写入执行器父宿主检查（undefined 对象拒绝）与 sync 条件实现正确；场景页原版剧情键自洽无联动需求；
+- **修复 1 处真实缺漏**：`cm_zephyr`（冷月港·泽菲尔线）写阶段原本只写 `zephyr.stage`——模组入口（`ColdmoonHarbour/Zephyr.twee:5-6`）判定缺 `harbour.ship` 或 `C.npc.Zephyr.init` 即 exit，写满阶段白写；stage 3 交箱读 `zephyr.fee`（未设显示 0），stage 4 交付段落要求 `scene='zephyrPaid'`。补 sync 联动：写 1+ 自动补 `ship=true` + `npc.Zephyr.init=1`；写 2+ 补默认酬金 `fee=8000/12000`（海盗 rank 1，`ifMissing` 不覆盖谈判价）；写 4 补 `scene='zephyrPaid'`；写 0 重置不联动；
+- **设计性选择（note 已明示，不改）**：`cat_rent` 交租标记 `daily.rentingahouse_1`（未设=下月照常交租，语义正确）；`wr_gate` 恋爱闸门与项链阶段（`wr_necklace` 单独可设，note 建议配合）；便利店库存首次进店初始化（父缺失 CE 拒绝并提示）；科学课演示条件（delinquency/衣着为玩家状态，note 明示）；featsBoosts 成就前置（未解锁写 60 无效，note 明示）；
+- **新增断言**：21.10b 泽菲尔线 4 项联动（ship/init/fee/scene）+ 写 0 不撤销联动。
+
 ## v1.9.19（2026-10-28 · More Farm Upgrade 适配轮 + 三轮自查优化 · 已发布）
 
 **新适配器：More Farm Upgrade（DOL-More-Farm-Upgrade-Mod v1.0.8，Qsx0391）**

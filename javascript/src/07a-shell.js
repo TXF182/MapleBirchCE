@@ -99,8 +99,8 @@
 		".mce-card{background:var(--mce-bg-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius);padding:8px;cursor:pointer}" +
 		".mce-card:hover{border-color:var(--mce-accent)}" +
 		".mce-card.mce-sel{border-color:var(--mce-accent);background:var(--mce-bg-sel)}" +
-		".mce-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}" +
-		".mce-card-name{color:var(--mce-txt-bright);font-weight:700;font-size:var(--mce-fs-base);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+		".mce-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;gap:8px}" +
+		".mce-card-name{flex:1 1 auto;min-width:0;color:var(--mce-txt-bright);font-weight:700;font-size:var(--mce-fs-base);white-space:normal;line-height:1.4;word-break:break-word}" +
 		".mce-badge{font-size:var(--mce-fs-xs);padding:1px 6px;border-radius:var(--mce-radius-pill);white-space:nowrap}" +
 		".mce-badge.mce-on{background:var(--mce-green-badge);color:var(--mce-green);border:1px solid var(--mce-green-badge-b)}" +
 		".mce-badge.mce-off{background:var(--mce-red-badge);color:var(--mce-red);border:1px solid var(--mce-red-badge-b)}" +

@@ -7,7 +7,7 @@
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.5.5",
+			modName: "枯木逢春 · Deadwood Reblooms 2.5.7",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -43,7 +43,13 @@
 				{ key: "cm_zephyr", name: "冷月港 · 泽菲尔线阶段", varPath: "MoreTransformations.harbour.zephyr.stage",
 				  levels: [0, 1, 2, 3, 4],
 				  labels: ["未开始", "已问起", "已谈交易", "已找回货物", "已付酬完成"],
-				  note: "2.4.4 新增冷月港区域线：阶段 4 = 泽菲尔线完成态（对话与酬金结算需船 harbour.ship 与泽菲尔登场 Zephyr.init 前提，写 4 仅推进阶段、不代发酬金）" },
+				  sync: { set: [
+					{ path: "MoreTransformations.harbour.ship", value: true, if: { min: 1 } },
+					{ path: "maplebirch.npc.Zephyr.init", value: 1, if: { min: 1 } },
+					{ path: "MoreTransformations.harbour.zephyr.fee", value: function (V) { return V && V.pirate_rank === 1 ? 12000 : 8000; }, if: { min: 2 }, ifMissing: true },
+					{ path: "MoreTransformations.harbour.scene", value: "zephyrPaid", if: { min: 4 } }
+				  ] },
+				  note: "2.4.4 新增冷月港区域线：阶段 4 = 泽菲尔线完成态。2026-10-29 条件审查补联动：写 1+ 自动补「有船 harbour.ship + 泽菲尔登场 Zephyr.init」（模组入口判定缺一即 exit，白写阶段）；写 2+ 补默认酬金 fee（海盗 rank 1=12000 否则 8000，模组按此结算，不补交箱显示 0；已有谈判价时不覆盖）；写 4 补 scene=zephyrPaid（交付段落判定，不补显示「已结清」误导）；写 0 重置不联动" },
 				{ key: "gym_membership", name: "健身房 · 会员方案（2.4.6 新增）", varPath: "LifeSimulation.gym.membership",
 				  levels: ["none", "week", "month", "year", "lifetime"],
 				  labels: ["无", "周卡", "月卡", "年卡", "终身"],

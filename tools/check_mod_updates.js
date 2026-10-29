@@ -57,7 +57,7 @@ const CHANNELS = [
        非 CE 依赖（CE 0 次调用 patch；setup.MapleBirch 仅 01-core.js resolveMB()
        的兜底分支，window.maplebirch 主路径存在时永不触发），与 5.5.3/5.5.4/5.5.5
        核对结果一致，缺失无害。 */
-    declOverride: "5.5.6", gameGlob: "maplebirch-*.mod.zip" }
+    declOverride: "5.5.7", gameGlob: "maplebirch-*.mod.zip" }
 ];
 
 function declaredVersion(modId) {

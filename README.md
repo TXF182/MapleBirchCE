@@ -32,7 +32,7 @@
 
 1. **前置依赖**：
    - [SugarCube 2 ModLoader](https://github.com/Lyoko-Jeremie/sugarcube-2-ModLoader) ≥ 2.0.0
-   - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.5.6）
+   - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.5.7）
    - 游戏本体 ≥ 0.5.12.13
 2. 游戏内按 `Alt+M` 打开 ModLoader → 「添加 / 移除Mod」→ 选择 `MapleBirchCE.mod.zip` → 「添加旁加载Mod」→ 提示 Success 后**刷新页面**。
 3. 若旧版 `MapleBirchCE`（v1）已在列表中：先「移除」再导入新版，避免同名单冲突。
@@ -89,8 +89,8 @@
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
-| 枯木逢春 · Deadwood Reblooms | 2.5.5 | 阶段 13 / 能力 65 / 数值 62 | `maplebirch.get("DeadwoodReblooms")` |
-| 归途之书 · Revelation | 1.4.4 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
+| 枯木逢春 · Deadwood Reblooms | 2.5.7 | 阶段 13 / 能力 65 / 数值 62 | `maplebirch.get("DeadwoodReblooms")` |
+| 归途之书 · Revelation | 1.4.5 | 阶段 17 / 能力 22 / 剧情 1 / 数值 18 | `maplebirch.get("RobinTemple"/"TempleChoir")` |
 | DomRobin | 0.0.8 | 阶段 1 / 能力 11 / 数值 2 | `modUtils.get("DomRobin")` |
 | More Love Interests | 0.1.8.0 | 扩容恋人列表（11 槽） | `setup.foodPreference` |
 | SmartPhone · 万能智能手机 | 0.3.91 | 阶段 1 / 数值 7 | `V.Phone`（模组核心状态对象） |
@@ -99,7 +99,7 @@
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
 | 猫舍 Cattery（猫咖/出租屋/养宠/飞行） | 1.1.9 | 阶段 9 / 能力 3 / 数值 39（租屋/养猫/菜品/食材/飞行/书房/清洁） | `window.createCafePC`（或 V 顶层键兜底） |
 | 更多农场升级 More Farm Upgrade | 1.0.8 | 数值 21 / 能力 16（11 设施/资源/农夫/温室田/许可） | `V.farm` 扩展字段并集（cultivator/seeder/harvester/compost/laboratory 等） |
-| maplebirch 框架本体 | 5.5.6 | 兼容性核对（API 8 项） | `window.maplebirch` |
+| maplebirch 框架本体 | 5.5.7 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
 > 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**11 渠道全覆盖**：10 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade）+ 框架本体。
 > **自动替换旧模组包**：`tools/check_mod_updates.js --apply` 检测到适配模组有新版时，自动下载官方最新包（api.github.com assets 端点 + 302 跟随）并替换 `game` 内旧模组包（按 gameGlob 匹配删除旧包后放入新包）；框架渠道不自动替换（升版前必须人工跑 `check_framework_api.js` 核对 API 兼容）。GitHub API 未认证有速率限制（403）时，设置 `GITHUB_TOKEN` 环境变量（仅内存使用）即可。已装模组包即官方最新版时，替换为幂等覆盖。
@@ -120,7 +120,7 @@
 | 依赖 | 最低要求 | 实测版本 |
 |---|---|---|
 | ModLoader | ≥ 2.0.0 | 2.101.1 |
-| maplebirchFramework | ≥ 5.4.2 | 5.5.6 |
+| maplebirchFramework | ≥ 5.4.2 | 5.5.7 |
 | 游戏本体 | ≥ 0.5.12.13 | 0.5.12.13 |
 | Cheat Extended | 任意 | 1.20.3 共存实测无冲突 |
 
