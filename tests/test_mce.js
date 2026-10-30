@@ -3461,7 +3461,7 @@ delete V.pcHouseBook1; delete V.pc_milk; delete V.cookok_gbjd; delete V.catArr; 
 assert(api.getCheatMods().filter(function (x) { return x.modId === "cattery"; }).length === 0, "47.10 卸载后 Cattery 适配器自动消失");
 
 /* ============ 47.11）Cattery 特质直接获取（用户实测请求：模组作弊区直接给特质） ============
-   特质注册实证：cat1182/unzip/game/tj/traits.txt —— 金牌饲养员 has $pchaveCat>=1 and $firstCat_loveMax gte 1；
+   特质注册实证：cat119/unzip/game/tj/traits.txt —— 金牌饲养员 has $pchaveCat>=1 and $firstCat_loveMax gte 1；
    爱·时·机 has $pcHouseBook1_speciality gte 1；绝爱 has $pcHouseBook2_speciality gte 1。
    判定均 gte 1 严格比较 → 能力走 numeric 数字通道（勾选 1 / 取消 0），禁 boolean。 */
 V.cattery_time = 0; /* 重新命中探测 */

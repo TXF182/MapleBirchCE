@@ -16,7 +16,7 @@ if (!modId || !root || !fs.existsSync(root)) {
 }
 const listOnly = process.argv[4] === "--list";
 
-/* 适配器源码按模组拆分（04a-00..09-*.js，v1.9.13）：目录扫描拼接，顺序与 build_js.js sort 一致 */
+/* 适配器源码按模组拆分（04a-00..11-*.js，v1.9.13）：目录扫描拼接，顺序与 build_js.js sort 一致 */
 const ADAPTER_DIR = path.join(__dirname, "..", "javascript", "src");
 const js = fs.readdirSync(ADAPTER_DIR).filter(f => /^04a-.*\.js$/.test(f)).sort()
   .map(f => fs.readFileSync(path.join(ADAPTER_DIR, f), "utf8")).join("\n");

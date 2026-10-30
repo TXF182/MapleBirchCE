@@ -2,7 +2,41 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v1.9.21（2026-10-29 · 新适配器：DolMod「人物附加与生活质量提升」· 未发布）
+## v1.9.22（2026-10-30 · UI 视觉系统规格化：Apple 式精密 × 金色玻璃 · 未发布）
+
+**UI 视觉系统规格化（延续 v1.9.18 排版 token 化）**
+
+### ① 尺寸系统（dimensional-drawing 图纸规格映射）
+
+- 新增 token：`--mce-panel-w:430px`（面板宽显式化）/ `--mce-panel-r:8px`（面板左侧圆角）/ `--mce-row-h:34px`（数值行高）/ `--mce-tab-h:36px`（页签高）/ `--mce-border-quiet:rgba(255,255,255,.08)`（低对比描边）；
+- 控件圆角 `--mce-radius` 3px→4px，统一作用于卡片/折叠组/按钮/输入框/下拉。
+
+### ② anti-slop 视觉规则（design-taste 应用屏约束）
+
+- **accent 金唯一职责**：当前页签、主操作、数值高亮；折叠组标题由金色改 `--mce-txt-strong`，金色只出现在"当前状态 + 主操作"；
+- **quiet borders**：面板 / 页头 / 页签 / 分区标题 / 状态栏描边全部改用低对比 `--mce-border-quiet`，分区虚线改实线；
+- **去发丝分割线**：数值行移除 `border-top`，改间距分层 + 悬停标签金色反馈（行高 34px 统一）；
+- **玻璃感微调**：面板底色 `.96→.92`（不引入 backdrop-filter，守住 DoL-Game-UI 每帧扫描的性能边界）；
+- 面板阴影柔和化（0 12px 34px/.7 → 0 10px 28px/.55）；输入控件加金色聚焦描边。
+
+### ③ 验证
+
+- codegraph impact（07a-shell.js 自包含、零下游依赖）；全链 6 步验证见交付记录；未打包、未发布（等用户指令）。
+
+### ④ 自查补（2026-10-30 二次走查：全仓类名覆盖核查 + anti-slop 遗漏排查）
+
+- **修 4 处裸样式（DOM 用类但 CSS 未定义，此前无视觉状态）**：`mce-btn-active`（性别切换选中态——原仅 ✓ 字符提示，现补金色选中态）/ `mce-data-card`（07c 角色数据卡——补卡片容器视觉，对齐 .mce-card）/ `mce-note`（07h 剧情进度说明——补弱色小字）/ `mce-row-name`（07h 剧情进度行名称——合并进 .mce-row-lbl 选择器）；
+- **一致性**：`.mce-statrow`（全局页数值行）同步 `min-height:var(--mce-row-h)` + hover 标签金色，与 `.mce-row` 规格统一；操作件圆角统一——`.mce-btn`/`.mce-inp`/`.mce-search-inp` 由 2px 升 4px（chip/标签/阶段卡保持 2px 层级）；`.mce-search-inp` 补 `max-width:100%`（窄屏防溢出）；`.mce-errbox` 边框降 quiet；
+- **清理死样式**：`.mce-type` 全仓零引用（仅 CSS 串自身），删除。
+
+### ⑤ 审计补（2026-10-30 三轮走查：CSS 变量完整性 / 硬编码残留 / 内联样式，脚本化可复查）
+
+- 新增审计脚本 `tools\selfcheck\ui_audit_css.js`（提取 `var CSS` 语句级全部 135 个片段 → {} 配平 + 引号状态机 + :root token 定义集 + var() 引用集差集 + 非 token 段 hex/rgba/px 硬编码扫描）；脚本自身修复两处提取 bug（续行片段以选择器开头过滤致丢段、token 前缀比较不一致）；
+- **审计结论**：CSS 结构合法（配平 OK）；var() 引用 75 = :root 定义 75，**零失效样式、零死 token、零硬编码颜色**（hex=0、rgba 仅 3 处纯黑阴影透明度，属合理保留）；px 硬编码 24 项均为组件级几何参数（padding/width/min-height 局部值），不强行 token 化；
+- **修 2 处**：死 token `--mce-border-faint`（全仓零消费）删除；`07f-lock.js` 自由添加 varPath 输入框宽度 `style.width="200px"` 内联硬编码 → 回归 CSS 类 `.mce-inp.mce-path`（200px + max-width:100% 防窄屏溢出）；
+- DOM 内联样式全仓 7 处核查：6 处为功能态显隐（display none/""/inline-block 切换，非主题量），保留。
+
+## v1.9.21（2026-10-29 · 新适配器：DolMod「人物附加与生活质量提升」· 已发布）
 
 **新适配器：DolMod-（MyFirstMod v0.1.880，doctor55555-55555）**
 

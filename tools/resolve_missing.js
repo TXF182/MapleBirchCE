@@ -30,7 +30,7 @@ const path = require("path");
 const KEEP = "KEEP", REVIEW = "REVIEW", REMOVE = "REMOVE";
 
 const ROOT = path.join(__dirname, "..");
-/* 适配器声明自 v1.9.13 起按模组拆分（src/04a-00-core.js + 04a-01..09-*.js），
+/* 适配器声明自 v1.9.13 起按模组拆分（src/04a-00-core.js + 04a-01..11-*.js），
    此处读目录下全部 04a-*.js 拼接后按块提取（与 build_js.js sort 顺序一致） */
 const ADAPTER_DIR = path.join(ROOT, "javascript", "src");
 

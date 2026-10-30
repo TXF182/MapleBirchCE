@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.21";
+	var MCE_VERSION = "1.9.22";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1622,7 +1622,7 @@
 	   V.TempleDuties（神殿值勤，constants/temple-duties.ts）。
 	   只声明模组自建键，不碰原版 V.temple_rank / V.templePromised / V.temple_chastity_timer 等。 */
 /* ============ v1.9.13 拆分：Mod 作弊适配器声明（CHEAT_ADAPTERS 注册表容器） ============
-   原 04a-modcheat-adapters.js（80KB）按模组拆分为本文件（注册表声明）+ 04a-01..09-*.js（各模组块）。
+   原 04a-modcheat-adapters.js（80KB）按模组拆分为本文件（注册表声明）+ 04a-01..11-*.js（各模组块）。
    构建 tools/build_js.js 按文件名 sort() 拼接：04a-00-core.js 排最前，先执行 var CHEAT_ADAPTERS = {}，
    各块文件随后执行 CHEAT_ADAPTERS["modId"] = {...} 赋值。
    工具脚本（check_mod_updates / audit_adapters / resolve_missing）已改读目录下全部 04a-*.js 拼接解析。 */
@@ -4907,20 +4907,20 @@ function renderPlayerEdit() {
 		":root{" +
 		"--mce-accent:#d4a73c;--mce-accent-hover:#e0b44a;--mce-accent-dark:#b38a2a;--mce-accent-55:rgba(212,167,60,.55);" +
 		"--mce-gold-soft:#f0d070;--mce-gold-note:#8a6d3b;--mce-gold-bg:#2a2208;--mce-gold-txt:#f0d98c;" +
-		"--mce-bg-panel:rgba(5,5,5,.96);--mce-bg-deep:#0d0d0d;--mce-bg-base:#1a1a1a;--mce-bg-card:#111;--mce-bg-block:#0f0f0f;" +
+		"--mce-bg-panel:rgba(5,5,5,.92);--mce-bg-deep:#0d0d0d;--mce-bg-base:#1a1a1a;--mce-bg-card:#111;--mce-bg-block:#0f0f0f;" +
 		"--mce-bg-stage:#101010;--mce-bg-detail:#141414;--mce-bg-ctl:#181818;--mce-bg-btn:#222;--mce-bg-hover:#333;--mce-bg-sel:#18150c;" +
 		"--mce-red:#ff6b6b;--mce-red-soft:#ff9c9c;--mce-red-deep:#c0392b;--mce-red-bg:#5a2323;--mce-red-bg-h:#6e2b2b;--mce-red-bg-b:#7a3030;" +
 		"--mce-red-badge:#3a1c1c;--mce-red-badge-b:#5a2e2e;--mce-red-row:#170d0d;--mce-red-err:#2a1515;--mce-red-err-txt:#ffd0d0;--mce-red-err-src:#a07070;--mce-red-err-soft:#ffb0b0;--mce-red-errbox:#150b0b;" +
 		"--mce-green:#7ed89a;--mce-green-deep:#2e9e52;--mce-green-badge:#1c3a24;--mce-green-badge-b:#2e5a3c;--mce-green-row:#0d1710;" +
-		"--mce-border:#3c3c3c;--mce-border-soft:#333;--mce-border-dim:#2a2a2a;--mce-border-faint:#1f1f1f;--mce-border-ctl:#3a3a3a;--mce-border-stage:#555;" +
+		"--mce-border:#3c3c3c;--mce-border-soft:#333;--mce-border-dim:#2a2a2a;--mce-border-ctl:#3a3a3a;--mce-border-stage:#555;" +
 		"--mce-txt:#f2f2f2;--mce-txt-bright:#fff;--mce-txt-on-accent:#111;--mce-txt-hi:#e6e6e6;--mce-txt-label:#d8d8d8;--mce-txt-strong:#eee;" +
 		"--mce-txt-mid:#ccc;--mce-txt-dim:#b9b9b9;--mce-txt-faint:#aaa;--mce-txt-muted:#9c9c9c;--mce-txt-weak:#8a8a8a;--mce-txt-star:#666;" +
 		"--mce-fs-xl:16px;--mce-fs-lg:15px;--mce-fs-tab:14px;--mce-fs-base:13px;--mce-fs-btn:12px;--mce-fs-sm:11px;--mce-fs-xs:10px;" +
-		"--mce-radius:3px;--mce-radius-sm:2px;--mce-radius-pill:8px;" +
-		"--mce-space:8px;--mce-space-md:6px;--mce-space-sm:4px;--mce-h-header:42px;--mce-scroll:8px;" +
+		"--mce-radius:4px;--mce-radius-sm:2px;--mce-radius-pill:8px;" +
+		"--mce-space:8px;--mce-space-md:6px;--mce-space-sm:4px;--mce-h-header:42px;--mce-panel-w:430px;--mce-panel-r:8px;--mce-row-h:34px;--mce-tab-h:36px;--mce-border-quiet:rgba(255,255,255,.08);--mce-scroll:8px;" +
 		"}" +
-		"#mce-root{display:none;position:fixed;top:8px;right:0;bottom:8px;width:430px;max-width:96vw;max-height:calc(100vh - 16px);z-index:2147483000;" +
-		"background:var(--mce-bg-panel);border:1px solid var(--mce-border);border-right:none;box-shadow:0 12px 34px rgba(0,0,0,.7);" +
+		"#mce-root{display:none;position:fixed;top:8px;right:0;bottom:8px;width:var(--mce-panel-w);max-width:96vw;max-height:calc(100vh - 16px);z-index:2147483000;" +
+		"background:var(--mce-bg-panel);border:1px solid var(--mce-border-quiet);border-right:none;border-radius:var(--mce-panel-r) 0 0 var(--mce-panel-r);box-shadow:0 10px 28px rgba(0,0,0,.55);" +
 		"color:var(--mce-txt);flex-direction:column;overflow:hidden;" +
 		"font-family:'Noto Serif SC','Source Han Serif SC','Microsoft YaHei',serif;font-size:var(--mce-fs-base);line-height:1.5}" +
 		"#mce-root.mce-open{display:flex;animation:mce-pop-in .15s ease-out}" +
@@ -4933,13 +4933,13 @@ function renderPlayerEdit() {
 		"#mce-toggle:active{transform:scale(.94)}" +
 		"#mce-toggle.mce-dragging{cursor:grabbing!important;background:var(--mce-accent-hover);transform:none!important}" +
 		".mce-header{display:flex;align-items:center;height:var(--mce-h-header);padding:0 10px;background:var(--mce-bg-base);" +
-		"border-bottom:1px solid var(--mce-border);color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-lg)}" +
+		"border-bottom:1px solid var(--mce-border-quiet);color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-lg)}" +
 		".mce-header .mce-title{flex:1;text-align:center}" +
 		".mce-header button{background:transparent;border:none;color:var(--mce-txt-mid);font-size:var(--mce-fs-xl);cursor:pointer;padding:0 7px}" +
 		".mce-header button:hover{color:var(--mce-txt-bright)}" +
-		".mce-tabs{display:flex;background:var(--mce-bg-deep);border-bottom:1px solid var(--mce-border)}" +
+		".mce-tabs{display:flex;background:var(--mce-bg-deep);border-bottom:1px solid var(--mce-border-quiet)}" +
 		".mce-tabs button{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;" +
-		"color:var(--mce-txt-dim);padding:9px 0;cursor:pointer;font-size:var(--mce-fs-tab);font-family:inherit}" +
+		"color:var(--mce-txt-dim);padding:8px 0;min-height:var(--mce-tab-h);cursor:pointer;font-size:var(--mce-fs-tab);font-family:inherit}" +
 		".mce-tabs button.mce-active{color:var(--mce-accent);border-bottom-color:var(--mce-accent)}" +
 		".mce-body{flex:1;overflow-y:auto;padding:10px;min-height:120px;overscroll-behavior:contain}" +
 		/* v1.9.18 容器自适应：面板内滚动条统一（金色系，随 token 主题）+ 分页 sticky 页头（header/tabs 为 flex 固定行，明确防压缩） */
@@ -4963,11 +4963,14 @@ function renderPlayerEdit() {
 		".mce-card-stats{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:var(--mce-fs-sm);color:var(--mce-txt-muted)}" +
 		".mce-card-stats b{color:var(--mce-accent)}" +
 		/* 数据卡 */
-		".mce-section{font-size:var(--mce-fs-btn);color:var(--mce-txt-muted);border-bottom:1px dashed var(--mce-border-soft);padding:2px 0 4px;margin:10px 0 6px}" +
-		".mce-statrow{display:flex;align-items:center;gap:var(--mce-space-md);margin:5px 0;flex-wrap:wrap}" +
+		/* v1.9.22 自查补：角色数据卡（07c-stage 角色数据卡，此前裸样式无容器视觉） */
+		".mce-data-card{background:var(--mce-bg-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius);padding:8px;margin:var(--mce-space) 0}" +
+		".mce-section{font-size:var(--mce-fs-btn);color:var(--mce-txt-muted);border-bottom:1px solid var(--mce-border-quiet);padding:2px 0 4px;margin:10px 0 6px}" +
+		".mce-statrow{display:flex;align-items:center;gap:var(--mce-space-md);margin:5px 0;min-height:var(--mce-row-h);flex-wrap:wrap}" +
+		".mce-statrow:hover .mce-label{color:var(--mce-accent)}" +
 		".mce-label{color:var(--mce-txt-label);min-width:56px}" +
 		".mce-value{color:var(--mce-accent);font-weight:700;min-width:44px;text-align:right}" +
-		".mce-btn{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border);border-radius:var(--mce-radius-sm);padding:3px 9px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit;" +
+		".mce-btn{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border);border-radius:var(--mce-radius);padding:3px 9px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit;" +
 		"transition:background .12s ease,transform .12s ease,box-shadow .12s ease}" +
 		".mce-btn:hover{background:var(--mce-bg-hover)}" +
 		".mce-btn:active{transform:scale(.96)}" +
@@ -4979,7 +4982,7 @@ function renderPlayerEdit() {
 		".mce-btn:disabled{opacity:.45;cursor:not-allowed}" +
 		".mce-actions{display:flex;flex-wrap:wrap;gap:var(--mce-space-md);margin:var(--mce-space) 0}" +
 		/* 内层标签 */
-		".mce-inner{display:flex;gap:var(--mce-space-sm);margin:var(--mce-space) 0;border-bottom:1px solid var(--mce-border-dim);padding-bottom:6px}" +
+		".mce-inner{display:flex;gap:var(--mce-space-sm);margin:var(--mce-space) 0;border-bottom:1px solid var(--mce-border-quiet);padding-bottom:6px}" +
 		".mce-inner button{background:var(--mce-bg-ctl);color:var(--mce-txt-faint);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-sm);padding:3px 10px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
 		".mce-inner button.mce-active{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent)}" +
 		/* 阶段列表 */
@@ -4995,30 +4998,36 @@ function renderPlayerEdit() {
 		".mce-stage-txt{color:var(--mce-txt-dim);font-size:var(--mce-fs-sm);margin-top:4px;word-break:break-all;font-family:Consolas,Menlo,monospace}" +
 		".mce-stage-note{color:var(--mce-gold-note);font-size:var(--mce-fs-sm);margin-top:3px}" +
 		".mce-hint{color:var(--mce-txt-weak);font-size:var(--mce-fs-btn);margin:var(--mce-space-sm) 0}" +
+		/* v1.9.22 自查补：剧情进度说明 note（07h-render，此前裸样式） */
+		".mce-note{color:var(--mce-txt-dim);font-size:var(--mce-fs-sm);margin-top:3px;word-break:break-all}" +
 		/* v1.5.2 使用提示（剧情页页首警示框） */
 		".mce-warn{background:var(--mce-gold-bg);border:1px solid var(--mce-accent);color:var(--mce-gold-txt);font-size:var(--mce-fs-btn);margin:var(--mce-space-sm) 0;padding:8px 10px;border-radius:var(--mce-radius);line-height:1.6}" +
 		".mce-err{color:var(--mce-red);font-size:var(--mce-fs-base)}" +
 		".mce-ok{color:var(--mce-green);font-size:var(--mce-fs-base)}" +
-		".mce-status{min-height:18px;padding:6px 10px;border-top:1px solid var(--mce-border);background:var(--mce-bg-deep);color:var(--mce-txt-muted);font-size:var(--mce-fs-btn)}" +
-		".mce-type{display:inline-block;background:var(--mce-bg-base);color:var(--mce-txt-mid);border:1px solid var(--mce-border);border-radius:var(--mce-radius-sm);padding:2px 8px;font-size:var(--mce-fs-sm);margin:2px}" +
+		".mce-status{min-height:18px;padding:6px 10px;border-top:1px solid var(--mce-border-quiet);background:var(--mce-bg-deep);color:var(--mce-txt-muted);font-size:var(--mce-fs-btn)}" +
 		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:var(--mce-space-sm) 0}" +
 		/* v1.4.0 Mod作弊页面 */
 		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，
 		   减少大列表下（如枯木逢春 28 数值项展开）对 DoL-Game-UI 每帧 rAF 全量扫描的主线程叠加压力 */
 		".mce-grp{border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);margin:var(--mce-space) 0;padding:8px;background:var(--mce-bg-block);contain:content}" +
-		".mce-grp-t{color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-base);margin-bottom:6px}" +
+		".mce-grp-t{color:var(--mce-txt-strong);font-weight:700;font-size:var(--mce-fs-base);margin-bottom:6px}" +
 		".mce-collapse-head{cursor:pointer;user-select:none}" +
 		".mce-collapse-head:hover{color:var(--mce-gold-soft)}" +
 		".mce-grp-body[data-collapsed=\"1\"]{display:none}" +
 		/* v1.9.14 效果4：折叠组展开淡入（display:none→block 切换时动画自动重放，覆盖 Mod 作弊/特质/角色/剧情全部折叠组） */
 		".mce-grp-body[data-collapsed=\"0\"]{animation:mce-fade-in .2s ease-out}" +
-		".mce-row{display:flex;align-items:center;gap:var(--mce-space);flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--mce-border-faint);font-size:var(--mce-fs-btn)}" +
-		".mce-row-lbl{color:var(--mce-txt-hi);flex:1;min-width:120px;word-break:break-all}" +
-		".mce-row button{background:var(--mce-bg-ctl);color:var(--mce-txt-mid);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius-sm);padding:3px 8px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
+		".mce-row{display:flex;align-items:center;gap:var(--mce-space);flex-wrap:wrap;padding:6px 0;min-height:var(--mce-row-h);font-size:var(--mce-fs-btn)}" +
+		".mce-row:hover .mce-row-lbl,.mce-row:hover .mce-row-name{color:var(--mce-accent)}" +
+		".mce-row-lbl,.mce-row-name{color:var(--mce-txt-hi);flex:1;min-width:120px;word-break:break-all}" +
+		".mce-btn-active{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent);font-weight:700}" +
+		".mce-row button{background:var(--mce-bg-ctl);color:var(--mce-txt-mid);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius);padding:3px 8px;min-height:22px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
 		".mce-row button:hover{border-color:var(--mce-accent);color:var(--mce-accent)}" +
-		".mce-inp{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius-sm);padding:3px 6px;font-size:var(--mce-fs-btn);width:90px;font-family:Consolas,Menlo,monospace}" +
-		".mce-search-inp{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius-sm);padding:3px 6px;font-size:var(--mce-fs-btn);width:220px;font-family:Consolas,Menlo,monospace}" +
-		".mce-sel{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius-sm);padding:3px 4px;font-size:var(--mce-fs-btn);font-family:inherit;max-width:170px;flex:0 1 auto}" +
+		".mce-inp{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius);padding:3px 6px;font-size:var(--mce-fs-btn);width:90px;font-family:Consolas,Menlo,monospace}" +
+		".mce-search-inp{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius);padding:3px 6px;font-size:var(--mce-fs-btn);width:220px;max-width:100%;font-family:Consolas,Menlo,monospace}" +
+		/* v1.9.22 自查补：锁定页自由添加 varPath 输入框（宽 200px 曾直写 JS 内联样式，现回归 CSS） */
+		".mce-inp.mce-path{width:200px;max-width:100%}" +
+		".mce-sel{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius);padding:3px 4px;font-size:var(--mce-fs-btn);font-family:inherit;max-width:170px;flex:0 1 auto}" +
+		".mce-inp:focus,.mce-search-inp:focus,.mce-sel:focus{outline:none;border-color:var(--mce-accent)}" +
 		/* v1.8.7 能力项说明折叠（学 CE 逐项数值文档） */
 		".mce-ab-detail{margin-left:4px;font-size:var(--mce-fs-sm)}" +
 		".mce-ab-sum{cursor:pointer;color:var(--mce-txt-weak);user-select:none;display:inline-block}" +
@@ -5033,7 +5042,7 @@ function renderPlayerEdit() {
 		".mce-errbtn{background:var(--mce-red-bg);color:var(--mce-red-soft);border:1px solid var(--mce-red-bg-b);border-radius:50%;" +
 		"min-width:20px;height:20px;line-height:18px;font-size:var(--mce-fs-sm);font-weight:700;cursor:pointer;padding:0 4px;display:none}" +
 		".mce-errbtn.mce-on{display:inline-block}" +
-		".mce-errbox{display:none;background:var(--mce-red-errbox);border-bottom:1px solid var(--mce-border);max-height:40%;overflow-y:auto;padding:6px 8px}" +
+		".mce-errbox{display:none;background:var(--mce-red-errbox);border-bottom:1px solid var(--mce-border-quiet);max-height:40%;overflow-y:auto;padding:6px 8px}" +
 		".mce-errbox.mce-on{display:block}" +
 		".mce-errrow{border-top:1px solid var(--mce-red-err);padding:4px 0;font-size:var(--mce-fs-sm);color:var(--mce-red-err-soft);font-family:Consolas,Menlo,monospace;word-break:break-all}" +
 		".mce-errrow .mce-err-msg{color:var(--mce-red-err-txt)}" +
@@ -6362,7 +6371,7 @@ function renderPlayerEdit() {
 
 /* ============================================================
  * 07f-lock.js — 数值固定（Lock Values）
- * 需求实证（玩家反馈 + 模组对照源码核对 dw252）：
+ * 需求实证（玩家反馈 + 模组对照源码核对 dw257）：
  *  - 枯木逢春渡鸦转化 maplebirch.transformation.raven.build：未戴「渡鸦羽毛项链」时
  *    每日衰减（Raven.ts decayConditions: build≥1 && 项链≠raven feather necklace）
  *  - 原版天使转化 angel：无三位一体（VanillaPlus.divineTransformations.trinity）时
@@ -6375,7 +6384,7 @@ function renderPlayerEdit() {
  *      UI 挂「全局」页 renderGlobal 末尾（mbCERenderLock）。
  * ============================================================ */
 
-/* 预设推荐项：真实键名全部来自 CE 适配器声明/模组对照源码（dw252）与 DoL 原版转化键 */
+/* 预设推荐项：真实键名全部来自 CE 适配器声明/模组对照源码（dw257）与 DoL 原版转化键 */
 var MB_CE_LOCK_PRESETS = [
 	{ path: "maplebirch.transformation.raven.build", name: "渡鸦转化点数", note: "未戴渡鸦羽毛项链时每日衰减" },
 	{ path: "maplebirch.transformation.horse.build", name: "马转化点数", note: "build≥1 后模组自带停止衰减，可锁" },
@@ -6537,11 +6546,10 @@ function mbCERenderLock(pane) {
 	/* 自由添加 */
 	var addRow = el("div", "mce-row");
 	addRow.appendChild(el("span", "mce-row-lbl", "自由添加（任意 varPath，按数值写回）："));
-	var addPath = el("input", "mce-inp");
+	var addPath = el("input", "mce-inp mce-path");
 	addPath.type = "text";
 	addPath.value = "";
 	addPath.placeholder = "如 more_love_interests.x.love";
-	addPath.style.width = "200px";
 	addRow.appendChild(addPath);
 	var addVal = el("input", "mce-inp");
 	addVal.type = "number";

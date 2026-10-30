@@ -1,6 +1,6 @@
 /* ============================================================
  * 07f-lock.js — 数值固定（Lock Values）
- * 需求实证（玩家反馈 + 模组对照源码核对 dw252）：
+ * 需求实证（玩家反馈 + 模组对照源码核对 dw257）：
  *  - 枯木逢春渡鸦转化 maplebirch.transformation.raven.build：未戴「渡鸦羽毛项链」时
  *    每日衰减（Raven.ts decayConditions: build≥1 && 项链≠raven feather necklace）
  *  - 原版天使转化 angel：无三位一体（VanillaPlus.divineTransformations.trinity）时
@@ -13,7 +13,7 @@
  *      UI 挂「全局」页 renderGlobal 末尾（mbCERenderLock）。
  * ============================================================ */
 
-/* 预设推荐项：真实键名全部来自 CE 适配器声明/模组对照源码（dw252）与 DoL 原版转化键 */
+/* 预设推荐项：真实键名全部来自 CE 适配器声明/模组对照源码（dw257）与 DoL 原版转化键 */
 var MB_CE_LOCK_PRESETS = [
 	{ path: "maplebirch.transformation.raven.build", name: "渡鸦转化点数", note: "未戴渡鸦羽毛项链时每日衰减" },
 	{ path: "maplebirch.transformation.horse.build", name: "马转化点数", note: "build≥1 后模组自带停止衰减，可锁" },
@@ -175,11 +175,10 @@ function mbCERenderLock(pane) {
 	/* 自由添加 */
 	var addRow = el("div", "mce-row");
 	addRow.appendChild(el("span", "mce-row-lbl", "自由添加（任意 varPath，按数值写回）："));
-	var addPath = el("input", "mce-inp");
+	var addPath = el("input", "mce-inp mce-path");
 	addPath.type = "text";
 	addPath.value = "";
 	addPath.placeholder = "如 more_love_interests.x.love";
-	addPath.style.width = "200px";
 	addRow.appendChild(addPath);
 	var addVal = el("input", "mce-inp");
 	addVal.type = "number";

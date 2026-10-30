@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-Write-Host "[1/5] 全链验证（build / syntax / smoke / regression / functional e2e）"
+Write-Host "[1/5] 全链验证（build / syntax / smoke / regression / functional e2e / gender）"
 & (Join-Path $PSScriptRoot "run_all.ps1")
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: run_all" -ForegroundColor Red; exit 1 }
 

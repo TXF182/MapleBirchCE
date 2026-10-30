@@ -19,7 +19,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-/* 适配器源码按模组拆分（04a-00..09-*.js，v1.9.13）：目录扫描拼接，顺序与 build_js.js sort 一致 */
+/* 适配器源码按模组拆分（04a-00..11-*.js，v1.9.13）：目录扫描拼接，顺序与 build_js.js sort 一致 */
 const ADAPTER_DIR = path.join(ROOT, "javascript", "src");
 const GLOBAL_SRC = path.join(ROOT, "javascript", "src", "03-global.js");
 
