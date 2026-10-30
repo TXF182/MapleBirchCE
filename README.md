@@ -127,10 +127,10 @@
 
 ## 版本说明
 
-- **v1.9.22（2026-10-30 · 未发布）**：
+- **v1.9.22（2026-10-30 · 已发布）**：
   - **UI 视觉系统规格化（Apple 式精密 × 金色玻璃）**：新增尺寸 token（面板宽 430px / 左圆角 8px / 数值行高 34px / 页签高 36px / quiet 描边 rgba(255,255,255,.08)），控件圆角 3→4px；
   - **anti-slop 视觉规则**：accent 金唯一职责（当前页签/主操作/数值高亮，折叠组标题改浅强色）；面板/页头/页签/分区/状态栏全部低对比 quiet 描边；数值行去发丝分割线改间距分层 + 悬停金色标签；面板底色 .96→.92 玻璃感（不引入 backdrop-filter，守 DoL-Game-UI 性能边界）；阴影柔和化；输入控件金色聚焦描边；
-  - **验证**：codegraph impact 零下游 + 全链 6 步见交付记录；未打包、未发布（等用户指令）；
+  - **验证**：codegraph impact 零下游 + 全链 6 步全绿 + codegraph sync；打包 verifier 4/4、zip 正斜杠 4/4、SHA256 `BA9D29F7…` 已装 game；已发布（Release v1.9.22，资产 223296 B SHA 回读一致）；
 - **v1.9.21（2026-10-29 · 已发布）**：
   - **新适配器：人物附加与生活质量提升（第 11 个，doctor55555-55555/DolMod-，MyFirstMod v0.1.880）**：`04a-11-dolmod.js`，官方汉化名三源核对（README/boot.json/zip 文件名）；阶段 1（阿电告白状态机四态字符串）+ 能力 12（已认识/恋爱中/住院入狱举报/吃醋/电脑满配 sync 10 顶级件+性能 91/全应用 clear+set 卸载语义/小吃摊/海上平台/阁楼广播）+ 数值 17（斯德哥尔摩/囚禁信任/告白拒绝日/银行活期/网课 8 键 C+ 封顶/兔子人鱼转化配套进度/NG+）；隔离原版根（NPCName/loveInterest/money/adian.love 拒写）；**探测防误命中**：window.ComputerMod/BankMod/NgPlus 首选 + V 双键兜底，弃用 rabbitbuild/mermaidbuild（本体转化键同名）与单键 adian_*（剧情前 undefined）；
   - **回归隔离**：test_mce 新增 51 节（51.1-51.8 全 PASS）+ 18.0b/24.0 清理段补 DolMod 探测根（首轮 8 FAIL → 二次收敛全绿）；E2E B 段 9→10 适配器（`mods.length === 10`）+ 关键词「人物附加与生活质量提升」；

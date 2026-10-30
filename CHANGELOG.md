@@ -2,7 +2,7 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v1.9.22（2026-10-30 · UI 视觉系统规格化：Apple 式精密 × 金色玻璃 · 未发布）
+## v1.9.22（2026-10-30 · UI 视觉系统规格化：Apple 式精密 × 金色玻璃 · 已发布）
 
 **UI 视觉系统规格化（延续 v1.9.18 排版 token 化）**
 
@@ -21,7 +21,7 @@
 
 ### ③ 验证
 
-- codegraph impact（07a-shell.js 自包含、零下游依赖）；全链 6 步验证见交付记录；未打包、未发布（等用户指令）。
+- codegraph impact（07a-shell.js 自包含、零下游依赖）；全链 6 步验证见交付记录；已打包（223,296 B / SHA256 `BA9D29F7…`，verifier 4/4、zip 正斜杠 4/4）已装 game；已发布（Release v1.9.22，资产 SHA 回读一致）。
 
 ### ④ 自查补（2026-10-30 二次走查：全仓类名覆盖核查 + anti-slop 遗漏排查）
 
