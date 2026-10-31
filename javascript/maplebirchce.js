@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.22";
+	var MCE_VERSION = "1.9.25";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1504,7 +1504,7 @@
 		"robinromance", "whitneyromance", "kylarenglish", "avery_mansion", "avery_tower",
 		"daily", "settings", "scenes", "NPCName", "characters", "npc",
 		"weekly", "specialClothes", "loveInterest", "replayScene", "sceneViewSwitch",
-		"mbCE_queue", "mbCE_wrote", "mbCE_replayOnce", "mbCE_replayPending", "mbCE_unlockedPlaces"
+		"mbCE_queue", "mbCE_wrote", "mbCE_replayOnce", "mbCE_replayPending", "mbCE_unlockedPlaces", "mbCE_completedScenes"
 	];
 	/* v1.7.0：DoL 原版 V 顶层键清单（从本体 0.5.12.13 HTML 宏上下文实证提取，186 键）。
 	   用途：玩家属性编辑页「模组属性」区 = 运行时 V 顶层键 - 本清单（只添加原版没有的，原版键不重复添加）。
@@ -1636,7 +1636,7 @@ var CHEAT_ADAPTERS = {};
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.4.5",
+			modName: "默示录：归途之书 v1.4.6",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -1689,7 +1689,10 @@ var CHEAT_ADAPTERS = {};
 				  labels: ["现场", "战斗", "汇报"] },
 				{ key: "td_ordination_stage", name: "神殿值勤 · 授职阶段（1.4.4 新增晋铎线）", varPath: "TempleDuties.ordination.stage",
 				  levels: ["prepare", "chant", "whispers", "care", "burden", "aid", "rest", "return", "testimony", "answer", "aftercare", "withdrawn", "complete"],
-				  labels: ["准备", "颂唱", "低语", "关怀", "重担", "援助", "休息", "回归", "见证", "回答", "善后", "退出", "完成"] }
+				  labels: ["准备", "颂唱", "低语", "关怀", "重担", "援助", "休息", "回归", "见证", "回答", "善后", "退出", "完成"] },
+				{ key: "nkl_stage", name: "怨灵 · 回收线阶段（1.4.6 新增）", varPath: "RBR.necklace.stage",
+				  levels: ["", "failed", "camera", "case", "take", "smash"],
+				  labels: ["未开始", "失败", "摄像头", "展柜", "取走", "砸柜"] }
 			],
 			abilities: [
 				{ key: "tc_joined", name: "唱诗班 · 已入团", varPath: "TempleChoir.joined", type: "boolean",
@@ -1715,8 +1718,12 @@ var CHEAT_ADAPTERS = {};
 				{ key: "td_review", name: "神殿值勤 · 待审查", varPath: "TempleDuties.review", type: "boolean" },
 				{ key: "td_robin_agree", name: "神殿值勤 · 罗宾候选同意", varPath: "TempleDuties.candidates.Robin.agreed", type: "boolean" },
 				{ key: "td_sydney_agree", name: "神殿值勤 · 悉尼候选同意", varPath: "TempleDuties.candidates.Sydney.agreed", type: "boolean" },
-				{ key: "nkl_returned", name: "怨灵 · 项链已归还", varPath: "RBR.necklace.returned", type: "boolean",
-				  note: "1.3.10 项链取回/安抚线主开关：勾选视为已把象牙项链归还湖中，梦线与安抚线（WraithAftercare）入口开放" }
+				{ key: "nkl_returned", name: "怨灵 · 项链已归还", varPath: "RBR.necklace.returnedOnce", type: "boolean",
+				  note: "1.4.6 项链取回/安抚线主开关（原 RBR.necklace.returned 重构为 returnedOnce）：勾选视为已把象牙项链归还湖中一次，梦线与安抚线（WraithAftercare）入口开放" },
+				{ key: "nkl_retaken", name: "怨灵 · 项链已取回", varPath: "RBR.necklace.retaken", type: "boolean", numeric: true,
+				  note: "1.4.6 新增取回分支：勾选=已再次取回（retaken=1，模组 gt 0 判定；模组侧 +1 累加计数，numeric 勾选写 1 不污染计数）" },
+				{ key: "nkl_reclaimed", name: "怨灵 · 项链已取回（归还后）", varPath: "RBR.necklace.reclaimed", type: "boolean",
+				  note: "1.4.6 回收线成功后置 true（WraithRecovery 实证）：勾选=当前持有已从湖边取回的项链，等价项链盗贼分支，开放 Gwylan/归还后续剧情（Wraith.twee:89/131/208 判定）" }
 			],
 			scenes: [
 				{ key: "rt_prayer", name: "罗宾神殿 · 祷告事件", skipVar: "RobinTemple.prayer_event_resolved", completeVar: "RobinTemple.prayer_event_done", progressVar: "RobinTemple.prayer_event", resetValue: 0 }
@@ -1839,7 +1846,7 @@ var CHEAT_ADAPTERS = {};
 		},
 		entry: {
 			modId: "deadwood-reblooms",
-			modName: "枯木逢春 · Deadwood Reblooms 2.5.7",
+			modName: "枯木逢春 · Deadwood Reblooms 2.5.8",
 			tasks: [],
 			stages: [
 				{ key: "r_shop_stage", name: "罗宾 · 店铺开办阶段", varPath: "RobinExpansion.shop_stage",
@@ -5579,6 +5586,9 @@ function renderPlayerEdit() {
 		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" }
 	];
 	var PLACE_CN = {
+		/* v1.9.23-实机修复：新 6 组主场景名中文化（主场景行 placeNameCN 子串映射） */
+		"asylum": "精神病院", "police": "警局与监狱", "prison": "监狱", "docks": "码头",
+		"lake": "湖畔", "wolf": "狼群", "hospital": "医院",
 		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
 		"spray": "喷漆", "hall": "大厅", "garden": "花园", "lab": "实验室", "parents room": "父母房间",
 		"grounds": "庭院", "kylar room": "凯拉尔房间", "secret": "秘密", "bed": "卧室", "pool": "泳池",
@@ -6575,15 +6585,411 @@ function mbCERenderLock(pane) {
 
 /* 模块加载兜底：读档后 V 已有锁定向时恢复写回（V 未就绪时静默跳过，开面板时 mbCERenderLock 再补） */
 mbCELockEnsureTimer();
-	/* ============ 固定触发（v1.1）：把某个剧情钉住，下次推进剧情（遇见角色）自动重放
-	     复用原版 $replayScene 重放通道（Scene viewer redirect）：startPassage/passages
-	     内段落正常播放，离开场景自动回 Scene Viewer End 并返回原位；「回退」即取消。
-	     存储于 V.mbCE_pinned（存档持久）；重放期间原版自动禁存 + 冻结属性，零副作用。 ============ */
-	/* 固定触发队列（v1.2）：V.mbCE_queue 数组按固定顺序存储；每次段落跳转触发
-	     队首未 used 项 → 启动原版 $replayScene 重放 → 立即标记 used（一次性，触发
-	     后不再重复）；重放结束（跳向 Scene Viewer End）时移除已 used 项，并把该
-	     剧情所在场景组记录进 V.mbCE_unlockedPlaces（场景联动解锁）。
-	     兼容迁移：v1.1 旧单固定 mbCE_pinned 自动并入队列（视为已触发过）。 */
+	/* ============ 锚定触发（v1.9.23）：把某个剧情锚定到其发生地点，走到该地点交互时
+	     弹确认条（含地点/时间/前置说明），确认后复用原版 $replayScene 重放通道播放
+	     （startPassage/passages 内段落正常播放，离开场景自动回原位）；播放完标
+	     「已完成 ✓」并移出队列，可再自由锚定。旧「固定触发（任意推进即触发）」已移除。
+	     存储于 V.mbCE_queue（存档持久）+ V.mbCE_completedScenes（已完成记录）；
+	     重放期间原版自动禁存 + 冻结属性，零副作用。 ============ */
+	/* 锚定触发队列（v1.9.23）：V.mbCE_queue 数组按锚定顺序存储。队首未 used 项若带
+	     地点元数据（anchor.location）→ 走到该地点时（:passageend 判定 V.location）弹
+	     确认条，确认后经原版 $replayScene 重放；「暂不触发」保留待下次（60s 冷却防打扰）。
+	     无地点元数据项（旧档迁移：v1.1 旧单固定 mbCE_pinned 自动并入队列视为已触发过、
+	     v1.2-1.9.22 旧队列项）保持旧段落跳转语义直至触发完，不破坏存档。
+	     重放结束（Scene Viewer End / 链回 / exitpassage 返回 / Farm Work / unfreeze 钩子）
+	     时把该场景记入 V.mbCE_completedScenes（「已完成 ✓」）并移出队列。
+	     场景联动解锁（unlockPlaceForScene / applyWorldUnlockForScene）保留。 */
+	/* ============ 场景地点元数据（v1.9.23 第一批，全部实证） ============
+	   来源分级：
+	     [reg]  = 本体 $scenes 注册表 manualVariableChanges 内 <<set $location to '...'>>（extract_scene_locs.js 实证）
+	     [reg-w]= 本体注册表 manualVariableChanges 内 <<location '...'>> widget（同上）
+	     [pas]  = 本体剧情段落实证（入口段落开头 <<set $location>> / <<location>> / 段落文本）
+	     [同区] = 同一条线相邻段落实证（如罗宾地下系列）
+	     [名]   = 场景名/入口段落名语义（值域与相邻段落佐证）
+	   timeNote 仅展示、不参与触发判定；无 timeNote 时确认条省略时间说明。 */
+	console.log("[MCE-BOOT] 07f-pins loaded v-probe2");
+var SCENE_LOCATIONS = {
+		/* 罗宾 */
+		"RobinIntro1": { loc: "home", src: "pas: Orphanage 段落实证 $location=home" },
+		"RobinIntro2": { loc: "shopping_centre", src: "名: startPassage=Shopping Centre（值域实证）" },
+		"RobinIntro3": { loc: "school", src: "pas: Canteen 段落实证 $location=school" },
+		"RobinCrossdressing1": { loc: "home", src: "pas: Robin Caught CD SV Start $location=home" },
+		"RobinCrossdressing2": { loc: "home", time: "16:00", src: "pas: Robin CD Door SV Start $location=home + Time.setTime(16)" },
+		"RobinCrossdressing3": { loc: "home", src: "pas: Robin CD Socialise SV Start $location=home" },
+		"RobinCrossdressing6": { loc: "school", time: "12:00", src: "pas: Canteen Lunch Robin CD 1 $location=school + setTime(12,0)" },
+		"RobinCrossdressing6I": { loc: "school", time: "12:00", src: "pas: School Infirmary Robin CD Intro $location=school + setTime(12,0)" },
+		"RobinDocks": { loc: "docks", src: "pas: Docks_Robin 段落实证 $location=docks" },
+		"RobinLandfill": { loc: "landfill", src: "pas: Robin Mist Intro 段落实证 $location=landfill" },
+		"RobinPilloryIntro": { loc: "home", src: "pas: Robin Pillory Intro 段落实证 $location=home" },
+		"RobinPillory": { loc: "town", src: "pas: Robin Pillory Watch 段落实证 $location=town" },
+		"RobinUndergroundDice": { loc: "underground", src: "同区: Underground Robin 系列（Stage Intro 段落实证 $location=underground）" },
+		"RobinUndergroundMachine": { loc: "underground", src: "同区: 同上" },
+		"RobinUndergroundKiss": { loc: "underground", src: "同区: 同上" },
+		"RobinUndergroundStage": { loc: "underground", src: "pas: Underground Robin Stage Intro $location=underground" },
+		"RobinUndergroundHunt": { loc: "forest", src: "pas: Underground Robin Hunt Intro <<location 'forest'>>" },
+		"RobinUndergroundEscape": { loc: "forest", src: "名: undergroundEscapeForestRobin widget 名实证" },
+		"RentFirstRobinFight": { loc: "orphanage", src: "pas: Rent First Robin SV 段落文本 'main hall of the orphanage'" },
+		/* 惠特尼 */
+		"WhitneySchoolBully1": { loc: "school", src: "名: 校园欺凌剧情（schoolbully widget；school 值域实证）" },
+		"WhitneySchoolBully2": { loc: "school", src: "名: 同上" },
+		"WhitneySchoolBully3": { loc: "school", src: "名: 同上" },
+		"WhitneySchoolBully4": { loc: "school", src: "名: 同上" },
+		"WhitneySchoolBullyChastity": { loc: "school", src: "名: 同上" },
+		"WhitneySchoolBullyPanty": { loc: "school", src: "名: 同上" },
+		"WhitneySchoolBullySkirt": { loc: "school", src: "名: 同上" },
+		"WhitneySchoolBullySwimwear": { loc: "school", src: "名: 同上" },
+		"WhitneyOrphanageLoft": { loc: "orphanage", src: "名: 孤儿院阁楼场景（Bird Loft 1 段落实证 $location=orphanage）" },
+		"WhitneyOrphanageVisit": { loc: "orphanage", src: "名: SV Street Bully Orphanage Go（孤儿院）" },
+		"WhitneyShoppingCentreClothes": { loc: "town", src: "reg: manualVariableChanges $location=town" },
+		"WhitneyShoppingCentreCosmetics": { loc: "town", src: "reg: manualVariableChanges $location=town" },
+		"WhitneyShoppingCentreHairDressers": { loc: "town", src: "reg: manualVariableChanges $location=town" },
+		/* 艾弗里 */
+		"AveryHelicopter": { loc: "town", src: "reg: manualVariableChanges $location=town" },
+		"AveryParkIntroduction": { loc: "park", src: "pas: Park Lichen 段落实证 $location=park" },
+		/* 凯拉尔 */
+		"KylarAbduction": { loc: "kylarmanor", src: "pas: Kylar Abduction Intro <<location 'kylarmanor'>>" },
+		"KylarBasement": { loc: "school", src: "pas: Kylar Basement 段落实证 $location=school" },
+		"KylarManorSecret": { loc: "kylarmanor", src: "reg-w: manualVariableChanges <<location 'kylarmanor'>>" },
+		"KylarManorSleep": { loc: "kylarmanor", src: "reg-w: manualVariableChanges <<location 'kylarmanor'>>" },
+		"KylarMonstranceAsk": { loc: "temple", src: "reg: manualVariableChanges $location=temple" },
+		"KylarMonstranceAccost": { loc: "temple", src: "reg: manualVariableChanges $location=temple" },
+		/* 神殿（悉尼） */
+		"TempleConfessorIntro": { loc: "temple", src: "reg: manualVariableChanges $location=temple" },
+		"TempleVigil": { loc: "temple", src: "reg: manualVariableChanges $location=temple" },
+		"TempleSydneyCorrupt": { loc: "temple", src: "reg: manualVariableChanges $location=temple" },
+		"TempleSydneyPunish": { loc: "temple", src: "reg: manualVariableChanges $location=temple" },
+		"TempleSydneyPureRitual": { loc: "temple", src: "reg: manualVariableChanges $location=temple" },
+		/* 艾利克斯农场 */
+		"TheFarm": { loc: "farm", src: "名: 被卖至农场（farm 值域实证）" },
+		"AlexFarmWorkStage03": { loc: "farm", src: "名: 农场工作剧情（sceneViewSwitch farmStage3；farm 值域实证）" },
+		"AlexFarmWorkStage04": { loc: "farm", src: "名: 同上（farmStage4）" },
+		"AlexFarmWorkStage05": { loc: "farm", src: "名: 同上（farmStage5）" },
+		"AlexFarmWorkStage06": { loc: "farm", src: "名: 同上（farmStage6）" },
+		"AlexFarmWorkStage07": { loc: "farm", src: "名: 同上（farmStage7）" },
+		"AlexFarmWorkStage08": { loc: "farm", src: "名: 同上（farmStage8）" },
+		"AlexFarmWorkStage09": { loc: "farm", src: "名: 同上（farmStage9）" },
+		"AlexFarmWorkStage10": { loc: "farm", src: "名: 同上（farmStage10）" },
+		"AlexFarmWorkStage11": { loc: "farm", src: "名: 同上（farmStage11）" },
+		"AlexFarmWorkStage12": { loc: "farm", src: "名: 同上（farmStage12）" },
+		/* 其他注册表实证 */
+		"AdultShopIntro": { loc: "dilapidated_shop", src: "reg: manualVariableChanges $location" },
+		"AdultShopOpening": { loc: "adult_shop", src: "reg: manualVariableChanges $location" },
+		"EdenIntro": { loc: "forest", src: "reg: manualVariableChanges $location" },
+		"BlackWolfIntro": { loc: "forest", src: "reg: manualVariableChanges $location" },
+		"FreeTheBlackDog": { loc: "town", src: "reg: manualVariableChanges $location" },
+		"IslandCastle": { loc: "island", src: "reg: manualVariableChanges $location" },
+		"MoorFlower": { loc: "moor", src: "reg: manualVariableChanges $location" },
+		"HookahPlot1": { loc: "tentworld", src: "reg: manualVariableChanges $location" },
+		"HookahPlot2": { loc: "town", src: "reg: manualVariableChanges $location" },
+		"Schism": { loc: "lake_ruin", src: "reg: manualVariableChanges $location" },
+		"MickeyOrphanageHacker": { loc: "home", src: "reg: manualVariableChanges $location" },
+		"MickeyPubFameIntro": { loc: "pub", src: "reg: manualVariableChanges $location" },
+		"PrisonSpirePrecipice": { loc: "prison", src: "reg: manualVariableChanges $location" },
+		"PrisonYardLocket": { loc: "prison", src: "reg: manualVariableChanges $location" },
+		"PrisonScarredInmate": { loc: "prison", src: "reg: manualVariableChanges $location" }
+	};
+	/* 跨线前置映射（v1.9.23 第一批）：剧情有关联性时的显式前置。
+	   线内前置（数字后缀聚线）由 pendingPreconds 自动推导、零维护；
+	   此处只放跨线剧情顺序明确的保守映射。前置缺失不禁止锚定，仅提示。 */
+	var SCENE_PRECONDITIONS = {
+		"RobinCrossdressing1": ["RobinIntro1"],
+		"RobinCrossdressing2": ["RobinIntro1"],
+		"RobinCrossdressing3": ["RobinIntro1"],
+		"RobinCrossdressing6": ["RobinIntro1"],
+		"RobinCrossdressing6I": ["RobinIntro1"],
+		"RobinDocks": ["RobinIntro1"],
+		"RobinLandfill": ["RobinIntro1"],
+		"RentFirstRobinFight": ["RobinIntro1"],
+		"RobinUndergroundDice": ["RobinDocks"],
+		"RobinUndergroundMachine": ["RobinDocks"],
+		"RobinUndergroundKiss": ["RobinDocks"],
+		"RobinUndergroundStage": ["RobinDocks"],
+		"RobinUndergroundHunt": ["RobinDocks"],
+		"RobinUndergroundEscape": ["RobinDocks"],
+		"WhitneyShoppingCentreClothes": ["WhitneySchoolBully1"],
+		"WhitneyShoppingCentreCosmetics": ["WhitneySchoolBully1"],
+		"WhitneyShoppingCentreHairDressers": ["WhitneySchoolBully1"],
+		"WhitneyOrphanageLoft": ["WhitneySchoolBully1"],
+		"WhitneyOrphanageVisit": ["WhitneySchoolBully1"],
+		"AveryHelicopter": ["AveryParkIntroduction"],
+		"KylarManorSecret": ["KylarAbduction"],
+		"KylarManorSleep": ["KylarAbduction"],
+		"KylarMonstranceAsk": ["KylarAbduction"],
+		"KylarMonstranceAccost": ["KylarAbduction"]
+	};
+	/* 地点值域 → 中文显示名（锚定提示/确认条用；未知值原样显示） */
+	var LOCATION_LABELS = {
+		"home": "孤儿院（家）", "orphanage": "孤儿院（阁楼/公共区）", "school": "学校", "school_rear_courtyard": "学校后院",
+		"town": "城镇（街道）", "docks": "码头", "landfill": "垃圾场", "park": "公园", "forest": "森林", "forest_shop": "森林商店",
+		"temple": "神殿", "old_temple": "旧神殿", "kylarmanor": "凯拉尔庄园", "avery_mansion": "艾弗里庄园", "avery_skyscraper": "艾弗里大厦",
+		"farm": "艾利克斯农场", "alex_cottage": "艾利克斯小屋", "alex_farm": "农场", "farm_manors": "农庄",
+		"underground": "地下（罗宾地下）", "brothel": "妓院", "island": "岛", "lake": "湖", "lake_ruin": "湖畔遗迹",
+		"moor": "荒野", "tentworld": "帐篷世界", "pub": "酒吧", "prison": "监狱", "shopping_centre": "购物中心",
+		"adult_shop": "成人商店", "dilapidated_shop": "破旧商店", "beach": "海滩", "sewers": "下水道", "police_station": "警察局",
+		"hospital": "医院", "hotel": "旅馆", "cafe": "咖啡馆", "office": "办公室", "industrial": "工业区", "alley": "小巷",
+		"arcade": "游戏厅", "asylum": "疯人院", "bog": "沼泽", "cabin": "小屋", "castle": "城堡", "chalets": "小屋群",
+		"compound": "大院", "dance_studio": "舞蹈室", "drain": "排水沟", "estate": "庄园", "factory": "工厂", "flats": "公寓",
+		"market": "市场", "meadow": "草地", "mer_pier": "美人鱼码头", "museum": "博物馆", "night_monster_lair": "夜魔巢穴",
+		"oak": "橡树", "pirate_ship": "海盗船", "pool": "泳池", "promenade": "海滨大道", "riding_school": "马术学校",
+		"sea": "海", "spa": "水疗馆", "strip_club": "脱衣舞俱乐部", "studio": "工作室", "tower": "塔", "wolf_cave": "狼穴",
+		"banner": "旗地", "blitz": "闪电区", "old_temple": "旧神殿"
+	};
+	function locLabel(loc) { return LOCATION_LABELS[loc] || loc || "（未标注）"; }
+	/* 场景 key → 锚定元数据（表内命中；旧队列项无元数据 → null，保持旧段落跳转语义） */
+	function sceneAnchorMeta(key) {
+		try {
+			var s = SCENE_LOCATIONS[key];
+			if (!s && /^AlexFarmWorkStage\d+$/.test(key || "")) {
+				/* 兼容一位/两位数字位宽：真实注册表 key 为两位（03..12），部分来源为一位 */
+				var nn = /^AlexFarmWorkStage(\d+)$/.exec(key)[1];
+				s = SCENE_LOCATIONS["AlexFarmWorkStage" + (nn.length === 1 ? "0" + nn : nn)];
+			}
+			if (s) { return { location: s.loc, timeNote: s.time || "" }; }
+		} catch (e) {}
+		return null;
+	}
+	/* 前置是否已完成：scenePassages 达成（绿标）或锚定播放完成（mbCE_completedScenes）任一即算 */
+	function precondDone(key) {
+		try {
+			var defs = getScenesDefs();
+			var def = defs.defs[key];
+			if (def && sceneStatus(def).state === "pass") { return true; }
+		} catch (e) {}
+		try {
+			var V = getV();
+			if (V && V.mbCE_completedScenes && V.mbCE_completedScenes[key]) { return true; }
+		} catch (e) {}
+		return false;
+	}
+	/* 锚定某场景的未完成前置列表（显示名）：跨线显式映射 + 线内数字后缀自动推导 */
+	function pendingPreconds(key) {
+		var names = [];
+		try {
+			var defs = getScenesDefs();
+			var nm = function (k2) { var d = defs.defs[k2]; return (d && d.name) || k2; };
+			var pre = SCENE_PRECONDITIONS[key];
+			if (Array.isArray(pre)) {
+				for (var i = 0; i < pre.length; i++) {
+					var k3 = pre[i];
+					if (!precondDone(k3)) { names.push(nm(k3)); }
+				}
+			}
+			/* 线内前置：同前缀、数字更小的未完成阶段（数字后缀聚线自动推导，零维护） */
+			var m = /^([A-Za-z]+)(\d+)([A-Za-z]*)$/.exec(key);
+			if (m) {
+				var prefix = m[1], num = parseInt(m[2], 10), suffix = m[3];
+				Object.keys(defs.defs).forEach(function (k4) {
+					var m4 = /^([A-Za-z]+)(\d+)([A-Za-z]*)$/.exec(k4);
+					if (m4 && m4[1] === prefix && m4[3] === suffix && parseInt(m4[2], 10) < num && !precondDone(k4)) { names.push(nm(k4)); }
+				});
+			}
+		} catch (e) {}
+		var seen = {}, out = [];
+		for (var j = 0; j < names.length; j++) {
+			if (!seen[names[j]]) { seen[names[j]] = true; out.push(names[j]); }
+		}
+		return out;
+	}
+	/* ============ 锚定确认条与手动触发（v1.9.23） ============ */
+	var mbCE_anchorPrompt = null;      /* 内存态：当前展示中的确认条 { key, t } */
+	var mbCE_anchorCooldown = {};      /* key -> Date.now()：暂不触发后 60s 冷却，防同地点反复弹（v1.9.23-实机修复五轮 60s→1h；用户拍板 1h→60s） */
+	var mbCE_anchorPromptEl = null;
+	function anchorPromptActive(key) {
+		if (mbCE_anchorPrompt && mbCE_anchorPrompt.key === key) { return true; }
+		var cd = mbCE_anchorCooldown[key];
+		if (cd && (Date.now() - cd) < 60000) { return true; } /* 60s 冷却（用户拍板 1h→60s） */
+		return false;
+	}
+	/* 确认「立即触发」：与原固定触发的重放启动通道一致（manualVariableChanges → freeze → replayScene → 跳转入口） */
+	function startAnchoredReplay(P) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, message: "存档不可用，无法触发" }; }
+			if (!P || !P.startPassage) { return { ok: false, message: "缺少入口段落，无法触发" }; }
+			/* v1.9.23-实机修复：SV 注册场景（startPassage 以 "SV " 开头的查看器预览页，如 "SV Adult Shop Opening"）
+			   锚定触发不再播放预览页（角色卡+Start 的「剧情播放器」样式）→ 直接进入剧情第一段。
+			   判据：预览页段落源码含 <<link [[Start|剧情入口>>（label 恰为 Start）；
+			   SV 链形态（如 SV Temple Confess Purge → Start → SV Temple Confess Purge 2）递归跳过；
+			   剧情本体类（如 SV Pub Fame Intro 含场景初始化、无 Start 链接）→ 保持原入口。 */
+			var entry = P.startPassage;
+			if (String(P.startPassage).indexOf("SV ") === 0) {
+				var hop = P.startPassage;
+				for (var depth = 0; depth < 10; depth++) {
+					var svSrc = "";
+					try {
+						if (typeof Story !== "undefined" && Story) {
+							if (typeof Story.get === "function") {
+								var svTpl = Story.get(hop);
+								if (svTpl && (svTpl.source || svTpl.text)) { svSrc = svTpl.source || svTpl.text; }
+							}
+							if (!svSrc && typeof Story.lookupWith === "function") {
+								var svHits = Story.lookupWith(function (p) { return p && p.name === hop; });
+								if (svHits && svHits.length && (svHits[0].source || svHits[0].text)) {
+									svSrc = svHits[0].source || svHits[0].text;
+								}
+							}
+						}
+					} catch (e) {}
+					var svM = /\[\[Start\|([^\]|]+)/.exec(svSrc);
+					if (!svM || !svM[1]) { entry = hop; break; }   /* 无 Start 链接：当前段即入口（保留其初始化） */
+					var svNext = String(svM[1]).trim();
+					if (svNext.indexOf("SV ") === 0) { hop = svNext; continue; }  /* SV 预览链 → 递归下一跳 */
+					entry = svNext; break;  /* 直达剧情入口 */
+				}
+			}
+			/* v1.9.23-自检：防重入——重放进行中（确认条双击/重复调用）再次触发会覆盖 exitpassage
+			   为播放器段落导致返回错位甚至被困播放器 → 拒绝并提示等待 */
+			if (V.replayScene) { return { ok: false, message: "已有重放在进行中（" + ((V.replayScene.name) || "") + "），请先等播放完成" }; }
+			if (isFarmDependentScene(P) && !farmStateReady()) {
+				return { ok: false, message: "「" + P.name + "」依赖农场系统状态（$farm 未初始化）：请先推进到艾利克斯农场线后再触发" };
+			}
+			ensureAveryMansion();
+			ensureFarmState();
+			var ep = getEnginePlayFn();
+			if (!ep) { return { ok: false, message: "游戏引擎不可用，无法触发（请刷新页面重试）" }; }
+			if (P.manualVariableChanges) { execTweeMacros(P.manualVariableChanges); }
+			/* v1.9.23-实机修复六轮：P.used=true 必须在本重放 freezePlayerStats 之前写入——
+			   原版 freezePlayerStats widget 深拷贝整个 State.variables 冻结快照（mbCE_queue 不在其
+			   skipKeysOnFreeze 排除表，used:false 被冻结），播完原版 unfreezePlayerStats 用 strict-replace
+			   恢复快照会把 used 还原为 false（队列项复活 → 确认条循环弹；实机 F12 铁证：live=true / frozen=false）。
+			   先置 used=true 使冻结快照含 true，恢复后保持 true，配合 mbCEOnPassageEnd 残留清理闭环。 */
+			P.used = true;
+			/* v1.9.23-运行时探针（实机定位 frozen:false 根因用，定位后移除） */
+			try { console.log("[MCE-PROBE] pre-freeze qUsed=" + (V.mbCE_queue && V.mbCE_queue[0] ? V.mbCE_queue[0].used : "no-q") + " fzExists=" + (!!V.frozenValues) + " fzQUsed=" + (V.frozenValues && V.frozenValues.mbCE_queue && V.frozenValues.mbCE_queue[0] ? V.frozenValues.mbCE_queue[0].used : "no-fzq")); } catch (e) {}
+			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("freezePlayerStats"); } } catch (e) {}
+			try { console.log("[MCE-PROBE] post-freeze liveQUsed=" + (V.mbCE_queue && V.mbCE_queue[0] ? V.mbCE_queue[0].used : "no-q") + " fzQUsed=" + (V.frozenValues && V.frozenValues.mbCE_queue && V.frozenValues.mbCE_queue[0] ? V.frozenValues.mbCE_queue[0].used : "no-fzq") + " sf=" + V.statFreeze); } catch (e) {}
+			V.replayScene = {
+				name: P.name,
+				startPassage: entry,
+				passages: Array.isArray(P.passages) ? P.passages.slice() : [],
+				exitpassage: currentPassageName()
+			};
+			V.mbCE_replayOnce = true;  /* 本重放由锚定触发启动：Scene Viewer passages 结束后走 default 退出，不再重播 */
+			V.mbCE_replayPending = (entry === "Scene Viewer passages");
+			unlockPlaceForScene(P);  /* 联动解锁：触发即解锁所在场景组 */
+			applyWorldUnlockForScene(P);
+			hideAnchorPrompt();
+			try { ep.play.call(ep.e, entry, true); } catch (e) {
+				/* 跳转失败：回滚 used（保留队列项）+ 清重放状态，避免卡死 */
+				try { P.used = false; } catch (e2) {}
+				mbCEClearReplay(true);
+				return { ok: false, message: "跳转失败：" + (e && e.message ? e.message : e) };
+			}
+			return { ok: true, message: "已开始触发「" + P.name + "」" };
+		} catch (e) { return { ok: false, message: "触发失败：" + (e && e.message ? e.message : e) }; }
+	}
+	/* 挂载确认条（页面顶部，非阻断式） */
+	function showAnchorPrompt(P, meta) {
+		try {
+			mbCE_anchorPrompt = { key: P.key, t: Date.now() };
+			if (mbCE_anchorPromptEl && mbCE_anchorPromptEl.parentNode) { mbCE_anchorPromptEl.parentNode.removeChild(mbCE_anchorPromptEl); }
+			var box = document.createElement("div");
+			box.className = "mce-anchor-prompt";
+			box.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#f5f0e0;color:#3a2e1c;border-bottom:2px solid #b89b5e;padding:8px 12px;font-size:14px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;flex-wrap:wrap;align-items:center;gap:8px;";
+			var txt = document.createElement("span");
+			var timeTxt = meta.timeNote ? "｜时间 " + meta.timeNote : "";
+			var pre = pendingPreconds(P.key);
+			/* v1.9.23-自查优化：无前置要求时不再显示「前置均已达成」——该文案与面板完成状态
+			   「要求：未达成（条件未满足）」同屏自相矛盾（触发前置 ≠ 完成条件，13_17 截图实证）；
+			   改为「触发前置：无」，明确这是触发条件而非完成状态。 */
+			var preTxt = pre.length ? "｜触发前置未完成：" + pre.join("、") : "｜触发前置：无";
+			txt.textContent = "检测到锚定剧情「" + P.name + "」：触发地点「" + locLabel(meta.location) + "」" + timeTxt + preTxt + "，是否立即触发？";
+			box.appendChild(txt);
+			var go = document.createElement("button");
+			go.type = "button";
+			go.textContent = "立即触发★";
+			go.style.cssText = "margin-left:auto;background:#7a9b4f;color:#fff;border:0;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;";
+			go.addEventListener("click", function () {
+				var r = startAnchoredReplay(P);
+				if (!r.ok) { setStatus(r.message, "mce-err"); }
+				hideAnchorPrompt();
+			});
+			var skip = document.createElement("button");
+			skip.type = "button";
+			skip.textContent = "暂不触发";
+			skip.style.cssText = "background:#888;color:#fff;border:0;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;";
+			skip.addEventListener("click", function () {
+				mbCE_anchorCooldown[P.key] = Date.now(); /* 60s 冷却：同地点不再反复弹，保留队列待下次（用户拍板 1h→60s） */
+				hideAnchorPrompt();
+			});
+			box.appendChild(go);
+			box.appendChild(skip);
+			var host = document.getElementById("story") || document.body;
+			host.insertBefore(box, host.firstChild);
+			mbCE_anchorPromptEl = box;
+		} catch (e) {}
+	}
+	function hideAnchorPrompt() {
+		try {
+			mbCE_anchorPrompt = null;
+			if (mbCE_anchorPromptEl) {
+				if (mbCE_anchorPromptEl.parentNode) { mbCE_anchorPromptEl.parentNode.removeChild(mbCE_anchorPromptEl); }
+				mbCE_anchorPromptEl = null;
+			}
+		} catch (e) {}
+	}
+	/* :passageend 钩子：锚定触发判定——段落渲染完成后 V.location 已更新为当前段落地点，
+	   队首未用未完成项带地点元数据且与当前地点匹配 → 弹确认条（确认触发 / 暂不待下次）。
+	   重放中（V.replayScene）不弹；旧档无元数据项不走此通道（passageoverride 旧语义）。 */
+	function mbCEOnPassageEnd() {
+		try {
+			var V = getV();
+			if (!V) { return; }
+			if (V.replayScene) { return; }
+			/* v1.9.23-实机修复六轮：段落后清理残留 used 项——原版 unfreezePlayerStats strict-replace 恢复
+			   冻结快照会把已移除/已标记的队列项复活（used 被还原 → 确认条循环弹）。此处幂等清理：
+			   已触发（used）项写「已完成 ✓」并移出队列，复活项在下一段落被清，确认条不再循环弹。 */
+			cleanupUsedPins();
+			var q = getPinQueue();
+			if (!q) { return; }
+			/* v1.9.23-实机修复五轮：残留确认条清理——弹条后未点按钮直接离开触发地点（如酒吧→麋鹿街），
+			   fixed 条会跨段残留（玩家反馈「取消锚定之后立即触发并没有消失」的画面证据：麋鹿街挂着酒吧条）。
+			   当前展示条对应地点已非当前段落 → 自动收起。 */
+			if (mbCE_anchorPrompt && mbCE_anchorPrompt.key) {
+				var pk = mbCE_anchorPrompt.key;
+				var curMeta = null;
+				for (var k = 0; k < q.length; k++) {
+					if (q[k] && q[k].key === pk) { curMeta = q[k].anchor || sceneAnchorMeta(q[k].key); break; }
+				}
+				if (curMeta && curMeta.location && (typeof V.location !== "string" || V.location !== curMeta.location)) {
+					hideAnchorPrompt();
+				}
+			}
+			/* 遍历队列找「当前地点匹配」的锚定项。旧实现只取队首、location 不匹配即 return，
+			   队首「米奇酒吧知名度初见」（酒吧）在玩家到其他地点时拦截了后续所有锚定
+			   （玩家反馈「暂不触发之后再去选其他锚定，其他锚定的立即触发也不会出现」根因）。 */
+			var P = null;
+			for (var i = 0; i < q.length; i++) {
+				var it = q[i];
+				if (it && it.active !== false && !it.used && it.startPassage) {
+					var m = it.anchor || sceneAnchorMeta(it.key);
+					if (m && m.location) {
+						if (typeof V.location === "string" && V.location === m.location) {
+							/* v1.9.23-自查优化：原实现 break 后在下方 anchorPromptActive(P.key) return——
+							   同地点多锚定时，A 暂不触发（1h 冷却）或正展示中 → B（同地点）被拦截永不弹
+							   （「暂不触发后其他锚定不弹」的同地点残余路径）。改为冷却/展示中的项 continue
+							   继续找下一个同地点匹配项，全部不可用才不弹。 */
+							if (anchorPromptActive(it.key)) { continue; }
+							P = it; break;
+						}
+					}
+					/* 无元数据旧档项：保留旧 passageoverride 语义，不在此通道处理 */
+				}
+			}
+			if (!P) { return; }
+			var meta = P.anchor || sceneAnchorMeta(P.key);
+			if (!meta || !meta.location) { return; } /* 旧档无元数据项 → 保持旧段落跳转语义 */
+			showAnchorPrompt(P, meta);
+		} catch (e) {}
+	}
+	function hookPassageEnd() {
+		try {
+			if (typeof document === "undefined" || !document || typeof $ === "undefined" || !$) { return; }
+			$(document).off(":passageend.mbceAnchor").on(":passageend.mbceAnchor", function () {
+				try { mbCEOnPassageEnd(); } catch (e) {}
+			});
+		} catch (e) {}
+	}
 	function getPinQueue() {
 		try {
 			var V = getV();
@@ -6771,19 +7177,22 @@ mbCELockEnsureTimer();
 	function pinScene(it) {
 		try {
 			var def = it && it.def;
-			if (!def) { return { ok: false, message: "无场景定义，无法固定触发" }; }
+			if (!def) { return { ok: false, message: "无场景定义，无法锚定" }; }
 			var start = def.startPassage || (Array.isArray(def.passages) && def.passages[0]) || "";
-			if (!start) { return { ok: false, message: "该剧情缺少入口段落（startPassage 为空），无法固定触发" }; }
+			if (!start) { return { ok: false, message: "该剧情缺少入口段落（startPassage 为空），无法锚定" }; }
+			/* v1.9.23：锚定必须有地点元数据（走到该地点交互时触发）；无元数据 → 禁止锚定（旧固定触发已移除） */
+			var meta = sceneAnchorMeta(it.key);
+			if (!meta || !meta.location) { return { ok: false, message: "「" + (def.name || it.key) + "」未标注触发地点（第一批元数据未覆盖该场景），暂不可锚定" }; }
 			var q = getPinQueue();
-			if (!q) { return { ok: false, message: "存档不可用，无法固定触发" }; }
+			if (!q) { return { ok: false, message: "存档不可用，无法锚定" }; }
 			for (var i = 0; i < q.length; i++) {
 				if (q[i] && q[i].key === it.key && q[i].active !== false && !q[i].used) {
-					return { ok: false, message: "该剧情已在固定队列中（第 " + (i + 1) + " 位，按顺序触发）" };
+					return { ok: false, message: "该剧情已在锚定队列中（第 " + (i + 1) + " 位，走到触发地点时弹确认条）" };
 				}
 			}
 			/* 防崩：农场依赖剧情需 $farm 已初始化（本体 farm_work_update 内 V.farm.clearing -= 1，未初始化直接崩） */
 			if (isFarmDependentScene({ startPassage: start, manualVariableChanges: def.manualVariableChanges || "" }) && !farmStateReady()) {
-				return { ok: false, message: "「" + (def.name || it.key) + "」依赖农场系统状态（$farm 未初始化）：直接播放会触发本体 farm_work_update 崩溃。请先推进游戏到艾利克斯农场线后再固定" };
+				return { ok: false, message: "「" + (def.name || it.key) + "」依赖农场系统状态（$farm 未初始化）：直接播放会触发本体 farm_work_update 崩溃。请先推进游戏到艾利克斯农场线后再锚定" };
 			}
 			q.push({
 				key: it.key,
@@ -6791,49 +7200,49 @@ mbCELockEnsureTimer();
 				startPassage: start,
 				passages: Array.isArray(def.passages) ? def.passages.slice() : [],
 				manualVariableChanges: def.manualVariableChanges || "",
-				used: false
+				used: false,
+				anchor: { location: meta.location, timeNote: meta.timeNote || "" }
 			});
 			var pending = q.filter(function (p) { return p.active !== false && !p.used; }).length;
-			return { ok: true, message: "已固定「" + (def.name || it.key) + "」（队列第 " + pending + " 位）：下次推进剧情即触发，触发一次后自动停止" };
+			/* 锚定提示：地点/时间 + 未完成前置（已完成的不提示；前置缺失不禁止锚定） */
+			var pre = pendingPreconds(it.key);
+			var msg = "已锚定「" + (def.name || it.key) + "」（队列第 " + pending + " 位）：触发地点「" + locLabel(meta.location) + "」";
+			if (meta.timeNote) { msg += "｜时间 " + meta.timeNote; }
+			msg += pre.length ? "｜前置未完成：" + pre.join("、") : "｜前置均已达成";
+			msg += "。走到该地点交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
+			return { ok: true, message: msg };
 		} catch (e) {
-			return { ok: false, message: "固定失败：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "锚定失败：" + (e && e.message ? e.message : e) };
 		}
 	}
-	/* 固定整条剧情线（v1.3）：把线内全部阶段按顺序加入固定队列，依次触发，触发完自动停止 */
+	/* 锚定整条剧情线（v1.9.23）：把线内已标注触发地点的全部阶段按顺序加入锚定队列，
+	   走到各阶段发生地点交互时依次触发，触发完自动完成；无地点元数据的阶段跳过并提示 */
 	function pinSceneLine(line) {
 		try {
-			var q = getPinQueue();
-			if (!q) { return { ok: false, message: "存档不可用，无法固定触发" }; }
-			if (!line || !Array.isArray(line.items) || !line.items.length) { return { ok: false, message: "无阶段可固定" }; }
-			var added = 0, skipped = 0;
+			if (!line || !Array.isArray(line.items) || !line.items.length) { return { ok: false, message: "无阶段可锚定" }; }
+			var added = 0, noMeta = 0, dup = 0, farm = 0, other = 0;
 			for (var i = 0; i < line.items.length; i++) {
 				var it = line.items[i];
 				if (!it || !it.def) { continue; }
-				var start = it.def.startPassage || (Array.isArray(it.def.passages) && it.def.passages[0]) || "";
-				if (!start) { skipped++; continue; }
-				if (isFarmDependentScene({ startPassage: start, manualVariableChanges: it.def.manualVariableChanges || "" }) && !farmStateReady()) { skipped++; continue; }
-				var dup = false;
-				for (var j = 0; j < q.length; j++) {
-					if (q[j] && q[j].key === it.key && q[j].active !== false && !q[j].used) { dup = true; break; }
-				}
-				if (dup) { skipped++; continue; }
-				q.push({
-					key: it.key,
-					name: it.def.name || it.key,
-					startPassage: start,
-					passages: Array.isArray(it.def.passages) ? it.def.passages.slice() : [],
-					manualVariableChanges: it.def.manualVariableChanges || "",
-					used: false
-				});
-				added++;
+				var r = pinScene(it);
+				if (r.ok) { added++; continue; }
+				if (r.message.indexOf("未标注触发地点") >= 0) { noMeta++; }
+				else if (r.message.indexOf("已在锚定队列") >= 0) { dup++; }
+				else if (r.message.indexOf("依赖农场系统状态") >= 0) { farm++; }
+				else { other++; }
 			}
-			var pending = q.filter(function (p) { return p.active !== false && !p.used; }).length;
 			var nm = (line.items[0].def && line.items[0].def.name) || line.prefix || "";
 			if (added > 0) {
-				return { ok: true, message: "已固定整线「" + nm + "」系列（" + added + " 个阶段，队列第 " + pending + " 位起，按顺序依次触发，触发完自动停止）" + (skipped ? "；跳过 " + skipped + " 个（已在队列或农场线未开启）" : "") };
+				var skipParts = [];
+				if (noMeta) { skipParts.push(noMeta + " 个未标注触发地点"); }
+				if (dup) { skipParts.push(dup + " 个已在队列"); }
+				if (farm) { skipParts.push(farm + " 个依赖农场线未开启"); }
+				if (other) { skipParts.push(other + " 个缺少入口段落"); }
+				return { ok: true, message: "已锚定整线「" + nm + "」系列（" + added + " 个阶段入队：走到各阶段发生地点交互时弹确认条，触发完自动完成）" + (skipParts.length ? "；跳过 " + skipParts.join("、") : "") };
 			}
-			return { ok: false, message: "没有可固定的阶段" + (skipped ? "（" + skipped + " 个被跳过：已在队列或依赖农场线未开启）" : "") };
-		} catch (e) { return { ok: false, message: "固定失败：" + (e && e.message ? e.message : e) }; }
+			var reason = noMeta ? "：这些阶段均未标注触发地点（第一批元数据未覆盖），暂不可锚定" : (dup ? "：已在锚定队列中" : (farm ? "：依赖农场线未开启" : ""));
+			return { ok: false, message: "没有可锚定的阶段" + reason };
+		} catch (e) { return { ok: false, message: "锚定失败：" + (e && e.message ? e.message : e) }; }
 	}
 	/* 回退：取消指定剧情（key 省略=清空队列）的固定；若正在重放固定场景，立即解冻并返回原位 */
 	function unpinScene(key) {
@@ -6841,6 +7250,11 @@ mbCELockEnsureTimer();
 		var back = "";
 		var changed = false;
 		try {
+			/* v1.9.23-实机修复五轮：取消锚定（指定 key 或清空）时，若该 key 正展示确认条 → 一并收起
+			   （玩家反馈「取消锚定之后立即触发并没有消失」） */
+			if (mbCE_anchorPrompt && (key === undefined || key === null || key === "" || mbCE_anchorPrompt.key === key)) {
+				hideAnchorPrompt();
+			}
 			var q = getPinQueue();
 			if (q && q.length) {
 				if (key === undefined || key === null || key === "") {
@@ -6993,7 +7407,8 @@ mbCELockEnsureTimer();
 		try { var V2 = getV(); if (V2 && typeof V2.passage === "string" && V2.passage) { return V2.passage; } } catch (e) {}
 		return "";
 	}
-	/* v1.4.8：清理队列中已触发（used）的固定项并联动解锁（三个重放终点共用） */
+	/* v1.4.8：清理队列中已触发（used）的固定项并联动解锁（三个重放终点共用）；
+	   v1.9.23：播放完 → 记入 mbCE_completedScenes（「已完成 ✓」，剧情页条目显示，可再自由锚定） */
 	function cleanupUsedPins() {
 		try {
 			var Vq = getV();
@@ -7004,6 +7419,14 @@ mbCELockEnsureTimer();
 					if (qc[i2] && qc[i2].used) {
 						unlockPlaceForScene(qc[i2]);
 						applyWorldUnlockForScene(qc[i2]);
+						if (qc[i2].key) {
+							if (typeof Vq.mbCE_completedScenes !== "object" || Vq.mbCE_completedScenes === null) { Vq.mbCE_completedScenes = {}; }
+							Vq.mbCE_completedScenes[qc[i2].key] = { name: qc[i2].name, t: Date.now() };
+							/* v1.9.23-实机修复六轮：同步冻结快照——原版 unfreezePlayerStats 用 frozenValues
+							   strict-replace 覆盖 State.variables，不同步则刚写入的「已完成 ✓」记录被恢复撤销
+							   （实机：播完后面板仍无「已完成 ✓」、按钮仍可锚定）。 */
+							try { if (Vq.frozenValues && typeof Vq.frozenValues === "object") { Vq.frozenValues.mbCE_completedScenes = Vq.mbCE_completedScenes; } } catch (e) {}
+						}
 					}
 				}
 				for (var i3 = qc.length - 1; i3 >= 0; i3--) {
@@ -7051,6 +7474,24 @@ mbCELockEnsureTimer();
 			if (V.replayScene) {
 				/* 原版手动重放（非 MOD 固定触发）→ 交给原版处理，不干预 */
 				if (!V.mbCE_replayOnce) { return; }
+				/* v1.9.23-实机修复二轮（锚定触发播放完不清队列/被困 Scene Viewer End 死循环的根治）：
+				   MOD 锚定/固定触发直接播剧情段（不经场景查看器播放器容器）——剧情出口段（dest 不在
+				   replayScene.passages）会被原版 redirect（31697-31698）改写为 "Scene Viewer End"，
+				   而本钩子已在同一轮 :passageoverride 事件内执行过（只看到旧 dest），下方 823 的
+				   "Scene Viewer End" 分支永远收不到改写后的 dest → 播完不清理、队列残留、返回地点再弹；
+				   玩家点「退出场景」（End 段汉化链接 target=Scene Viewer）又被 redirect 打回 End → 死循环被困。
+				   修复：在本轮事件内直接接管剧情出口——清理队列 + 改 passageArgs.name 回原位（exitpassage），
+				   原版 31683 检测 name 已变 → return 新 dest，redirect 不再执行。 */
+				var rpExit = V.replayScene.passages;
+				var exitDest = V.replayScene.exitpassage || "";
+				var inChain = Array.isArray(rpExit) && rpExit.indexOf(dest) !== -1;
+				var isEndUi = (dest === "Scene Viewer End" || dest === "Scene Viewer passages" || dest === "Scene Viewer End 2");
+				if (dest === "Scene Viewer" || (!isEndUi && dest !== "Farm Work" && dest !== V.replayScene.startPassage && !inChain && dest !== exitDest)) {
+					cleanupUsedPins(); /* v1.9.23：统一清理（解锁 + 已完成记录 + 移除） */
+					mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */
+					if (exitDest && passageArgs) { passageArgs.name = exitDest; }
+					return;
+				}
 				/* v1.4.8：MOD 固定触发的 case 场景播放完链回 Scene Viewer passages（非首次进入）→
 				   自动返回原位并解除固定（跳过原版 default 的 "Error occurred" + 手动 Back 步） */
 				if (dest === "Scene Viewer passages" && !V.mbCE_replayPending) {
@@ -7063,18 +7504,7 @@ mbCELockEnsureTimer();
 				/* v1.4.5：原版重放经 Back 正常返回原位（exitpassage）→ 清理残留（replayScene/标记/已用队列项），
 				   避免残留导致后续取消固定误判"正在重放"、以及再次重放时被残留干扰 */
 				if (dest === (V.replayScene.exitpassage || "")) {
-					try {
-						var qe = V.mbCE_queue;
-						if (Array.isArray(qe)) {
-							for (var ie = qe.length - 1; ie >= 0; ie--) {
-								if (qe[ie] && qe[ie].used) {
-									unlockPlaceForScene(qe[ie]);
-									applyWorldUnlockForScene(qe[ie]);
-									qe.splice(ie, 1);
-								}
-							}
-						}
-					} catch (e) {}
+					cleanupUsedPins(); /* v1.9.23：统一清理（解锁 + 已完成记录 + 移除） */
 					mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */
 					return;
 				}
@@ -7082,21 +7512,41 @@ mbCELockEnsureTimer();
 				   否则一律视为仍在重放（含剧情中间段落不在注册表列表的情况）→ 不干预、不触发 */
 				if (dest === "Farm Work") {
 					/* 农场剧情确定性终点：结束即清理残留（unfreeze + 清标记），并移除已触发项（同 Scene Viewer End） */
-					try {
-						var qf = V.mbCE_queue;
-						if (Array.isArray(qf)) {
-							for (var if2 = qf.length - 1; if2 >= 0; if2--) {
-								if (qf[if2] && qf[if2].used) {
-									unlockPlaceForScene(qf[if2]);
-									applyWorldUnlockForScene(qf[if2]);
-									qf.splice(if2, 1);
-								}
-							}
-						}
-					} catch (e) {}
+					cleanupUsedPins(); /* v1.9.23：统一清理（解锁 + 已完成记录 + 移除） */
 					mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */
 				} else {
-					return; /* 仍在重放链内 → 不触发 */
+					/* v1.9.23-实机修复三轮：重放链内段判定——dest 在 replayScene.passages 内（inChain 恒 true），
+					   二轮「链外出口」接管覆盖不到。两类播完信号：
+					   ① 剧情线性走完：到达剧情末段（passages 最后一段）且前置链内段均已访问 → 剧情播完（落地点，
+					      如「米奇酒吧知名度初见」Pub Fame Intro 4 为酒吧主段，实机 $pubfame 已存在走 else 选项、
+					      无循环出口）→ 清理 + 回原位；分支型场景（如 Avery 各分支段）前置未全访问 → 不触发不误伤。
+					   ② 剧情链循环回点：已访问段再次到达且非 startPassage/exitpassage（如 4 段剧情分支 Next 回
+					      Pub Fame Intro）→ 剧情播完进入循环 → 清理 + 回原位。 */
+					var visArr = V.replayScene.mbCE_visited;
+					if (!Array.isArray(visArr)) { visArr = V.replayScene.mbCE_visited = []; }
+					var wasVisited = visArr.indexOf(dest) !== -1;
+					if (!wasVisited) { visArr.push(dest); }
+					var isLastSeg = rpExit.length > 0 && dest === rpExit[rpExit.length - 1];
+					if (isLastSeg) {
+						var allPrevVisited = true;
+						for (var pi = 0; pi < rpExit.length - 1; pi++) {
+							if (visArr.indexOf(rpExit[pi]) === -1) { allPrevVisited = false; break; }
+						}
+						if (allPrevVisited) {
+							cleanupUsedPins(); /* 线性播完：解锁 + 已完成记录 + 移除 */
+							mbCEClearReplay();
+							if (exitDest && passageArgs) { passageArgs.name = exitDest; }
+							return;
+						}
+					}
+					if (!wasVisited) { return; } /* 首次访问（含分支场景首次到末段）→ 不清理 */
+					if (dest !== V.replayScene.startPassage && dest !== exitDest) {
+						/* 非首次访问（循环回点）→ 播完清理 */
+						cleanupUsedPins();
+						mbCEClearReplay();
+						if (exitDest && passageArgs) { passageArgs.name = exitDest; }
+					}
+					return; /* startPassage / exitpassage 重访 → 不触发 */
 				}
 			}
 			var q = getPinQueue();
@@ -7106,6 +7556,10 @@ mbCELockEnsureTimer();
 				if (q[i] && q[i].active !== false && !q[i].used && q[i].startPassage) { P = q[i]; break; }
 			}
 			if (!P) { return; }
+			/* v1.9.23：带地点元数据的锚定项由 :passageend 弹确认条触发（走到该地点交互时），
+			   段落跳转本身不再自动触发；旧档无元数据项保持旧「任意推进即触发」语义直至触发完 */
+			var anchorMeta = P.anchor || sceneAnchorMeta(P.key);
+			if (anchorMeta && anchorMeta.location) { return; }
 			if (!dest || dest === P.startPassage || dest === "Scene Viewer End") { return; }
 			if (Array.isArray(P.passages) && P.passages.indexOf(dest) !== -1) { return; }
 			/* 防崩：农场依赖剧情且 $farm 未初始化 → 本次不触发（保留队列项，待农场线开启后自动可触发） */
@@ -7408,11 +7862,15 @@ mbCELockEnsureTimer();
 		});
 	}
 
+	/* v1.9.23：锚定播放完成记录（mbCE_completedScenes）→ 剧情页条目显示「已完成 ✓」 */
+	function isSceneCompleted(key) {
+		try { var V = getV(); return !!(V && V.mbCE_completedScenes && V.mbCE_completedScenes[key]); } catch (e) { return false; }
+	}
 	/* ---- 特殊剧情页（$scenes 场景注册表动态枚举） ---- */
 	var sHeadGuardTimer = null; /* v1.9.5-自检：乱码兜底单定时器——renderScenes 频繁重建时清旧设新，防 800ms 闭包堆积扫描旧 pane */
 	function renderScenes() {
 		var pane = root.querySelector('[data-pane="scenes"]');
-		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* v1.9.4：重建后保持滚动位置（固定触发/回退/一键完成后不跳回顶部） */
+		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* v1.9.4：重建后保持滚动位置（锚定/取消锚定/一键完成后不跳回顶部） */
 		pane.textContent = "";
 		/* v1.9.4：折叠组展开状态键「剧情:<组名>」（与角色页「角色:<cat>」同语义、互不冲突），
 		   展开状态持久化到 mbCEUiState.collapsed——操作后 renderScenes() 重建不再全部收回去 */
@@ -7427,21 +7885,21 @@ mbCELockEnsureTimer();
 			mbCEUiSave({ collapsed: mbCEUiState.collapsed });
 		}
 		/* 使用提示（v1.9.4-自检）：与修复后行为一致（触发一次自动停止、退出场景返回原位，不再被困） */
-		pane.appendChild(el("div", "mce-warn", "使用提示：固定触发后按队列顺序触发一次并自动停止，播放中随时可点「退出场景」返回原位；若需恢复原版随机触发，点顶部横幅「清空队列」即可。"));
-		/* 固定触发状态横幅（v1.2：队列，显示全部未触发项） */
+		pane.appendChild(el("div", "mce-warn", "使用提示：锚定剧情后，走到该剧情发生地点并交互时会弹确认条（含地点/时间/前置说明），确认后触发、播放完标「已完成 ✓」；「暂不触发」保留待下次。旧「固定触发」已移除，「一键完成」「场景直达」保留；若需恢复原版随机触发，点顶部横幅「清空队列」即可。"));
+		/* 锚定触发状态横幅（v1.9.23：队列，显示全部未触发项） */
 		var pinnedBanner = getPinnedScene();
 		if (pinnedBanner && pinnedBanner.length) {
 			var banner = el("div", "mce-stage mce-pass");
 			var bh = el("div", "mce-stage-head");
 			bh.appendChild(el("span", "mce-dot", ""));
 			var names = pinnedBanner.map(function (p) { return "「" + p.name + "」"; }).join("、");
-			bh.appendChild(el("span", "mce-stage-name", "固定触发队列（" + pinnedBanner.length + "）：" + names + " —— 按顺序触发，触发一次后自动停止"));
-			var unBtn = el("button", "mce-btn mce-red", "清空队列（取消全部固定）");
+			bh.appendChild(el("span", "mce-stage-name", "锚定触发队列（" + pinnedBanner.length + "）：" + names + " —— 到对应地点交互时弹确认条触发，触发完自动完成"));
+			var unBtn = el("button", "mce-btn mce-red", "清空队列（取消全部锚定）");
 			unBtn.type = "button";
-			unBtn.title = "取消全部固定触发，恢复原版随机触发；若正在重放则立即解冻并返回原位";
+			unBtn.title = "取消全部锚定触发，恢复原版随机触发；若正在重放则立即解冻并返回原位";
 			unBtn.addEventListener("click", function () {
 				var was = unpinScene();
-				setStatus(was ? "已回退：清空固定触发队列，恢复原版随机触发" : "未处于固定触发状态", "mce-ok");
+				setStatus(was ? "已回退：清空锚定触发队列，恢复原版随机触发" : "未处于锚定触发状态", "mce-ok");
 				renderScenes();
 			});
 			bh.appendChild(unBtn);
@@ -7612,10 +8070,10 @@ mbCELockEnsureTimer();
 				var stages = el("div", "mce-stages");
 				stages.style.display = "none"; /* v1.3：剧情线默认收起（合在一起不展开），点线头展开 */
 				head.appendChild(el("span", "mce-stage-name", "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，收起）"));
-				/* 固定整线：全部阶段按顺序入队，依次触发，触发完自动停止 */
-				var linePin = el("button", "mce-btn", "固定整线");
+				/* 锚定整线（v1.9.23）：已标注触发地点的阶段按顺序入队，走到地点交互时依次触发，触发完自动完成 */
+				var linePin = el("button", "mce-btn", "锚定整线");
 				linePin.type = "button";
-				linePin.title = "把本系列全部阶段按顺序加入固定触发队列，依次触发，触发完自动停止";
+				linePin.title = "把本系列全部阶段按顺序锚定：走到各阶段发生地点交互时弹确认条，触发完自动完成";
 				(function (line2) {
 					linePin.addEventListener("click", function () {
 						var pr = pinSceneLine(line2);
@@ -7627,7 +8085,7 @@ mbCELockEnsureTimer();
 				/* 展开/收起切换 */
 				var tog = el("button", "mce-btn mce-gold", "展开各阶段");
 				tog.type = "button";
-				tog.title = "展开查看本线各阶段，可对单阶段固定/回退/一键完成";
+				tog.title = "展开查看本线各阶段，可对单阶段锚定/取消锚定/一键完成";
 				tog.addEventListener("click", function () {
 					var open = stages.style.display === "none";
 					stages.style.display = open ? "" : "none";
@@ -7644,25 +8102,31 @@ mbCELockEnsureTimer();
 					sh.appendChild(el("span", "mce-dot", ""));
 					var nm = it.def.name || it.key;
 					sh.appendChild(el("span", "mce-stage-name", "阶段 " + it.num + "　" + nm));
-					/* 固定触发 / 回退（v1.2：队列） */
+					/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
 					var pi = pinQueueIndex(it.key);
 					if (pi >= 0) {
-						sh.appendChild(el("span", "mce-badge mce-on", "已固定 第" + (pi + 1) + "位"));
-						var unpinB = el("button", "mce-btn mce-red", "回退");
+						sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (pi + 1) + "位"));
+						var unpinB = el("button", "mce-btn mce-red", "取消锚定");
 						unpinB.type = "button";
-						unpinB.title = "取消该剧情的固定触发，恢复原版随机触发";
+						unpinB.title = "取消该剧情的锚定，恢复原版随机触发";
 						(function (it2) {
 							unpinB.addEventListener("click", function () {
 								var was = unpinScene(it2.key);
-								setStatus(was ? "已回退：「" + (it2.def.name || it2.key) + "」取消固定触发" : "该剧情不在固定队列中", "mce-ok");
+								setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
 								renderScenes();
 							});
 						})(it);
 						sh.appendChild(unpinB);
 					} else {
-						var pinB = el("button", "mce-btn", "固定触发");
+						var anchorMeta = sceneAnchorMeta(it.key);
+						var pinB = el("button", "mce-btn", "锚定");
 						pinB.type = "button";
-						pinB.title = "固定此剧情：按顺序排队触发，触发一次后自动停止；顶部横幅或「回退」恢复原版触发";
+						if (anchorMeta && anchorMeta.location) {
+							pinB.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
+						} else {
+							pinB.disabled = true;
+							pinB.title = "该剧情未标注触发地点（第一批元数据未覆盖），暂不可锚定";
+						}
 						(function (it2) {
 							pinB.addEventListener("click", function () {
 								var pr = pinScene(it2);
@@ -7687,6 +8151,8 @@ mbCELockEnsureTimer();
 						})(it, st);
 						sh.appendChild(btn);
 					}
+					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
+					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
 					srow.appendChild(sh);
 					var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
 					srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
@@ -7712,25 +8178,31 @@ mbCELockEnsureTimer();
 					var sh = el("div", "mce-stage-head");
 					sh.appendChild(el("span", "mce-dot", ""));
 					sh.appendChild(el("span", "mce-stage-name", it.def.name || it.key));
-					/* 固定触发 / 回退（v1.2：队列） */
+					/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
 					var piS = pinQueueIndex(it.key);
 					if (piS >= 0) {
-						sh.appendChild(el("span", "mce-badge mce-on", "已固定 第" + (piS + 1) + "位"));
-						var unpinS = el("button", "mce-btn mce-red", "回退");
+						sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (piS + 1) + "位"));
+						var unpinS = el("button", "mce-btn mce-red", "取消锚定");
 						unpinS.type = "button";
-						unpinS.title = "取消该剧情的固定触发，恢复原版随机触发";
+						unpinS.title = "取消该剧情的锚定，恢复原版随机触发";
 						(function (it2) {
 							unpinS.addEventListener("click", function () {
 								var was = unpinScene(it2.key);
-								setStatus(was ? "已回退：「" + (it2.def.name || it2.key) + "」取消固定触发" : "该剧情不在固定队列中", "mce-ok");
+								setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
 								renderScenes();
 							});
 						})(it);
 						sh.appendChild(unpinS);
 					} else {
-						var pinS = el("button", "mce-btn", "固定触发");
+						var anchorMetaS = sceneAnchorMeta(it.key);
+						var pinS = el("button", "mce-btn", "锚定");
 						pinS.type = "button";
-						pinS.title = "固定此剧情：按顺序排队触发，触发一次后自动停止；顶部横幅或「回退」恢复原版触发";
+						if (anchorMetaS && anchorMetaS.location) {
+							pinS.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMetaS.location) + "」" + (anchorMetaS.timeNote ? "（时间 " + anchorMetaS.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
+						} else {
+							pinS.disabled = true;
+							pinS.title = "该剧情未标注触发地点（第一批元数据未覆盖），暂不可锚定";
+						}
 						(function (it2) {
 							pinS.addEventListener("click", function () {
 								var pr = pinScene(it2);
@@ -7754,6 +8226,8 @@ mbCELockEnsureTimer();
 						})(it);
 						sh.appendChild(b2);
 					}
+					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
+					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
 					srow.appendChild(sh);
 					var note2 = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
 					srow.appendChild(el("div", "mce-stage-txt", note2 + (st.note || "（无说明）")));
@@ -8528,6 +9002,7 @@ mbCELockEnsureTimer();
 		mountApi();
 		hookPassageOverride();
 		hookPassageInit();
+		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
 		hookUnfreezePlayerStats(); /* v1.8.19：播放结束自动清理（unfreeze = 场景播放结束，覆盖框架播放器） */
 		ensureFarmState(); /* 启动兜底：存档 farm_stage 已推进但 $farm 缺失 → 补空壳，社交页不再崩 */
 		ensureAveryMansion(); /* 启动兜底：$avery_mansion / $avery_tower / daily.avery.talk 缺失或残缺 → 补空壳（Mansion 段落防崩） */
@@ -8642,6 +9117,12 @@ mbCELockEnsureTimer();
 				undoRomanceStage: undoRomanceStage,
 				undoVanillaStage: undoVanillaStage,
 				onPassageOverride: onPassageOverride,
+				/* v1.9.23 锚定触发：地点判定 / 确认条触发 / 元数据 / 前置提示 */
+				mbCEOnPassageEnd: mbCEOnPassageEnd,
+				startAnchoredReplay: startAnchoredReplay,
+				sceneAnchorMeta: sceneAnchorMeta,
+				pendingPreconds: pendingPreconds,
+				precondDone: precondDone,
 				fillStats: fillStats,
 				globalFill: globalFill,
 				globalRomance: globalRomance,

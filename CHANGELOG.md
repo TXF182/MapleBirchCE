@@ -2,6 +2,142 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.25（2026-10-31 · 升版交付后自查优化：补归途 1.4.6 项链回收线作弊项）
+
+**自查收敛（重读 audit 全文 + 源码实证，非摘要转述）**：`_audit_rv146.txt` [2] 新增候选 175 条绝大多数为父级/已覆盖子键误报（RobinTemple.* / TempleDuties.* / TempleChoir.* / RBR.necklace.* 已声明）；`_audit_dw258.txt` [2] 756 条候选多为父级根/瞬态。真未声明且玩家会作弊收敛为归途项链线；dw258 新增 Robin 清算战斗线（Combat\Robin.twee）所用 `RobinExpansion.victories`（gte 4 触发清算）/`care_fund`（gte 10 支援）实证**已在**枯木适配器声明（04a-04-deadwood.js:191/193）→ 无需补。
+
+### ① 补项（rv146 源码实证）
+
+- **`nkl_stage`**（`RBR.necklace.stage`）：1.4.6 新增 WraithRecovery 回收线阶段状态机（取值实证 `''`/`failed`/`camera`/`case`/`take`/`smash`，WraithRecovery.twee:158/160/194/196/238/247 赋值）——跳回收阶段直接取回项链
+- **`nkl_reclaimed`**（`RBR.necklace.reclaimed`）：boolean，回收线成功后置 true（WraithRecovery.twee:264），等价「项链盗贼」分支（Wraith.twee:89/131 `$necklaceThief is 'player' or $RBR.necklace.reclaimed` 开放 Gwylan/归还后续线；:208 归还扣款 £2,000 判定）
+- 归途适配器声明：阶段 17→**18** / 能力 22→**24**（+nkl_retaken 上轮 +nkl_stage/nkl_reclaimed 本轮）
+
+### ② 不补项（记录说明，避免噪音）
+
+- `RBR.wraithVisitDay`：怨灵来访日数值（revelation.ts:7 默认 -1；WraithAftercare +3 天善后窗口）——日期瞬态，不作弊
+- `LostLamb.marks`：梦境绘图标记**数组**（Before.twee `includes('draw'/'garden'/'kitchen'/'shared'/'shortcut')`）——内容标记瞬态，且数组写入超作弊器能力面
+- dw258 756 条候选：父级根/瞬态/低价值，已覆盖键不重复补
+
+### ③ 历史遗留定案
+
+- **Pub NPC 异常**：五轮前截图「0.5.12.13 错误：在"Pub"段落生成的NPC发生异常脱离」→ fw562 dist "Pub" grep（379KB minified，`inject_early.js` Emitter/action 系统）确认该文案为 framework NPC 生命周期报错（段落生成 NPC 未脱离检查）；**非 CE 范围**（CE 不生成 NPC、不介入框架 NPC 生命周期），fw562 5.6.2 已实装，若用户复测仍见需在框架侧跟进
+- **README 适配器一览表上轮遗漏修复**：枯木 2.5.7→2.5.8、归途 1.4.5/17/22→1.4.6/18/24、框架 5.6.0→5.6.2（上轮只改标题未改表格行）
+
+### ④ 验证与交付
+
+- tdd 红绿：§19.1 阶段 18/能力 24、§31.1 补 nkl_stage/nkl_reclaimed 收录断言、§31.11 补 reclaimed 开关（true/false）+ nkl_stage 写入（take/smash）
+- 全链 6 步全绿 + 打包（verifier 4/4、zip 正斜杠）已装 game；版本双源 1.9.25（src/01-core.js + boot.json）
+
+## v1.9.24（2026-10-31 · 三方模组升版适配：枯木 2.5.8 / 归途 1.4.6 / 框架 5.6.2）
+
+**检测（check_mod_updates.js，2026-10-31T09:26 UTC）**：枯木逢春 2.5.7→**2.5.8**、归途之书 1.4.5→**1.4.6**、框架 5.6.0→**5.6.2**；其余 9 渠道无更新。
+
+### ① 第三方包替换（--apply，用户偏好自动替换）
+
+- 枯木逢春 v2.5.4→**v2.5.8**（game 内旧 2.5.4 移除，装官方 2.5.8 包；注意实装旧版早于适配器声明 2.5.7）
+- 归途之书 v1.4.3→**v1.4.6**（旧 1.4.3 移除）
+- 框架 5.6.0→**5.6.2**：先跑 `check_framework_api.js` 核对新版 inject_early.js → 核心 8 项全过（window.maplebirch / get / npc(.data) / temporary / traitLists / define / frameworkNotice）；`setup.MapleBirch` / `maplebirch.patch` 缺失为非 CE 依赖（CE 源码 0 次调用，01-core.js resolveMB() 兜底分支在 window.maplebirch 主路径存在时不触发）→ 兼容，替换 game 包 + declOverride 5.6.0→5.6.2
+
+### ② 适配器核查与定案（对照源码 dw258 / rv146 实证）
+
+- **枯木逢春 vs 2.5.8**：audit 104/140 字面覆盖 + 36 条缺失 → resolve 定案 **KEEP 127 / REVIEW 14 / REMOVE 1**；逐条实证：`RobinExpansion.investment.agreed` 28 处存活（migrations/Robin.ts:21-22 写入）→ **REMOVE 证伪保留**；`Finance.company.ascension.recognized` 以可选链存活（Achievements.ts:144 `V.Finance?.company?.ascension?.recognized === true`，audit 静态盲区）；`shareholders.board` 可选链存活（Achievements.ts:133 / Company.ts:308）；`raven.met` / `treasure.{coins,museumCoins,crewCoins}` / `Tsukihan.{dom,init,love,lust}` 全部源码实证存活；featsBoosts 6 条动态键 KEEP 严禁 REMOVE → **140 键零删失**
+- **归途之书 vs 1.4.6**：audit 56/57 + 缺失 1 条 `RBR.necklace.returned` → resolve REVIEW → 实证 **1.4.6 项链线重构**：`necklace.returned` 已不存在（revelation.ts:8 默认态为 `returnedOnce/retaken/advised/known/prepared/…`）→ 适配器改键 `nkl_returned` varPath `RBR.necklace.returned`→`RBR.necklace.returnedOnce`（语义「已归还一次」），并**新增作弊项 `nkl_retaken`**（`RBR.necklace.retaken`，1.4.6 新增取回分支）
+- 适配器声明版本同步：枯木 modName 2.5.7→2.5.8、归途 modName 1.4.5→1.4.6、框架 declOverride 5.6.0→5.6.2
+
+### ③ 验证与交付
+
+- 全链 6 步全绿 + codegraph sync；打包（verifier 4/4、zip 正斜杠 4/4）已装 game（双端 SHA 实测一致）；版本双源 1.9.24（src/01-core.js + boot.json）。
+
+## v1.9.23（2026-10-31 · 剧情页「固定触发」改造为「锚定触发」）
+
+**锚定语义（9 点定稿）**：锚定后必定触发（走到剧情所属地点交互时顶部弹确认条，含地点/时间/前置说明）；确认后走原版 replayScene 通道；播放完标 `completed` 移出队列显示「已完成 ✓」可再自由锚定；「暂不触发」保留待下次；时间仅展示不判定；旧「固定触发」入口移除；「一键完成」「场景直达」保留；「固定整线」按钮随锚定更新。
+
+### ① 机制（07f-pins.js）
+
+- `SCENE_LOCATIONS` 表（约 70+ 场景）/ `SCENE_PRECONDITIONS` 跨线前置表 / `LOCATION_LABELS` 中文显示名；`sceneAnchorMeta` 含 AlexFarmWorkStage 一位/两位数字位宽归一化；
+- `pinScene` 锚定语义重写：无 def/startPassage 拒绝；无元数据 →「未标注触发地点（第一批元数据未覆盖该场景），暂不可锚定」；防重拒绝；农场依赖防崩保留；入队项扩展 `anchor:{location,timeNote}`；提示 =「已锚定…（队列第 N 位）：触发地点「locLabel」｜时间 ｜前置未完成：pendingPreconds」；
+- `onPassageOverride` 触发区：队首带元数据锚定项不再段落跳转自动触发（改由 `:passageend` 弹确认条）；旧档无元数据项保持旧段落跳转语义；
+- `showAnchorPrompt` 顶部确认条（「立即触发」= `startAnchoredReplay` /「暂不触发」= 60s 冷却）；`mbCEOnPassageEnd` / `hookPassageEnd`（`:passageend.mbceAnchor`）；`startAnchoredReplay` 走原版 replayScene 通道（execTweeMacros + freezePlayerStats + `Engine.play(startPassage,true)`，失败回滚 used）；
+- `cleanupUsedPins` 统一清理：写 `mbCE_completedScenes[key]={name,t}` + 解锁 + 移除；`exitpassage 返回终点` / `Farm Work 终点` 统一走该入口。
+
+### ② UI（07h-render.js）
+
+- 顶部使用提示横幅改锚定文案；锚定触发状态横幅（队列 N 项 + 清空按钮）；「锚定整线」按钮；单阶段按钮区改「锚定/取消锚定」（无元数据 disabled）；两处「已完成 ✓」徽标（lines/singles，`isSceneCompleted`）。
+
+### ③ 键登记 / 导出 / 白名单
+
+- `03-global.js` CHEAT_VANILLA_ROOTS 白名单 + `mbCE_completedScenes`；`09-exports.js` init 注册 `hookPassageEnd`，mountApi 补 `mbCEOnPassageEnd / startAnchoredReplay / sceneAnchorMeta / pendingPreconds / precondDone`。
+
+### ④ 测试 / 验证
+
+- 测试 §11 整块改写为锚定语义断言（弹确认条 spy createElement===4、原版通道、已完成、再锚定、旧档迁移/旧段落语义保留）；§13 农场用表内 key `AlexFarmWorkStage3`；§25 孤儿院链改走弹条 + `startAnchoredReplay`（补 Engine mock）；§30 文案断言随锚定改版。三轮红绿迭代 17 FAILURES → 0；
+- E2E 新增 S 段（S.1–S.10 剧情页锚定按钮真实点击：提示横幅/空队列无横幅/无元数据禁用/可用锚定/入队带地点/队列横幅+徽标/取消锚定/清空队列）；三轮排障（widget 包裹结构、原版分组懒渲染需展开、断言对象 Temple 修正）→ 全绿；
+- 全链 6 步全绿 + codegraph sync；已打包（230,725 B / SHA256 `0F847267CDEC0B118017F40F9D816337DD18C3777F5DE03D77DD87D98392E437`，verifier 4/4、zip 正斜杠 4/4）已装 game；版本双源 1.9.23（src/01-core.js + boot.json）。
+
+### ⑤ 自查补（2026-10-31 交付前二次走查：源码全文回归 + 9 点语义逐条核对）
+
+- **修防重入**：`startAnchoredReplay` 重放进行中（`V.replayScene` 存在）再次调用会覆盖 `exitpassage` 为播放器段落导致返回错位/被困播放器（确认条「立即触发」双击可复现）→ 加守卫拒绝并提示等待；测试 §11.4b 断言（红→绿）；
+- 9 点语义逐条核对通过：地点判定只走 `V.location` 精确匹配、时间仅展示、前置仅提示、旧档迁移幂等、队列顺序触发、完成后可再锚定；渲染侧位次（`pinQueueIndex`）与提示消息位次语义一致，无偏差；
+- 已知边界（不改动，如实记录）：弹条非阻断，玩家离开触发地点后确认条仍停留（再点「立即触发」以当前段落为返回位，行为可接受）；`mbCE_anchorCooldown` 60s 冷却在重新锚定同场景后仍保留（重新锚定后至多 60s 内不再弹，自愈）；地点匹配为精确值（父/子地点不模糊匹配，防误弹）；
+- 全链 6 步重跑全绿（含新增 11.4b）；重打包（230,972 B / SHA256 `63175C10A59F1E2D1EF6335ED8985E658AED8BF84FA78A13D4C07B3E2713C11A`，verifier 4/4、zip 正斜杠 4/4）已装 game（SHA 实测一致）；moli 实机冒烟 4 PASS + 2 WARN（工具局限见 `.learnings\ERRORS.md#ERR-20261028-001`）。
+
+### ⑥ 实机修复（2026-10-31 用户实测反馈：锚定触发直达剧情段 + 播完自动完成）
+
+- **用户实测问题**：确认「成人用品店开业」触发后，游戏打开的是**原版场景查看器预览页**（Sydney 立绘 + Start 链接的"剧情播放器"样式）而非剧情本体；且播完未自动取消队列/标「已完成 ✓」。
+- **根因**：原版场景注册表 `Adult Shop Opening` 的 `startPassage:"SV Adult Shop Opening"` 是查看器预览页段落（`<<SVSydney>>` + `<<link [[Start|Adult Shop Opening]>>`）；`startAnchoredReplay` 原先直接把 `P.startPassage` 交给 `Engine.play` → 原地打开预览页。凡 startPassage 为 `SV xxx` 预览页形态的锚定场景均受影响；「播完没自动完成」是同根因下游（剧情链未进入，走不到 `Scene Viewer End` 的 cleanup 终点）。
+- **修复**（`javascript/src/07f-pins.js` `startAnchoredReplay`）：startPassage 以 `"SV "` 开头时解析预览页段落源码中的 `[[Start|剧情入口]]` 链接（label 恰为 Start；SV 预览链如 `SV Temple Confess Purge → SV Temple Confess Purge 2` 递归跳过，深度上限 10）；解析到非 SV 剧情段 → `entry` 作为播放起点（`V.replayScene.startPassage` 同步设为 entry，原版 redirect 命中首条兜住重入）；无 Start 链接（剧情本体类，如 `SV Pub Fame Intro` 含场景初始化）→ 保持原入口不跳。**判据基于段落源码而非名字前缀**，不误伤带初始化的 SV 剧情本体段。
+- **自动完成链路确认**：剧情出口（`Adult Shop Opening End 2` → `Adult Shop`）→ `:passageoverride`（原版 redirect 之前由本钩子处理）→ 原版 redirect 判定不在 passages → `Scene Viewer End` → 本钩子捕获 → `cleanupUsedPins`（解锁 + `mbCE_completedScenes[key]={name,t}` + 移除队列项）+ 回原位。
+- **测试**：新增 §11.4c 断言（红→绿）：SV 预览页场景触发 `Engine.play("Adult Shop Opening",true)`（非预览页）；replayScene 起点=剧情首段；播到出口不干预；Scene Viewer End → 队列清空 + 标「已完成 ✓」+ 回原位；SV 预览链递归直达剧情入口 + 播完队列清空。
+- 全链 6 步重跑全绿 + codegraph sync；重打包（231,593 B / SHA256 `88B5A56FAC2DA1B5E6A3DABF6393C05DC5585D10DE97D7465DFA8D65A9616A1B`，verifier 4/4、zip 正斜杠 4/4）已装 game（SHA 实测一致）；moli 实机冒烟 4 PASS + 2 WARN（工具局限，同前）。版本双源仍 1.9.23（未升版）。
+
+### ⑦ 实机修复二轮（2026-10-31 用户复测：仍被困 Scene Viewer End / 队列不清 / 反复弹触发条 / 主场景英文名）
+
+- **用户复测问题**：实测「艾弗里直升飞机」场景（剧情本体段、无 Start 链接，第一轮判据保留原入口，进得去）播完仍停在「"艾弗里直升飞机"场景结束。/ (1)退出场景」界面——队列不清、标不了「已完成 ✓」、返回地点又弹确认条；另：场景面板新加的「主场景 Asylum / Police Cell / Docks / Lake Stroll / Wolf Pack / Hospital front」英文名未翻译。
+- **根因定案**（`javascript/src/07f-pins.js` `onPassageOverride` 810–900）：第一轮只修了「进得去」，没修「出得去」。剧情出口段（dest 不在 `replayScene.passages`，如直升飞机出口、`Adult Shop`、`Park`、`Farm Barn` 等）会被原版 redirect（原版 HTML 31697–31698）改写为 `"Scene Viewer End"`，而本钩子已在**同一轮 `:passageoverride` 事件内执行过**（只看到改写前的旧 dest）→ 下方 823 的 `Scene Viewer End` 分支永远收不到改写后的 dest → 播完不清理、队列残留、返回地点再弹；玩家点「退出场景」（End 段汉化链接 target=`Scene Viewer`）又被 redirect 打回 End → 死循环被困。测试 mock 直调 `Scene Viewer End` 分支全绿，实机链路（Engine.play → :passageoverride → redirect → 返回）未被覆盖——「玩家路径 ≠ 测试路径」盲区实证。
+- **修复**：在 `onPassageOverride` 的 `V.replayScene` 分支内新增**剧情出口接管**（837–854）：本轮事件内直接判定 dest 不在 `replayScene.passages`（链外 = 原版 redirect 语义即"剧情结束"）→ `cleanupUsedPins()`（解锁 + 标「已完成 ✓」+ 移除队列项）+ `mbCEClearReplay()` + `passageArgs.name = exitpassage` 回原位 → 原版 31683 检测 name 已变 → `return` 新 dest，redirect 不再执行，不再进 Scene Viewer End。保留 `Farm Work` 确定性终点特例（855–876）；原版手动重放（`!mbCE_replayOnce`）仍不干预（836）。「弄完之后还是触发」同根因：used 项未移除 + replayScene 残留 → 返回地点再弹（`mbCEOnPassageEnd` 340/344 已有 `V.replayScene`/`!used` 双短路，队列清空后无项可弹）。
+- **翻译**（`javascript/src/07d-places.js` `PLACE_CN`）：补新 6 组主场景名映射（asylum=精神病院、police=警局与监狱、prison=监狱、docks=码头、lake=湖畔、wolf=狼群、hospital=医院）→ 场景直达「主场景 X ★（中文）」行生效；组名行（`精神病院 · Asylum` 等）原本已中英混合不重复加注。
+- **测试**：§11.4c 出口拦截断言（Adult Shop 出口 → 队列清空 + 回原位）；§11.5 更新为出口语义（Park 链外 → 清理 + 回原位）；§15.10b 更新为链外出口拦截 + 未触发队列项不被误删；§11.4d 新增「已 used 项不再弹确认条」；§15.9b 新增「主场景名中文化映射入产物」断言。红（11 FAILURES，旧断言锁定旧行为）→ 绿（0 FAILURES）。
+- 全链 6 步全绿 + codegraph sync；重打包（232,508 B / SHA256 `BCA860E10EBE40D002F8052717297FD05C3A6DF8F8D569D948B6910E2C0EBE84`，verifier 4/4、zip 正斜杠 4/4）已装 game（双端 SHA 实测一致）。版本双源仍 1.9.23（未升版）。
+
+### ⑧ 实机修复三轮（2026-10-31 用户实测：不进播放器 ✓，但「米奇酒吧知名度初见」播完任务未完成）
+
+- **用户实测确认**：锚定触发已不再进场景播放器（直达剧情本体 ✓，二轮出口拦截生效）；但「米奇酒吧知名度初见」点「立即触发」后剧情播完所属任务未完成（队列项未清理/未标「已完成 ✓」）。
+- **根因**（原版 HTML 280662-280664 注册 + 661897-663197 段落链实证）：`Mickey Pub Fame Intro` 注册 `passages:["SV Pub Fame Intro","Pub Fame Intro","Pub Fame Intro 2","Pub Fame Intro 3","Pub Fame Intro 4"]`；`Pub Fame Intro 4` 段实为酒吧主段，其剧情分支（663182）出口 `[[Next|Pub Fame Intro]]` **回链列表内段** → dest 永远在 `replayScene.passages` 内（inChain 恒 true）→ 二轮「出口接管」（判定 `!inChain`）永不触发 → 播完不清队列。**二轮修复覆盖的是"链外出口"，遗漏了"链内循环出口"这一类场景**。
+- **修复**（`javascript/src/07f-pins.js` `onPassageOverride`）：重放期间在 `replayScene.mbCE_visited` 记录已访问段；inChain 分支改为——**首次访问 push 不干预；已访问段再次到达且非 startPassage/exitpassage（剧情链循环回点 = 剧情播完）→ cleanupUsedPins + mbCEClearReplay + passageArgs.name=exitpassage 回原位**；出口拦截分支（849）加 `dest !== startPassage` 排除（入口段不在列表的场景不误清）。`Farm Work`/Scene Viewer passages/手动重放分支语义不变。
+- **测试**：新增 §11.4e（红→绿）：米奇酒吧知名度初见（5 段链）触发 → 链内段 1→2→3→4 首次访问不拦截 → 4 段剧情分支回 `Pub Fame Intro`（已访问 → 循环回点）→ 重放清理 + 队列清空 + 标已完成 + dest 接管回原位。红 4 FAILURES → 绿 0。
+- 全链 6 步全绿 + codegraph sync；重打包（233,333 B / SHA256 `A65FEBBF443F0135E369CE2143AA0629D77FCEAB9B9FE98EB7EC637554B9D17F`，verifier 4/4、zip 正斜杠 4/4）已装 game（双端 SHA 实测一致）。版本双源仍 1.9.23（未升版）。
+
+### ⑨ 实机修复四轮（2026-10-31 用户第 4 次反馈：触发后队列仍未清——实机补盲「末段落地点」路径）
+
+- **用户第 4 次实测（13_05_17 截图）**：「米奇酒吧知名度初见」点「立即触发」后**队列未清、确认条仍挂、中间已是 Pub 酒吧选项**（4 段 else 内容），且「孤儿院黑客米奇」已达成。
+- **根因**（原版 HTML 281186-281200 SV Pub Fame Intro + 663216-663251 Pub Fame Intro 4 else 分支实证）：**SV Pub Fame Intro 段（pid 184）本体含剧情文本 + `<<set $pubfame …>>` 初始化 + `[[Next|Pub Fame Intro]]`**；孤儿院黑客米奇已达成后 **$pubfame 已存在** → 触发时 4 段（酒吧主段）**663182 剧情分支（!$pubfame）不命中 → 走 else 酒吧选项（出口全链外，无循环）** → 三轮「循环回点」检测覆盖不到（无循环可回）→ 玩家在 4 段（酒吧选项）不点选项 → 队列残留。**三轮修的是「分支循环」路径，实机走的是「else 落地点」路径**。
+- **修复**（`javascript/src/07f-pins.js` `onPassageOverride` 链内分支）：新增**剧情线性走完检测**——到达剧情末段（`passages` 最后一段）且**前置链内段均已访问**（`replayScene.mbCE_visited`）= 剧情播完（落地点，如 Pub Fame Intro 4）→ `cleanupUsedPins + mbCEClearReplay + passageArgs.name=exitpassage` 回原位；用 push 前 wasVisited 区分首次/循环，分支型场景（Avery 各分支段前置未全访问）→ 不触发不误伤；循环回点检测保留作兜底。
+- **测试**：§11.4e 更新为实机语义（补入口段 visited 模拟 + 到达 4 段线性播完 → 清理 + 标完成 + 回原位），红 → 绿。
+- 全链 6 步全绿 + codegraph sync；重打包（233,947 B / SHA256 `6E837B913BDB64F0E9C2DB73B0BA4CDFD2E182CC63CD0296F95FF1F10B5394F6`，verifier 4/4、zip 正斜杠 4/4）已装 game（双端 SHA 实测一致）。版本双源仍 1.9.23（未升版）。
+
+### ⑩ 实机修复五轮（2026-10-31 用户第 5 次反馈：取消锚定后「立即触发」残留 + 暂不触发后其他锚定不弹）
+
+- **用户第 5 次实测（13_17_06 截图）**：人已离开酒吧（麋鹿街工业区），顶部确认条「检测到锚定剧情『米奇酒吧知名度初见』：触发地点『酒吧』」仍挂；右侧面板「要求：未达成（条件未满足）」与弹条「前置均已达成」自相矛盾；并反馈**取消锚定之后「立即触发」并没有消失**、**选了「暂不触发」之后再去选其他锚定，其他锚定的「立即触发」也不会出现**。
+- **根因 A（残留确认条跨段残留）**：弹条后玩家未点按钮直接离开触发地点（酒吧→麋鹿街），`position:fixed` 确认条跨段残留——「取消锚定之后立即触发没消失」的画面证据就是麋鹿街挂着酒吧条。
+- **修复 A**（`07f-pins.js` `mbCEOnPassageEnd`）：段落后先查当前展示条 → 其对应地点 ≠ 当前 `V.location` → 自动 `hideAnchorPrompt()`，不重弹。
+- **根因 B（队首拦截后续锚定）**：旧实现只取**队首**项、location 不匹配即 `return` → 队首「米奇酒吧知名度初见」（触发地点酒吧）在玩家到其他地点时**拦截了后续所有锚定的弹条**——「暂不触发后其他锚定不弹」根因。
+- **修复 B**：遍历队列找「当前地点匹配」的未用未完成锚定项（不再只看队首），命中即弹。
+- **测试**：§11.4f（跨地点残留确认条自动收起、不重弹）+ §11.4g（队首地点不匹配 → 遍历找地点匹配项弹出），红 → 绿。
+
+### ⑪ 实机修复六轮（2026-10-31 同轮：确认条循环弹的 used 还原根因——freeze 快照复活）
+
+- **根因**（实机 F12 铁证 live=true / frozen=false）：`startAnchoredReplay` 原先 **`P.used=true` 写在 `freezePlayerStats` 之后**——原版 freeze widget 深拷贝整个 `State.variables` 冻结快照，`mbCE_queue` 不在其 `skipKeysOnFreeze` 排除表 → 冻结快照含 `used:false` → 播完原版 `unfreezePlayerStats` 用 strict-replace 恢复快照**把 used 还原为 false（队列项复活）** → 确认条循环弹（已清除/已完成的项下一段又出现）。
+- **修复**（`07f-pins.js`）：① `P.used=true` **提前到 `freezePlayerStats` 之前**写入（冻结快照含 true → 恢复后保持 true）；② `mbCEOnPassageEnd` 入口**幂等 `cleanupUsedPins()`**（已触发项写「已完成 ✓」+移出队列，复活项在下一段落被清，确认条不再循环弹）。
+- **测试**：§11.4 系断言更新为「freeze 前已 used → 冻结快照含 true → 恢复后仍 true」语义，红 → 绿。
+- 全链 6 步全绿 + codegraph sync；重打包（235,445 B / SHA256 `697273BF88110BCDCE7796133A28948F97D831385466754CAB88D4C11BDAA105`，verifier 4/4、zip 正斜杠 4/4）已装 game（双端 SHA 实测一致）。版本双源仍 1.9.23（未升版）。本轮保留 `[MCE-PROBE]` 运行时探针（F12 可观察 freeze 前后 used 状态），用户验收后移除。
+
+### ⑫ 自查优化（2026-10-31 同轮，不升版本）
+
+- **① 同地点多锚定拦截遗漏（`mbCEOnPassageEnd` 遍历）**：五轮修复把弹条改为「遍历队列找地点匹配项」，但找到首个匹配项后 `anchorPromptActive(P.key) { return; }` **是 return 不是 continue**——同地点多锚定时，A 暂不触发（1h 冷却）或正展示中 → B（同地点）被 return 拦截永不弹——**「暂不触发后其他锚定不弹」的同地点残余路径**。修复：冷却/展示中的项 `continue` 继续找下一个同地点匹配项，全部不可用才不弹。测试 §11.4h 红→绿（A 展示中 → 同地点 B 正常弹出）。
+- **② 弹条文案口径误导（13_17 截图「前置均已达成」vs 面板「要求：未达成」）**：`pendingPreconds` 对无数字后缀且无显式映射的键（如 `MickeyPubFameIntro`）恒返回空 → 弹条永远显示「前置均已达成」——与面板完成状态「要求：未达成（条件未满足）」同屏自相矛盾（**触发前置 ≠ 完成条件**，两套判定本就不同，纯文案误导）。修复：无前置要求时改为「｜触发前置：无」，有前置未完成才列名。测试 §11.4i 红→绿（弹条文案不含「前置均已达成」、含「触发前置：无」）。
+- **③ 暂不触发冷却 1h→60s（用户拍板）**：`mbCE_anchorCooldown` 判定 `3600000`→`60000`（现实时间，非游戏内时钟）——同地点暂不触发后 60 秒内不再弹、60 秒后恢复可弹；仍为内存态（不写存档，刷新页面失效，走到地点重新弹条）。测试 §11.4j 红→绿（mock Date.now：skip 写冷却后同地点不弹 + 61s 后恢复弹）。
+- 全链 6 步全绿 + codegraph sync；重打包（236,503 B / SHA256 `F0F503AC3CD7CDD4F38315D00D14FC82E7F23AF28E9DB0AD5BA59EE06A2DC593`，verifier 4/4、zip 正斜杠 4/4）已装 game（双端 SHA 实测一致）。版本双源仍 1.9.23（未升版）。
+
 ## v1.9.22（2026-10-30 · UI 视觉系统规格化：Apple 式精密 × 金色玻璃 · 已发布）
 
 **UI 视觉系统规格化（延续 v1.9.18 排版 token 化）**

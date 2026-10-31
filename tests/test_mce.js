@@ -530,87 +530,296 @@ let lapC = api.listAllPassages();
 assert(lapC.length === PLACE_NAMES.length, "旧版 Story.passages 兼容路径可用, 实际 " + lapC.length);
 assert(api.listPlaceGroups().reduce((s, x) => s + x.items.length, 0) === 37, "兼容路径下场景分组总数不变（37 段）");
 
-// 11) 固定触发队列 / 回退 / 联动解锁（v1.2）：按顺序触发 + 一次性 + 场景解锁
+// 11) 锚定触发队列 / 回退 / 联动解锁（v1.9.23）：地点触发 + 确认条 + 已完成 + 旧档兼容
 global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT }].filter(fn) };
 const wikiCalls = [];
 window.wikifier = (n) => { wikiCalls.push(n); };
 let playedBack = null;
 global.Engine = { play: (n, h) => { playedBack = n + ":" + !!h; } };
 V.passage = "Orphanage";
-// 11.1) 未固定时不干预
+// 11.1) 未锚定时不干预
 const pa1 = { name: "Orphanage" };
 api.onPassageOverride(pa1);
-assert(pa1.name === "Orphanage" && !V.replayScene && wikiCalls.length === 0, "未固定时钩子不干预");
-// 11.2) 固定触发：写入队列（mbCE_queue），保持追加顺序
+assert(pa1.name === "Orphanage" && !V.replayScene && wikiCalls.length === 0, "未锚定时钩子不干预");
+// 11.2) 锚定触发：写入队列（mbCE_queue），带地点元数据 + 提示含地点
 let robinLine2 = api.listSceneLines(api.getScenesDefs().defs).lines.find(l => /RobinCrossdressing/i.test(l.prefix));
 let pinR = api.pinScene(robinLine2.items[1]);
-assert(pinR.ok && Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 1 && V.mbCE_queue[0].key === "RobinCrossdressing2" && V.mbCE_queue[0].startPassage === "Robin Crossdressing 2" && V.mbCE_queue[0].used === false, "固定触发：写入队列, 实际 " + JSON.stringify(V.mbCE_queue));
-// 11.2b) 队列顺序：再固定 2 条，按追加顺序排列
+assert(pinR.ok && pinR.message.indexOf("触发地点") !== -1 && Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 1 && V.mbCE_queue[0].key === "RobinCrossdressing2" && V.mbCE_queue[0].startPassage === "Robin Crossdressing 2" && V.mbCE_queue[0].used === false && V.mbCE_queue[0].anchor && V.mbCE_queue[0].anchor.location === "home", "锚定触发：写入队列带地点元数据+提示, 实际 " + JSON.stringify(V.mbCE_queue));
+// 11.2a) 锚定提示含未完成前置（RobinCrossdressing2：跨线前置 RobinIntro1 + 线内 RobinCrossdressing1 未完成 → 提示）
+assert(pinR.message.indexOf("前置未完成") !== -1, "锚定提示列出未完成前置, 实际 " + pinR.message);
+// 11.2b) 队列顺序：再锚定 2 条，按追加顺序排列
 let singles11 = api.listSceneLines(api.getScenesDefs().defs).singles;
 let pinB1 = api.pinScene(singles11[0]);
-let pinB2 = api.pinScene(singles11[1]);
-assert(pinB1.ok && pinB2.ok && V.mbCE_queue.length === 3 && V.mbCE_queue[1].key === singles11[0].key && V.mbCE_queue[2].key === singles11[1].key, "固定队列按追加顺序排列, 实际 " + V.mbCE_queue.map(x => x.key).join());
-// 11.2c) 重复固定同一剧情 → 拒绝不追加
+let sec11 = robinLine2.items[2]; /* RobinCrossdressing3（表内 home 元数据）——singles 仅 1 个带元数据场景 */
+let pinB2 = api.pinScene(sec11);
+assert(pinB1.ok && pinB2.ok && V.mbCE_queue.length === 3 && V.mbCE_queue[1].key === singles11[0].key && V.mbCE_queue[2].key === sec11.key, "锚定队列按追加顺序排列, 实际 " + V.mbCE_queue.map(x => x.key).join());
+// 11.2c) 重复锚定同一剧情 → 拒绝不追加
 let pinDup = api.pinScene(robinLine2.items[1]);
-assert(pinDup.ok === false && V.mbCE_queue.length === 3, "重复固定 → 拒绝不追加");
-// 11.3) 目标段落就在场景内 → 不触发
+assert(pinDup.ok === false && V.mbCE_queue.length === 3, "重复锚定 → 拒绝不追加");
+// 11.2d) 无地点元数据场景 → 拒绝锚定（旧固定触发入口已移除）
+let badMetaPin = api.pinScene({ key: "NoMetaScene", def: { name: "无元数据", startPassage: "NoMetaStart", passages: ["NoMetaStart"], manualVariableChanges: "" } });
+assert(badMetaPin.ok === false && badMetaPin.message.indexOf("未标注触发地点") !== -1 && V.mbCE_queue.length === 3, "无地点元数据 → 拒绝锚定, 实际 " + badMetaPin.message);
+// 11.3) 锚定项在段落跳转时不再自动触发（旧固定触发已移除）：passageoverride 短路
 const pa2 = { name: "Robin Crossdressing 2" };
 api.onPassageOverride(pa2);
-assert(pa2.name === "Robin Crossdressing 2" && !V.replayScene, "目标在场景内段落 → 不触发");
-// 11.4) 场景外段落（下次推进/遇见）→ 触发队首（Robin），标记 used（一次性），重定向入口
-const pa3 = { name: "Orphanage" };
-api.onPassageOverride(pa3);
-assert(pa3.name === "Robin Crossdressing 2", "场景外段落 → 重定向队首剧情入口, 实际 " + pa3.name);
-assert(V.replayScene && V.replayScene.name === "Robin Crossdressing 2" && V.replayScene.exitpassage === "Orphanage", "设置原版重放通道（name/exitpassage=原位）");
-assert(wikiCalls.indexOf("freezePlayerStats") !== -1, "启动时调用原版 freezePlayerStats");
-assert(V.mbCE_queue[0].used === true, "触发后队首标记 used（一次性，不再重复触发）");
-// 11.5) 重放中 → 不重复触发（交给原版 Scene viewer redirect）
-const pa4 = { name: "Park" };
+assert(pa2.name === "Robin Crossdressing 2" && !V.replayScene && !V.mbCE_queue[0].used, "锚定项段落跳转不自动触发（走确认条通道）, 实际 used=" + V.mbCE_queue[0].used);
+// 11.4) 走到锚定地点（passageend 判定 V.location）→ 弹确认条；确认触发 → 原版重放通道
+V.location = "home"; /* 模拟进入孤儿院（RobinCrossdressing2 锚定地点） */
+let ceCalls11 = 0;
+let mkNodes11 = []; /* v1.9.23-自查优化：保存全部 createElement 节点，供文案断言（弹条 txt.textContent） */
+let mkNode11 = (tag) => { ceCalls11++; const n11 = { tagName: tag, style: {}, className: "", textContent: "", type: "", disabled: false, children: [], listeners: {}, appendChild(c) { this.children.push(c); }, addEventListener(ev, fn) { this.listeners[ev] = fn; }, parentNode: null }; mkNodes11.push(n11); return n11; };
+global.document = { createElement: mkNode11, getElementById: () => ({ insertBefore() {}, firstChild: null }), body: {} };
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === 4, "走到锚定地点 → 弹确认条（DOM 已构建确认条）, createElement=" + ceCalls11);
+// 11.4d) 已 used 项走到地点不再弹确认条（「弄完之后还是触发」回归防线：showAnchorPrompt 排除 used 项）
+//        （v1.9.23-实机修复五轮：隔离队列只留 used 项——旧用例依赖「队首地点不匹配即 return」这一旧 bug 才不弹；
+//          新行为遍历队列弹地点匹配项，队列内其他未用且地点匹配项会正常弹出）
+const qBackup11 = V.mbCE_queue.slice();
+V.mbCE_queue = [qBackup11[0]];
+V.mbCE_queue[0].used = true;
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === 4, "已 used 项不再弹确认条（播完不再次触发）, createElement=" + ceCalls11);
+/* v1.9.23-实机修复六轮：mbCEOnPassageEnd 入口现会幂等清理残留 used 项（cleanupUsedPins：记「已完成 ✓」+移出队列），
+   临时队列中的 used 项已被清理，直接恢复原队列即可（不再复位 used）。 */
+V.mbCE_queue = qBackup11;
+let anchorR = api.startAnchoredReplay(V.mbCE_queue[0]);
+assert(anchorR.ok && V.replayScene && V.replayScene.name === "Robin Crossdressing 2" && V.replayScene.exitpassage === "Orphanage", "确认触发 → 原版重放通道, 实际 " + JSON.stringify(V.replayScene));
+assert(wikiCalls.indexOf("freezePlayerStats") !== -1, "确认触发调用原版 freezePlayerStats");
+assert(V.mbCE_queue[0].used === true, "确认触发后队首标记 used（一次性）");
+assert(playedBack === "Robin Crossdressing 2:true", "确认触发 Engine.play 跳转入口, 实际 " + playedBack);
+// 11.4b) 防重入：重放进行中再次确认触发（如双击「立即触发」）→ 拒绝且不二次跳转
+const playedBefore11b = playedBack;
+let anchorR2 = api.startAnchoredReplay(V.mbCE_queue[0]);
+assert(anchorR2.ok === false && playedBack === playedBefore11b, "重放中再次触发被拒绝（防重入，双击保护）, 实际 ok=" + anchorR2.ok + " playedBack=" + playedBack);
+// 11.5) 重放中 → 不再弹确认条（V.replayScene 短路）；剧情出口（链外段落）→ 出口拦截：清理 + 回原位
+const pa4 = { name: "Park" }; /* 剧情出口（不在重放链；原版 redirect 会打回 Scene Viewer End 死循环） */
 api.onPassageOverride(pa4);
-assert(pa4.name === "Park" && V.replayScene, "重放中钩子不干预");
-// 11.6) 重放结束（Scene Viewer End）→ 清理 used 项（自动推进到下一固定）
+assert(pa4.name === "Orphanage" && !V.replayScene, "剧情出口（链外段落）→ 出口拦截：清理 + 回原位, 实际 name=" + pa4.name);
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 2, "出口拦截移除已 used 项, 实际 " + V.mbCE_queue.length);
+// 11.6) 重放结束（Scene Viewer End）→ 清理 used 项 + 记「已完成 ✓」+ 自动推进下一锚定
 const pa5 = { name: "Scene Viewer End" };
 api.onPassageOverride(pa5);
-assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 2 && V.mbCE_queue[0].key === singles11[0].key, "重放结束移除已 used 项（自动推进到下一固定）, 实际 " + JSON.stringify(V.mbCE_queue));
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 2 && V.mbCE_queue[0].key === singles11[0].key, "重放结束移除已 used 项（自动推进到下一锚定）, 实际 " + JSON.stringify(V.mbCE_queue));
+assert(V.mbCE_completedScenes && V.mbCE_completedScenes["RobinCrossdressing2"] && V.mbCE_completedScenes["RobinCrossdressing2"].name === "Robin Crossdressing 2", "重放结束记入已完成（mbCE_completedScenes）, 实际 " + JSON.stringify(V.mbCE_completedScenes));
+// 11.6b) 已完成判定（precondDone）：已完成场景不再计入前置提示
+assert(api.precondDone("RobinCrossdressing2") === true, "已完成场景 precondDone=true");
+// 11.6c) 再锚定已完成的剧情 → 允许（可再自由锚定）
+let repin = api.pinScene(robinLine2.items[1]);
+assert(repin.ok && V.mbCE_queue.length === 3 && V.mbCE_queue[2].key === "RobinCrossdressing2", "已完成可再自由锚定, 实际 " + JSON.stringify(V.mbCE_queue));
+V.mbCE_queue.splice(2, 1); /* 还原队列为 2 项 */
 /* 模拟原版 Scene viewer redirect 收尾（真实游戏中玩家点「结束回放」后由原版执行） */
 window.wikifier("unfreezePlayerStats");
 delete V.replayScene;
-// 11.7) 顺序触发：触发队首（TempleSydneyCorrupt）→ used → 再触发时推进下一项
-const pa6 = { name: "Dorm" };
-api.onPassageOverride(pa6);
-assert(pa6.name === singles11[0].def.startPassage && V.mbCE_queue[0].used === true, "触发队首并重定向其入口（顺序）");
+// 11.7) 顺序触发：确认触发队首（TempleSydneyCorrupt）→ used → 再推进下一项
+V.location = "temple"; /* TempleSydneyCorrupt 锚定地点 */
+api.startAnchoredReplay(V.mbCE_queue[0]);
+assert(V.replayScene && V.mbCE_queue[0].used === true, "确认触发队首并重定向其入口（顺序）");
 const pa7 = { name: "Scene Viewer End" };
 api.onPassageOverride(pa7);
-assert(V.mbCE_queue.length === 1 && V.mbCE_queue[0].key === singles11[1].key, "顺序触发推进：剩最后一项");
+assert(V.mbCE_queue.length === 1 && V.mbCE_queue[0].key === sec11.key, "顺序触发推进：剩最后一项");
 // 11.7b) 场景联动解锁：触发悉尼神殿剧情后，神殿组自动解锁（场景页可直达）
 assert(V.mbCE_unlockedPlaces && V.mbCE_unlockedPlaces.sydney_temple && V.mbCE_unlockedPlaces.sydney_temple.startPassage === "SV Sydney Temple Corrupt", "场景联动解锁：触发剧情后对应场景组解锁, 实际 " + JSON.stringify(V.mbCE_unlockedPlaces));
 window.wikifier("unfreezePlayerStats");
 delete V.replayScene;
 // 11.8) 回退（指定 key）：取消队列中指定剧情
-let unp1 = api.unpinScene(singles11[1].key);
+let unp1 = api.unpinScene(sec11.key);
 assert(unp1 && V.mbCE_queue.length === 0, "回退指定剧情 → 队列移除该项");
+// 11.4c) SV 注册场景（startPassage="SV xxx" 查看器预览页）锚定触发 → 跳过预览页直接播剧情段
+//        （v1.9.23-实机修复：玩家反馈「要的是剧情不是剧情播放器」——原实现 play 预览页会打开查看器入口）
+const svDef = { name: "Adult Shop Opening", startPassage: "SV Adult Shop Opening", passages: ["SV Adult Shop Opening", "Adult Shop Opening", "Adult Shop Opening 2", "Adult Shop Opening End 2"], manualVariableChanges: "<<set $location to 'adult_shop'>>" };
+let svPin = api.pinScene({ key: "AdultShopOpening", def: svDef });
+assert(svPin.ok && V.mbCE_queue.length === 1, "SV 注册场景可锚定, 实际 " + (svPin.message || ""));
+const storyBefore4c = global.Story;
+/* 预览页段落源码：SVSydney 展示 + Start 链接（原版 SV Adult Shop Opening 形态；SV 链递归验证 SV Temple Confess Purge） */
+const svSrcMap = {
+	"SV Adult Shop Opening": "<<SVSydney>>\n\n<br><br>\n<<link [[Start|Adult Shop Opening]]>><</link>>",
+	"SV Temple Confess Purge": "<<SVSydney>>\n\n<br><br>\n<<link [[Start|SV Temple Confess Purge 2]]>><</link>>",
+	"SV Temple Confess Purge 2": "<<SVSydney>>\n\n<br><br>\n<<link [[Start|Temple Confess Purge 2]]>><</link>>"
+};
+global.Story = { get: (n) => ({ source: svSrcMap[n] || "" }), lookupWith: (fn) => storyBefore4c.lookupWith(fn) };
+V.location = "adult_shop";
+const ceBefore4c = ceCalls11;
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === ceBefore4c + 4, "SV 场景走到地点 → 弹确认条, createElement 增量=" + (ceCalls11 - ceBefore4c));
+const playedBefore4c = playedBack;
+let svR = api.startAnchoredReplay(V.mbCE_queue[0]);
+assert(svR.ok && playedBack === "Adult Shop Opening:true", "SV 预览页场景触发 → 直接播剧情段（非预览页）, 实际 " + playedBack);
+assert(V.replayScene && V.replayScene.startPassage === "Adult Shop Opening" && V.replayScene.passages.length === 4, "replayScene 起点=剧情首段, 实际 " + JSON.stringify(V.replayScene));
+assert(V.mbCE_queue[0].used === true, "SV 场景触发后标记 used");
+const backTo4c = V.replayScene && V.replayScene.exitpassage;
+/* 出口拦截（v1.9.23-实机修复二轮）：剧情出口段（不在重放链）→ 本钩子在原版 redirect 之前接管：
+   清理队列 + 标已完成 ✓ + 直接回原位（原版 31683 检测 name 已变 → 采用新 dest，redirect 不再打回 Scene Viewer End 死循环） */
+const paSV1 = { name: "Adult Shop" };
+api.onPassageOverride(paSV1);
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 0, "SV 场景播完自动移除队列项, 实际 " + V.mbCE_queue.length);
+assert(V.mbCE_completedScenes && V.mbCE_completedScenes["AdultShopOpening"], "SV 场景播完标已完成 ✓");
+assert(paSV1.name === backTo4c, "SV 剧情出口：直接回原位（exitpassage）, 实际 " + paSV1.name);
+/* SV 预览链递归：SV Temple Confess Purge → SV Temple Confess Purge 2 → Temple Confess Purge 2（剧情入口） */
+let svChainItem = { key: "TempleConfessPurge", name: "Temple Purge and Confessor Intro", startPassage: "SV Temple Confess Purge", passages: ["SV Temple Confess Purge", "SV Temple Confess Purge 2", "Temple Confess Purge 2"], manualVariableChanges: "", used: false, anchor: { location: "temple" } };
+V.mbCE_queue.push(svChainItem);
+V.location = "temple";
+let svChainR = api.startAnchoredReplay(V.mbCE_queue[V.mbCE_queue.length - 1]);
+assert(svChainR.ok && playedBack === "Temple Confess Purge 2:true", "SV 预览链递归直达剧情入口, 实际 " + playedBack);
+assert(V.replayScene && V.replayScene.startPassage === "Temple Confess Purge 2", "SV 预览链 replayScene 起点=剧情入口, 实际 " + JSON.stringify(V.replayScene));
+const paChain1 = { name: "Danube Street" }; /* 任意剧情出口（不在重放链） */
+api.onPassageOverride(paChain1);
+assert(V.mbCE_completedScenes && V.mbCE_completedScenes["TempleConfessPurge"], "SV 预览链播完标已完成 ✓");
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 0, "SV 预览链播完队列清空, 实际 " + V.mbCE_queue.length);
+assert(paChain1.name !== "Danube Street", "SV 预览链出口：dest 被接管改写回原位, 实际 " + paChain1.name);
+/* 死循环出口：「退出场景」（End 段汉化链接 target=Scene Viewer，不在重放链）→ 原版 redirect 会打回 Scene Viewer End 死循环；
+   本钩子拦截 → 清理 + 回原位 */
+let svLoopItem = { key: "AveryHelicopter", name: "Avery Helicopter", startPassage: "SV Avery Helicopter", passages: ["SV Avery Helicopter", "Avery Helicopter", "Avery Helicopter Drink", "Avery Helicopter Refuse", "Avery Helicopter 2", "Avery Helicopter Nod", "Avery Helicopter Brush", "Avery Helicopter Push", "Avery Helicopter Sex", "Avery Helicopter Sex End", "Avery Helicopter Roll", "Avery Helicopter Slap", "Avery Helicopter Walk"], manualVariableChanges: "", used: false, anchor: { location: "town" } };
+V.mbCE_queue.push(svLoopItem);
+V.location = "town";
+api.startAnchoredReplay(V.mbCE_queue[V.mbCE_queue.length - 1]);
+const paLoop1 = { name: "Avery Helicopter Walk" }; /* 剧情中段（在链内）→ 不拦截 */
+api.onPassageOverride(paLoop1);
+assert(paLoop1.name === "Avery Helicopter Walk" && V.mbCE_queue.length === 1, "剧情中段在链内：本钩子不拦截, 实际 " + JSON.stringify(paLoop1));
+const paLoop2 = { name: "Oxford Street" }; /* 剧情出口（不在链内）→ 拦截清理回原位 */
+api.onPassageOverride(paLoop2);
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 0, "出口拦截：队列清空, 实际 " + V.mbCE_queue.length);
+assert(paLoop2.name !== "Oxford Street", "出口拦截：dest 被接管改写回原位, 实际 " + paLoop2.name);
+/* 11.4e) 剧情链播完检测（v1.9.23-实机修复三轮/四轮）：剧情末段出口回链列表内段（如米奇酒吧知名度初见
+   Pub Fame Intro 4 剧情分支 Next → Pub Fame Intro，dest 在 passages 内 inChain 恒 true）→ 二轮出口接管不触发、
+   播完不清队列。三轮修复：重放期间记录已访问段，已访问段再次到达（循环回点）→ 清理回原位；
+   四轮实机补盲（$pubfame 已存在时 4 段走 else 酒吧选项、无循环出口）：到达剧情末段且前置链内段全访问
+   = 剧情线性播完（落地点）→ 清理回原位，不等玩家点选项。分支型场景前置未全访问 → 不触发不误伤。 */
+let pubFameItem = { key: "MickeyPubFameIntro", name: "Mickey Pub Fame Intro", startPassage: "SV Pub Fame Intro", passages: ["SV Pub Fame Intro", "Pub Fame Intro", "Pub Fame Intro 2", "Pub Fame Intro 3", "Pub Fame Intro 4"], manualVariableChanges: "", used: false, anchor: { location: "pub" } };
+V.mbCE_queue.push(pubFameItem);
+V.location = "pub";
+let pubFameR = api.startAnchoredReplay(V.mbCE_queue[V.mbCE_queue.length - 1]);
+assert(pubFameR.ok, "米奇酒吧知名度初见：锚定触发成功");
+let pfExit = V.replayScene.exitpassage;
+/* 触发入口段：startAnchoredReplay 的 play(entry) 实机触发 :passageoverride → visited 记录入口段（模拟） */
+const paEntry = { name: "SV Pub Fame Intro" };
+api.onPassageOverride(paEntry);
+assert(paEntry.name === "SV Pub Fame Intro", "入口段记录 visited 不拦截, 实际 " + paEntry.name);
+/* 第一次链内播放：Intro → 2 → 3（均首次访问，不拦截） */
+["Pub Fame Intro", "Pub Fame Intro 2", "Pub Fame Intro 3"].forEach(function (seg) {
+	let paSeg = { name: seg };
+	api.onPassageOverride(paSeg);
+	assert(paSeg.name === seg, "链内段首次访问不拦截, 实际 " + paSeg.name);
+});
+/* 到达剧情末段 Pub Fame Intro 4（前置链内段全访问 = 剧情线性播完 → 清理 + 回原位，不等玩家点酒吧选项） */
+const paLoop3 = { name: "Pub Fame Intro 4" };
+api.onPassageOverride(paLoop3);
+assert(!V.replayScene, "剧情线性播完：重放已清理（播完自动完成）, 实际 " + JSON.stringify(V.replayScene));
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 0, "剧情线性播完：队列清空, 实际 " + V.mbCE_queue.length);
+assert(V.mbCE_completedScenes && V.mbCE_completedScenes["MickeyPubFameIntro"], "剧情线性播完：标已完成 ✓");
+assert(paLoop3.name === pfExit, "剧情线性播完：dest 接管改写回原位, 实际 " + paLoop3.name);
+/* 11.4f) 跨地点残留确认条清理（v1.9.23-实机修复五轮）：弹条后未点按钮直接离开触发地点（酒吧→麋鹿街），
+   fixed 条跨段残留 → :passageend 自动收起，不重弹（玩家反馈「取消锚定之后立即触发并没有消失」画面证据） */
+V.mbCE_queue = [{ key: "PubLead", name: "酒吧主线", startPassage: "PubA", passages: ["PubA"], used: false, anchor: { location: "pub" } }];
+V.location = "pub";
+const ceBeforeF = ceCalls11;
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === ceBeforeF + 4, "pub 落地弹确认条, createElement 增量=" + (ceCalls11 - ceBeforeF));
+V.location = "park"; /* 未点按钮离开 */
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === ceBeforeF + 4, "离开触发地点：残留确认条自动收起（不重弹）, createElement 增量=" + (ceCalls11 - ceBeforeF));
+// 11.4g) 队首地点不匹配 → 遍历队列找地点匹配项（玩家反馈「暂不触发后其他锚定的立即触发不出现」根因：
+//        旧实现只取队首、location 不匹配即 return → 后续锚定永远不弹）
+V.mbCE_queue = [
+	{ key: "PubLead", name: "酒吧主线", startPassage: "PubA", passages: ["PubA"], used: false, anchor: { location: "pub" } },
+	{ key: "TempleSecond", name: "神殿二线", startPassage: "TempleB", passages: ["TempleB"], used: false, anchor: { location: "temple" } }
+];
+V.location = "temple";
+const ceBeforeG = ceCalls11;
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === ceBeforeG + 4, "队首地点不匹配 → 遍历到神殿项（location 匹配）→ 弹确认条, 增量=" + (ceCalls11 - ceBeforeG));
+/* 取消锚定当前条对应 key → 残留条一并收起（「取消锚定后立即触发没消失」修复：unpinScene 收起展示中的条） */
+api.unpinScene("TempleSecond");
+api.mbCEOnPassageEnd(); /* 再来一段落地：条已随取消锚定收起，不重弹 */
+assert(ceCalls11 === ceBeforeG + 4, "取消锚定后残留确认条收起（不重弹）, 增量=" + (ceCalls11 - ceBeforeG));
+/* 11.4h) 同地点多锚定：A 正展示中 → 同地点 B 仍正常弹出（v1.9.23-自查优化：原实现找到 A 后
+   anchorPromptActive(A) return——A 暂不触发（1h 冷却）或展示中时，同地点后续锚定永不弹，
+   「暂不触发后其他锚定不弹」的同地点残余路径；现改为冷却/展示中的项 continue 找下一个匹配） */
+V.mbCE_queue = [
+	{ key: "PubLead", name: "酒吧主线", startPassage: "PubA", passages: ["PubA"], used: false, anchor: { location: "pub" } },
+	{ key: "PubSecond", name: "酒吧二线", startPassage: "PubB", passages: ["PubB"], used: false, anchor: { location: "pub" } }
+];
+V.location = "pub";
+const ceBeforeH = ceCalls11;
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === ceBeforeH + 4, "同地点首锚定 A 弹确认条, 增量=" + (ceCalls11 - ceBeforeH));
+api.mbCEOnPassageEnd(); /* A 展示中 → 遍历跳过 A → 弹同地点 B（修复前 return 拦截不弹） */
+assert(ceCalls11 === ceBeforeH + 8, "A 展示中：同地点 B 正常弹出（不被 A 拦截）, 增量=" + (ceCalls11 - ceBeforeH));
+/* 11.4i) 弹条文案：无前置要求的锚定不显示「前置均已达成」（触发前置 ≠ 完成条件，
+   13_17 截图「前置均已达成」与面板「要求：未达成（条件未满足）」同屏矛盾的文案误导消除） */
+V.mbCE_queue = [{ key: "PubLead", name: "酒吧主线", startPassage: "PubA", passages: ["PubA"], used: false, anchor: { location: "pub" } }];
+V.location = "pub";
+const ceBeforeI = ceCalls11;
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === ceBeforeI + 4, "pub 落地弹确认条（文案断言前）, 增量=" + (ceCalls11 - ceBeforeI));
+const anchorBoxI = mkNodes11[mkNodes11.length - 4]; /* 最后一次弹条：createElement 顺序 box/txt/go/skip */
+const anchorTxtI = anchorBoxI.children[0] ? anchorBoxI.children[0].textContent : "";
+assert(typeof anchorTxtI === "string" && anchorTxtI.indexOf("前置均已达成") === -1 && anchorTxtI.indexOf("触发前置：无") !== -1,
+	"弹条文案：无前置要求显示「触发前置：无」而非「前置均已达成」, 实际 " + anchorTxtI);
+/* 11.4j) 暂不触发 60s 冷却（用户拍板 1h→60s）：skip 后冷却内同地点不再弹，60s 后恢复可弹 */
+api.unpinScene("PubLead"); /* 清 11.4i 遗留展示态（内存确认条），避免干扰冷却用例 */
+V.mbCE_queue = [{ key: "PubLead", name: "酒吧主线", startPassage: "PubA", passages: ["PubA"], used: false, anchor: { location: "pub" } }];
+V.location = "pub";
+const ceBeforeJ = ceCalls11;
+const realNowJ = Date.now;
+let fakeNowJ = 1000000;
+global.Date.now = () => fakeNowJ; /* 临时接管真实时间，隔离冷却测试 */
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === ceBeforeJ + 4, "pub 落地弹确认条（skip 前）, 增量=" + (ceCalls11 - ceBeforeJ));
+const skipBtnJ = mkNodes11[mkNodes11.length - 1]; /* createElement 顺序 box/txt/go/skip → skip 是最后一个 */
+skipBtnJ.listeners.click(); /* 模拟点「暂不触发」→ 写 60s 冷却 + 收起条 */
+assert(ceCalls11 === ceBeforeJ + 4, "暂不触发：条已收起（冷却写入）, 增量=" + (ceCalls11 - ceBeforeJ));
+api.mbCEOnPassageEnd(); /* 冷却内（<60s）同地点不再弹 */
+assert(ceCalls11 === ceBeforeJ + 4, "冷却内（60s 未到）同地点不再弹, 增量=" + (ceCalls11 - ceBeforeJ));
+fakeNowJ += 61000; /* 61s 后冷却过期 */
+api.mbCEOnPassageEnd();
+assert(ceCalls11 === ceBeforeJ + 8, "61s 后冷却过期：同地点恢复弹条, 增量=" + (ceCalls11 - ceBeforeJ));
+global.Date.now = realNowJ;
+V.mbCE_queue = []; /* 还原 */
+/* 手动重放护栏：mbCE_replayOnce 未设（原版查看器播放）→ 出口不拦截（交原版 redirect），End 由 823 分支按原版行为处理 */
+const manualBackup = V.replayScene;
+V.mbCE_replayOnce = undefined;
+const paMan1 = { name: "Danube Street" };
+api.onPassageOverride(paMan1);
+assert(paMan1.name === "Danube Street", "手动重放：剧情出口不拦截（原版 redirect 处理）, 实际 " + paMan1.name);
+const paMan2 = { name: "Scene Viewer End" };
+api.onPassageOverride(paMan2);
+assert(paMan2.name === "Scene Viewer End", "手动重放：Scene Viewer End 不改 dest（原版行为）, 实际 " + paMan2.name);
+V.mbCE_replayOnce = true;
+window.wikifier("unfreezePlayerStats");
+delete V.replayScene;
+global.Story = storyBefore4c;
+window.wikifier("unfreezePlayerStats");
+delete V.replayScene;
 // 11.9) 回退（无参）：清空队列 + 结束重放（unfreeze + 回原位）
 let pinS2 = api.pinScene(robinLine2.items[0]);
-const pa8 = { name: "Temple" };
-api.onPassageOverride(pa8);
-assert(V.replayScene && V.mbCE_queue[0].used, "固定+触发（为回退造重放现场）");
+V.location = "home";
+api.startAnchoredReplay(V.mbCE_queue[0]);
+assert(V.replayScene && V.mbCE_queue[0].used, "锚定+触发（为回退造重放现场）");
 let unp2 = api.unpinScene();
 assert(unp2 && V.mbCE_queue.length === 0 && !V.replayScene, "无参回退：清空队列并结束重放");
 assert(wikiCalls.indexOf("unfreezePlayerStats") !== -1, "回退时调用原版 unfreezePlayerStats");
 assert(playedBack === "Orphanage:true", "回退后 Engine.play 返回原位, 实际 " + playedBack);
-// 11.10) 缺入口段落 → 固定失败不写入
+// 11.10) 缺入口段落 → 锚定失败不写入
 let badPin = api.pinScene({ key: "X", def: { name: "X", passages: [], startPassage: "" } });
-assert(badPin.ok === false && V.mbCE_queue.length === 0, "缺入口段落 → 固定失败不写入");
+assert(badPin.ok === false && V.mbCE_queue.length === 0, "缺入口段落 → 锚定失败不写入");
 // 11.11) 旧版兼容迁移：v1.1 mbCE_pinned → 队列（视为已触发过，不再触发）
 V.mbCE_pinned = { key: "OLD", name: "旧固定", startPassage: "OldStart", passages: [], manualVariableChanges: "", active: true };
 const pa9 = { name: "Elsewhere" };
 api.onPassageOverride(pa9);
 assert(pa9.name === "Elsewhere" && !V.replayScene, "旧 mbCE_pinned 迁移为 used → 不触发");
 assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 1 && V.mbCE_queue[0].key === "OLD" && V.mbCE_queue[0].used === true, "旧 mbCE_pinned 并入队列且 used");
+// 11.12) 旧档无地点元数据队列项 → 保持旧段落跳转语义（任意推进即触发）直至触发完
+V.mbCE_queue = [{ key: "OLD2", name: "旧档项", startPassage: "Old2Start", passages: [], manualVariableChanges: "", used: false }];
+const pa10 = { name: "Anywhere" };
+api.onPassageOverride(pa10);
+assert(pa10.name === "Old2Start" && V.replayScene && V.mbCE_queue[0].used === true, "旧档无元数据项保持旧语义触发, 实际 " + pa10.name);
+delete V.replayScene;
+delete V.mbCE_completedScenes;
 delete V.mbCE_pinned;
 delete V.mbCE_queue;
 delete V.mbCE_unlockedPlaces;
 delete global.Engine;
+delete global.document;
 
 // 12) 阶段回退（v1.2）：只撤销面板写入的标记，真实达成拒绝回退
 // 12.1) 框架恋爱 set 类：一键完成 → 记录痕迹 → 回退撤销 → 复检未达成
@@ -665,15 +874,15 @@ assert(playedBack === "Manor Bed:true", "teleportTo 经 window.SugarCube.Engine 
 V.farm_stage = 2; delete V.farm;
 api.teleportTo("Manor Bed");
 assert(V.farm && V.farm.beasts && V.farm.beasts.horses === 0 && V.farm.clearing === 100, "teleportTo 触发农场兜底（farm_stage>=1 建空壳）");
-// 13.2) 农场依赖剧情（Scene Viewer passages + farm_work_update）：$farm 未初始化 → 固定被拒（防崩）
+// 13.2) 农场依赖剧情（Scene Viewer passages + farm_work_update）：$farm 未初始化 → 锚定被拒（防崩）
 delete V.farm; delete V.farm_stage;
-let farmPin = api.pinScene({ key: "FARM", def: { name: "Farm Stage 3", startPassage: "Scene Viewer passages", passages: ["Farm Visitor"], manualVariableChanges: "<<set $sceneViewSwitch to 'AlexFarmWorkStage3'>><<farm_work_update>>" } });
-assert(farmPin.ok === false && V.mbCE_queue && V.mbCE_queue.length === 0, "农场剧情 $farm 缺失 → 固定被拒, 实际 " + JSON.stringify(farmPin));
-// 13.3) 农场依赖剧情：$farm 初始化后允许固定
+let farmPin = api.pinScene({ key: "AlexFarmWorkStage3", def: { name: "Farm Stage 3", startPassage: "Scene Viewer passages", passages: ["Farm Visitor"], manualVariableChanges: "<<set $sceneViewSwitch to 'AlexFarmWorkStage3'>><<farm_work_update>>" } });
+assert(farmPin.ok === false && farmPin.message.indexOf("农场") !== -1 && (V.mbCE_queue === undefined || V.mbCE_queue.length === 0), "农场剧情 $farm 缺失 → 锚定被拒（防崩分支）, 实际 " + JSON.stringify(farmPin));
+// 13.3) 农场依赖剧情：$farm 初始化后允许锚定
 V.farm = {};
-let farmPin2 = api.pinScene({ key: "FARM2", def: { name: "Farm Stage 3", startPassage: "Scene Viewer passages", passages: ["Farm Visitor"], manualVariableChanges: "<<set $sceneViewSwitch to 'AlexFarmWorkStage3'>><<farm_work_update>>" } });
-assert(farmPin2.ok === true, "$farm 存在 → 可固定");
-// 13.4) onPassageOverride：农场依赖且 $farm 缺失 → 本次不触发（不崩，队列项保留）
+let farmPin2 = api.pinScene({ key: "AlexFarmWorkStage3", def: { name: "Farm Stage 3", startPassage: "Scene Viewer passages", passages: ["Farm Visitor"], manualVariableChanges: "<<set $sceneViewSwitch to 'AlexFarmWorkStage3'>><<farm_work_update>>" } });
+assert(farmPin2.ok === true, "$farm 存在 → 可锚定");
+// 13.4) onPassageOverride：锚定项（带地点元数据）在段落跳转时不自动触发（走确认条通道，不崩）
 V.farm = undefined;
 let paF = { name: "Elsewhere" };
 api.onPassageOverride(paF);
@@ -773,6 +982,10 @@ global.Story = { has: (n) => false, lookupWith: (fn) => [{ name: "Gwylan Ritual 
 let pgs = api.listPlaceGroups();
 let gwg = pgs.filter((g) => g.group.id === "gwylan_garden")[0];
 assert(gwg && gwg.items.length === 3, "格威岚组含森林商店等段落, items=" + (gwg ? gwg.items.length : "none"));
+// 15.9b) 新 6 组主场景名中文化映射（v1.9.23-实机修复：场景直达「主场景 X ★（中文）」）
+assert(js.indexOf('"asylum": "精神病院"') !== -1 && js.indexOf('"police": "警局与监狱"') !== -1
+  && js.indexOf('"hospital": "医院"') !== -1 && js.indexOf('"wolf": "狼群"') !== -1,
+  "新 6 组主场景名中文化映射已入构建产物（主场景行 placeNameCN 生效）");
 delete global.Story;
 // 15.10) 农场剧情逃逸终点（Farm Work）→ 清理残留重放，后续项可触发；其它链外段落仍视为重放中不干预
 V.replayScene = { name: "Farm Stage 3", startPassage: "Scene Viewer passages", passages: ["Farm Visitor"], exitpassage: "Danube Street" };
@@ -781,13 +994,14 @@ V.mbCE_queue = [{ key: "FARM4", name: "Farm Stage 4", startPassage: "Scene Viewe
 let paL = { name: "Farm Work" };
 api.onPassageOverride(paL);
 assert(paL.name === "Scene Viewer passages" && V.replayScene && V.replayScene.name === "Farm Stage 4" && V.mbCE_replayPending === true, "Farm Work 终点清理残留并启动下一项重放, paL.name=" + paL.name);
-// 15.10b) 重放中走到其它链外段落（剧情中间段落不在列表）→ 不干预、不触发
+// 15.10b) 重放中走到链外段落（不在注册表）→ 原版 redirect 语义即"剧情结束"→ 出口拦截：清理队列 + 回原位（v1.9.23-实机修复）
 V.replayScene = { name: "Farm Stage 3", startPassage: "Scene Viewer passages", passages: ["Farm Visitor"], exitpassage: "Danube Street" };
 V.mbCE_replayOnce = true;
 V.mbCE_queue = [{ key: "FARM4", name: "Farm Stage 4", startPassage: "Scene Viewer passages", passages: ["Farm Stage 4"], manualVariableChanges: "", used: false }];
 let paLb = { name: "Farm Barn" };
 api.onPassageOverride(paLb);
-assert(paLb.name === "Farm Barn" && V.replayScene && V.replayScene.name === "Farm Stage 3", "链外段落仍视为重放中（不误清不误触发）");
+assert(paLb.name === "Danube Street" && !V.replayScene, "链外段落（不在注册表）→ 出口拦截：清理 + 回原位, 实际 name=" + paLb.name);
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 1 && V.mbCE_queue[0].key === "FARM4", "未触发队列项不被误删, 实际 " + V.mbCE_queue.length);
 delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending; delete V.mbCE_queue;
 // 15.10c) 农场终点清理同时移除已触发项（整线依次推进，队尾不残留）
 V.replayScene = { name: "Farm Stage 4", startPassage: "Scene Viewer passages", passages: ["Farm Stage 4"], exitpassage: "Danube Street" };
@@ -1015,7 +1229,7 @@ Object.keys(V.mbCE_wrote || {}).filter(function (k) { return k.indexOf("cheat:")
 global.window = { maplebirch: { get: function (n) { return (n === "RobinTemple" || n === "TempleChoir" || n === "LostLamb" || n === "TempleDuties") ? {} : undefined; } } };
 var rbr = api.getCheatMods().filter(function (x) { return x.modId === "revelation-the-book-of-return"; })[0];
 assert(rbr && rbr.declared === true, "19.1 探测命中：归途之书自动识别");
-assert(rbr.stages.length === 17 && rbr.abilities.length === 22 && rbr.scenes.length === 1 && rbr.values.length === 18, "19.1 分组齐全 阶段17/能力22/剧情1/数值18（v1.8.23 补 1.3.10 项链归还能力；1.9.x 移除失效 td_watch 守夜阶段；1.9.17 适配 1.4.4 补 td_ordination_stage 授职阶段）, 实际 " + rbr.stages.length + "/" + rbr.abilities.length + "/" + rbr.scenes.length + "/" + rbr.values.length);
+assert(rbr.stages.length === 18 && rbr.abilities.length === 24 && rbr.scenes.length === 1 && rbr.values.length === 18, "19.1 分组齐全 阶段18/能力24/剧情1/数值18（v1.8.23 补 1.3.10 项链归还能力；1.9.x 移除失效 td_watch 守夜阶段；1.9.17 适配 1.4.4 补 td_ordination_stage 授职阶段；1.9.24 适配 1.4.6 新增 nkl_retaken 取回能力；1.9.25 适配 1.4.6 项链回收线补 nkl_stage 阶段 + nkl_reclaimed 能力）, 实际 " + rbr.stages.length + "/" + rbr.abilities.length + "/" + rbr.scenes.length + "/" + rbr.values.length);
 // 19.2) 隔离：适配器只声明模组自建键，不含原版神殿变量路径
 var allPaths = [];
 rbr.stages.concat(rbr.abilities).concat(rbr.values).forEach(function (it) { allPaths.push(it.varPath); });
@@ -1610,23 +1824,32 @@ var ov25d = { name: "Scene Viewer passages" };
 api.onPassageOverride(ov25d);
 assert(ov25d.name === "Scene Viewer passages", "25.11 首次进入 passages（pending=true）→ 不拦截, 实际 " + ov25d.name);
 delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending; delete V.mbCE_queue; delete V.passage;
-// 25.12) 触发处 pending 条件化：直入剧情段落的场景（startPassage≠"Scene Viewer passages"）不设 pending
+// 25.12) 锚定孤儿院场景：带地点元数据 → 入队；走到对应地点弹确认条（直入段落场景 startPassage≠"Scene Viewer passages" 不设 pending）
 V.mbCE_queue = [];
 V.passage = "Town";
+var playedBack25 = "";
+global.Engine = { play: (n, h) => { playedBack25 = n + ":" + !!h; } };
 var pinR25 = api.pinScene({ key: "WhitneyOrphanageVisit", def: { name: "Whitney Orphanage Visit", startPassage: "SV Street Bully Orphanage Go", passages: ["SV Street Bully Orphanage Go"], manualVariableChanges: "" } });
-assert(pinR25.ok === true, "25.12 固定孤儿院场景入队, msg=" + pinR25.message);
-var ov25e = { name: "Town" };
-api.onPassageOverride(ov25e);
-assert(ov25e.name === "SV Street Bully Orphanage Go", "25.13 触发：dest 改为直入段落（孤儿院 startPassage）, 实际 " + ov25e.name);
-assert(V.mbCE_replayPending === false && V.mbCE_replayOnce === true, "25.14 直入段落场景：pending 不设（false）、replayOnce=true, 实际 pending=" + V.mbCE_replayPending);
+assert(pinR25.ok === true, "25.12 锚定孤儿院场景入队, msg=" + pinR25.message);
+V.location = "orphanage"; /* WhitneyOrphanageVisit 触发地点 */
+let ceCalls25 = 0;
+let mkNode25 = (tag) => { ceCalls25++; return ({ tagName: tag, style: {}, className: "", textContent: "", type: "", disabled: false, children: [], appendChild(c) { this.children.push(c); }, addEventListener() {}, parentNode: null }); };
+global.document = { createElement: mkNode25, getElementById: () => ({ insertBefore() {}, firstChild: null }), body: {} };
+api.mbCEOnPassageEnd();
+assert(ceCalls25 === 4, "25.13 锚定触发：走到孤儿院地点弹确认条（DOM 已构建）, createElement=" + ceCalls25);
+var r25 = api.startAnchoredReplay(V.mbCE_queue[0]);
+assert(r25.ok && V.replayScene && V.replayScene.startPassage === "SV Street Bully Orphanage Go" && V.mbCE_replayOnce === true && V.mbCE_replayPending === false, "25.14 确认触发：直入段落（孤儿院 startPassage）+ replayOnce=true + pending=false, actual " + JSON.stringify(r25));
+assert(playedBack25 === "SV Street Bully Orphanage Go:true", "25.14b Engine.play 跳转孤儿院入口, 实际 " + playedBack25);
 // 25.15) 孤儿院播放完链回 Scene Viewer passages → 无 pending 残留 → 自动回原位
 V.replayScene = { name: "Whitney Orphanage Visit", startPassage: "SV Street Bully Orphanage Go", passages: ["SV Street Bully Orphanage Go"], exitpassage: "Town" };
+V.mbCE_replayOnce = true;
 V.mbCE_replayPending = false;
 var ov25f = { name: "Scene Viewer passages" };
 api.onPassageOverride(ov25f);
 assert(ov25f.name === "Town", "25.15 孤儿院链回 passages：自动回原位（无 pending 残留）, 实际 " + ov25f.name);
 assert(!V.replayScene && Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 0, "25.16 孤儿院链回 passages：replayScene 清理 + 队列清空");
-delete V.mbCE_queue; delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending; delete V.passage;
+delete global.Engine; delete global.document;
+delete V.mbCE_queue; delete V.replayScene; delete V.mbCE_replayOnce; delete V.mbCE_replayPending; delete V.passage; delete V.location;
 
 // 26) v1.4.9 适配器重校验补录字段：更改数值/阶段 → 读回确认 → 钳制/越界 → 跳最高/回退初始 → 回退还原（全链路）
 // 环境：三个内容模组同时探测命中（枯木逢春 + 归途之书 + DomRobin）
@@ -1925,14 +2148,14 @@ assert(V.daily.avery.talk !== undefined, "29.6 Avery's Mansion 触发兜底");
 // 29.7) 28 节残留清理
 delete V.player; delete V.templePromised; delete V.robinpaid; delete V.syndromeeden; delete V.syndromekylar; delete V.RobinExpansion; delete global.window;
 
-// 30) v1.5.2 剧情页页首使用提示（页首常驻、位于固定触发横幅之前；十四巡：文案还原为固定触发原始说明全文；v1.9.4-自检：与修复后行为一致——触发一次自动停止、退出场景返回原位）
+// 30) v1.5.2 剧情页页首使用提示（页首常驻、位于锚定触发状态横幅之前；v1.9.23：文案随「固定触发 → 锚定触发」改版——锚定后走到地点弹确认条，触发一次自动完成并停止，退出场景返回原位）
 const SRC_NOW = fs.readFileSync(jsPath, "utf8");
-const WARN_TXT = "使用提示：固定触发后按队列顺序触发一次并自动停止，播放中随时可点「退出场景」返回原位；若需恢复原版随机触发，点顶部横幅「清空队列」即可。";
-assert(SRC_NOW.includes(WARN_TXT), "30.1 剧情页页首提示文案已写入源码（与修复后行为一致，不写旧版被困说法）");
+const WARN_TXT = "使用提示：锚定剧情后，走到该剧情发生地点并交互时会弹确认条（含地点/时间/前置说明），确认后触发、播放完标「已完成 ✓」；「暂不触发」保留待下次。旧「固定触发」已移除，「一键完成」「场景直达」保留；若需恢复原版随机触发，点顶部横幅「清空队列」即可。";
+assert(SRC_NOW.includes(WARN_TXT), "30.1 剧情页页首提示文案已写入源码（锚定语义，不写旧版固定触发说法）");
 const RSI = SRC_NOW.indexOf("function renderScenes()");
-const RNEXT = SRC_NOW.indexOf("固定触发状态横幅", RSI);
+const RNEXT = SRC_NOW.indexOf("锚定触发状态横幅", RSI);
 const WARN_I = SRC_NOW.indexOf("mce-warn", RSI);
-assert(RSI >= 0 && RNEXT > RSI && WARN_I > RSI && WARN_I < RNEXT, "30.2 提示位于 renderScenes 页首（固定触发横幅之前）");
+assert(RSI >= 0 && RNEXT > RSI && WARN_I > RSI && WARN_I < RNEXT, "30.2 提示位于 renderScenes 页首（锚定触发状态横幅之前）");
 assert(SRC_NOW.includes(".mce-warn{"), "30.3 mce-warn 警示样式已注入 CSS");
 
 // ============ 第 31 节：v1.6.0 归途之书 1.3.4 补录——LostLamb + TempleDuties 适配（1.3.1 起漏适配根因闭环） ============
@@ -1946,7 +2169,10 @@ assert(r31.stages.filter(function (s) { return s.key === "ll_vow"; }).length ===
        r31.stages.filter(function (s) { return s.varPath === "TempleDuties.case.stage"; }).length === 1, "31.1 LostLamb 誓约 / TempleDuties 誓言·案件阶段已收录");
 assert(r31.abilities.filter(function (a) { return a.varPath === "LostLamb.known.bishop"; }).length === 1 &&
        r31.abilities.filter(function (a) { return a.varPath === "TempleDuties.candidates.Robin.agreed"; }).length === 1 &&
-       r31.abilities.filter(function (a) { return a.varPath === "RBR.necklace.returned"; }).length === 1, "31.1 秘密/候选/项链归还能力已收录");
+       r31.abilities.filter(function (a) { return a.varPath === "RBR.necklace.returnedOnce"; }).length === 1 &&
+       r31.abilities.filter(function (a) { return a.varPath === "RBR.necklace.retaken"; }).length === 1 &&
+       r31.abilities.filter(function (a) { return a.varPath === "RBR.necklace.reclaimed"; }).length === 1 &&
+       r31.stages.filter(function (s) { return s.varPath === "RBR.necklace.stage"; }).length === 1, "31.1 秘密/候选/项链归还（1.4.6 改 returnedOnce）/项链取回（retaken）/项链已取回（reclaimed）/项链回收线阶段（stage）能力已收录");
 // 31.2) LostLamb 阶段写入读回
 var rll = api.setCheatStage("revelation-the-book-of-return", "ll_vow", "sealed");
 assert(rll.ok && V.LostLamb.talkVow === "sealed", "31.2 LostLamb 誓约写入 sealed, 实际 " + V.LostLamb.talkVow);
@@ -1986,12 +2212,24 @@ api.undoCheatModValue("revelation-the-book-of-return", "value_set:td_duties");
 assert(V.TempleDuties.duties === 0, "31.9 值勤次数回退到 0, 实际 " + V.TempleDuties.duties);
 api.undoCheatModValue("revelation-the-book-of-return", "value_set:ll_fear");
 assert(V.LostLamb.fear === 10, "31.9 恐惧回退到初始 10");
-// 31.11) v1.8.23 新增 1.3.10 项链归还能力（RBR.necklace.returned 主开关）
-V.RBR = { necklace: { returned: false } };
+// 31.11) v1.8.23 新增 1.3.10 项链归还能力（RBR.necklace.returned 主开关）；1.9.24 适配 1.4.6：键重构为 RBR.necklace.returnedOnce + 新增 nkl_retaken（RBR.necklace.retaken）；1.9.25 补 nkl_reclaimed（reclaimed）+ nkl_stage（回收线阶段）
+V.RBR = { necklace: { returnedOnce: false, retaken: 0, reclaimed: false, stage: '' } };
 var nkl = api.toggleCheatAbility("revelation-the-book-of-return", "nkl_returned", true);
-assert(nkl.ok && V.RBR.necklace.returned === true, "31.11 项链归还能力启用, 实际 " + V.RBR.necklace.returned);
+assert(nkl.ok && V.RBR.necklace.returnedOnce === true, "31.11 项链归还能力启用, 实际 " + V.RBR.necklace.returnedOnce);
 api.toggleCheatAbility("revelation-the-book-of-return", "nkl_returned", false);
-assert(V.RBR.necklace.returned === false, "31.11 项链归还能力禁用");
+assert(V.RBR.necklace.returnedOnce === false, "31.11 项链归还能力禁用");
+var nkl2 = api.toggleCheatAbility("revelation-the-book-of-return", "nkl_retaken", true);
+assert(nkl2.ok && V.RBR.necklace.retaken === 1, "31.11 项链取回能力启用, 实际 " + V.RBR.necklace.retaken);
+api.toggleCheatAbility("revelation-the-book-of-return", "nkl_retaken", false);
+assert(V.RBR.necklace.retaken === 0, "31.11 项链取回能力禁用");
+var nkl3 = api.toggleCheatAbility("revelation-the-book-of-return", "nkl_reclaimed", true);
+assert(nkl3.ok && V.RBR.necklace.reclaimed === true, "31.11 项链已取回能力启用, 实际 " + V.RBR.necklace.reclaimed);
+api.toggleCheatAbility("revelation-the-book-of-return", "nkl_reclaimed", false);
+assert(V.RBR.necklace.reclaimed === false, "31.11 项链已取回能力禁用");
+var nkls = api.setCheatStage("revelation-the-book-of-return", "nkl_stage", "take");
+assert(nkls.ok && V.RBR.necklace.stage === "take", "31.11 回收线阶段写入 take, 实际 " + V.RBR.necklace.stage);
+var nkls2 = api.setCheatStage("revelation-the-book-of-return", "nkl_stage", "smash");
+assert(nkls2.ok && V.RBR.necklace.stage === "smash", "31.11 回收线阶段写入 smash, 实际 " + V.RBR.necklace.stage);
 // 31.10) 原版键隔离：不暴露 temple_rank/templePromised
 assert(r31.values.filter(function (v) { return v.varPath === "temple_rank" || v.varPath.indexOf("temple_rank") !== -1 || v.varPath.indexOf("templePromised") !== -1; }).length === 0 &&
        r31.stages.filter(function (s) { return s.varPath === "temple_rank" || s.varPath.indexOf("temple_rank") !== -1; }).length === 0, "31.10 原版神殿变量未暴露");

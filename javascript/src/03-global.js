@@ -699,7 +699,7 @@
 		"robinromance", "whitneyromance", "kylarenglish", "avery_mansion", "avery_tower",
 		"daily", "settings", "scenes", "NPCName", "characters", "npc",
 		"weekly", "specialClothes", "loveInterest", "replayScene", "sceneViewSwitch",
-		"mbCE_queue", "mbCE_wrote", "mbCE_replayOnce", "mbCE_replayPending", "mbCE_unlockedPlaces"
+		"mbCE_queue", "mbCE_wrote", "mbCE_replayOnce", "mbCE_replayPending", "mbCE_unlockedPlaces", "mbCE_completedScenes"
 	];
 	/* v1.7.0：DoL 原版 V 顶层键清单（从本体 0.5.12.13 HTML 宏上下文实证提取，186 键）。
 	   用途：玩家属性编辑页「模组属性」区 = 运行时 V 顶层键 - 本清单（只添加原版没有的，原版键不重复添加）。

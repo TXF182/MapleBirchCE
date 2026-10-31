@@ -122,6 +122,46 @@ function clickTabSafe(name) {
   assert(t.indexOf("THREW") === -1 && t.length > 0, "A. " + pair[1] + "页渲染不崩，实际 " + t.slice(0, 40));
 });
 
+/* ---------- S. v1.9.23 剧情页锚定触发：玩家路径真实点击（锚定按钮 → 队列横幅 → 取消） ---------- */
+/* 注入场景注册表 mock（RobinCrossdressing1=home / TempleSydneyCorrupt=temple 有元数据；Tutorial 无）。
+   注意：listAllPassages 优先走 Story.passages（空数组也短路）→ 必须删除 passages 才走 lookupWith */
+delete global.Story.passages;
+global.Story.lookupWith = function (fn) {
+  return [{
+    name: "Scene Viewer",
+    text: `<<widget "scenes">> header <<if $scenePassages is undefined>><<set $scenePassages to []>><</if>><<if $scenes is undefined>><<seenPassageChecks>><<set $scenes to { "RobinCrossdressing1":{ name:"Robin Crossdressing 1", startPassage:"Robin Crossdressing 1", passages:["Robin Crossdressing 1"], manualVariableChanges:"<<set $location to 'home'>>", unlocked: $scenePassages.includes("RobinCrossdressing1") }, "TempleSydneyCorrupt":{ name:"Temple Sydney Corrupt", startPassage:"SV Sydney Temple Corrupt", passages:["SV Sydney Temple Corrupt"], manualVariableChanges:"<<set $location to 'temple'>>", unlocked: $scenePassages.includes("TempleSydneyCorrupt") }, "Tutorial":{ name:"Tutorial", startPassage:"Tutorial", passages:["Tutorial"], manualVariableChanges:"", unlocked: $scenePassages.includes("Tutorial") } }>><</if>><</widget>>`
+  }].filter(fn);
+};
+clickTabSafe("char"); /* 切走再切回，强制重建 scenes pane（当前 tab 已激活时 click 不触发渲染） */
+clickTabSafe("scenes");
+const scenesPane = document.querySelector('[data-pane="scenes"]');
+/* 原版按角色分组默认收起（懒渲染）→ 展开全部分组后场景行才存在 */
+[].slice.call(scenesPane.querySelectorAll(".mce-collapse-head")).forEach(function (h) { try { h.click(); } catch (e) {} });
+assert(scenesPane.textContent.indexOf("使用提示：锚定剧情后") !== -1, "S.1 剧情页页首使用提示为锚定文案");
+assert(scenesPane.textContent.indexOf("锚定触发队列") === -1, "S.2 队列为空时不渲染锚定横幅");
+const tutRow = [].slice.call(scenesPane.querySelectorAll(".mce-stage")).filter(function (r) { return r.textContent.indexOf("Tutorial") !== -1 && r.textContent.indexOf("锚定") !== -1; })[0];
+if (tutRow) {
+  const tutPin = [].slice.call(tutRow.querySelectorAll("button")).filter(function (b) { return b.textContent === "锚定"; })[0];
+  assert(tutPin && tutPin.disabled === true, "S.3 无地点元数据场景（Tutorial）锚定按钮禁用");
+}
+const pinBtn = [].slice.call(scenesPane.querySelectorAll("button")).filter(function (b) { return b.textContent === "锚定" && b.disabled !== true; })[0];
+assert(!!pinBtn, "S.4 有元数据场景出现可用的「锚定」按钮");
+pinBtn.click();
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 1 && V.mbCE_queue[0].anchor && V.mbCE_queue[0].anchor.location === "temple", "S.5 点击锚定按钮 → 写入队列带地点元数据, 实际 " + JSON.stringify(V.mbCE_queue));
+clickTabSafe("scenes"); /* 重建 → 队列横幅 + 已锚定徽标 + 取消锚定按钮 */
+assert(scenesPane.textContent.indexOf("锚定触发队列（1）") !== -1 && scenesPane.textContent.indexOf("已锚定 第1位") !== -1, "S.6 重建后队列横幅 1 项 + 行内已锚定徽标");
+const unPin = [].slice.call(scenesPane.querySelectorAll("button")).filter(function (b) { return b.textContent === "取消锚定"; })[0];
+assert(!!unPin, "S.7 已锚定行出现「取消锚定」按钮");
+unPin.click();
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 0, "S.8 取消锚定 → 队列清空该项");
+V.mbCE_queue = [{ key: "TempleSydneyCorrupt", name: "Temple Sydney Corrupt", startPassage: "SV Sydney Temple Corrupt", passages: [], manualVariableChanges: "", used: false, anchor: { location: "temple", timeNote: "" } }];
+clickTabSafe("scenes");
+const clearBtn2 = [].slice.call(scenesPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("清空队列") !== -1; })[0];
+assert(!!clearBtn2, "S.9 队列非空时出现「清空队列（取消全部锚定）」按钮");
+clearBtn2.click();
+assert(Array.isArray(V.mbCE_queue) && V.mbCE_queue.length === 0, "S.10 清空队列 → 全部取消锚定");
+delete V.mbCE_queue;
+
 /* ---------- B. 10 适配器全命中 ---------- */
 const mods = api.getCheatMods();
 assert(mods.length === 10, "B. 10 适配器全部探测命中，实际 " + mods.length + " → " + mods.map(function (m) { return m.modId; }).join(","));

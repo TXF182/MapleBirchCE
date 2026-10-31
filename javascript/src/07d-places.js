@@ -41,6 +41,9 @@
 		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" }
 	];
 	var PLACE_CN = {
+		/* v1.9.23-实机修复：新 6 组主场景名中文化（主场景行 placeNameCN 子串映射） */
+		"asylum": "精神病院", "police": "警局与监狱", "prison": "监狱", "docks": "码头",
+		"lake": "湖畔", "wolf": "狼群", "hospital": "医院",
 		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
 		"spray": "喷漆", "hall": "大厅", "garden": "花园", "lab": "实验室", "parents room": "父母房间",
 		"grounds": "庭院", "kylar room": "凯拉尔房间", "secret": "秘密", "bed": "卧室", "pool": "泳池",

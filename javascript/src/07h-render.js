@@ -1,8 +1,12 @@
+	/* v1.9.23：锚定播放完成记录（mbCE_completedScenes）→ 剧情页条目显示「已完成 ✓」 */
+	function isSceneCompleted(key) {
+		try { var V = getV(); return !!(V && V.mbCE_completedScenes && V.mbCE_completedScenes[key]); } catch (e) { return false; }
+	}
 	/* ---- 特殊剧情页（$scenes 场景注册表动态枚举） ---- */
 	var sHeadGuardTimer = null; /* v1.9.5-自检：乱码兜底单定时器——renderScenes 频繁重建时清旧设新，防 800ms 闭包堆积扫描旧 pane */
 	function renderScenes() {
 		var pane = root.querySelector('[data-pane="scenes"]');
-		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* v1.9.4：重建后保持滚动位置（固定触发/回退/一键完成后不跳回顶部） */
+		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* v1.9.4：重建后保持滚动位置（锚定/取消锚定/一键完成后不跳回顶部） */
 		pane.textContent = "";
 		/* v1.9.4：折叠组展开状态键「剧情:<组名>」（与角色页「角色:<cat>」同语义、互不冲突），
 		   展开状态持久化到 mbCEUiState.collapsed——操作后 renderScenes() 重建不再全部收回去 */
@@ -17,21 +21,21 @@
 			mbCEUiSave({ collapsed: mbCEUiState.collapsed });
 		}
 		/* 使用提示（v1.9.4-自检）：与修复后行为一致（触发一次自动停止、退出场景返回原位，不再被困） */
-		pane.appendChild(el("div", "mce-warn", "使用提示：固定触发后按队列顺序触发一次并自动停止，播放中随时可点「退出场景」返回原位；若需恢复原版随机触发，点顶部横幅「清空队列」即可。"));
-		/* 固定触发状态横幅（v1.2：队列，显示全部未触发项） */
+		pane.appendChild(el("div", "mce-warn", "使用提示：锚定剧情后，走到该剧情发生地点并交互时会弹确认条（含地点/时间/前置说明），确认后触发、播放完标「已完成 ✓」；「暂不触发」保留待下次。旧「固定触发」已移除，「一键完成」「场景直达」保留；若需恢复原版随机触发，点顶部横幅「清空队列」即可。"));
+		/* 锚定触发状态横幅（v1.9.23：队列，显示全部未触发项） */
 		var pinnedBanner = getPinnedScene();
 		if (pinnedBanner && pinnedBanner.length) {
 			var banner = el("div", "mce-stage mce-pass");
 			var bh = el("div", "mce-stage-head");
 			bh.appendChild(el("span", "mce-dot", ""));
 			var names = pinnedBanner.map(function (p) { return "「" + p.name + "」"; }).join("、");
-			bh.appendChild(el("span", "mce-stage-name", "固定触发队列（" + pinnedBanner.length + "）：" + names + " —— 按顺序触发，触发一次后自动停止"));
-			var unBtn = el("button", "mce-btn mce-red", "清空队列（取消全部固定）");
+			bh.appendChild(el("span", "mce-stage-name", "锚定触发队列（" + pinnedBanner.length + "）：" + names + " —— 到对应地点交互时弹确认条触发，触发完自动完成"));
+			var unBtn = el("button", "mce-btn mce-red", "清空队列（取消全部锚定）");
 			unBtn.type = "button";
-			unBtn.title = "取消全部固定触发，恢复原版随机触发；若正在重放则立即解冻并返回原位";
+			unBtn.title = "取消全部锚定触发，恢复原版随机触发；若正在重放则立即解冻并返回原位";
 			unBtn.addEventListener("click", function () {
 				var was = unpinScene();
-				setStatus(was ? "已回退：清空固定触发队列，恢复原版随机触发" : "未处于固定触发状态", "mce-ok");
+				setStatus(was ? "已回退：清空锚定触发队列，恢复原版随机触发" : "未处于锚定触发状态", "mce-ok");
 				renderScenes();
 			});
 			bh.appendChild(unBtn);
@@ -202,10 +206,10 @@
 				var stages = el("div", "mce-stages");
 				stages.style.display = "none"; /* v1.3：剧情线默认收起（合在一起不展开），点线头展开 */
 				head.appendChild(el("span", "mce-stage-name", "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，收起）"));
-				/* 固定整线：全部阶段按顺序入队，依次触发，触发完自动停止 */
-				var linePin = el("button", "mce-btn", "固定整线");
+				/* 锚定整线（v1.9.23）：已标注触发地点的阶段按顺序入队，走到地点交互时依次触发，触发完自动完成 */
+				var linePin = el("button", "mce-btn", "锚定整线");
 				linePin.type = "button";
-				linePin.title = "把本系列全部阶段按顺序加入固定触发队列，依次触发，触发完自动停止";
+				linePin.title = "把本系列全部阶段按顺序锚定：走到各阶段发生地点交互时弹确认条，触发完自动完成";
 				(function (line2) {
 					linePin.addEventListener("click", function () {
 						var pr = pinSceneLine(line2);
@@ -217,7 +221,7 @@
 				/* 展开/收起切换 */
 				var tog = el("button", "mce-btn mce-gold", "展开各阶段");
 				tog.type = "button";
-				tog.title = "展开查看本线各阶段，可对单阶段固定/回退/一键完成";
+				tog.title = "展开查看本线各阶段，可对单阶段锚定/取消锚定/一键完成";
 				tog.addEventListener("click", function () {
 					var open = stages.style.display === "none";
 					stages.style.display = open ? "" : "none";
@@ -234,25 +238,31 @@
 					sh.appendChild(el("span", "mce-dot", ""));
 					var nm = it.def.name || it.key;
 					sh.appendChild(el("span", "mce-stage-name", "阶段 " + it.num + "　" + nm));
-					/* 固定触发 / 回退（v1.2：队列） */
+					/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
 					var pi = pinQueueIndex(it.key);
 					if (pi >= 0) {
-						sh.appendChild(el("span", "mce-badge mce-on", "已固定 第" + (pi + 1) + "位"));
-						var unpinB = el("button", "mce-btn mce-red", "回退");
+						sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (pi + 1) + "位"));
+						var unpinB = el("button", "mce-btn mce-red", "取消锚定");
 						unpinB.type = "button";
-						unpinB.title = "取消该剧情的固定触发，恢复原版随机触发";
+						unpinB.title = "取消该剧情的锚定，恢复原版随机触发";
 						(function (it2) {
 							unpinB.addEventListener("click", function () {
 								var was = unpinScene(it2.key);
-								setStatus(was ? "已回退：「" + (it2.def.name || it2.key) + "」取消固定触发" : "该剧情不在固定队列中", "mce-ok");
+								setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
 								renderScenes();
 							});
 						})(it);
 						sh.appendChild(unpinB);
 					} else {
-						var pinB = el("button", "mce-btn", "固定触发");
+						var anchorMeta = sceneAnchorMeta(it.key);
+						var pinB = el("button", "mce-btn", "锚定");
 						pinB.type = "button";
-						pinB.title = "固定此剧情：按顺序排队触发，触发一次后自动停止；顶部横幅或「回退」恢复原版触发";
+						if (anchorMeta && anchorMeta.location) {
+							pinB.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
+						} else {
+							pinB.disabled = true;
+							pinB.title = "该剧情未标注触发地点（第一批元数据未覆盖），暂不可锚定";
+						}
 						(function (it2) {
 							pinB.addEventListener("click", function () {
 								var pr = pinScene(it2);
@@ -277,6 +287,8 @@
 						})(it, st);
 						sh.appendChild(btn);
 					}
+					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
+					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
 					srow.appendChild(sh);
 					var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
 					srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
@@ -302,25 +314,31 @@
 					var sh = el("div", "mce-stage-head");
 					sh.appendChild(el("span", "mce-dot", ""));
 					sh.appendChild(el("span", "mce-stage-name", it.def.name || it.key));
-					/* 固定触发 / 回退（v1.2：队列） */
+					/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
 					var piS = pinQueueIndex(it.key);
 					if (piS >= 0) {
-						sh.appendChild(el("span", "mce-badge mce-on", "已固定 第" + (piS + 1) + "位"));
-						var unpinS = el("button", "mce-btn mce-red", "回退");
+						sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (piS + 1) + "位"));
+						var unpinS = el("button", "mce-btn mce-red", "取消锚定");
 						unpinS.type = "button";
-						unpinS.title = "取消该剧情的固定触发，恢复原版随机触发";
+						unpinS.title = "取消该剧情的锚定，恢复原版随机触发";
 						(function (it2) {
 							unpinS.addEventListener("click", function () {
 								var was = unpinScene(it2.key);
-								setStatus(was ? "已回退：「" + (it2.def.name || it2.key) + "」取消固定触发" : "该剧情不在固定队列中", "mce-ok");
+								setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
 								renderScenes();
 							});
 						})(it);
 						sh.appendChild(unpinS);
 					} else {
-						var pinS = el("button", "mce-btn", "固定触发");
+						var anchorMetaS = sceneAnchorMeta(it.key);
+						var pinS = el("button", "mce-btn", "锚定");
 						pinS.type = "button";
-						pinS.title = "固定此剧情：按顺序排队触发，触发一次后自动停止；顶部横幅或「回退」恢复原版触发";
+						if (anchorMetaS && anchorMetaS.location) {
+							pinS.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMetaS.location) + "」" + (anchorMetaS.timeNote ? "（时间 " + anchorMetaS.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
+						} else {
+							pinS.disabled = true;
+							pinS.title = "该剧情未标注触发地点（第一批元数据未覆盖），暂不可锚定";
+						}
 						(function (it2) {
 							pinS.addEventListener("click", function () {
 								var pr = pinScene(it2);
@@ -344,6 +362,8 @@
 						})(it);
 						sh.appendChild(b2);
 					}
+					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
+					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
 					srow.appendChild(sh);
 					var note2 = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
 					srow.appendChild(el("div", "mce-stage-txt", note2 + (st.note || "（无说明）")));

@@ -7,7 +7,7 @@
 		},
 		entry: {
 			modId: "revelation-the-book-of-return",
-			modName: "默示录：归途之书 v1.4.5",
+			modName: "默示录：归途之书 v1.4.6",
 			tasks: [],
 			stages: [
 				{ key: "rt_stage", name: "罗宾神殿 · 路线阶段", varPath: "RobinTemple.stage",
@@ -60,7 +60,10 @@
 				  labels: ["现场", "战斗", "汇报"] },
 				{ key: "td_ordination_stage", name: "神殿值勤 · 授职阶段（1.4.4 新增晋铎线）", varPath: "TempleDuties.ordination.stage",
 				  levels: ["prepare", "chant", "whispers", "care", "burden", "aid", "rest", "return", "testimony", "answer", "aftercare", "withdrawn", "complete"],
-				  labels: ["准备", "颂唱", "低语", "关怀", "重担", "援助", "休息", "回归", "见证", "回答", "善后", "退出", "完成"] }
+				  labels: ["准备", "颂唱", "低语", "关怀", "重担", "援助", "休息", "回归", "见证", "回答", "善后", "退出", "完成"] },
+				{ key: "nkl_stage", name: "怨灵 · 回收线阶段（1.4.6 新增）", varPath: "RBR.necklace.stage",
+				  levels: ["", "failed", "camera", "case", "take", "smash"],
+				  labels: ["未开始", "失败", "摄像头", "展柜", "取走", "砸柜"] }
 			],
 			abilities: [
 				{ key: "tc_joined", name: "唱诗班 · 已入团", varPath: "TempleChoir.joined", type: "boolean",
@@ -86,8 +89,12 @@
 				{ key: "td_review", name: "神殿值勤 · 待审查", varPath: "TempleDuties.review", type: "boolean" },
 				{ key: "td_robin_agree", name: "神殿值勤 · 罗宾候选同意", varPath: "TempleDuties.candidates.Robin.agreed", type: "boolean" },
 				{ key: "td_sydney_agree", name: "神殿值勤 · 悉尼候选同意", varPath: "TempleDuties.candidates.Sydney.agreed", type: "boolean" },
-				{ key: "nkl_returned", name: "怨灵 · 项链已归还", varPath: "RBR.necklace.returned", type: "boolean",
-				  note: "1.3.10 项链取回/安抚线主开关：勾选视为已把象牙项链归还湖中，梦线与安抚线（WraithAftercare）入口开放" }
+				{ key: "nkl_returned", name: "怨灵 · 项链已归还", varPath: "RBR.necklace.returnedOnce", type: "boolean",
+				  note: "1.4.6 项链取回/安抚线主开关（原 RBR.necklace.returned 重构为 returnedOnce）：勾选视为已把象牙项链归还湖中一次，梦线与安抚线（WraithAftercare）入口开放" },
+				{ key: "nkl_retaken", name: "怨灵 · 项链已取回", varPath: "RBR.necklace.retaken", type: "boolean", numeric: true,
+				  note: "1.4.6 新增取回分支：勾选=已再次取回（retaken=1，模组 gt 0 判定；模组侧 +1 累加计数，numeric 勾选写 1 不污染计数）" },
+				{ key: "nkl_reclaimed", name: "怨灵 · 项链已取回（归还后）", varPath: "RBR.necklace.reclaimed", type: "boolean",
+				  note: "1.4.6 回收线成功后置 true（WraithRecovery 实证）：勾选=当前持有已从湖边取回的项链，等价项链盗贼分支，开放 Gwylan/归还后续剧情（Wraith.twee:89/131/208 判定）" }
 			],
 			scenes: [
 				{ key: "rt_prayer", name: "罗宾神殿 · 祷告事件", skipVar: "RobinTemple.prayer_event_resolved", completeVar: "RobinTemple.prayer_event_done", progressVar: "RobinTemple.prayer_event", resetValue: 0 }

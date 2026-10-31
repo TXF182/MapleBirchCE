@@ -269,6 +269,7 @@
 		mountApi();
 		hookPassageOverride();
 		hookPassageInit();
+		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
 		hookUnfreezePlayerStats(); /* v1.8.19：播放结束自动清理（unfreeze = 场景播放结束，覆盖框架播放器） */
 		ensureFarmState(); /* 启动兜底：存档 farm_stage 已推进但 $farm 缺失 → 补空壳，社交页不再崩 */
 		ensureAveryMansion(); /* 启动兜底：$avery_mansion / $avery_tower / daily.avery.talk 缺失或残缺 → 补空壳（Mansion 段落防崩） */
@@ -383,6 +384,12 @@
 				undoRomanceStage: undoRomanceStage,
 				undoVanillaStage: undoVanillaStage,
 				onPassageOverride: onPassageOverride,
+				/* v1.9.23 锚定触发：地点判定 / 确认条触发 / 元数据 / 前置提示 */
+				mbCEOnPassageEnd: mbCEOnPassageEnd,
+				startAnchoredReplay: startAnchoredReplay,
+				sceneAnchorMeta: sceneAnchorMeta,
+				pendingPreconds: pendingPreconds,
+				precondDone: precondDone,
 				fillStats: fillStats,
 				globalFill: globalFill,
 				globalRomance: globalRomance,
