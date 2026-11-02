@@ -185,6 +185,7 @@
 					if (!s || typeof s !== "object") { return; }
 					parsed[k] = {
 						name: s.name, startPassage: s.startPassage, passages: Array.isArray(s.passages) ? s.passages.slice() : [],
+						manualVariableChanges: s.manualVariableChanges,
 						unlockedExpr: typeof s.unlocked === "string" ? s.unlocked : "",
 						lockedExpr: typeof s.lockedMessage === "string" ? s.lockedMessage : "",
 						lockedCache: s.lockedMessage, unlockedCache: s.unlocked

@@ -33,6 +33,136 @@
 		return { characters: chars.length, stages: fixed };
 	}
 
+	/* ============ v1.9.26：特殊服装（setup.specialClothes 款式）+ 食谱一键解锁
+	     DoL 0.5.12.13 特殊服装 = setup.specialClothes（135 件款式，分属万圣节/圣诞/情人节/神殿等套装）；
+	     解锁标志 = V.specialClothes[i].unlocked = 3（满足要求解锁）；
+	     每件有对应"故事"前置条件（套装 requirements，如 tentacletrait/syndromekylar/temple_rank 等），
+	     解锁时同步补足这些条件，让游戏认为玩家已完成对应剧情（服装合法获得，非凭空出现）。
+	     食谱 = setup.foodstuff[key].recipe.ingredients 非空；学会标志 = V.foodstuff[key].knows_recipe = true。 ============ */
+	/* 套装→补足条件映射（从 DoL 0.5.12.13 setup.specialClothesSets 实证提取）。
+	   op: "set"=标量赋值, "push"=数组去重push, "ensureField"=确保对象+设子键。
+	   日期条件（halloween/valentines）不补足——unlocked=3 已解锁，日期随游戏推进。 */
+	var SPECIAL_CLOTHES_SET_COND = {
+		witch: [{key:"tentacletrait", op:"set", val:1}],
+		vampire: [{key:"syndromekylar", op:"set", val:1}],
+		mummy: [{key:"specialClothesEvents", op:"push", val:"cocoon"}],
+		scarecrow: [{key:"specialClothesEvents", op:"push", val:"farm_defended"}],
+		skeleton: [{key:"crypt_intro", op:"set", val:1}],
+		future_suit: [{key:"tenyclusPlayCount", op:"set", val:7}],
+		christmas: [{key:"specialClothesEvents", op:"push", val:"skulduggery_gift"}],
+		rose_wedding: [{key:"kylarSeen", op:"push", val:"basement"}],
+		wrap: [{key:"gwylanSeen", op:"push", val:"steal_wrap"}],
+		underground_brothel: [{key:"undergroundbrothelescaped", op:"set", val:true}],
+		underground_farm: [{key:"livestock", op:"ensureField", val:{field:"intro", value:1}}],
+		loincloth: [{key:"syndromeeden", op:"set", val:1}],
+		bird: [{key:"syndromebird", op:"set", val:1}],
+		prison: [{key:"prison_intro", op:"set", val:1}],
+		asylum: [{key:"asylumescaped", op:"set", val:1}],
+		temple_initiate: [{key:"temple_rank", op:"set", val:"monk"}],
+		temple_monk_and_nun: [{key:"temple_rank", op:"set", val:"monk"}],
+		temple_evangelist: [{key:"specialClothesEvents", op:"push", val:"temple_solicitation"}],
+		temple_confessor: [{key:"temple_confessor_intro", op:"set", val:1}],
+		temple_exorcist: [{key:"jordan_ritual_dance", op:"set", val:4}],
+		temple_sparring: [{key:"prof", op:"ensureField", val:{field:"whip", value:600}}],
+		temple_sexy: [{key:"world_corruption_reduced", op:"set", val:30}],
+		holy_stole: [{key:"grace", op:"set", val:100}],
+		holy_pendant: [{key:"soup_kitchen_known", op:"set", val:1}],
+		stone_pendant: [{key:"stone_pendant_found", op:"set", val:1}],
+		dark_pendant: [{key:"loft_known", op:"set", val:1}],
+		museum_rags: [{key:"museum_horse_success", op:"set", val:1},{key:"museum_stool_success", op:"set", val:1}],
+		vintage: [{key:"museumAntiques", op:"ensureField", val:{field:"paintings", value:{paintingward:"museum"}}}],
+		chain_tunic: [{key:"hcEndings", op:"push", val:"S"}],
+		foreign_school: [{key:"headdrive", op:"set", val:1}],
+		brothel: [{key:"brothelshowdata", op:"ensureField", val:{field:"intro", value:1}}],
+		chef: [{key:"chef_state", op:"set", val:9}],
+		hookah: [{key:"hookah_state", op:"set", val:2}],
+		islander: [{key:"islander_mask", op:"set", val:100}],
+		fox_mask: [{key:"auriga_artefact", op:"set", val:1}],
+		fedora: [{key:"specialClothesEvents", op:"push", val:"smuggling"}],
+		catsuit: [{key:"catsuit_found", op:"set", val:1}],
+		janet: [{key:"janet_book_read", op:"set", val:1}],
+		dance_studio: [{key:"danceStudio", op:"ensureField", val:{field:"jobOffered", value:1}}],
+		sage_witch_hat: [{key:"gwylanSeen", op:"push", val:"ritual_sex"}],
+		familiar_collar: [{key:"gwylanSeen", op:"push", val:"familiar_collar"}],
+		shrine: [{key:"fox", op:"set", val:6}],
+		jasper: [{key:"gwylanSeen", op:"push", val:"request_gold_accessories"}],
+		butterfly: [{key:"backgroundTraits", op:"push", val:"plantlover"}],
+		succubus: [{key:"demon", op:"set", val:6}]
+	};
+	/* 单件条件（baseItem.requirements，非 set 条件） */
+	var SPECIAL_CLOTHES_ITEM_COND = {
+		"rose": [{key:"gwylanSeen", op:"push", val:"rose"}],
+		"daisy": [{key:"plants_known", op:"push", val:"daisy"}],
+		"flower crown": [{key:"specialClothesEvents", op:"push", val:"flowerCrownGH"}]
+	};
+	function globalUnlockClothes() {
+		var V = getV(), setup = getSetup();
+		var n = 0, stories = 0;
+		try {
+			if (!Array.isArray(setup.specialClothes)) { return { unlocked: 0, stories: 0 }; }
+			if (!Array.isArray(V.specialClothes)) { V.specialClothes = []; }
+			function applyCond(c) {
+				try {
+					if (c.op === "set") {
+						if (V[c.key] !== c.val) { V[c.key] = c.val; stories += 1; }
+					} else if (c.op === "push") {
+						if (!Array.isArray(V[c.key])) { V[c.key] = []; }
+						if (V[c.key].indexOf(c.val) === -1) { V[c.key].push(c.val); stories += 1; }
+					} else if (c.op === "ensureField") {
+						if (!V[c.key] || typeof V[c.key] !== "object") { V[c.key] = {}; }
+						if (typeof c.val.value === "object" && c.val.value !== null) {
+							/* value 是对象：确保 field 是对象，合并 value（不覆盖兄弟键，如 vintage.paintings 不丢其他画） */
+							if (!V[c.key][c.val.field] || typeof V[c.key][c.val.field] !== "object") { V[c.key][c.val.field] = {}; }
+							var chg = false;
+							Object.keys(c.val.value).forEach(function (vk) {
+								if (V[c.key][c.val.field][vk] !== c.val.value[vk]) { V[c.key][c.val.field][vk] = c.val.value[vk]; chg = true; }
+							});
+							if (chg) { stories += 1; }
+						} else {
+							if (V[c.key][c.val.field] !== c.val.value) { V[c.key][c.val.field] = c.val.value; stories += 1; }
+						}
+					}
+				} catch (e) {}
+			}
+			setup.specialClothes.forEach(function (item) {
+				var entry = null;
+				for (var i = 0; i < V.specialClothes.length; i++) {
+					if (V.specialClothes[i] && V.specialClothes[i].name === item.name) { entry = V.specialClothes[i]; break; }
+				}
+				if (!entry) { entry = { name: item.name, unlocked: 0 }; V.specialClothes.push(entry); }
+				entry.unlocked = 3;
+				n += 1;
+				if (SPECIAL_CLOTHES_ITEM_COND[item.name]) { SPECIAL_CLOTHES_ITEM_COND[item.name].forEach(applyCond); }
+				if (Array.isArray(item.sets)) {
+					item.sets.forEach(function (set) {
+						if (SPECIAL_CLOTHES_SET_COND[set]) { SPECIAL_CLOTHES_SET_COND[set].forEach(applyCond); }
+					});
+				}
+			});
+		} catch (e) {}
+		return { unlocked: n, stories: stories };
+	}
+	function globalUnlockRecipes() {
+		var V = getV(), setup = getSetup();
+		var n = 0;
+		try {
+			if (setup.foodstuff && typeof setup.foodstuff === "object") {
+				if (!V.foodstuff || typeof V.foodstuff !== "object") { V.foodstuff = {}; }
+				Object.keys(setup.foodstuff).forEach(function (k) {
+					var def = setup.foodstuff[k];
+					if (def && def.recipe && def.recipe.ingredients && def.recipe.ingredients.length) {
+						if (!V.foodstuff[k] || typeof V.foodstuff[k] !== "object") {
+							V.foodstuff[k] = { amount: 0 };
+						}
+						V.foodstuff[k].knows_recipe = true;
+						n += 1;
+					}
+				});
+			}
+		} catch (e) {}
+		return { unlocked: n };
+	}
+
 	/* ============ v1.8.8：庄园自动维护（学 AutoClean 0.1.5 原功能，即时一键执行）
 	     AutoClean 原实现：每日 0 点调 AutoCleanFeedAvery()（艾弗里优先吃想吃的菜）+ AutoCleanFarm()
 	     （农场动物锁满/agro 清零/库存收获）。MCE 全局页提供同逻辑的即时按钮，数据逻辑与此处一致。 ============ */

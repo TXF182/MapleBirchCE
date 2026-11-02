@@ -119,11 +119,11 @@ const npc = {
 global.window = { maplebirch: { npc, tool: { addTo() {} }, on() {} } };
 function hasSexStat() { return false; }
 
-// ---- 原生恋爱 NPC（阿电：v0.1.880 走 DOL 原生注册，非 Maplebirch 池） ----
+// ---- 原生恋爱 NPC（阿电：v0.1.990 走 DOL 原生注册，非 Maplebirch 池） ----
 setup.loveAlias = { "阿电": function () {} };
 V.loveInterest = [];
 V.adian_romance = 0;
-// ---- 扩展转化系统（v0.1.880 兔子/人鱼：setup.myTFSet 公共 API + V.rabbit/V.mermaid） ----
+// ---- 扩展转化系统（v0.1.990 兔子/人鱼：setup.myTFSet 公共 API + V.rabbit/V.mermaid） ----
 setup.myTFSet = function (name, stage) {
   V[name] = Math.max(0, Math.min(3, Math.floor(stage) || 0));
   V[name + "build"] = V[name] === 0 ? 0 : [30, 60, 90][V[name] - 1];
@@ -336,6 +336,16 @@ api.adjust = null;
 let nFilled = api.fillStats(luna, "Luna");
 assert(nFilled >= 8 && luna.love === 100 && luna.wary === 0 && luna.affection === 100, "补齐: love=100 wary=0 custom affection=100, 项数=" + nFilled);
 
+// 5a) v1.9.27：框架 customStats 注册属性中文显示（阶段页数值行直显 key 的兜底汉化）
+npc.customStats.conviction = { min: 0, max: 100, default: 0 };
+npc.customStats.doubt = { min: 0, max: 100, default: 0 };
+let defs5a = api.statDefsFor("Luna");
+let cn5a = {};
+defs5a.forEach(d => { if (d.custom) { cn5a[d.key] = d.label; } });
+assert(cn5a.conviction === "执念", "conviction → 执念, 实际 " + cn5a.conviction);
+assert(cn5a.doubt === "疑虑", "doubt → 疑虑, 实际 " + cn5a.doubt);
+assert(cn5a.affection === "affection", "未收录自定义属性保持 key 直显（affection）, 实际 " + cn5a.affection);
+
 // 6) 全局批量
 let gRom = api.globalRomance();
 assert(gRom.fixed === 6, "全局恋爱阶段新增解锁 6 个（Sydney/Eden/GreatHawk/BlackWolf 条件1 + Wraith + 阿电原生），实际 " + gRom.fixed);
@@ -393,7 +403,7 @@ assert(ad2.ok && V.loveInterest.primary === "阿电", "loveInterest 对象槽位
 // 普通 NPC 不误伤（Bailey 无恋爱标记 → 无恋爱条件）
 assert(api.getRomanceStages("Bailey").length === 0, "Bailey 无恋爱条件（不误伤普通 NPC）");
 
-// 8.3) 扩展转化（v0.1.880 兔子/人鱼：setup.myTFSet 公共 API）
+// 8.3) 扩展转化（v0.1.990 兔子/人鱼：setup.myTFSet 公共 API）
 let extList = api.listExtTransforms();
 assert(extList.indexOf("rabbit") !== -1 && extList.indexOf("mermaid") !== -1, "扩展转化自动枚举 rabbit/mermaid, 实际 " + JSON.stringify(extList));
 let ext1 = api.completeExtTransform("rabbit");
@@ -1109,7 +1119,7 @@ assert(api.isGwylanGardenPassage && api.isGwylanGardenPassage("Gwylan Ritual Sta
 // 18) Mod作弊页面（v1.4.0）：动态发现 / 隔离 / 防崩 / 类型校验 / 留痕回退 / 原版过滤 / 重扫
 // 18.0) 清理角色恋爱节（15）写入的 Wraith 根，避免内置 wraiths-reflection 适配器误命中计数（v1.8.8 新增适配器回归隔离）
 delete V.WraithsReflection; delete V.HelpAsk; delete V.necklaceWR; delete V.necklaceThief; delete V.necklaceThiefWR; delete V.SilverConchWR; delete V.stealdailyMR; delete V.WRR;
-/* 18.0b) 清理 13 节恋爱测试写入的 DolMod 探测根（adian_met/adian_romance 等），本段只允许 2 个测试模组（v0.1.880 适配轮回归隔离） */
+/* 18.0b) 清理 13 节恋爱测试写入的 DolMod 探测根（adian_met/adian_romance 等），本段只允许 2 个测试模组（v0.1.990 适配轮回归隔离） */
 delete V.adian_met; delete V.adian_romance; delete V.computer; delete V.computerApps; delete V.ngplusCycle;
 // 18.1) 扫描识别：setup.mbCE_modCheats 注册 2 个模组 → getCheatMods 返回 2（标准化结构）
 setup.mbCE_modCheats = [
@@ -4004,8 +4014,8 @@ assert(pl50b.ok && V.farmerCanHarvest === true, "50.13 mf_can_harvest 勾选写 
 var pl50c = api.toggleCheatAbility("more-farm-upgrade", "mf_can_sell", true);
 assert(pl50c.ok && V.farmerCanSell === true, "50.13 mf_can_sell 勾选写 true, 实际 " + V.farmerCanSell);
 
-/* 51) DolMod 人物附加与生活质量提升 适配器（doctor55555-55555/DolMod- v0.1.880 适配轮）：
-   阿电状态/电脑满配与全应用/银行活期/网课学习/兔人鱼转化/NG+ 键（官方中文名三源一致） */
+/* 51) DolMod 人物附加与生活质量提升 适配器（doctor55555-55555/DolMod- v0.1.990 适配轮）：
+   阿电状态/电脑满配与全应用/银行活期/网课学习/兔人鱼转化/NG+/伊洛圣化 键（官方中文名三源一致） */
 /* 51.1 探测命中（补 Adian/电脑/银行/平台根；V.rabbitbuild 已由 10.x 段设置） */
 V.adian_met = 0; V.adian_romance = 0; V.adian_confession_state = "";
 V.adian = { _inHospital: 0, _imprisoned: 0, _reported: 0, _jealousReady: 0, _loftRadioParts: 0, _loftRadioSet: 0, _stockholm: 0 };
@@ -4014,7 +4024,7 @@ V.computerApps = {}; V.bank = { savings: 1000 }; V.ngplusCycle = 0;
 V.indianStall_found = 0; V.seaPlatform_found = 0;
 var dm51 = api.getCheatMods().filter(function (x) { return x.modId === "dolmod"; })[0];
 assert(dm51 && dm51.declared === true && dm51.modName.indexOf("人物附加与生活质量提升") !== -1, "51.1 DolMod 探测命中且显示官方中文名, 实际 " + (dm51 ? dm51.modName : "未识别"));
-assert(dm51.values.length === 17 && dm51.abilities.length === 12 && dm51.stages.length === 1, "51.1 声明 17 数值 + 12 能力 + 1 阶段, 实际 " + dm51.values.length + "/" + dm51.abilities.length + "/" + dm51.stages.length);
+assert(dm51.values.length === 18 && dm51.abilities.length === 12 && dm51.stages.length === 1, "51.1 声明 18 数值 + 12 能力 + 1 阶段, 实际 " + dm51.values.length + "/" + dm51.abilities.length + "/" + dm51.stages.length);
 /* 51.2 隔离：适配器不声明原版既有键（阿电本体属性走角色面板/NPCName 槽位/现金/恋爱槽位） */
 var dm51Paths = dm51.values.concat(dm51.abilities).map(function (x) { return x.varPath; });
 assert(dm51Paths.indexOf("NPCName") === -1 && dm51Paths.indexOf("loveInterest") === -1 && dm51Paths.indexOf("money") === -1 && dm51Paths.indexOf("adian.love") === -1, "51.2 隔离原版键 NPCName/loveInterest/money/adian.love 不声明");
@@ -4059,8 +4069,13 @@ var rj = api.applyCheatModValue("dolmod", "dm_reject_day", 42);
 assert(rj.ok && V.adian_reject_day === 42, "51.7 告白拒绝日=42（Time.days 语义）, 实际 " + V.adian_reject_day);
 var ct = api.applyCheatModValue("dolmod", "dm_captive_trust", 88);
 assert(ct.ok && V.adian._captiveTrust === 88, "51.7 囚禁信任=88（自由等级派生≥3）, 实际 " + V.adian._captiveTrust);
+/* 51.7b 伊洛圣化（0.1.990 新增键） */
+var yh = api.applyCheatModValue("dolmod", "dm_yiluo_holy", 1);
+assert(yh.ok && V.yiluo_holy === 1, "51.7b 伊洛圣化=1, 实际 " + V.yiluo_holy);
+var yh0 = api.applyCheatModValue("dolmod", "dm_yiluo_holy", 0);
+assert(yh0.ok && V.yiluo_holy === 0, "51.7b 伊洛圣化复位=0, 实际 " + V.yiluo_holy);
 /* 51.8 卸载消失：清全部探测键后适配器自动消失 */
-delete V.adian_met; delete V.adian_romance; delete V.adian; delete V.adian_confession_state; delete V.adian_reject_day; delete V.computer; delete V.computerApps; delete V.bank; delete V.ngplusCycle; delete V.indianStall_found; delete V.seaPlatform_found; delete V.sciencetrait; delete V.mermaidbuild;
+delete V.adian_met; delete V.adian_romance; delete V.adian; delete V.adian_confession_state; delete V.adian_reject_day; delete V.computer; delete V.computerApps; delete V.bank; delete V.ngplusCycle; delete V.indianStall_found; delete V.seaPlatform_found; delete V.sciencetrait; delete V.mermaidbuild; delete V.yiluo_holy;
 assert(api.getCheatMods().filter(function (x) { return x.modId === "dolmod"; }).length === 0, "51.8 卸载后 DolMod 适配器自动消失");
 V.rabbitbuild = 0; V.rabbit = 0; /* 恢复 10.x 段基线 */
 

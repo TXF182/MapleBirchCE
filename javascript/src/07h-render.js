@@ -233,13 +233,16 @@
 				block.appendChild(head);
 				line.items.forEach(function (it) {
 					var st = sceneStatus(it.def);
-					var srow = el("div", "mce-stage " + (st.state === "pass" ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
+					var completed = isSceneCompleted(it.key);
+					var done = st.state === "pass" || completed;
+					var srow = el("div", "mce-stage " + (done ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
 					var sh = el("div", "mce-stage-head");
 					sh.appendChild(el("span", "mce-dot", ""));
 					var nm = it.def.name || it.key;
 					sh.appendChild(el("span", "mce-stage-name", "阶段 " + it.num + "　" + nm));
 					/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
 					var pi = pinQueueIndex(it.key);
+					var anchorMeta = sceneAnchorMeta(it.key, it.def);
 					if (pi >= 0) {
 						sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (pi + 1) + "位"));
 						var unpinB = el("button", "mce-btn mce-red", "取消锚定");
@@ -254,14 +257,13 @@
 						})(it);
 						sh.appendChild(unpinB);
 					} else {
-						var anchorMeta = sceneAnchorMeta(it.key);
 						var pinB = el("button", "mce-btn", "锚定");
 						pinB.type = "button";
 						if (anchorMeta && anchorMeta.location) {
 							pinB.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
 						} else {
 							pinB.disabled = true;
-							pinB.title = "该剧情未标注触发地点（第一批元数据未覆盖），暂不可锚定";
+							pinB.title = "该剧情未标注触发地点，暂不可锚定";
 						}
 						(function (it2) {
 							pinB.addEventListener("click", function () {
@@ -274,6 +276,8 @@
 					}
 					if (st.state === "pass") {
 						sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
+					} else if (completed) {
+						sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓"));
 					} else {
 						var btn = el("button", "mce-btn mce-gold", "一键完成");
 						btn.type = "button";
@@ -287,12 +291,14 @@
 						})(it, st);
 						sh.appendChild(btn);
 					}
-					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
-					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
 					srow.appendChild(sh);
 					var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
 					srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
 					srow.appendChild(el("div", "mce-stage-note", "段落数 " + (it.def.passages || []).length + (it.def.startPassage ? "　入口 " + it.def.startPassage : "") + "　键 " + it.key));
+					/* v1.9.26：已锚定时在条目下方直接显示触发地点提示（手机版无 hover，tooltip 看不了） */
+					if (pi >= 0 && anchorMeta && anchorMeta.location) {
+						srow.appendChild(el("div", "mce-stage-note", "▸ 触发地点：「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "　走到该地点交互时弹确认条"));
+					}
 					stages.appendChild(srow);
 				});
 				block.appendChild(stages);
@@ -330,7 +336,7 @@
 						})(it);
 						sh.appendChild(unpinS);
 					} else {
-						var anchorMetaS = sceneAnchorMeta(it.key);
+						var anchorMetaS = sceneAnchorMeta(it.key, it.def);
 						var pinS = el("button", "mce-btn", "锚定");
 						pinS.type = "button";
 						if (anchorMetaS && anchorMetaS.location) {

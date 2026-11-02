@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.25";
+	var MCE_VERSION = "1.9.27";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -168,6 +168,13 @@
 		{ key: "wary",      label: "警戒", fill: 0,   max: 100 },
 		{ key: "jealousy",  label: "嫉妒", fill: 0,   max: 100 }
 	];
+
+	/* v1.9.27：框架 MB.npc.customStats 注册属性的中文显示（阶段页数值行直显 key 的兜底汉化）。
+	   仅收录玩家会看到的恋爱线英文名；未收录的自定义属性保持 key 直显（兜底，不猜义）。 */
+	var CUSTOM_STAT_CN = {
+		"conviction": "执念",
+		"doubt": "疑虑"
+	};
 
 	/* ============ 中文显示层（仅 UI 展示，不影响任何逻辑/存档） ============ */
 	var DISPLAY_NAMES = {
@@ -427,7 +434,7 @@
 					var c = cs[k];
 					if (c && typeof c === "object" && Number.isFinite(Number(c.max))) {
 						var min = Number.isFinite(Number(c.min)) ? Number(c.min) : 0;
-						out.push({ key: k, label: k, fill: Number(c.max), max: Number(c.max), min: min, custom: true });
+						out.push({ key: k, label: CUSTOM_STAT_CN[k] || k, fill: Number(c.max), max: Number(c.max), min: min, custom: true });
 					}
 				});
 			}
@@ -836,6 +843,136 @@
 		var fixed = 0;
 		chars.forEach(function (name) { fixed += unlockAllTransform(name); });
 		return { characters: chars.length, stages: fixed };
+	}
+
+	/* ============ v1.9.26：特殊服装（setup.specialClothes 款式）+ 食谱一键解锁
+	     DoL 0.5.12.13 特殊服装 = setup.specialClothes（135 件款式，分属万圣节/圣诞/情人节/神殿等套装）；
+	     解锁标志 = V.specialClothes[i].unlocked = 3（满足要求解锁）；
+	     每件有对应"故事"前置条件（套装 requirements，如 tentacletrait/syndromekylar/temple_rank 等），
+	     解锁时同步补足这些条件，让游戏认为玩家已完成对应剧情（服装合法获得，非凭空出现）。
+	     食谱 = setup.foodstuff[key].recipe.ingredients 非空；学会标志 = V.foodstuff[key].knows_recipe = true。 ============ */
+	/* 套装→补足条件映射（从 DoL 0.5.12.13 setup.specialClothesSets 实证提取）。
+	   op: "set"=标量赋值, "push"=数组去重push, "ensureField"=确保对象+设子键。
+	   日期条件（halloween/valentines）不补足——unlocked=3 已解锁，日期随游戏推进。 */
+	var SPECIAL_CLOTHES_SET_COND = {
+		witch: [{key:"tentacletrait", op:"set", val:1}],
+		vampire: [{key:"syndromekylar", op:"set", val:1}],
+		mummy: [{key:"specialClothesEvents", op:"push", val:"cocoon"}],
+		scarecrow: [{key:"specialClothesEvents", op:"push", val:"farm_defended"}],
+		skeleton: [{key:"crypt_intro", op:"set", val:1}],
+		future_suit: [{key:"tenyclusPlayCount", op:"set", val:7}],
+		christmas: [{key:"specialClothesEvents", op:"push", val:"skulduggery_gift"}],
+		rose_wedding: [{key:"kylarSeen", op:"push", val:"basement"}],
+		wrap: [{key:"gwylanSeen", op:"push", val:"steal_wrap"}],
+		underground_brothel: [{key:"undergroundbrothelescaped", op:"set", val:true}],
+		underground_farm: [{key:"livestock", op:"ensureField", val:{field:"intro", value:1}}],
+		loincloth: [{key:"syndromeeden", op:"set", val:1}],
+		bird: [{key:"syndromebird", op:"set", val:1}],
+		prison: [{key:"prison_intro", op:"set", val:1}],
+		asylum: [{key:"asylumescaped", op:"set", val:1}],
+		temple_initiate: [{key:"temple_rank", op:"set", val:"monk"}],
+		temple_monk_and_nun: [{key:"temple_rank", op:"set", val:"monk"}],
+		temple_evangelist: [{key:"specialClothesEvents", op:"push", val:"temple_solicitation"}],
+		temple_confessor: [{key:"temple_confessor_intro", op:"set", val:1}],
+		temple_exorcist: [{key:"jordan_ritual_dance", op:"set", val:4}],
+		temple_sparring: [{key:"prof", op:"ensureField", val:{field:"whip", value:600}}],
+		temple_sexy: [{key:"world_corruption_reduced", op:"set", val:30}],
+		holy_stole: [{key:"grace", op:"set", val:100}],
+		holy_pendant: [{key:"soup_kitchen_known", op:"set", val:1}],
+		stone_pendant: [{key:"stone_pendant_found", op:"set", val:1}],
+		dark_pendant: [{key:"loft_known", op:"set", val:1}],
+		museum_rags: [{key:"museum_horse_success", op:"set", val:1},{key:"museum_stool_success", op:"set", val:1}],
+		vintage: [{key:"museumAntiques", op:"ensureField", val:{field:"paintings", value:{paintingward:"museum"}}}],
+		chain_tunic: [{key:"hcEndings", op:"push", val:"S"}],
+		foreign_school: [{key:"headdrive", op:"set", val:1}],
+		brothel: [{key:"brothelshowdata", op:"ensureField", val:{field:"intro", value:1}}],
+		chef: [{key:"chef_state", op:"set", val:9}],
+		hookah: [{key:"hookah_state", op:"set", val:2}],
+		islander: [{key:"islander_mask", op:"set", val:100}],
+		fox_mask: [{key:"auriga_artefact", op:"set", val:1}],
+		fedora: [{key:"specialClothesEvents", op:"push", val:"smuggling"}],
+		catsuit: [{key:"catsuit_found", op:"set", val:1}],
+		janet: [{key:"janet_book_read", op:"set", val:1}],
+		dance_studio: [{key:"danceStudio", op:"ensureField", val:{field:"jobOffered", value:1}}],
+		sage_witch_hat: [{key:"gwylanSeen", op:"push", val:"ritual_sex"}],
+		familiar_collar: [{key:"gwylanSeen", op:"push", val:"familiar_collar"}],
+		shrine: [{key:"fox", op:"set", val:6}],
+		jasper: [{key:"gwylanSeen", op:"push", val:"request_gold_accessories"}],
+		butterfly: [{key:"backgroundTraits", op:"push", val:"plantlover"}],
+		succubus: [{key:"demon", op:"set", val:6}]
+	};
+	/* 单件条件（baseItem.requirements，非 set 条件） */
+	var SPECIAL_CLOTHES_ITEM_COND = {
+		"rose": [{key:"gwylanSeen", op:"push", val:"rose"}],
+		"daisy": [{key:"plants_known", op:"push", val:"daisy"}],
+		"flower crown": [{key:"specialClothesEvents", op:"push", val:"flowerCrownGH"}]
+	};
+	function globalUnlockClothes() {
+		var V = getV(), setup = getSetup();
+		var n = 0, stories = 0;
+		try {
+			if (!Array.isArray(setup.specialClothes)) { return { unlocked: 0, stories: 0 }; }
+			if (!Array.isArray(V.specialClothes)) { V.specialClothes = []; }
+			function applyCond(c) {
+				try {
+					if (c.op === "set") {
+						if (V[c.key] !== c.val) { V[c.key] = c.val; stories += 1; }
+					} else if (c.op === "push") {
+						if (!Array.isArray(V[c.key])) { V[c.key] = []; }
+						if (V[c.key].indexOf(c.val) === -1) { V[c.key].push(c.val); stories += 1; }
+					} else if (c.op === "ensureField") {
+						if (!V[c.key] || typeof V[c.key] !== "object") { V[c.key] = {}; }
+						if (typeof c.val.value === "object" && c.val.value !== null) {
+							/* value 是对象：确保 field 是对象，合并 value（不覆盖兄弟键，如 vintage.paintings 不丢其他画） */
+							if (!V[c.key][c.val.field] || typeof V[c.key][c.val.field] !== "object") { V[c.key][c.val.field] = {}; }
+							var chg = false;
+							Object.keys(c.val.value).forEach(function (vk) {
+								if (V[c.key][c.val.field][vk] !== c.val.value[vk]) { V[c.key][c.val.field][vk] = c.val.value[vk]; chg = true; }
+							});
+							if (chg) { stories += 1; }
+						} else {
+							if (V[c.key][c.val.field] !== c.val.value) { V[c.key][c.val.field] = c.val.value; stories += 1; }
+						}
+					}
+				} catch (e) {}
+			}
+			setup.specialClothes.forEach(function (item) {
+				var entry = null;
+				for (var i = 0; i < V.specialClothes.length; i++) {
+					if (V.specialClothes[i] && V.specialClothes[i].name === item.name) { entry = V.specialClothes[i]; break; }
+				}
+				if (!entry) { entry = { name: item.name, unlocked: 0 }; V.specialClothes.push(entry); }
+				entry.unlocked = 3;
+				n += 1;
+				if (SPECIAL_CLOTHES_ITEM_COND[item.name]) { SPECIAL_CLOTHES_ITEM_COND[item.name].forEach(applyCond); }
+				if (Array.isArray(item.sets)) {
+					item.sets.forEach(function (set) {
+						if (SPECIAL_CLOTHES_SET_COND[set]) { SPECIAL_CLOTHES_SET_COND[set].forEach(applyCond); }
+					});
+				}
+			});
+		} catch (e) {}
+		return { unlocked: n, stories: stories };
+	}
+	function globalUnlockRecipes() {
+		var V = getV(), setup = getSetup();
+		var n = 0;
+		try {
+			if (setup.foodstuff && typeof setup.foodstuff === "object") {
+				if (!V.foodstuff || typeof V.foodstuff !== "object") { V.foodstuff = {}; }
+				Object.keys(setup.foodstuff).forEach(function (k) {
+					var def = setup.foodstuff[k];
+					if (def && def.recipe && def.recipe.ingredients && def.recipe.ingredients.length) {
+						if (!V.foodstuff[k] || typeof V.foodstuff[k] !== "object") {
+							V.foodstuff[k] = { amount: 0 };
+						}
+						V.foodstuff[k].knows_recipe = true;
+						n += 1;
+					}
+				});
+			}
+		} catch (e) {}
+		return { unlocked: n };
 	}
 
 	/* ============ v1.8.8：庄园自动维护（学 AutoClean 0.1.5 原功能，即时一键执行）
@@ -2619,18 +2756,25 @@ var CHEAT_ADAPTERS = {};
 			]
 		}
 	};
-/* 适配器：人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.880，doctor55555-55555/DolMod-）
-   功能（boot.json TweeReplacer 注入 61 条规则 + script 源码实证）：原创恋爱 NPC 阿电（注册进本体
+/* 适配器：人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.990，doctor55555-55555/DolMod-）
+   功能（boot.json TweeReplacer 注入规则 + script 源码实证）：原创恋爱 NPC 阿电（注册进本体
    恋爱 NPC 区，好感/信任/嫉妒/性欲四属性 + 告白/约会/周六打工/嫉妒暗线四阶段）＋生活质量系统：
-   电脑（部件商店/组装/性能分/应用商店/接零活/网课学习，computer.js）、银行（活期+理财+定期，
+   电脑（部件商店/组装/性能分/应用商店/接零活/网课学习，computer.js）、银行（活期+定期+理财，
    bank.js）、兔子/人鱼转化（transformation.js，阈值 30/60/90 三阶段）、海上平台、异国小吃摊、
-   贩卖机、钓鱼、阁楼广播、NG+（ngplus.js）。
-   ★模组自带作弊菜单（boot.json 规则 20：本体 Cheats passage 注入阿电控件走 setup.cheatAdian；
-   规则 36：作弊器 Other 页签后注入 MyFirstMod 专属页）——CE 适配器与官方页同写同一键，无冲突。
+   贩卖机、钓鱼、阁楼广播、NG+（ngplus.js）、伊洛（yiluo.js，0.1.990 新增 NPC）。
+   ★模组自带作弊菜单（boot.json 规则：本体 Cheats passage 注入阿电控件走 setup.cheatAdian；
+   作弊器 Other 页签后注入 MyFirstMod 专属页）——CE 适配器与官方页同写同一键，无冲突。
    官方中文名核对：README 标题「MyFirstMod · 人物附加与生活质量提升」+ zip 文件名「人物附加与
-   生活质量提升_v0.1.801.zip」+ boot.json name「人物附加与生活质量提升」三处一致 → 显示名用官方中文。
+   生活质量提升_v0.1.990.zip」+ boot.json name「人物附加与生活质量提升」三处一致 → 显示名用官方中文。
    键集：阿电状态 8（abilities 6 + values 2）+ 电脑 12（满配组合 1 + 全应用 1 + 学习 10）+
-   银行 1 + 转化 4 + 杂项 4（ability）+ NG+ 1 = 30 键。 */
+   银行 1 + 转化 4 + 杂项 4（ability）+ NG+ 1 + 伊洛 1（values）= 31 键。
+   ★0.1.880→0.1.990 升版核对（2026-11-02）：boot.json 59KB→109KB、目录模块化重组（moduel/script
+   按功能分目录）、新增塔科夫/gridtac 网格战斗/reversecombat 反向战斗/scavenge 拾荒/bunker 地堡/
+   cityhall 市政厅/inventory 背包合成/limbs 肢体/audio 音效等系统；CE 声明 30 键 resolve 全部 KEEP
+   （含 *_exam 动态键拼接存活，computer.js:508/524 V[key+"_exam"] 实证；game_indie AppCatalog 存活），
+   0 REMOVE；按需补 yiluo_holy 1 键；bank.fixedDeposits/holdings（数组/嵌套对象超出数值面）、
+   adian._freedomLevel（trust 派生瞬态，写 trust 即自动）、yiluo_carrying（瞬态）不补；
+   大系统作弊项另轮适配（未声明）。 */
 CHEAT_ADAPTERS["dolmod"] = {
 	detect: function () {
 		try {
@@ -2649,7 +2793,7 @@ CHEAT_ADAPTERS["dolmod"] = {
 	},
 	entry: {
 		modId: "dolmod",
-		modName: "人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.880）",
+		modName: "人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.990）",
 		tasks: [],
 		stages: [
 			/* 阿电表白状态机：四态字符串（adian-confession.twee:14 实证：未触发(空)/rejected 拒绝/friend 朋友/lovers 恋人；
@@ -2758,7 +2902,11 @@ CHEAT_ADAPTERS["dolmod"] = {
 			  note: "转化累积（transformation.js:165 实证）；30/60/90 三阈值；每日 -1 衰减；部件存 $transformationParts.mermaid" },
 			/* NG+ */
 			{ key: "dm_ngplus", name: "NG+ · 轮次", varPath: "ngplusCycle", type: "number", min: 0, max: 99,
-			  note: "二周目轮次计数（ngplus.js:28 实证，供 twee 读取；NG+ 触发生成 ngplusCarried 继承快照）；写 0=普通档" }
+			  note: "二周目轮次计数（ngplus.js:28 实证，供 twee 读取；NG+ 触发生成 ngplusCarried 继承快照）；写 0=普通档" },
+			/* 伊洛（0.1.990 新增 NPC，yiluo.js 实证）：触碰伊洛剧情授予圣化（yiluo.twee 置 $yiluo_holy=1）；
+			   圣化后兽类遭遇战免击/祝福（yiluo.js:105/128）——carrying 为瞬态不作弊 */
+			{ key: "dm_yiluo_holy", name: "伊洛 · 圣化", varPath: "yiluo_holy", type: "number", min: 0, max: 1,
+			  note: "圣化授予（yiluo.js:73 实证；:76 ensure 兜底 0）；写 1=圣化（兽类敌人免击 yiluo.js:105、圣化祝福 :128 实证），写 0=未圣化（触碰剧情可再触发）" }
 		]
 		}
 	};
@@ -6156,6 +6304,7 @@ function renderPlayerEdit() {
 					if (!s || typeof s !== "object") { return; }
 					parsed[k] = {
 						name: s.name, startPassage: s.startPassage, passages: Array.isArray(s.passages) ? s.passages.slice() : [],
+						manualVariableChanges: s.manualVariableChanges,
 						unlockedExpr: typeof s.unlocked === "string" ? s.unlocked : "",
 						lockedExpr: typeof s.lockedMessage === "string" ? s.lockedMessage : "",
 						lockedCache: s.lockedMessage, unlockedCache: s.unlocked
@@ -6607,7 +6756,6 @@ mbCELockEnsureTimer();
 	     [同区] = 同一条线相邻段落实证（如罗宾地下系列）
 	     [名]   = 场景名/入口段落名语义（值域与相邻段落佐证）
 	   timeNote 仅展示、不参与触发判定；无 timeNote 时确认条省略时间说明。 */
-	console.log("[MCE-BOOT] 07f-pins loaded v-probe2");
 var SCENE_LOCATIONS = {
 		/* 罗宾 */
 		"RobinIntro1": { loc: "home", src: "pas: Orphanage 段落实证 $location=home" },
@@ -6736,7 +6884,7 @@ var SCENE_LOCATIONS = {
 	};
 	function locLabel(loc) { return LOCATION_LABELS[loc] || loc || "（未标注）"; }
 	/* 场景 key → 锚定元数据（表内命中；旧队列项无元数据 → null，保持旧段落跳转语义） */
-	function sceneAnchorMeta(key) {
+	function sceneAnchorMeta(key, def) {
 		try {
 			var s = SCENE_LOCATIONS[key];
 			if (!s && /^AlexFarmWorkStage\d+$/.test(key || "")) {
@@ -6745,6 +6893,20 @@ var SCENE_LOCATIONS = {
 				s = SCENE_LOCATIONS["AlexFarmWorkStage" + (nn.length === 1 ? "0" + nn : nn)];
 			}
 			if (s) { return { location: s.loc, timeNote: s.time || "" }; }
+			/* v1.9.26：静态表未命中时，从 manualVariableChanges 提取 $location
+			   （大量场景 mvc 含 <<set $location to '...'>> / <<location '...'>>，覆盖静态表未收录的场景，
+			   免手工实证补全；def 由调用方传入免调 getScenesDefs 重解析，def 缺失才 fallback getScenesDefs；
+			   timeNote 仅静态表有，mvc 来源无时间提示） */
+			var mvc = def && def.manualVariableChanges;
+			if (!mvc) {
+				var defs = getScenesDefs();
+				var d2 = defs && defs.defs && defs.defs[key];
+				mvc = d2 && d2.manualVariableChanges;
+			}
+			if (mvc) {
+				var lm = mvc.match(/\$location\s+to\s+['"]([^'"]+)['"]/) || mvc.match(/<<\s*location\s+['"]([^'"]+)['"]/);
+				if (lm && lm[1]) { return { location: lm[1], timeNote: "" }; }
+			}
 		} catch (e) {}
 		return null;
 	}
@@ -6854,10 +7016,7 @@ var SCENE_LOCATIONS = {
 			   恢复快照会把 used 还原为 false（队列项复活 → 确认条循环弹；实机 F12 铁证：live=true / frozen=false）。
 			   先置 used=true 使冻结快照含 true，恢复后保持 true，配合 mbCEOnPassageEnd 残留清理闭环。 */
 			P.used = true;
-			/* v1.9.23-运行时探针（实机定位 frozen:false 根因用，定位后移除） */
-			try { console.log("[MCE-PROBE] pre-freeze qUsed=" + (V.mbCE_queue && V.mbCE_queue[0] ? V.mbCE_queue[0].used : "no-q") + " fzExists=" + (!!V.frozenValues) + " fzQUsed=" + (V.frozenValues && V.frozenValues.mbCE_queue && V.frozenValues.mbCE_queue[0] ? V.frozenValues.mbCE_queue[0].used : "no-fzq")); } catch (e) {}
 			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("freezePlayerStats"); } } catch (e) {}
-			try { console.log("[MCE-PROBE] post-freeze liveQUsed=" + (V.mbCE_queue && V.mbCE_queue[0] ? V.mbCE_queue[0].used : "no-q") + " fzQUsed=" + (V.frozenValues && V.frozenValues.mbCE_queue && V.frozenValues.mbCE_queue[0] ? V.frozenValues.mbCE_queue[0].used : "no-fzq") + " sf=" + V.statFreeze); } catch (e) {}
 			V.replayScene = {
 				name: P.name,
 				startPassage: entry,
@@ -7181,7 +7340,7 @@ var SCENE_LOCATIONS = {
 			var start = def.startPassage || (Array.isArray(def.passages) && def.passages[0]) || "";
 			if (!start) { return { ok: false, message: "该剧情缺少入口段落（startPassage 为空），无法锚定" }; }
 			/* v1.9.23：锚定必须有地点元数据（走到该地点交互时触发）；无元数据 → 禁止锚定（旧固定触发已移除） */
-			var meta = sceneAnchorMeta(it.key);
+			var meta = sceneAnchorMeta(it.key, def);
 			if (!meta || !meta.location) { return { ok: false, message: "「" + (def.name || it.key) + "」未标注触发地点（第一批元数据未覆盖该场景），暂不可锚定" }; }
 			var q = getPinQueue();
 			if (!q) { return { ok: false, message: "存档不可用，无法锚定" }; }
@@ -8097,13 +8256,16 @@ var SCENE_LOCATIONS = {
 				block.appendChild(head);
 				line.items.forEach(function (it) {
 					var st = sceneStatus(it.def);
-					var srow = el("div", "mce-stage " + (st.state === "pass" ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
+					var completed = isSceneCompleted(it.key);
+					var done = st.state === "pass" || completed;
+					var srow = el("div", "mce-stage " + (done ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
 					var sh = el("div", "mce-stage-head");
 					sh.appendChild(el("span", "mce-dot", ""));
 					var nm = it.def.name || it.key;
 					sh.appendChild(el("span", "mce-stage-name", "阶段 " + it.num + "　" + nm));
 					/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
 					var pi = pinQueueIndex(it.key);
+					var anchorMeta = sceneAnchorMeta(it.key, it.def);
 					if (pi >= 0) {
 						sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (pi + 1) + "位"));
 						var unpinB = el("button", "mce-btn mce-red", "取消锚定");
@@ -8118,14 +8280,13 @@ var SCENE_LOCATIONS = {
 						})(it);
 						sh.appendChild(unpinB);
 					} else {
-						var anchorMeta = sceneAnchorMeta(it.key);
 						var pinB = el("button", "mce-btn", "锚定");
 						pinB.type = "button";
 						if (anchorMeta && anchorMeta.location) {
 							pinB.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
 						} else {
 							pinB.disabled = true;
-							pinB.title = "该剧情未标注触发地点（第一批元数据未覆盖），暂不可锚定";
+							pinB.title = "该剧情未标注触发地点，暂不可锚定";
 						}
 						(function (it2) {
 							pinB.addEventListener("click", function () {
@@ -8138,6 +8299,8 @@ var SCENE_LOCATIONS = {
 					}
 					if (st.state === "pass") {
 						sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
+					} else if (completed) {
+						sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓"));
 					} else {
 						var btn = el("button", "mce-btn mce-gold", "一键完成");
 						btn.type = "button";
@@ -8151,12 +8314,14 @@ var SCENE_LOCATIONS = {
 						})(it, st);
 						sh.appendChild(btn);
 					}
-					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
-					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
 					srow.appendChild(sh);
 					var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
 					srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
 					srow.appendChild(el("div", "mce-stage-note", "段落数 " + (it.def.passages || []).length + (it.def.startPassage ? "　入口 " + it.def.startPassage : "") + "　键 " + it.key));
+					/* v1.9.26：已锚定时在条目下方直接显示触发地点提示（手机版无 hover，tooltip 看不了） */
+					if (pi >= 0 && anchorMeta && anchorMeta.location) {
+						srow.appendChild(el("div", "mce-stage-note", "▸ 触发地点：「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "　走到该地点交互时弹确认条"));
+					}
 					stages.appendChild(srow);
 				});
 				block.appendChild(stages);
@@ -8194,7 +8359,7 @@ var SCENE_LOCATIONS = {
 						})(it);
 						sh.appendChild(unpinS);
 					} else {
-						var anchorMetaS = sceneAnchorMeta(it.key);
+						var anchorMetaS = sceneAnchorMeta(it.key, it.def);
 						var pinS = el("button", "mce-btn", "锚定");
 						pinS.type = "button";
 						if (anchorMetaS && anchorMetaS.location) {
@@ -8478,6 +8643,20 @@ var SCENE_LOCATIONS = {
 			listExtTransforms().forEach(function (k) { if (completeExtTransform(k)) { n += 1; } });
 			setStatus(n > 0 ? "扩展转化已全部解锁（" + n + " 项）" : "未检测到扩展转化（MOD 未加载）", n > 0 ? "mce-ok" : "mce-err");
 		});
+		var bc1 = el("button", "mce-btn mce-gold", "一键解锁所有特殊服装（含对应故事）");
+		bc1.type = "button";
+		bc1.addEventListener("click", function () {
+			var r = globalUnlockClothes();
+			setStatus("特殊服装：" + r.unlocked + " 件已解锁" + (r.stories > 0 ? "（补足对应故事 " + r.stories + " 项）" : ""), r.unlocked > 0 ? "mce-ok" : "mce-err");
+		});
+		var bc2 = el("button", "mce-btn mce-gold", "一键解锁所有食谱");
+		bc2.type = "button";
+		bc2.addEventListener("click", function () {
+			var r = globalUnlockRecipes();
+			setStatus("食谱：" + r.unlocked + " 个已解锁", r.unlocked > 0 ? "mce-ok" : "mce-err");
+		});
+		actions.appendChild(bc1);
+		actions.appendChild(bc2);
 		actions.appendChild(b1);
 		actions.appendChild(b2);
 		actions.appendChild(b3);
@@ -9124,6 +9303,7 @@ var SCENE_LOCATIONS = {
 				pendingPreconds: pendingPreconds,
 				precondDone: precondDone,
 				fillStats: fillStats,
+				statDefsFor: statDefsFor,
 				globalFill: globalFill,
 				globalRomance: globalRomance,
 				globalTransform: globalTransform,

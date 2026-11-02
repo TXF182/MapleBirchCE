@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.25";
+	var MCE_VERSION = "1.9.27";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -54,6 +54,13 @@
 		{ key: "wary",      label: "警戒", fill: 0,   max: 100 },
 		{ key: "jealousy",  label: "嫉妒", fill: 0,   max: 100 }
 	];
+
+	/* v1.9.27：框架 MB.npc.customStats 注册属性的中文显示（阶段页数值行直显 key 的兜底汉化）。
+	   仅收录玩家会看到的恋爱线英文名；未收录的自定义属性保持 key 直显（兜底，不猜义）。 */
+	var CUSTOM_STAT_CN = {
+		"conviction": "执念",
+		"doubt": "疑虑"
+	};
 
 	/* ============ 中文显示层（仅 UI 展示，不影响任何逻辑/存档） ============ */
 	var DISPLAY_NAMES = {
@@ -313,7 +320,7 @@
 					var c = cs[k];
 					if (c && typeof c === "object" && Number.isFinite(Number(c.max))) {
 						var min = Number.isFinite(Number(c.min)) ? Number(c.min) : 0;
-						out.push({ key: k, label: k, fill: Number(c.max), max: Number(c.max), min: min, custom: true });
+						out.push({ key: k, label: CUSTOM_STAT_CN[k] || k, fill: Number(c.max), max: Number(c.max), min: min, custom: true });
 					}
 				});
 			}

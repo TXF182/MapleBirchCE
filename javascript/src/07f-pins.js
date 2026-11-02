@@ -20,7 +20,6 @@
 	     [同区] = 同一条线相邻段落实证（如罗宾地下系列）
 	     [名]   = 场景名/入口段落名语义（值域与相邻段落佐证）
 	   timeNote 仅展示、不参与触发判定；无 timeNote 时确认条省略时间说明。 */
-	console.log("[MCE-BOOT] 07f-pins loaded v-probe2");
 var SCENE_LOCATIONS = {
 		/* 罗宾 */
 		"RobinIntro1": { loc: "home", src: "pas: Orphanage 段落实证 $location=home" },
@@ -149,7 +148,7 @@ var SCENE_LOCATIONS = {
 	};
 	function locLabel(loc) { return LOCATION_LABELS[loc] || loc || "（未标注）"; }
 	/* 场景 key → 锚定元数据（表内命中；旧队列项无元数据 → null，保持旧段落跳转语义） */
-	function sceneAnchorMeta(key) {
+	function sceneAnchorMeta(key, def) {
 		try {
 			var s = SCENE_LOCATIONS[key];
 			if (!s && /^AlexFarmWorkStage\d+$/.test(key || "")) {
@@ -158,6 +157,20 @@ var SCENE_LOCATIONS = {
 				s = SCENE_LOCATIONS["AlexFarmWorkStage" + (nn.length === 1 ? "0" + nn : nn)];
 			}
 			if (s) { return { location: s.loc, timeNote: s.time || "" }; }
+			/* v1.9.26：静态表未命中时，从 manualVariableChanges 提取 $location
+			   （大量场景 mvc 含 <<set $location to '...'>> / <<location '...'>>，覆盖静态表未收录的场景，
+			   免手工实证补全；def 由调用方传入免调 getScenesDefs 重解析，def 缺失才 fallback getScenesDefs；
+			   timeNote 仅静态表有，mvc 来源无时间提示） */
+			var mvc = def && def.manualVariableChanges;
+			if (!mvc) {
+				var defs = getScenesDefs();
+				var d2 = defs && defs.defs && defs.defs[key];
+				mvc = d2 && d2.manualVariableChanges;
+			}
+			if (mvc) {
+				var lm = mvc.match(/\$location\s+to\s+['"]([^'"]+)['"]/) || mvc.match(/<<\s*location\s+['"]([^'"]+)['"]/);
+				if (lm && lm[1]) { return { location: lm[1], timeNote: "" }; }
+			}
 		} catch (e) {}
 		return null;
 	}
@@ -267,10 +280,7 @@ var SCENE_LOCATIONS = {
 			   恢复快照会把 used 还原为 false（队列项复活 → 确认条循环弹；实机 F12 铁证：live=true / frozen=false）。
 			   先置 used=true 使冻结快照含 true，恢复后保持 true，配合 mbCEOnPassageEnd 残留清理闭环。 */
 			P.used = true;
-			/* v1.9.23-运行时探针（实机定位 frozen:false 根因用，定位后移除） */
-			try { console.log("[MCE-PROBE] pre-freeze qUsed=" + (V.mbCE_queue && V.mbCE_queue[0] ? V.mbCE_queue[0].used : "no-q") + " fzExists=" + (!!V.frozenValues) + " fzQUsed=" + (V.frozenValues && V.frozenValues.mbCE_queue && V.frozenValues.mbCE_queue[0] ? V.frozenValues.mbCE_queue[0].used : "no-fzq")); } catch (e) {}
 			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("freezePlayerStats"); } } catch (e) {}
-			try { console.log("[MCE-PROBE] post-freeze liveQUsed=" + (V.mbCE_queue && V.mbCE_queue[0] ? V.mbCE_queue[0].used : "no-q") + " fzQUsed=" + (V.frozenValues && V.frozenValues.mbCE_queue && V.frozenValues.mbCE_queue[0] ? V.frozenValues.mbCE_queue[0].used : "no-fzq") + " sf=" + V.statFreeze); } catch (e) {}
 			V.replayScene = {
 				name: P.name,
 				startPassage: entry,
@@ -594,7 +604,7 @@ var SCENE_LOCATIONS = {
 			var start = def.startPassage || (Array.isArray(def.passages) && def.passages[0]) || "";
 			if (!start) { return { ok: false, message: "该剧情缺少入口段落（startPassage 为空），无法锚定" }; }
 			/* v1.9.23：锚定必须有地点元数据（走到该地点交互时触发）；无元数据 → 禁止锚定（旧固定触发已移除） */
-			var meta = sceneAnchorMeta(it.key);
+			var meta = sceneAnchorMeta(it.key, def);
 			if (!meta || !meta.location) { return { ok: false, message: "「" + (def.name || it.key) + "」未标注触发地点（第一批元数据未覆盖该场景），暂不可锚定" }; }
 			var q = getPinQueue();
 			if (!q) { return { ok: false, message: "存档不可用，无法锚定" }; }

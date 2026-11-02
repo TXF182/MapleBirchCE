@@ -215,6 +215,20 @@
 			listExtTransforms().forEach(function (k) { if (completeExtTransform(k)) { n += 1; } });
 			setStatus(n > 0 ? "扩展转化已全部解锁（" + n + " 项）" : "未检测到扩展转化（MOD 未加载）", n > 0 ? "mce-ok" : "mce-err");
 		});
+		var bc1 = el("button", "mce-btn mce-gold", "一键解锁所有特殊服装（含对应故事）");
+		bc1.type = "button";
+		bc1.addEventListener("click", function () {
+			var r = globalUnlockClothes();
+			setStatus("特殊服装：" + r.unlocked + " 件已解锁" + (r.stories > 0 ? "（补足对应故事 " + r.stories + " 项）" : ""), r.unlocked > 0 ? "mce-ok" : "mce-err");
+		});
+		var bc2 = el("button", "mce-btn mce-gold", "一键解锁所有食谱");
+		bc2.type = "button";
+		bc2.addEventListener("click", function () {
+			var r = globalUnlockRecipes();
+			setStatus("食谱：" + r.unlocked + " 个已解锁", r.unlocked > 0 ? "mce-ok" : "mce-err");
+		});
+		actions.appendChild(bc1);
+		actions.appendChild(bc2);
 		actions.appendChild(b1);
 		actions.appendChild(b2);
 		actions.appendChild(b3);

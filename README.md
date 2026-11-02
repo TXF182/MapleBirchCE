@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.25**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v1.9.27**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -84,7 +84,7 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.9.25）
+## Mod作弊 适配器一览（v1.9.27）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -98,7 +98,7 @@
 | DoLSims · 类模拟人生扩展 | 0.8.1.7 | 阶段 2 / 能力 18 / 数值 26 | `window.MirrorHypnoVariableRefresh` |
 | 猫舍 Cattery（猫咖/出租屋/养宠/飞行） | 1.1.9 | 阶段 9 / 能力 3 / 数值 39（租屋/养猫/菜品/食材/飞行/书房/清洁） | `window.createCafePC`（或 V 顶层键兜底） |
 | 更多农场升级 More Farm Upgrade | 1.0.8 | 数值 21 / 能力 16（11 设施/资源/农夫/温室田/许可） | `V.farm` 扩展字段并集（cultivator/seeder/harvester/compost/laboratory 等） |
-| 人物附加与生活质量提升 DolMod-（MyFirstMod，阿电/电脑/银行/网课/转化/NG+） | 0.1.880 | 阶段 1 / 能力 12 / 数值 17（告白状态机/斯德哥尔摩/囚禁信任（未囚禁写入不生效但无害，先勾「已囚禁」或先写再勾均可）/拒绝日/活期/网课 8 键/转化/NG+） | `window.ComputerMod/BankMod/NgPlus`（V 兜底：computer/computerApps/ngplusCycle 或 adian 双键） |
+| 人物附加与生活质量提升 DolMod-（MyFirstMod，阿电/电脑/银行/网课/转化/NG+/伊洛） | 0.1.990 | 阶段 1 / 能力 12 / 数值 18（告白状态机/斯德哥尔摩/囚禁信任（未囚禁写入不生效但无害，先勾「已囚禁」或先写再勾均可）/拒绝日/活期/网课 8 键/转化/NG+/伊洛圣化） | `window.ComputerMod/BankMod/NgPlus`（V 兜底：computer/computerApps/ngplusCycle 或 adian 双键） |
 | maplebirch 框架本体 | 5.6.2 | 兼容性核对（API 8 项） | `window.maplebirch` |
 
 > 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**自动检测 12 渠道 + 适配 12 面**：12 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade/人物附加与生活质量提升/框架本体，全部已纳入每日检测——其中 DolMod 走资产名版本提取，框架走 check_framework_api.js API 兼容核对）。
@@ -131,8 +131,7 @@
   - **补项**：`nkl_stage`（`RBR.necklace.stage` 怨灵回收线阶段，1.4.6 新增 WraithRecovery 线，枚举实证 `''/failed/camera/case/take/smash`）+ `nkl_reclaimed`（`RBR.necklace.reclaimed` 归还后已取回，WraithRecovery:264 置 true、Wraith:89/131 开放后续线、:208 归还扣款判定）→ 归途 阶段 17→18 / 能力 22→24；
   - **不补（记录说明）**：`RBR.wraithVisitDay`（日期瞬态）、`LostLamb.marks`（梦境绘图标记数组）、dw258 756 条候选（父级/瞬态/低价值）；**Pub NPC 异常定案**：错误「0.5.12.13 错误：在"Pub"段落生成的NPC发生异常脱离」为 framework NPC 生命周期外部问题（CE 不生成 NPC、不介入框架 NPC 生命周期），非 CE 修复范围，fw562 5.6.2 已实装；
   - **文档修复**：适配器一览表同步上轮遗漏（枯木 2.5.7→2.5.8、归途 1.4.5/17/22→1.4.6/18/24、框架 5.6.0→5.6.2）；
-  - **验证**：tdd 红绿（§19.1 阶段 18/能力 24、§31.1 补 nkl_stage/nkl_reclaimed 收录、§31.11 补 reclaimed 开关 + stage 写入）；全链 6 步全绿 + 打包已装 game；版本双源 1.9.25。
-- **v1.9.24（2026-10-31 · 三方模组升版适配：枯木 2.5.8 / 归途 1.4.6 / 框架 5.6.2）**：
+  - **验证**：tdd 红绿（§19.1 阶段 18/能力 24、§31.1 补 nkl_stage/nkl_reclaimed 收录、§31.11 补 reclaimed 开关 + stage 写入）；全链 6 步全绿 + 打包已装 game；版本双源 1.9.25。- **v1.9.24（2026-10-31 · 三方模组升版适配：枯木 2.5.8 / 归途 1.4.6 / 框架 5.6.2）**：
   - **检测**：check_mod_updates.js 检测 3 渠道更新（枯木 2.5.7→2.5.8、归途 1.4.5→1.4.6、框架 5.6.0→5.6.2），其余 9 渠道无更新；
   - **替换**：`--apply` 已替 game 内枯木（v2.5.4→v2.5.8）与归途（v1.4.3→v1.4.6）包；框架经 `check_framework_api.js` 核对 5.6.2（核心 8 项 API 全过，setup.MapleBirch/maplebirch.patch 缺失为非 CE 依赖）后替换 game 包并升 declOverride 5.6.2；
   - **适配定案**：枯木 vs 2.5.8 → 140 键零删失（resolve KEEP 127 + REVIEW 14 全实证存活，`investment.agreed` REMOVE 证伪保留、`ascension.recognized`/`shareholders.board` 可选链存活、featsBoosts 6 动态键 KEEP）；归途 vs 1.4.6 → `RBR.necklace.returned` 重构为 `returnedOnce`，适配器改键 + 新增 `nkl_retaken`（RBR.necklace.retaken）取回分支作弊项；

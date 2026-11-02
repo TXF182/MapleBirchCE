@@ -1,15 +1,22 @@
-/* 适配器：人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.880，doctor55555-55555/DolMod-）
-   功能（boot.json TweeReplacer 注入 61 条规则 + script 源码实证）：原创恋爱 NPC 阿电（注册进本体
+/* 适配器：人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.990，doctor55555-55555/DolMod-）
+   功能（boot.json TweeReplacer 注入规则 + script 源码实证）：原创恋爱 NPC 阿电（注册进本体
    恋爱 NPC 区，好感/信任/嫉妒/性欲四属性 + 告白/约会/周六打工/嫉妒暗线四阶段）＋生活质量系统：
-   电脑（部件商店/组装/性能分/应用商店/接零活/网课学习，computer.js）、银行（活期+理财+定期，
+   电脑（部件商店/组装/性能分/应用商店/接零活/网课学习，computer.js）、银行（活期+定期+理财，
    bank.js）、兔子/人鱼转化（transformation.js，阈值 30/60/90 三阶段）、海上平台、异国小吃摊、
-   贩卖机、钓鱼、阁楼广播、NG+（ngplus.js）。
-   ★模组自带作弊菜单（boot.json 规则 20：本体 Cheats passage 注入阿电控件走 setup.cheatAdian；
-   规则 36：作弊器 Other 页签后注入 MyFirstMod 专属页）——CE 适配器与官方页同写同一键，无冲突。
+   贩卖机、钓鱼、阁楼广播、NG+（ngplus.js）、伊洛（yiluo.js，0.1.990 新增 NPC）。
+   ★模组自带作弊菜单（boot.json 规则：本体 Cheats passage 注入阿电控件走 setup.cheatAdian；
+   作弊器 Other 页签后注入 MyFirstMod 专属页）——CE 适配器与官方页同写同一键，无冲突。
    官方中文名核对：README 标题「MyFirstMod · 人物附加与生活质量提升」+ zip 文件名「人物附加与
-   生活质量提升_v0.1.801.zip」+ boot.json name「人物附加与生活质量提升」三处一致 → 显示名用官方中文。
+   生活质量提升_v0.1.990.zip」+ boot.json name「人物附加与生活质量提升」三处一致 → 显示名用官方中文。
    键集：阿电状态 8（abilities 6 + values 2）+ 电脑 12（满配组合 1 + 全应用 1 + 学习 10）+
-   银行 1 + 转化 4 + 杂项 4（ability）+ NG+ 1 = 30 键。 */
+   银行 1 + 转化 4 + 杂项 4（ability）+ NG+ 1 + 伊洛 1（values）= 31 键。
+   ★0.1.880→0.1.990 升版核对（2026-11-02）：boot.json 59KB→109KB、目录模块化重组（moduel/script
+   按功能分目录）、新增塔科夫/gridtac 网格战斗/reversecombat 反向战斗/scavenge 拾荒/bunker 地堡/
+   cityhall 市政厅/inventory 背包合成/limbs 肢体/audio 音效等系统；CE 声明 30 键 resolve 全部 KEEP
+   （含 *_exam 动态键拼接存活，computer.js:508/524 V[key+"_exam"] 实证；game_indie AppCatalog 存活），
+   0 REMOVE；按需补 yiluo_holy 1 键；bank.fixedDeposits/holdings（数组/嵌套对象超出数值面）、
+   adian._freedomLevel（trust 派生瞬态，写 trust 即自动）、yiluo_carrying（瞬态）不补；
+   大系统作弊项另轮适配（未声明）。 */
 CHEAT_ADAPTERS["dolmod"] = {
 	detect: function () {
 		try {
@@ -28,7 +35,7 @@ CHEAT_ADAPTERS["dolmod"] = {
 	},
 	entry: {
 		modId: "dolmod",
-		modName: "人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.880）",
+		modName: "人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.990）",
 		tasks: [],
 		stages: [
 			/* 阿电表白状态机：四态字符串（adian-confession.twee:14 实证：未触发(空)/rejected 拒绝/friend 朋友/lovers 恋人；
@@ -137,7 +144,11 @@ CHEAT_ADAPTERS["dolmod"] = {
 			  note: "转化累积（transformation.js:165 实证）；30/60/90 三阈值；每日 -1 衰减；部件存 $transformationParts.mermaid" },
 			/* NG+ */
 			{ key: "dm_ngplus", name: "NG+ · 轮次", varPath: "ngplusCycle", type: "number", min: 0, max: 99,
-			  note: "二周目轮次计数（ngplus.js:28 实证，供 twee 读取；NG+ 触发生成 ngplusCarried 继承快照）；写 0=普通档" }
+			  note: "二周目轮次计数（ngplus.js:28 实证，供 twee 读取；NG+ 触发生成 ngplusCarried 继承快照）；写 0=普通档" },
+			/* 伊洛（0.1.990 新增 NPC，yiluo.js 实证）：触碰伊洛剧情授予圣化（yiluo.twee 置 $yiluo_holy=1）；
+			   圣化后兽类遭遇战免击/祝福（yiluo.js:105/128）——carrying 为瞬态不作弊 */
+			{ key: "dm_yiluo_holy", name: "伊洛 · 圣化", varPath: "yiluo_holy", type: "number", min: 0, max: 1,
+			  note: "圣化授予（yiluo.js:73 实证；:76 ensure 兜底 0）；写 1=圣化（兽类敌人免击 yiluo.js:105、圣化祝福 :128 实证），写 0=未圣化（触碰剧情可再触发）" }
 		]
 		}
 	};

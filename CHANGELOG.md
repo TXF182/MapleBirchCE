@@ -2,6 +2,53 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.27（2026-11-02 · 阶段页自定义数值汉化 + README 版本同步）
+
+**需求**：用户实测「阶段」页角色数值区出现两个英文标签 `conviction`/`doubt`（其余均为中文），要求汉化；并自查修复 1.9.26 遗留的 README 版本引用未同步。
+
+### ① 汉化（01-core.js statDefsFor）
+
+- 定位：阶段页数值行 = `STAT_DEFS` 7 项（爱意/情欲/支配/服从/信任/警戒/嫉妒）+ 框架 `MB.npc.customStats` 注册属性；customStats 行 label 直显 key（`{ key: k, label: k }`），conviction/doubt 是罗文等角色恋爱线注册的自定义属性 → 显示英文
+- 修复：新增 `CUSTOM_STAT_CN` 映射（`conviction`→**执念** / `doubt`→**疑虑**），`statDefsFor` label 走 `CUSTOM_STAT_CN[k] || k`；未收录属性保持 key 直显兜底（不猜义）
+- 顺带：`09-exports.js` 导出 `statDefsFor`（测试与外部调用可用）；测试 §5a 新增 3 条断言（conviction→执念 / doubt→疑虑 / affection 兜底直显）
+
+### ② README 版本同步（1.9.25 → 1.9.27）
+
+- 1.9.26 轮（DeepSeek）升版后未同步 README：:7 当前版本、:87 适配器一览标题、:134 验证段均仍写 1.9.25——本轮修正为 1.9.27
+
+### ③ 验证与交付
+
+- 全链 6 步（build/syntax/smoke/regression/E2E/gender）+ 打包 verifier 4/4 + SHA256 + 装 game
+- 版本双源 1.9.27（src/01-core.js + boot.json）
+
+## v1.9.26（2026-11-01 · 全局页新增特殊服装 + 食谱一键解锁）
+
+**需求**：游戏中有需要条件才能获得的特殊服装与食谱，全局页加两个一键按钮（最上面），解锁时同步补足对应故事条件（服装合法获得，非凭空出现）。
+
+### ① 特殊服装（setup.specialClothes，135 件款式）
+
+- 遍历 `setup.specialClothes`（135 件，分属万圣节/圣诞/情人节/神殿/坏结局/历史/外国校服/妓院/厨师/舞蹈/魅魔/蝴蝶/狐神等约 30 套装）
+- 解锁标志 `V.specialClothes[i].unlocked = 3`（DoL 原版"满足要求解锁"语义，line 142195 specialClothesUpdate）
+- 补足对应套装条件（`SPECIAL_CLOTHES_SET_COND` 44 套装映射 + `SPECIAL_CLOTHES_ITEM_COND` 3 单件，从 `setup.specialClothesSets` 实证提取）：如 witch 补 `tentacletrait=1`、vampire 补 `syndromekylar=1`、神殿补 `temple_rank="monk"`、坏结局补各事件标记等
+- 三种补足 op：`set`（标量）/ `push`（数组去重）/ `ensureField`（确保对象+设子键，对象 value 合并不覆盖兄弟键，如 vintage.paintings 不丢其他画）
+- 日期条件（halloween/valentines/pumpkin）不补足——unlocked=3 已解锁，日期随游戏推进
+
+### ② 食谱（setup.foodstuff，105 个）
+
+- 遍历 `setup.foodstuff`，对有 `recipe.ingredients` 非空的（105 个）设 `V.foodstuff[key].knows_recipe = true`（DoL 原版学会标志，line 294915）
+- 宿主缺失自动建壳 `{amount: 0}` 再设标志
+
+### ③ 按钮绑定（08-npc-traits.js renderGlobal）
+
+- actions 区最上面加 `bc1`（一键解锁所有特殊服装（含对应故事））+ `bc2`（一键解锁所有食谱），在 b1-b4 之前
+- setStatus 反馈：特殊服装"N 件已解锁（补足对应故事 M 项）"/ 食谱"N 个已解锁"
+
+### ④ 验证与交付
+
+- 全链 6 步全绿（build/syntax/smoke/regression/E2E/gender ALL PASSED）+ 打包 verifier 4/4、zip 正斜杠、SHA256=42CAD052...
+- 版本双源 1.9.26（src/01-core.js + boot.json）；已装消费端 game\
+- real_smoke 受消费端脚本 PowerShell arg-splitting 工具局限未通过（非 CE 代码问题，AGENTS 约束不改消费端脚本）
+
 ## v1.9.25（2026-10-31 · 升版交付后自查优化：补归途 1.4.6 项链回收线作弊项）
 
 **自查收敛（重读 audit 全文 + 源码实证，非摘要转述）**：`_audit_rv146.txt` [2] 新增候选 175 条绝大多数为父级/已覆盖子键误报（RobinTemple.* / TempleDuties.* / TempleChoir.* / RBR.necklace.* 已声明）；`_audit_dw258.txt` [2] 756 条候选多为父级根/瞬态。真未声明且玩家会作弊收敛为归途项链线；dw258 新增 Robin 清算战斗线（Combat\Robin.twee）所用 `RobinExpansion.victories`（gte 4 触发清算）/`care_fund`（gte 10 支援）实证**已在**枯木适配器声明（04a-04-deadwood.js:191/193）→ 无需补。

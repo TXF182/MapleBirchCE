@@ -391,6 +391,7 @@
 				pendingPreconds: pendingPreconds,
 				precondDone: precondDone,
 				fillStats: fillStats,
+				statDefsFor: statDefsFor,
 				globalFill: globalFill,
 				globalRomance: globalRomance,
 				globalTransform: globalTransform,
