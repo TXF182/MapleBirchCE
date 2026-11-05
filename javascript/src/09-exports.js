@@ -169,6 +169,16 @@
 
 		var header = el("div", "mce-header");
 		header.appendChild(el("span", "mce-title", "剧情条件解锁面板 v" + MCE_VERSION));
+		/* v1.9.29 主题切换按钮（✦ 星星图标）：黑金 ⇄ 星空蓝 循环，持久化 localStorage */
+		var themeBtn = el("button", "mce-theme-btn", "✦");
+		themeBtn.type = "button";
+		themeBtn.title = "切换主题：黑金 / 星空蓝";
+		themeBtn.addEventListener("click", function () {
+			var next = getTheme() === "starry" ? "gold" : "starry";
+			setTheme(next);
+			setStatus(next === "starry" ? "已切换：星空蓝 ✦ 愿星光指引你" : "已切换：黑金", "mce-ok");
+		});
+		header.appendChild(themeBtn);
 		/* v1.8.12 错误收集红点（数量徽标，点击展开错误列表） */
 		var errBtn = el("button", "mce-errbtn", "0");
 		errBtn.type = "button";
@@ -223,6 +233,9 @@
 		mbCEErrBox = errBox;
 		mbCEErrRows = errRows;
 		mbCEUpdateErrBadge();
+
+		/* v1.9.29 主题恢复：mbCEUiLoad 已把持久化主题读入 state，ensureDom 后应用类（silent 不重复写） */
+		setTheme(mbCEUiState.theme === "starry" ? "starry" : "gold", true);
 
 		closeBtn.addEventListener("click", close);
 		tabs.addEventListener("click", function (e) {
@@ -387,6 +400,8 @@
 				/* v1.9.23 锚定触发：地点判定 / 确认条触发 / 元数据 / 前置提示 */
 				mbCEOnPassageEnd: mbCEOnPassageEnd,
 				startAnchoredReplay: startAnchoredReplay,
+				/* v1.9.30 剧情直达触发：从场景 def 直接开播（跳过地点判定/确认条/队列） */
+				directTriggerScene: directTriggerScene,
 				sceneAnchorMeta: sceneAnchorMeta,
 				pendingPreconds: pendingPreconds,
 				precondDone: precondDone,
@@ -395,6 +410,9 @@
 				globalFill: globalFill,
 				globalRomance: globalRomance,
 				globalTransform: globalTransform,
+				/* v1.9.28：全局页批量解锁（供外部自动化/测试调用，返回解锁计数） */
+				globalUnlockClothes: globalUnlockClothes,
+				globalUnlockRecipes: globalUnlockRecipes,
 				/* v1.8.8 庄园自动维护（学 AutoClean 0.1.5 原功能） */
 				mcFeedAvery: mcFeedAvery,
 				mcMaintainFarm: mcMaintainFarm,
@@ -439,6 +457,8 @@
 				isFavTrait: isFavTrait,
 				toggleFavTrait: toggleFavTrait,
 				VANILLA_TRAITS_RAW: VANILLA_TRAITS_RAW,
+				/* v1.9.28：特质分类中文组标题映射（与 RAW 配套，供外部校验覆盖完整性） */
+				TRAIT_ZH_CAT: TRAIT_ZH_CAT,
 				/* v1.9.15 数值固定（07f-lock.js）：锁定向/强制写回/取消 */
 				mbCELockSet: mbCELockSet,
 				mbCELockRemove: mbCELockRemove,
@@ -475,6 +495,11 @@
 				mbCEUiSave: mbCEUiSave,
 				mbCEUiLoad: mbCEUiLoad,
 				mbCEUiCollapsed: mbCEUiCollapsed,
+				/* v1.9.29 双主题：setTheme 切主题（starry/gold，自动持久化）；showAnchorPrompt 供外部/测试触发锚定确认条 */
+				setTheme: setTheme,
+				getTheme: getTheme,
+				showAnchorPrompt: showAnchorPrompt,
+				hideAnchorPrompt: hideAnchorPrompt,
 				/* v1.8.12 功能12：适配器工作流审计 */
 				auditAdapters: auditAdapters
 			};

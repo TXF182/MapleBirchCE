@@ -144,7 +144,7 @@ var SCENE_LOCATIONS = {
 		"market": "市场", "meadow": "草地", "mer_pier": "美人鱼码头", "museum": "博物馆", "night_monster_lair": "夜魔巢穴",
 		"oak": "橡树", "pirate_ship": "海盗船", "pool": "泳池", "promenade": "海滨大道", "riding_school": "马术学校",
 		"sea": "海", "spa": "水疗馆", "strip_club": "脱衣舞俱乐部", "studio": "工作室", "tower": "塔", "wolf_cave": "狼穴",
-		"banner": "旗地", "blitz": "闪电区", "old_temple": "旧神殿"
+		"banner": "旗地", "blitz": "闪电区"
 	};
 	function locLabel(loc) { return LOCATION_LABELS[loc] || loc || "（未标注）"; }
 	/* 场景 key → 锚定元数据（表内命中；旧队列项无元数据 → null，保持旧段落跳转语义） */
@@ -280,12 +280,18 @@ var SCENE_LOCATIONS = {
 			   恢复快照会把 used 还原为 false（队列项复活 → 确认条循环弹；实机 F12 铁证：live=true / frozen=false）。
 			   先置 used=true 使冻结快照含 true，恢复后保持 true，配合 mbCEOnPassageEnd 残留清理闭环。 */
 			P.used = true;
-			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("freezePlayerStats"); } } catch (e) {}
+			/* v1.9.30-实机修复：直达触发（P.direct）不冻结数值——直达语义 = 剧情真实生效
+			   （剧情 effects 产生的数值变化播放后保留，"走完正常发展"），冻结仅用于锚定/固定触发的
+			   纯观看重放（unfreeze 用冻结快照 strict-replace 恢复，会把剧情效果一并抹掉）。 */
+			if (!P.direct) {
+				try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("freezePlayerStats"); } } catch (e) {}
+			}
 			V.replayScene = {
 				name: P.name,
 				startPassage: entry,
 				passages: Array.isArray(P.passages) ? P.passages.slice() : [],
-				exitpassage: currentPassageName()
+				exitpassage: currentPassageName(),
+				mbCE_direct: !!P.direct
 			};
 			V.mbCE_replayOnce = true;  /* 本重放由锚定触发启动：Scene Viewer passages 结束后走 default 退出，不再重播 */
 			V.mbCE_replayPending = (entry === "Scene Viewer passages");
@@ -301,6 +307,33 @@ var SCENE_LOCATIONS = {
 			return { ok: true, message: "已开始触发「" + P.name + "」" };
 		} catch (e) { return { ok: false, message: "触发失败：" + (e && e.message ? e.message : e) }; }
 	}
+	/* v1.9.30 剧情直达触发：从场景 def 构造临时 P 并直接开始锚定重放。
+	   与「锚定」的区别：跳过地点判定/确认条/队列——点即触发；不写 mbCE_queue，
+	   不干扰锚定状态机（cleanupUsedPins 只清队列 used 项，直达无队列项无操作）；
+	   播完走 startAnchoredReplay 既有出口清理（回原位 + 记「已完成 ✓」），即"走完正常发展"。 */
+	function directTriggerScene(key) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, message: "存档不可用，无法直达" }; }
+			if (V.replayScene) { return { ok: false, message: "已有剧情播放中，请先结束当前播放" }; }
+			var gd = typeof getScenesDefs === "function" ? getScenesDefs() : null;
+			var defs = gd && gd.defs ? gd.defs : gd; /* getScenesDefs 返回 {defs,live} 包装，兼容裸对象 */
+			var def = defs && defs[key];
+			if (!def) { return { ok: false, message: "未找到剧情「" + key + "」（未注册或未解析）" }; }
+			if (!def.startPassage) { return { ok: false, message: "「" + (def.name || key) + "」无入口段落，无法直达" }; }
+			var P = {
+				key: key,
+				name: def.name || key,
+				startPassage: def.startPassage,
+				passages: Array.isArray(def.passages) ? def.passages.slice() : [],
+				manualVariableChanges: def.manualVariableChanges || null,
+				direct: true /* v1.9.30-实机修复：直达 = 不冻结数值 + 不走白名单中断（onPassageOverride mbCE_direct 分支） */
+			};
+			var r = startAnchoredReplay(P);
+			if (!r.ok) { return r; }
+			return { ok: true, message: r.message, scene: P };
+		} catch (e) { return { ok: false, message: "直达失败：" + (e && e.message ? e.message : e) }; }
+	}
 	/* 挂载确认条（页面顶部，非阻断式） */
 	function showAnchorPrompt(P, meta) {
 		try {
@@ -308,7 +341,9 @@ var SCENE_LOCATIONS = {
 			if (mbCE_anchorPromptEl && mbCE_anchorPromptEl.parentNode) { mbCE_anchorPromptEl.parentNode.removeChild(mbCE_anchorPromptEl); }
 			var box = document.createElement("div");
 			box.className = "mce-anchor-prompt";
-			box.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#f5f0e0;color:#3a2e1c;border-bottom:2px solid #b89b5e;padding:8px 12px;font-size:14px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;flex-wrap:wrap;align-items:center;gap:8px;";
+			/* v1.9.29 确认条 token 化：样式全部移入 07a-shell CSS 类（此前内联 #f5f0e0 米色/绿/灰，与面板黑金脱节；
+			   现走 --mce-gold-* token，换主题自动跟随） */
+			if (getTheme() === "starry") { box.classList.add("mce-theme-starry"); }
 			var txt = document.createElement("span");
 			var timeTxt = meta.timeNote ? "｜时间 " + meta.timeNote : "";
 			var pre = pendingPreconds(P.key);
@@ -321,7 +356,7 @@ var SCENE_LOCATIONS = {
 			var go = document.createElement("button");
 			go.type = "button";
 			go.textContent = "立即触发★";
-			go.style.cssText = "margin-left:auto;background:#7a9b4f;color:#fff;border:0;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;";
+			go.className = "mce-anchor-go";
 			go.addEventListener("click", function () {
 				var r = startAnchoredReplay(P);
 				if (!r.ok) { setStatus(r.message, "mce-err"); }
@@ -330,7 +365,6 @@ var SCENE_LOCATIONS = {
 			var skip = document.createElement("button");
 			skip.type = "button";
 			skip.textContent = "暂不触发";
-			skip.style.cssText = "background:#888;color:#fff;border:0;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;";
 			skip.addEventListener("click", function () {
 				mbCE_anchorCooldown[P.key] = Date.now(); /* 60s 冷却：同地点不再反复弹，保留队列待下次（用户拍板 1h→60s） */
 				hideAnchorPrompt();
@@ -863,9 +897,12 @@ var SCENE_LOCATIONS = {
 	   skipUnfreeze=true 时不调 unfreeze（原版手动重放场景不干预原版流程）。 */
 	function mbCEClearReplay(skipUnfreeze) {
 		var Vr = getV();
+		/* v1.9.30-实机修复：直达触发未冻结数值（startAnchoredReplay 对 P.direct 跳过 freeze），
+		   清理时若再 unfreeze 会误恢复冻结快照/报错 → 仅对冻结过的重放（非 direct）执行 unfreeze。 */
+		var wasDirect = !!(Vr && Vr.replayScene && Vr.replayScene.mbCE_direct);
 		try { Vr.replayScene = undefined; } catch (e) { Vr.replayScene = undefined; }
 		try { Vr.mbCE_replayOnce = undefined; Vr.mbCE_replayPending = undefined; } catch (e) {}
-		if (!skipUnfreeze) {
+		if (!skipUnfreeze && !wasDirect) {
 			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
 		}
 	}
@@ -909,6 +946,65 @@ var SCENE_LOCATIONS = {
 				var exitDest = V.replayScene.exitpassage || "";
 				var inChain = Array.isArray(rpExit) && rpExit.indexOf(dest) !== -1;
 				var isEndUi = (dest === "Scene Viewer End" || dest === "Scene Viewer passages" || dest === "Scene Viewer End 2");
+				/* v1.9.30-实机修复：直达触发（mbCE_direct）不走白名单中断——
+				   直达语义 = 无条件开播、剧情自然流转、结束自然回主循环。
+				   实机 bug 根因：凯拉尔绑架等大剧情不在场景注册表显式 passages（getScenesDefs 走
+				   recover 兜底，白名单残缺），玩家选任意选项 → dest 不在白名单 → 下方「链外出口」
+				   判定/原版 redirect（DoL L31697：!passages.includes(dest) → "Scene Viewer End"）
+				   把剧情分支段当出口 → 清 replayScene + 改 dest 回触发点 → 「选选项跳回原地点」。
+				   修复：① 剧情内分支段动态并入白名单（redirect 判 dest ∈ passages → 放行，剧情不打断）；
+				   ② 剧情出口特征（当前段源码含 <<endevent>>/<<badEndTrackingEnd>>，玩家点 Next 跳普通段）
+				   → 剧情已结束 → 清理重放状态但保留 dest（剧情自身引导回主循环 = 走完正常发展）。 */
+				if (V.replayScene.mbCE_direct) {
+					if (dest === "Scene Viewer" || isEndUi) {
+						/* 直达不应落到场景查看器 UI（原版 redirect 兜底）：清理 + 回原位 */
+						cleanupUsedPins();
+						mbCEClearReplay();
+						if (exitDest && passageArgs) { passageArgs.name = exitDest; }
+						return;
+					}
+					var curSrc = "";
+					try {
+						if (typeof State !== "undefined" && State && typeof State.passage === "string") {
+							var curTpl = (typeof Story !== "undefined" && Story && typeof Story.get === "function") ? Story.get(State.passage) : null;
+							if (curTpl && (curTpl.source || curTpl.text)) { curSrc = curTpl.source || curTpl.text; }
+						}
+					} catch (e) {}
+					if (curSrc && (curSrc.indexOf("<<endevent") !== -1 || curSrc.indexOf("<<badEndTrackingEnd") !== -1) &&
+						!(Array.isArray(rpExit) && rpExit.indexOf(dest) !== -1)) {
+						/* 出口段点击（当前段源码含 <<endevent>>/<<badEndTrackingEnd>> = 剧情/事件结束信号）：
+						   剧情已结束 → 清理重放状态，保留 dest 让剧情自然回主循环（走完正常发展）。
+						   v1.9.30.002-实机修复：移除「dest !== startPassage」排除——学校检查剧情
+						   （SchoolInspection Breast/Penis/Pussy）出口段 "Breast Inspection End" 含 <<endevent>>
+						   且 Next 回 startPassage "Science Lesson"（原版场景回环设计，Science Lesson ∉ 白名单），
+						   旧排除把它当「剧情未结束」→ replayScene 残留 → 剧情页全部「直达触发」按钮
+						   永久禁用（title 正在播放剧情）。现改为：出口段一律判定剧情结束——
+						   dest 仍在本剧情白名单内（出口段通往剧情内段 = 中间事件结束/剧情回环，
+						   如 19.12a 凯拉尔 Release 4→Abduction）→ 由 rpExit 排除保护，不清理放行；
+						   dest=startPassage（∉ 白名单）/exitDest 触发点/剧情外段 → 清理，玩家随 dest 落主循环。
+						   v1.9.30.003-迭代优化：同时移除「dest !== exitDest」排除——出口段 Next 回触发点
+						   （玩家在 Danube Street 触发凯拉尔绑架直达，出口段 Release 4 回 Danube Street=exitDest；
+						   全量实证 110 场景/16087 段：含 endevent 链内段 Next 离链均为主循环段/触发点，语义即剧情结束）
+						   旧排除同样制造残留 → 全部直达按钮禁用；出口段一律以「当前段含结束信号」为准，
+						   与下方 dest===exitDest 清理分支共同覆盖所有返回触发点路径（对齐非 direct 分支 L1012 语义）。 */
+						cleanupUsedPins();
+						mbCEClearReplay();
+						return;
+					}
+					/* v1.9.30.003-迭代优化：玩家回到触发点（exitpassage）——剧情退出（中途返回/出口段回原位）
+					   → 清理重放状态（对齐非 direct 分支对 exitpassage 的清理语义，防残留致按钮永久禁用）；
+					   必须在并入白名单之前判定（exitDest 是触发时所在段，非剧情链段，不应被并入）。 */
+					if (dest === exitDest) {
+						cleanupUsedPins();
+						mbCEClearReplay();
+						return;
+					}
+					/* 剧情分支段：并入白名单防原版 redirect 改写为 Scene Viewer End，放行 */
+					if (Array.isArray(rpExit) && rpExit.indexOf(dest) === -1) {
+						try { rpExit.push(dest); } catch (e) {}
+					}
+					return;
+				}
 				if (dest === "Scene Viewer" || (!isEndUi && dest !== "Farm Work" && dest !== V.replayScene.startPassage && !inChain && dest !== exitDest)) {
 					cleanupUsedPins(); /* v1.9.23：统一清理（解锁 + 已完成记录 + 移除） */
 					mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */

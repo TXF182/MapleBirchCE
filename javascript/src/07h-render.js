@@ -192,6 +192,7 @@
 			return block;
 		}
 		function renderSceneCluster(container, keys2, defs) {
+			var replaying = !!(getV() && getV().replayScene); /* v1.9.30 直达触发：播放中禁用 */
 			var defsSub = {};
 			keys2.forEach(function (k) { defsSub[k] = defs[k]; });
 			var cluster = listSceneLines(defsSub);
@@ -291,6 +292,26 @@
 						})(it, st);
 						sh.appendChild(btn);
 					}
+					/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
+					var dtB = el("button", "mce-btn", "直达触发");
+					dtB.type = "button";
+					if (replaying) {
+						dtB.disabled = true;
+						dtB.title = "正在播放剧情，请先结束当前播放";
+					} else if (!it.def.startPassage) {
+						dtB.disabled = true;
+						dtB.title = "该剧情无入口段落，无法直达";
+					} else {
+						dtB.title = "直达触发此剧情：立即开始播放，播完自动回原位并标「已完成 ✓」（不改写剧情达成标记）";
+					}
+					(function (it2) {
+						dtB.addEventListener("click", function () {
+							var r = directTriggerScene(it2.key);
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(dtB);
 					srow.appendChild(sh);
 					var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
 					srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
@@ -368,6 +389,26 @@
 						})(it);
 						sh.appendChild(b2);
 					}
+					/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
+					var dtS = el("button", "mce-btn", "直达触发");
+					dtS.type = "button";
+					if (replaying) {
+						dtS.disabled = true;
+						dtS.title = "正在播放剧情，请先结束当前播放";
+					} else if (!it.def.startPassage) {
+						dtS.disabled = true;
+						dtS.title = "该剧情无入口段落，无法直达";
+					} else {
+						dtS.title = "直达触发此剧情：立即开始播放，播完自动回原位并标「已完成 ✓」（不改写剧情达成标记）";
+					}
+					(function (it2) {
+						dtS.addEventListener("click", function () {
+							var r = directTriggerScene(it2.key);
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(dtS);
 					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
 					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
 					srow.appendChild(sh);

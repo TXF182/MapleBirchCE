@@ -8,6 +8,11 @@ function safeGetObj(root, path) {
 	}
 	return cur;
 }
+/* v1.9.28：traitEval 编译函数缓存（键 = 正则替换链归一化后的 JS 代码；有界 512，超出整体清空重建）。
+   同一表达式只 new Function 一次；判定函数每次调用实时读 V/C（无陈旧状态）。
+   注意：VANILLA_TRAITS_CACHE 只缓存「编译后的特质清单」，不含判定函数，两者勿混。 */
+var TRAIT_EVAL_FN_CACHE = Object.create(null);
+var TRAIT_EVAL_FN_CACHE_N = 0;
 function traitEval(V, C, expr) {
 	try {
 		if (!expr) { return false; }
@@ -28,7 +33,13 @@ function traitEval(V, C, expr) {
 			if (name === "safeGet" || name === "globalThis") { return m0; }
 			return 'globalThis["' + name + '"](';
 		});
-		var fn = new Function("V", "C", "safeGet", "return (" + js + ");");
+		var fn = TRAIT_EVAL_FN_CACHE[js];
+		if (!fn) {
+			fn = new Function("V", "C", "safeGet", "return (" + js + ");");
+			if (TRAIT_EVAL_FN_CACHE_N >= 512) { TRAIT_EVAL_FN_CACHE = Object.create(null); TRAIT_EVAL_FN_CACHE_N = 0; }
+			TRAIT_EVAL_FN_CACHE[js] = fn;
+			TRAIT_EVAL_FN_CACHE_N += 1;
+		}
 		return !!fn(V, C, safeGetObj);
 	} catch (e) { return false; }
 }

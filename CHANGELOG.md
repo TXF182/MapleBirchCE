@@ -2,6 +2,190 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.30.003（2026-11-06 · 迭代优化：出口段/返回触发点统一清理，直达按钮防残留全路径闭环）
+
+**迭代方向**：v1.9.30.002 修复后按用户要求迭代优化（不跑浏览器路线）。全量实证后堵住 v1.9.30.002 遗留的「出口段/分支段 Next 回触发点（exitDest）→ replayScene 残留 → 直达按钮永久禁用」同类洞。
+
+### 实证（回归原始材料，非推断）
+
+- **全量扫描**：解析原版 HTML（64.5MB / 16087 段 / 110 个场景注册 def），提取全部含 `<<endevent>>`/`<<badEndTrackingEnd>>` 的剧情链内段及其 Next 目标，交叉白名单审计：
+  - **无中间段误清理**：白名单内中间段含结束信号的案例，Next 目标要么在白名单内（`rpExit` 保护放行 ✓），要么离开剧情链去主循环段/触发点（事件结束 → 清理语义正确 ✓，如 Prison 系列 → Prison Walkway、Tutorial → Bedroom、Avery 公园分支 → Park）
+  - **确认残留洞**：v1.9.30.002 的 (b) 条件仍含 `dest !== exitDest` 排除——出口段 Next 回触发点（如玩家在 Danube Street 触发凯拉尔绑架直达，出口段 "Kylar Abduction Release 4" Next 回 Danube Street = exitDest）被排除 → 不清理 → 残留。且该分支与**非 direct 分支对 exitpassage 一律清理**（L1012）语义不一致
+- 边界复核：`mbCEClearReplay` 清理键（replayScene / mbCE_replayOnce / mbCE_replayPending / mbCE_visited）完整；直达（mbCE_direct）不误 unfreeze（wasDirect 判定）
+
+### 修复（07f-pins.js onPassageOverride mbCE_direct 分支）
+
+- **(b) 出口判定同步移除 `dest !== exitDest` 排除**：当前段含 `<<endevent>>`/`<<badEndTrackingEnd>>` = 剧情结束信号 → **一律清理重放 + 保留 dest**（白名单内目标仍由 `rpExit` 保护）
+- **新增 `dest === exitDest` 清理分支**（在「剧情分支段并入白名单」之前）：玩家回到触发点（中途返回 / 出口段回原位）→ 清理重放，**exitDest 不并入白名单**（非剧情链段）；对齐非 direct 分支 L1012 语义，覆盖「无结束信号段 Next 回触发点」路径
+
+### 测试新增（smoke_dom.js，19.14b 之后）
+
+- **19.15**：出口段（含 endevent+badEndTrackingEnd）Next 回 exitDest（Room）→ replayScene 清理 + dest 保留
+- **19.16**：分支段（无 endevent）Next 回 exitDest（Room）→ replayScene 清理 + dest 保留（须先于并入白名单判定）
+
+### 验证
+
+全链 6 步全绿（build/syntax/smoke/回归/E2E/性别集成）+ 打包 verifier 4/4 + SHA 回读；不跑浏览器/moli（用户本轮明确「不用浏览器」）。
+
+## v1.9.30.002（2026-11-06 · 直达播完残留修复：出口段 Next 回 startPassage 也清理重放）
+
+**用户实机反馈**：剧情明明已播完（角色跟随剧情地点走、没跳回原地点 ✓），但剧情页所有场景行「直达触发」按钮仍显示「正在播放剧情，请先结束当前播放」并禁用，其他直达无法使用。
+
+### 根因（原版源码 + 注册表实证，非推断）
+
+- **原版注册表实证**（DoL L280002）：`SchoolInspectionBreast`（学校检查-胸部）`{ startPassage:"Science Lesson", passages:[…"Breast Inspection End"], … }`——startPassage 为 "Science Lesson" 且 **∉ passages 白名单**；Penis/Pussy 同构
+- **出口段源码实证**（tw-passagedata pid=9654）：`Breast Inspection End` 含 `<<endevent>>`（剧情结束信号），段尾 `<<link [[Next|Science Lesson]]>><</link>>`——**出口段 Next 回 startPassage**
+- **旧出口判定缺陷**：07f-pins.js (b) 分支条件含 `dest !== V.replayScene.startPassage`——学校检查出口段 Next 回 "Science Lesson"（= startPassage）被该排除命中 → 不清理 → `V.replayScene` 残留 → 07h-render 直达按钮 `replaying = !!V.replayScene` 恒真 → 全部直达永久禁用
+- **实证安全**：凯拉尔绑架中间段（Kylar Abduction Intro / Abduction）**无** `<<endevent>>`（不误清理）；出口段 Release 4 含 endevent+badEnd 且 Next 到 Danube Street（白名单外）→ 原有清理路径不受影响；起点段 Science Lesson 虽含 endevent，但其 Next 到剧情内段（Breast Inspection ∈ 白名单）→ 由 `rpExit` 白名单排除保护，不误清理
+
+### 修复（07f-pins.js onPassageOverride mbCE_direct 出口判定）
+
+- **(b) 出口判定移除 `dest !== V.replayScene.startPassage` 排除**：当前段含 `<<endevent>>`/`<<badEndTrackingEnd>>` 即剧情/事件结束信号 → **一律判定剧情结束**：
+  - `dest` 仍在本剧情白名单内（出口段通往剧情内段 = 中间事件结束/剧情回环，如凯拉尔 Release 4→Abduction）→ 保留 `rpExit` 排除保护，不清理放行
+  - `dest` = startPassage（∉ 白名单，如 Science Lesson）或剧情外段（如 Danube Street）→ **清理重放 + 保留 dest**（角色随 dest 落主循环，不回触发点）
+- 保留 `dest !== exitDest` 防御（dest=触发时段落不清理）
+
+### 版本与验证
+
+- 版本双源升 **1.9.30.002**（`01-core.js` MCE_VERSION + `boot.json` version；延续 1.9.30.001 防缓存授权）
+- smoke_dom.js 新增 **19.14 / 19.14b 断言**（共 3 条）：学校检查出口段（`<<endevent>>`，无 badEnd）Next 回 startPassage "Science Lesson" → replayScene 清理 + dest 保留（落课堂主循环）+ 重渲染后「直达触发」按钮恢复可用（title 非「正在播放剧情」）；19.12a（出口段 Next 白名单内 → 不清理）回归保持
+- 全链 6 步 + 打包 + 消费端 SHA MATCH + moli 冒烟
+
+## v1.9.30.001（2026-11-06 · 直达语义确认 + 出口判定迭代优化 + 升版防缓存）
+
+**用户确认诉求**：① 确认「直达触发后角色跟随剧情地点走，而不是直接回到触发时所在的地方（牛津街）」语义成立；② 迭代优化；③ 版本号加 `0.001`（防浏览器识别到相同版本号走缓存）。
+
+### ① 语义确认（基于原版源码实证，非推断）
+
+- **事件顺序实证**（DoL L31678-31700）：原版 passage 重路由函数 `checkPassages` 内 **先** `$.event.trigger(":passageoverride", passageArgs)`（L31680-31686，CE 钩子此刻执行、看到**原始 dest**）→ **后**才跑 Scene viewer redirect 白名单判据 `if (!V.replayScene.passages.includes(passageArgs.name)) { return "Scene Viewer End"; }`（L31689-31700）——**CE 钩子先于原版判据执行**，CE 把分支段并入白名单后原版判据命中放行 → 修复机制顺序正确
+- **出口特征实证**：`<<badEndTrackingEnd`（HTML 转义存储 `&lt;&lt;badEndTrackingEnd`）全游戏 **62 处** = DoL 场景出口标准信号；凯拉尔绑架出口段三连（Release 4 / Free Rescue Thank / Free Reassure）统一 `<<link [[Next|Danube Street]]>><<endevent>><<badEndTrackingEnd ...>><</link>>`；运行时 `Story.get().source` 为 unescape 后原始 `<<...>>` → CE 出口检测可靠
+- **结论**：直达 → 剧情内分支段动态并入白名单逐段放行（角色在剧情地点流转）→ 出口段命中 endevent/badEndTrackingEnd 特征 → 清理重放状态但**保留 dest**（如 Danube Street）→ 角色在剧情结束位置继续主循环，**不回触发时所在地点（牛津街）**
+
+### ② 迭代优化（07f-pins.js onPassageOverride 出口判定）
+
+- (b) 出口判定新增条件：`dest` 仍在本剧情白名单内（`rpExit.indexOf(dest) !== -1`）→ **不清理**、放行让剧情继续流转——覆盖**多段出口剧情**（出口段也通往剧情内段）场景，避免过早清理重放导致后续分支段失去白名单保护
+- 语义对齐：出口段 Next 到剧情外（主循环地点，如 Danube Street）→ 清理 + 保留 dest（走完正常发展）；Next 到剧情内段 → 剧情继续（走完才正常发展）
+
+### ③ 版本双源升 1.9.30.001
+
+- `javascript/src/01-core.js` MCE_VERSION + `boot.json` version 双源同步为 `1.9.30.001`（追加段号，防浏览器对相同版本号走缓存识别）
+
+### ④ 验证
+
+- smoke_dom.js 新增 **19.12a 断言**（2 条）：出口段（当前段源码含 `<<endevent>>`）Next 指向剧情内段（白名单内 "Abduction"）→ replayScene 保留（剧情继续，不误判出口）+ dest 未改写；smoke 19 段扩至 24 断言
+- 全链 6 步全绿（build → syntax → smoke → 回归 → E2E → 性别集成）+ pack.ps1 打包（新 SHA）+ 复制消费端 SHA MATCH
+
+## v1.9.30（2026-11-05 · 剧情直达触发：每场景行「直达触发」按钮）
+
+**需求**：好友反馈「能不能直达某剧情，比如直达凯拉尔绑架剧情」，用户确认「走完这段剧情就正常发展」（不注入额外状态干预）。
+
+### ① 直达触发引擎（复用锚定播放链路）
+
+- 新封装 `directTriggerScene(key)`（07f-pins.js）：从场景注册表 def 构造临时 P（startPassage/passages/manualVariableChanges）→ 调 `startAnchoredReplay(P)` 直接开播——**跳过地点判定/确认条/锚定队列**，点即触发
+- 「走完正常发展」= 既有 replayScene 出口清理语义：播完自动回原位（exitpassage）+ 记「已完成 ✓」（mbCE_completedScenes），不写 scenePassages 达成标记、不注入额外状态（凯拉尔绑架入口段自带 `<<kylar_abduction_init>>` 自初始化，无需 CE 预写 kylar 数值）
+- 守卫：播放中拒绝（防重入，复用既有 V.replayScene 检查）；无入口段落/未注册键拒绝并提示；**不写 mbCE_queue——零触碰 #165 锚定状态机**
+
+### ② 剧情页 UI
+
+- 07h-render.js 两处加「直达触发」按钮（剧情线阶段行 + 独立场景行，与锚定/一键完成并列，常显）：播放中禁用（title「正在播放剧情，请先结束当前播放」）；无入口段落禁用（title 提示）；已达成/已完成场景可再直达（重看剧情）
+
+### ③ api 导出 + 版本双源
+
+- 09-exports.js 追加 `directTriggerScene`；版本双源 1.9.30（src/01-core.js + boot.json）
+
+### ④ 验证
+
+- smoke_dom.js 新增第 19 段（13 断言）：api 直达凯拉尔绑架（KylarAbduction → 入口 "Kylar Abduction Intro"）→ Engine.play 调用 + replayScene 设置（exitpassage 回原位）→ 防重入 → 无入口拒绝 → 播放结束可重看 → UI 按钮存在/点击触发/播放中禁用/结束恢复
+- test_mce.js 新增 53 段（api 构造与守卫断言；环境无真实引擎，mock `global.window.Engine`）
+- 全链 6 步全绿：build（maplebirchce.js 613,151 B / SHA 6ff02ae1…63f03eb3）→ syntax → smoke（SMOKE ALL PASSED）→ 回归（ALL TESTS PASSED，含 53 段）→ E2E（FUNCTIONAL E2E ALL PASSED）→ 性别集成（passed=24 failed=0）；codegraph WARN 容错不阻塞
+- pack.ps1 打包：MapleBirchCE.mod.zip 246,557 B / SHA256 5848433C97F077B27E40EB435D2DE3039E6089847545BBE7C8F63C1A70DBD86D / zip 4 条正斜杠 / verifier 4/4；复制到消费端 game，SHA MATCH=True
+- real_smoke（moli 实机）：启动级 4 项实证通过（游戏页面/SugarCube/ModLoader/ModZipReader init x15）；注入流程/面板交互受 moli 单会话引擎交互阶段局限未达（DoL 启动渲染极慢，见 .learnings\ERRORS.md#ERR-20261028-001），面板级走查留实机验证
+
+### ⑤ 实机修复（2026-11-05 晚）：直达选任意选项跳回原地点
+
+**用户实机反馈**：直达凯拉尔绑架后，点 (1)~(4) 任意选项都直接跳回触发前原地点（牛津街），剧情被打断。**根因三重实证闭环**：
+
+1. 原版 redirect（DoL L31690-31699 verbatim）：`if (!V.replayScene.passages.includes(passageArgs.name)) { return "Scene Viewer End"; }` —— dest 不在白名单即改写成 "Scene Viewer End"
+2. CE onPassageOverride 原「链外出口接管」判定（改动前）：dest ∉ replayScene.passages 且非 startPassage/exitpassage/Farm Work/Scene Viewer UI → `cleanupUsedPins()` + `mbCEClearReplay()` + `passageArgs.name = exitDest`（回原位）
+3. **白名单残缺**：`KylarAbduction` 在游戏 HTML 无注册表显式定义（仅 `$scenePassages.pushUnique("KylarAbduction")` L279740 + 剧情段引用），getScenesDefs 走 recover 兜底 → passages 数组残缺 → 剧情分支段（选选项去的段落）不在白名单 → 被当出口 → 选任意选项即跳回原位
+
+**修复（07f-pins.js 三处 + directTriggerScene 一处）**：
+
+- ① `directTriggerScene` 构造 P 注入 `direct: true`；`startAnchoredReplay` 对 P.direct **跳过 freezePlayerStats**（直达 = 剧情真实生效，剧情 effects 的数值变化播放后保留；冻结快照 strict-replace 会把剧情效果抹掉）；V.replayScene 记 `mbCE_direct: true`
+- ② `mbCEClearReplay` 读 `mbCE_direct`，直达未冻结则不执行 unfreezePlayerStats（避免误恢复快照）
+- ③ `onPassageOverride` 新增 mbCE_direct 分支（插在链外判定前）：(a) dest 是 Scene Viewer/End UI → 清理 + 回原位（原版 redirect 兜底）；(b) 当前段源码含 `<<endevent`/`<<badEndTrackingEnd` 且 dest 非 start/exit → **剧情已结束**（出口段点 Next）→ 清理重放状态但**保留 dest**（剧情自身引导回主循环 = 走完正常发展）；(c) 其余 → 分支段**动态并入白名单**后放行（原版 redirect 判 `dest ∈ passages` 命中 → 不再改写 "Scene Viewer End"）
+- 出口特征实证：凯拉尔绑架出口段三连（Kylar Abduction Release 4 / Free Rescue Thank / Free Reassure）统一 `<<link [[Next|Danube Street]]>><<endevent>><<badEndTrackingEnd ...>><</link>>`；`<<endevent>>` 为 DoL widget（L241788），剧情结束统一信号
+
+**验证**：smoke 19 段扩至 22 断言（新增：mbCE_direct 标志 / 直达不 freeze / 分支段跳转保留 replayScene 不跳回 / 分支段并入白名单 / 原版 redirect 判据命中 / 出口段清理保留 dest / Scene Viewer 兜底回原位）；全链 6 步全绿（build → syntax → smoke → 回归 → E2E → 性别集成 24/24，codegraph WARN 不阻塞）
+
+## v1.9.29（2026-11-05 · UI 优化：星空蓝双主题 + 锚定确认条 token 化 + 角色页搜索）
+
+**需求**：用户拍板「①锚定确认条视觉归位 + ②角色页搜索框全做 + 新增星空蓝配色 + 带点情绪/氛围感」；功能新增方向此前已被用户否决（"算了吧"），本轮只做 UI 视觉层。
+
+### ① 星空蓝双主题（核心新视觉）
+
+- **「黑金 ⇄ 星空蓝」双主题切换**：header 新增「✦」主题按钮（errBtn 左侧），点击循环切换；localStorage `mbCE_ui_state_v1.theme` 持久化（init 恢复，`setTheme(name, silent)` 静默应用）
+- **星空蓝 = 深蓝夜空 + 星辉**：`:root` token 之上新增 `#mce-root.mce-theme-starry{...}` 变量覆盖组——accent 星蓝 `#8fb3ff`、bg 全系深蓝黑（`#0c1022~#1e2750`）、border 蓝紫系（`#3d4a80`）、文字冷白蓝（`#eef2ff` 族）；v1.9.18 token 化红利：换主题只覆盖变量，组件零改动
+- **氛围（"心情"）**：面板背景双 radial 渐变（右上蓝光 + 左下紫晕）+ `.mce-body` 星点（6 处 1px 径向渐变点阵，零图片请求）+ 悬浮球星蓝渐变 + 星辉光晕呼吸（`@keyframes mce-toggle-glow` 3.5s，不影响阅读）；切换时状态栏一行心情语（"已切换：星空蓝 ✦ 愿星光指引你"）
+- 状态色（--mce-red/--mce-green 族）不随主题覆盖，错误/成功语义稳定
+
+### ② 锚定确认条 token 化（视觉归位）
+
+- 07f-pins.js `showAnchorPrompt` 删除 3 处内联 cssText（背景 `#f5f0e0` 米色/「立即触发★」`#7a9b4f` 绿/「暂不触发」`#888` 灰），样式全部移入 07a-shell CSS 类：`.mce-anchor-prompt`（走 `--mce-gold-bg/--mce-gold-txt/--mce-accent` token）+ `.mce-anchor-go`（accent 主按钮）+ `@keyframes mce-prompt-in` 进入动画（18ms 下滑淡入）
+- 主题跟随：星空主题下确认条挂 `.mce-theme-starry`（条在 #story 内、root 外，独立类覆盖）
+- 只动视觉样式，锚定触发状态机（#165 待验收）零触碰
+
+### ③ 角色页搜索框
+
+- 07b-char.js `renderCards` 顶部新增 `.mce-char-search`（复用特质/Mod 数值同款 `.mce-search-inp` 深底等宽样式），按原名/显示名实时过滤，输入重建卡片并恢复焦点；匹配数进 hint（"共 N 个…；匹配 M 个"）；搜索词持久化 `mbCE_ui_state_v1.charFilter`（load/save 双同步，`charSearch` 模块变量）
+
+### ⑧ api 导出 + 版本双源
+
+- 09-exports.js 追加 `setTheme`/`getTheme`/`showAnchorPrompt`/`hideAnchorPrompt`；版本双源 1.9.29（src/01-core.js + boot.json）
+
+### ⑨ 验证与交付
+
+- smoke_dom.js 新增第 18 段（26 条断言）：主题类挂载/持久化/恢复/星空变量组/星点氛围/悬浮球光晕 / 确认条无内联色+类名+双按钮+进入动画+旧硬编码色已清除+主题跟随+hide 移除 / 角色搜索过滤计数+hint 匹配数+清空恢复+charFilter 持久化
+- 全链 6 步全绿 + 打包 verifier 4/4 + zip 正斜杠 + SHA256 + 装 game + real_smoke
+
+## v1.9.28（2026-11-05 · 全面迭代优化：场景/特质求值编译缓存 + 批量解锁守卫与审计 + 静态表/重复键清理）
+
+**需求**：定时迭代轮——「继续对我的模组进行迭代优化，不用我同意直接做，直到找不到优化点」。33 文件全量自审计（前轮完成）收敛出 4 项实证修复 + 1 项实证撤销（⑤ TRAIT_ZH_CAT 缺键经查证 06a 实际含 9 个 RAW cat 且 `Acceptance` 已译，撤销）。
+
+### ① 07f-pins.js LOCATION_LABELS 重复键清理
+
+- :147 行尾 `"old_temple": "旧神殿"` 与 :136 已存在键重名（对象字面量后者覆盖前者，纯冗余）——删除重名键
+
+### ② 07e-scenes.js 双缓存（本轮性能核心）
+
+- **evalSceneExpr 编译缓存**：同表达式只 `new Function` 一次（键 = 正则替换链归一化后 JS，有界 512 整体清空重建）；判定函数每次调用实时读 V，无陈旧状态；`V.scenePassages=[]` 兜底副作用每次调用仍执行（22.3 语义不破坏）
+- **getScenesDefs 注册表缓存**：键 = Story 对象引用 + size + passages 数组引用/长度 三重信号——Story 被替换、passages 数组被原地替换/增删（测试/热重载场景）即失效重建；真机 SugarCube Story 静态 → 恒命中；缓存只存 widget 解析/Story 恢复结果，`V.scenes` 运行时注入每次调用实时合并（不缓存防陈旧）
+- 收益：07h:45 折叠懒渲染 / 07f 锚定 166/180/194 高频调用不再每次全量扫描全部段落文本
+
+### ③ 03-global.js 批量解锁逐项守卫 + 聚合审计留痕
+
+- `globalUnlockClothes`/`globalUnlockRecipes` 加逐项守卫（item 空/非对象/缺 name/无 recipe 跳过，单条坏数据不再中止整批）
+- 聚合审计：`V.mbCE_wrote["cheat:global:unlockClothes"|"cheat:global:unlockRecipes"] = {type:"batch", modId:"global", op, count, stories?, t}` + mbCEWroteTrim 有界化
+- **设计取舍（交付说明必读）**：不做 per-item 回退——`cheatResolvePath` 不支持数组下标路径 + `CHEAT_VANILLA_ROOTS`（specialClothes 在列）硬约束；batch 审计条目 `type!=="cheat"` 被 `undoCheatModValue` 直接拒绝（04b:182 实证），语义安全
+
+### ④ 06b-traits-eval.js traitEval 编译缓存
+
+- `TRAIT_EVAL_FN_CACHE`（Object.create(null)+512 有界，整体清空重建）；判定函数每次调用实时读 V/C；与 `VANILLA_TRAITS_CACHE`（只缓存编译清单）职责分离
+
+### ⑥ 05-modcheat-ui.js 重复 var 清理
+
+- :608 删 `var curPlayerFilter = "";`（与 06a-traits-data.js:180 同名 var 在拼接后同作用域 var 提升合并的卫生隐患，功能语义无变化）
+
+### ⑧ api 导出 + 版本双源
+
+- 09-exports.js 追加 `globalUnlockClothes`/`globalUnlockRecipes`（globalTransform 后）/`TRAIT_ZH_CAT`（VANILLA_TRAITS_RAW 后）；版本双源 1.9.28（src/01-core.js + boot.json）
+
+### ⑨ 验证与交付
+
+- 测试段 52（15 条断言）：TRAIT_ZH_CAT 覆盖 9 分类 / 批量解锁坏条目跳过+聚合留痕+不可回退+幂等 / 食谱仅材料解锁 / 场景缓存命中+引用失效+注入实时合并+无 Story 兜底 / **52.4b 同对象内 passages 数组替换失效**（smoke 15 真实模式防回归）/ evalSceneExpr 缓存无污染 / traitEval 缓存实时读 V
+- 全链 6 步全绿（build/syntax/smoke/regression/E2E/gender 24 passed）+ 打包 verifier 4/4 + zip 正斜杠 + SHA256 + 装 game + moli real_smoke
+- **坑记录**：缓存键初版仅 Story 引用+size，被 smoke_dom.js:696 原地替换 `global.Story.passages`（同引用、无 size）误判命中 → 补 passages 数组引用+长度信号（ERR 闭环见交付说明）
+
 ## v1.9.27（2026-11-02 · 阶段页自定义数值汉化 + README 版本同步）
 
 **需求**：用户实测「阶段」页角色数值区出现两个英文标签 `conviction`/`doubt`（其余均为中文），要求汉化；并自查修复 1.9.26 遗留的 README 版本引用未同步。
@@ -20,6 +204,7 @@
 
 - 全链 6 步（build/syntax/smoke/regression/E2E/gender）+ 打包 verifier 4/4 + SHA256 + 装 game
 - 版本双源 1.9.27（src/01-core.js + boot.json）
+- **补记（2026-11-05 定时迭代轮）**：复核「暂不触发」冷却 1h→60s 已落盘（`src/07f-pins.js:226` `(Date.now() - cd) < 60000`、build 6961 行同判定、tests §11.4j mock 通过、CHANGELOG ⑫③ 与 README 142 行附近记录）；全链 6 步复跑全绿（性别集成 24 passed），build 重建 SHA 仍 `C34D1875…`（确定性确认，与 11-02 交付包内 build 一致）；修复 `tools/pack.ps1` verifier-hub 入口硬编码旧 skill root（`AppData\Local\Doubao\…` 已迁移 → `AppData\Roaming\LarkShell\aha\users\<id>\doubao\…`，ERR-20261105-001）改动态候选解析；重打包 241,485 B / SHA256=`8B9DB638…` 装 game（双端 SHA 实测一致；zip 含时间戳元数据非确定性，内容与 11-02 的 `F8CBC684…` 包完全同源）；moli real_smoke 4 项启动断言 PASS + 2 项已知 WARN（E/F，moli 单会话局限，见 ERR-20261028-001）
 
 ## v1.9.26（2026-11-01 · 全局页新增特殊服装 + 食谱一键解锁）
 

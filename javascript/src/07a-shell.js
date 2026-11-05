@@ -5,6 +5,7 @@
 	var curName = "";
 	var curInnerTab = "romance";
 	var initialized = false;
+	var mbCETheme = "gold"; /* v1.9.29 主题：gold 黑金 / starry 星空蓝 */
 
 	function el(tag, cls, text) {
 		var node = document.createElement(tag);
@@ -198,7 +199,45 @@
 		"@keyframes mce-pop-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}" +
 		"@keyframes mce-pop-out{from{opacity:1}to{opacity:0}}" +
 		"@keyframes mce-fade-in{from{opacity:0}to{opacity:1}}" +
-		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}";
+		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}" +
+		/* v1.9.29 锚定确认条 token 化：此前内联米色/绿/灰（#f5f0e0/#7a9b4f/#888），与面板黑金 token 脱节——改走 CSS 类，换主题自动跟随 */
+		".mce-anchor-prompt{position:fixed;top:0;left:0;right:0;z-index:2147483647;background:var(--mce-gold-bg);color:var(--mce-gold-txt);" +
+		"border-bottom:2px solid var(--mce-accent);padding:8px 12px;font-size:14px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.3);" +
+		"display:flex;flex-wrap:wrap;align-items:center;gap:8px;animation:mce-prompt-in .18s ease-out}" +
+		".mce-anchor-prompt button{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);" +
+		"border-radius:var(--mce-radius);padding:4px 12px;cursor:pointer;font-size:13px;font-family:inherit;transition:background .12s ease,transform .12s ease}" +
+		".mce-anchor-prompt button:hover{background:var(--mce-bg-hover)}" +
+		".mce-anchor-prompt button:active{transform:scale(.96)}" +
+		".mce-anchor-prompt .mce-anchor-go{margin-left:auto;background:var(--mce-accent);color:var(--mce-txt-on-accent);" +
+		"border-color:var(--mce-accent-dark);font-weight:700}" +
+		".mce-anchor-prompt .mce-anchor-go:hover{background:var(--mce-accent-hover)}" +
+		"@keyframes mce-prompt-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}" +
+		/* v1.9.29 星空蓝主题：深蓝夜空 + 星辉（accent 星蓝、金保留为点缀）。token 化红利——换主题只覆盖变量，组件零改动 */
+		"#mce-root.mce-theme-starry{--mce-accent:#8fb3ff;--mce-accent-hover:#a9c4ff;--mce-accent-dark:#5d82d9;--mce-accent-55:rgba(143,179,255,.55);" +
+		"--mce-gold-soft:#ffd98a;--mce-gold-note:#8fa3d9;--mce-gold-bg:#1a2140;--mce-gold-txt:#c9d8ff;" +
+		"--mce-bg-panel:rgba(6,8,20,.94);--mce-bg-deep:#0c1022;--mce-bg-base:#10142a;--mce-bg-card:#131a36;--mce-bg-block:#0e1326;" +
+		"--mce-bg-stage:#111631;--mce-bg-detail:#141b3c;--mce-bg-ctl:#1a2142;--mce-bg-btn:#1e2750;--mce-bg-hover:#2a3768;--mce-bg-sel:#1a1f3d;" +
+		"--mce-border:#3d4a80;--mce-border-soft:#333e6e;--mce-border-dim:#2a3360;--mce-border-ctl:#3d4a80;--mce-border-stage:#5d7fd9;" +
+		"--mce-txt:#eef2ff;--mce-txt-bright:#fff;--mce-txt-on-accent:#0a0e20;--mce-txt-hi:#e8edff;--mce-txt-label:#d9e0ff;--mce-txt-strong:#f0f3ff;" +
+		"--mce-txt-mid:#c3cbee;--mce-txt-dim:#aab4e0;--mce-txt-faint:#96a2d4;--mce-txt-muted:#8b97cc;--mce-txt-weak:#7c88bf;--mce-txt-star:#5a679e;" +
+		"--mce-border-quiet:rgba(160,180,255,.12);" +
+		"background:radial-gradient(1200px 600px at 85% -10%,rgba(90,130,255,.16),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(150,100,255,.10),transparent 55%),var(--mce-bg-panel)}" +
+		/* 星空氛围：内容区星点（径向渐变点阵，无图零请求） */
+		"#mce-root.mce-theme-starry .mce-body{background-image:radial-gradient(1px 1px at 12% 20%,rgba(255,255,255,.55),transparent)," +
+		"radial-gradient(1px 1px at 31% 64%,rgba(190,215,255,.35),transparent),radial-gradient(1.2px 1.2px at 57% 10%,rgba(255,255,255,.4),transparent)," +
+		"radial-gradient(1px 1px at 76% 42%,rgba(190,215,255,.3),transparent),radial-gradient(1.3px 1.3px at 87% 76%,rgba(255,255,255,.45),transparent)," +
+		"radial-gradient(1px 1px at 44% 92%,rgba(190,215,255,.3),transparent);background-color:transparent}" +
+		/* 悬浮球星蓝渐变 + 星辉光晕呼吸（3.5s，不影响阅读） */
+		"#mce-toggle.mce-theme-starry{background:linear-gradient(135deg,#2a3768,#5d82d9 55%,#8fb3ff);border-color:#8fb3ff;animation:mce-toggle-glow 3.5s ease-in-out infinite}" +
+		"@keyframes mce-toggle-glow{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.6),0 0 8px rgba(143,179,255,.35)}50%{box-shadow:0 4px 14px rgba(0,0,0,.6),0 0 18px rgba(143,179,255,.7)}}" +
+		/* 锚定确认条跟随主题（条在 #story 内、root 外，不继承 root 星空变量——把星空 token 组定义在条自身元素上，子按钮经继承引用） */
+		".mce-anchor-prompt.mce-theme-starry{--mce-gold-bg:#1a2140;--mce-gold-txt:#c9d8ff;--mce-accent:#8fb3ff;--mce-accent-hover:#a9c4ff;" +
+		"--mce-accent-dark:#5d82d9;--mce-txt-on-accent:#0a0e20;--mce-bg-btn:#1e2750;--mce-txt-strong:#f0f3ff;--mce-border-ctl:#3d4a80;--mce-bg-hover:#2a3768;" +
+		"background:var(--mce-gold-bg);color:var(--mce-gold-txt);border-bottom-color:var(--mce-accent)}" +
+		".mce-anchor-prompt.mce-theme-starry button{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border-color:var(--mce-border-ctl)}" +
+		".mce-anchor-prompt.mce-theme-starry button:hover{background:var(--mce-bg-hover)}" +
+		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark)}" +
+		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }
@@ -235,7 +274,7 @@
 	}
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
-	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct" };
+	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "" };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
 	function mbCEUiLoad() {
 		try {
@@ -251,6 +290,9 @@
 				if (obj.innerTab === "romance" || obj.innerTab === "transform") { mbCEUiState.innerTab = obj.innerTab; curInnerTab = obj.innerTab; }
 				/* v1.9.0 场景页子页签持久化（场景直达/地点） */
 				if (obj.placesTab === "stage" || obj.placesTab === "direct") { mbCEUiState.placesTab = obj.placesTab; }
+				/* v1.9.29 主题与角色页搜索词持久化 */
+				if (obj.theme === "starry" || obj.theme === "gold") { mbCEUiState.theme = obj.theme; }
+				if (typeof obj.charFilter === "string") { mbCEUiState.charFilter = obj.charFilter; charSearch = obj.charFilter; }
 			}
 		} catch (e) {}
 	}
@@ -263,6 +305,8 @@
 				if (typeof partial.curName === "string") { mbCEUiState.curName = partial.curName; }
 				if (partial.innerTab === "romance" || partial.innerTab === "transform") { mbCEUiState.innerTab = partial.innerTab; }
 				if (partial.placesTab === "stage" || partial.placesTab === "direct") { mbCEUiState.placesTab = partial.placesTab; }
+				if (partial.theme === "starry" || partial.theme === "gold") { mbCEUiState.theme = partial.theme; }
+				if (typeof partial.charFilter === "string") { mbCEUiState.charFilter = partial.charFilter; }
 			}
 			if (typeof localStorage !== "undefined" && localStorage) {
 				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));
@@ -273,6 +317,21 @@
 		mbCEUiState.collapsed[tcat] = open ? 0 : 1;
 		mbCEUiSave({ collapsed: mbCEUiState.collapsed });
 	}
+
+	/* ============ v1.9.29 双主题：黑金（gold）⇄ 星空蓝（starry） ============ */
+	/* 切换只改 #mce-root 与悬浮球的主题类 + localStorage 持久化（token 覆盖在 07a-shell CSS 串）。
+	   silent=true 用于初始化恢复（mbCEUiLoad 已持久化到 state，恢复时不重复写）。 */
+	function setTheme(name, silent) {
+		try {
+			var t = name === "starry" ? "starry" : "gold";
+			mbCETheme = t;
+			if (root && root.classList) { root.classList.toggle("mce-theme-starry", t === "starry"); }
+			if (toggleBtn && toggleBtn.classList) { toggleBtn.classList.toggle("mce-theme-starry", t === "starry"); }
+			if (!silent) { mbCEUiSave({ theme: t }); }
+			return t;
+		} catch (e) { return "gold"; }
+	}
+	function getTheme() { return mbCETheme; }
 
 	/* ============ v1.8.12 面板内错误收集器（window error + console.error → 红点 + 堆栈 + 一键复制） ============ */
 	var mbCEErrors = [];

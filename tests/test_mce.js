@@ -2655,7 +2655,7 @@ eval(js);
 const api37 = setup.mbStageCE;
 const root37 = dBody.children.filter(c => c.id === "mce-root")[0];
 assert(!!root37, "37.2 ensureDom 建立面板根节点");
-assert(/剧情条件解锁面板 v1\.\d+\.\d+关闭/.test(root37.textContent), "37.2 面板标题版本号动态化（右上角仅保留「关闭」按钮）, 实际 " + root37.textContent.slice(0, 60));
+assert(/剧情条件解锁面板 v1\.\d+\.\d+/.test(root37.textContent) && root37.textContent.indexOf("关闭") !== -1 && root37.textContent.indexOf("收起") === -1, "37.2 面板标题版本号动态化（header=标题+主题✦+错误红点+关闭，无收起）, 实际 " + root37.textContent.slice(0, 70));
 api37.renderPlayerEdit();
 let pane37 = root37.querySelector('[data-pane="mods"]');
 /* v1.8.15 懒渲染：特质区默认收起 → 先展开全部分类，后续行级断言才能命中 */
@@ -4078,6 +4078,117 @@ assert(yh0.ok && V.yiluo_holy === 0, "51.7b 伊洛圣化复位=0, 实际 " + V.y
 delete V.adian_met; delete V.adian_romance; delete V.adian; delete V.adian_confession_state; delete V.adian_reject_day; delete V.computer; delete V.computerApps; delete V.bank; delete V.ngplusCycle; delete V.indianStall_found; delete V.seaPlatform_found; delete V.sciencetrait; delete V.mermaidbuild; delete V.yiluo_holy;
 assert(api.getCheatMods().filter(function (x) { return x.modId === "dolmod"; }).length === 0, "51.8 卸载后 DolMod 适配器自动消失");
 V.rabbitbuild = 0; V.rabbit = 0; /* 恢复 10.x 段基线 */
+
+/* 52) v1.9.28 优化回归：场景/特质求值编译缓存 + 批量解锁逐项守卫 + 聚合审计留痕 + 分类表覆盖 */
+/* 52.1 TRAIT_ZH_CAT 覆盖 RAW 全部分类（缺中文组标题会退化为英文原文——静态表完整性守卫） */
+var cats52 = {};
+api.VANILLA_TRAITS_RAW.forEach(function (t) { if (t && t.cat) { cats52[t.cat] = true; } });
+var miss52 = Object.keys(cats52).filter(function (c) { return !api.TRAIT_ZH_CAT[c]; });
+assert(miss52.length === 0, "52.1 TRAIT_ZH_CAT 覆盖全部 " + Object.keys(cats52).length + " 个分类, 缺失 " + JSON.stringify(miss52));
+/* 52.2 globalUnlockClothes：坏条目跳过不中断 + 聚合审计留痕（batch 不可逐键回退）+ 幂等 */
+var oldSetupClothes52 = setup.specialClothes;
+var oldVClothes52 = V.specialClothes;
+var oldWrote52 = V.mbCE_wrote;
+var oldVScenePassages52 = V.scenePassages;
+var oldFood52 = setup.foodstuff;
+var oldVFood52 = V.foodstuff;
+setup.specialClothes = [null, { name: "MCE测试服A", sets: [] }, { name: "MCE测试服B", sets: ["mce-testset"] }];
+delete V.specialClothes;
+V.mbCE_wrote = {};
+var u52 = api.globalUnlockClothes();
+assert(u52.unlocked === 2 && u52.stories === 0, "52.2 坏条目跳过、2 件有效解锁, 实际 " + JSON.stringify(u52));
+assert(Array.isArray(V.specialClothes) && V.specialClothes.length === 2 && V.specialClothes[0].name === "MCE测试服A" && V.specialClothes[0].unlocked === 3, "52.2 unlocked=3 写入, 实际 " + JSON.stringify(V.specialClothes));
+var rec52 = V.mbCE_wrote["cheat:global:unlockClothes"];
+assert(rec52 && rec52.type === "batch" && rec52.count === 2 && rec52.stories === 0, "52.2 聚合审计 type=batch count=2, 实际 " + JSON.stringify(rec52));
+var un52 = api.undoCheatModValue("global", "unlockClothes");
+assert(!un52.ok, "52.2 批量操作不可逐键回退（rec.type!=cheat 拒绝）, 实际 " + JSON.stringify(un52));
+var u52b = api.globalUnlockClothes();
+assert(u52b.unlocked === 2 && V.specialClothes.length === 2, "52.2 重复点击幂等（不重复建条目）, 实际 " + JSON.stringify(u52b));
+/* 52.3 globalUnlockRecipes：仅含材料食谱解锁 + 聚合留痕 */
+setup.foodstuff = { "mce_test_dish": { recipe: { ingredients: ["mce_flour"] } }, "mce_empty": { recipe: { ingredients: [] } }, "mce_noRecipe": { amount: 5 } };
+delete V.foodstuff;
+V.mbCE_wrote = {};
+var ur52 = api.globalUnlockRecipes();
+assert(ur52.unlocked === 1, "52.3 仅含材料食谱解锁 1 条, 实际 " + JSON.stringify(ur52));
+assert(V.foodstuff.mce_test_dish && V.foodstuff.mce_test_dish.knows_recipe === true && !V.foodstuff.mce_empty && !V.foodstuff.mce_noRecipe, "52.3 knows_recipe 写入且无食谱条目不建壳, 实际 " + JSON.stringify(V.foodstuff));
+var recR52 = V.mbCE_wrote["cheat:global:unlockRecipes"];
+assert(recR52 && recR52.type === "batch" && recR52.count === 1, "52.3 食谱聚合留痕 count=1, 实际 " + JSON.stringify(recR52));
+/* 52.4 场景注册表缓存：同 Story 引用命中（键集稳定）；换新对象强制失效重解析；V.scenes 注入实时合并；无 Story 不误用旧缓存 */
+global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT }].filter(fn) };
+delete V.scenes;
+delete V.scenePassages;
+var gd52a = api.getScenesDefs();
+var gd52b = api.getScenesDefs();
+assert(gd52a.live === true && Object.keys(gd52a.defs).length === 9, "52.4 同 Story 解析 live=true 9 条, 实际 " + Object.keys(gd52a.defs).length);
+assert(JSON.stringify(Object.keys(gd52a.defs).sort()) === JSON.stringify(Object.keys(gd52b.defs).sort()), "52.4 同 Story 引用两次调用键集一致（缓存命中）");
+V.scenes = { MCE注入52: { name: "注入测试", startPassage: "P52", passages: ["P52"], unlocked: "$scenePassages.includes(\"X52\")" } };
+var gd52c = api.getScenesDefs();
+assert(!!gd52c.defs["MCE注入52"] && gd52c.defs["MCE注入52"].unlockedExpr.indexOf("X52") !== -1, "52.4 V.scenes 运行时注入键实时合并, 实际 " + JSON.stringify(gd52c.defs["MCE注入52"]));
+delete V.scenes;
+global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT_ESCAPED }].filter(fn) };
+var gd52d = api.getScenesDefs();
+assert(gd52d.live === true && Object.keys(gd52d.defs).length === 9, "52.4 Story 对象引用变化强制失效重解析（转义形态仍 9 条）, 实际 " + Object.keys(gd52d.defs).length);
+delete global.Story;
+var gd52e = api.getScenesDefs();
+assert(gd52e.live === false, "52.4 无 Story 时 live=false（不误用旧缓存）");
+/* 52.4b 同 Story 对象内 passages 数组被原地替换（smoke 15 真实模式：global.Story.passages = [...]）
+   → 数组引用信号变化强制失效重建，不误用空 Story 旧缓存 */
+global.Story = { has: function () { return false; }, passages: [] };
+delete V.scenes;
+var gd52f = api.getScenesDefs();
+assert(gd52f.live === false, "52.4b 空 passages 首查 live=false");
+global.Story.passages = [{ name: "scenes", text: SCENE_TEXT }];
+var gd52g = api.getScenesDefs();
+assert(gd52g.live === true && Object.keys(gd52g.defs).length === 9, "52.4b passages 数组替换后失效重解析（9 条）, 实际 " + Object.keys(gd52g.defs).length);
+delete global.Story;
+/* 52.5 evalSceneExpr 编译缓存：判定函数每次调用实时读 V（无陈旧状态） */
+delete V.scenePassages;
+var st52a = api.sceneStatus({ unlockedExpr: "$scenePassages.includes(\"abc52\")" });
+V.scenePassages = ["abc52"];
+var st52b = api.sceneStatus({ unlockedExpr: "$scenePassages.includes(\"abc52\")" });
+assert(st52a.state === "fail" && st52b.state === "pass", "52.5 同表达式两次求值随 V 状态变化正确（缓存无污染）, " + st52a.state + "/" + st52b.state);
+/* 52.6 traitEval 编译缓存：命中仍实时读 V */
+delete V.player;
+var te52a = api.traitEval(V, {}, "$player.virginity.vaginal is true");
+var te52b = api.traitEval(V, {}, "$player.virginity.vaginal is true");
+V.player = { virginity: { vaginal: true } };
+var te52c = api.traitEval(V, {}, "$player.virginity.vaginal is true");
+assert(te52a === false && te52b === false && te52c === true, "52.6 traitEval 缓存命中仍实时读 V, " + te52a + "/" + te52b + "/" + te52c);
+delete V.player;
+/* 恢复基线 */
+setup.specialClothes = oldSetupClothes52;
+setup.foodstuff = oldFood52;
+if (oldVClothes52 === undefined) { delete V.specialClothes; } else { V.specialClothes = oldVClothes52; }
+if (oldVFood52 === undefined) { delete V.foodstuff; } else { V.foodstuff = oldVFood52; }
+if (oldWrote52 === undefined) { delete V.mbCE_wrote; } else { V.mbCE_wrote = oldWrote52; }
+if (oldVScenePassages52 === undefined) { delete V.scenePassages; } else { V.scenePassages = oldVScenePassages52; }
+
+/* 53. v1.9.30 剧情直达触发：directTriggerScene 构造与守卫 */
+try {
+  const oldScenes53 = V.scenes;
+  const oldRS53 = V.replayScene;
+  const oldWinEngine53 = global.window && global.window.Engine;
+  global.window.Engine = { play: function () {} }; /* startAnchoredReplay 引擎调用点（test_mce 无真实引擎） */
+  delete V.replayScene;
+  /* 53.1 未注册键拒绝 */
+  const d1 = api.directTriggerScene("__nope__");
+  assert(!!d1 && d1.ok === false && String(d1.message).indexOf("未找到") !== -1, "53.1 未注册剧情键直达被拒, " + JSON.stringify(d1));
+  /* 53.2 def 构造：startPassage/passages 复制/mvc 传递 */
+  V.scenes = { T53: { name: "测试直达", startPassage: "T53 Intro", passages: ["T53 Intro", "T53 2"], manualVariableChanges: "<<npcincr Kylar rage 100>>", unlocked: true } };
+  const d2 = api.directTriggerScene("T53");
+  assert(!!d2 && d2.ok === true && d2.scene.startPassage === "T53 Intro" && Array.isArray(d2.scene.passages) && d2.scene.passages.length === 2 && d2.scene.manualVariableChanges === "<<npcincr Kylar rage 100>>", "53.2 直达构造 P（startPassage/passages/mvc 传递）, " + JSON.stringify(d2.scene));
+  /* 53.3 播放结束可重复直达（重看剧情，不写 scenePassages） */
+  delete V.replayScene;
+  const d3 = api.directTriggerScene("T53");
+  assert(!!d3 && d3.ok === true, "53.3 播放结束后可再次直达（重看）, " + JSON.stringify(d3));
+  delete V.replayScene;
+  if (oldRS53 === undefined) { delete V.replayScene; } else { V.replayScene = oldRS53; }
+  if (oldScenes53 === undefined) { delete V.scenes; } else { V.scenes = oldScenes53; }
+  if (oldWinEngine53 === undefined) { delete global.window.Engine; } else { global.window.Engine = oldWinEngine53; }
+} catch (e53) {
+  failures++;
+  console.error("FAIL: 53 剧情直达 api 测试异常: " + (e53 && e53.message ? e53.message : e53));
+}
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

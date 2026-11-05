@@ -1,4 +1,6 @@
 	/* ---- 角色一览卡片（v1.9.0：按类型拆子页面，按钮展开/收起） ---- */
+	/* v1.9.29 角色页搜索词（mbCEUiLoad 恢复时同步；input 实时过滤后重建卡片） */
+	var charSearch = "";
 	/* 分类顺序：模组角色 / 恋爱角色 / 普通角色 / 持久NPC（子页面名称按角色类型命名） */
 	var CHAR_CATEGORIES = [
 		{ cat: "mod", title: "模组角色", desc: "非原版角色池的角色（MOD 注入/框架注册）" },
@@ -67,9 +69,34 @@
 			pane.appendChild(el("div", "mce-hint", "注册池为空：未枚举到任何角色。"));
 			return;
 		}
-		pane.appendChild(el("div", "mce-hint", "共 " + chars.length + " 个角色（自动枚举：本体 + 全部 MOD + 持久 NPC），按类型分组收起，点击分组标题展开。"));
+		/* v1.9.29 角色页搜索：与特质/Mod 数值搜索同款 .mce-search-inp；按原名/显示名实时过滤，词持久化 charFilter */
+		var q = charSearch.toLowerCase();
+		var searchRow = el("div", "mce-build");
+		var sInp = el("input", "mce-search-inp mce-char-search");
+		sInp.type = "search";
+		sInp.placeholder = "搜索角色（原名/显示名）…";
+		sInp.value = charSearch;
+		sInp.addEventListener("input", function () {
+			charSearch = sInp.value.replace(/^\s+|\s+$/g, "");
+			mbCEUiSave({ charFilter: charSearch });
+			renderCards();
+			var ni = pane.querySelector(".mce-char-search");
+			if (ni && document.activeElement !== ni) { try { ni.focus(); } catch (e2) {} }
+		});
+		searchRow.appendChild(sInp);
+		pane.appendChild(searchRow);
+		var hint = el("div", "mce-hint", "");
+		pane.appendChild(hint);
+		var matchCount = 0;
 		CHAR_CATEGORIES.forEach(function (group) {
 			var members = chars.filter(function (n) { return charCategory(n) === group.cat; });
+			if (q) {
+				members = members.filter(function (n) {
+					return String(displayNameEx(n)).toLowerCase().indexOf(q) !== -1
+						|| String(n).toLowerCase().indexOf(q) !== -1;
+				});
+			}
+			matchCount += members.length;
 			var block = el("div", "mce-grp");
 			block.setAttribute("data-tcat", group.title);
 			var head = el("div", "mce-grp-t mce-collapse-head");
@@ -102,5 +129,7 @@
 			});
 			pane.appendChild(block);
 		});
+		hint.textContent = "共 " + chars.length + " 个角色（自动枚举：本体 + 全部 MOD + 持久 NPC），按类型分组收起，点击分组标题展开"
+			+ (q ? "；匹配 " + matchCount + " 个" : "") + "。";
 		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; }
 	}

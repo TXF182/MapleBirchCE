@@ -57,7 +57,14 @@ if ($badSep.Count -gt 0) {
 Write-Host "  全部 $entryCount 条正斜杠: $($entryNames -join ', ')"
 
 Write-Host "[4/5] verifier 校验（4/4 条目匹配）"
-$verifier = "C:\Users\27352\AppData\Local\Doubao\User Data\Default\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier"
+# verifier-hub 入口：skill root 曾迁移（AppData\Local\Doubao\... → AppData\Roaming\LarkShell\aha\users\<id>\doubao\...），
+# 此处遍历候选位置取第一个存在的 bin\verifier，避免再次硬编码失效（ERR-20261105-001）
+$verifierCandidates = @()
+$roamingVerifier = Get-ChildItem -Path (Join-Path $env:APPDATA "LarkShell\aha\users\*\doubao\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier") -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($roamingVerifier) { $verifierCandidates += $roamingVerifier.FullName }
+$verifierCandidates += "C:\Users\27352\AppData\Local\Doubao\User Data\Default\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier"
+$verifier = $verifierCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $verifier) { Write-Host "FAIL: 未找到 verifier-hub 入口（请检查 skill 安装位置）" -ForegroundColor Red; exit 1 }
 $check = python $verifier archive zip-check-entries $zip --expected boot.json javascript/maplebirchce.js twee/maplebirchce-widget.twee README.md
 if ($check -notmatch '"passed": true') {
     Write-Host "FAIL: verifier" -ForegroundColor Red

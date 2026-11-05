@@ -605,7 +605,6 @@
 	       只读：长字符串 / 函数 / undefined / null / 深度超限 / 循环引用。
 	       写入：复用 cheatWriteValue（modId="player-self"，root=player 或模组键不在原版黑名单），
 	       mbCE_wrote 留痕 + 每项回退按钮。 ============ */
-	var curPlayerFilter = "";
 	var curPlayerSection = "player";
 	function actPlayer(res, path) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");

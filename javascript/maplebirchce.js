@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.27";
+	var MCE_VERSION = "1.9.30.003";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -937,6 +937,8 @@
 				} catch (e) {}
 			}
 			setup.specialClothes.forEach(function (item) {
+				/* v1.9.28：逐项守卫——坏条目（null/非对象/缺 name）跳过不中断，避免单条异常中止整批解锁 */
+				if (!item || typeof item !== "object" || !item.name) { return; }
 				var entry = null;
 				for (var i = 0; i < V.specialClothes.length; i++) {
 					if (V.specialClothes[i] && V.specialClothes[i].name === item.name) { entry = V.specialClothes[i]; break; }
@@ -951,6 +953,11 @@
 					});
 				}
 			});
+			/* v1.9.28：聚合审计留痕（type=batch，非面板写入——undo 按 rec.type!=="cheat" 拒绝，
+			   不提供逐键回退；仅记录受影响的解锁数与联动故事计数，供玩家自查批量操作） */
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			V.mbCE_wrote["cheat:global:unlockClothes"] = { type: "batch", modId: "global", op: "global_unlock:clothes", count: n, stories: stories, t: Date.now() };
+			mbCEWroteTrim(V);
 		} catch (e) {}
 		return { unlocked: n, stories: stories };
 	}
@@ -962,7 +969,9 @@
 				if (!V.foodstuff || typeof V.foodstuff !== "object") { V.foodstuff = {}; }
 				Object.keys(setup.foodstuff).forEach(function (k) {
 					var def = setup.foodstuff[k];
-					if (def && def.recipe && def.recipe.ingredients && def.recipe.ingredients.length) {
+					/* v1.9.28：逐项守卫——坏定义跳过不中断整批 */
+					if (!def || typeof def !== "object") { return; }
+					if (def.recipe && def.recipe.ingredients && def.recipe.ingredients.length) {
 						if (!V.foodstuff[k] || typeof V.foodstuff[k] !== "object") {
 							V.foodstuff[k] = { amount: 0 };
 						}
@@ -970,6 +979,10 @@
 						n += 1;
 					}
 				});
+				/* v1.9.28：聚合审计留痕（type=batch，不可逐键回退，仅记录解锁数） */
+				if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+				V.mbCE_wrote["cheat:global:unlockRecipes"] = { type: "batch", modId: "global", op: "global_unlock:recipes", count: n, t: Date.now() };
+				mbCEWroteTrim(V);
 			}
 		} catch (e) {}
 		return { unlocked: n };
@@ -3766,7 +3779,6 @@ CHEAT_ADAPTERS["dolmod"] = {
 	       只读：长字符串 / 函数 / undefined / null / 深度超限 / 循环引用。
 	       写入：复用 cheatWriteValue（modId="player-self"，root=player 或模组键不在原版黑名单），
 	       mbCE_wrote 留痕 + 每项回退按钮。 ============ */
-	var curPlayerFilter = "";
 	var curPlayerSection = "player";
 	function actPlayer(res, path) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
@@ -4276,6 +4288,11 @@ function safeGetObj(root, path) {
 	}
 	return cur;
 }
+/* v1.9.28：traitEval 编译函数缓存（键 = 正则替换链归一化后的 JS 代码；有界 512，超出整体清空重建）。
+   同一表达式只 new Function 一次；判定函数每次调用实时读 V/C（无陈旧状态）。
+   注意：VANILLA_TRAITS_CACHE 只缓存「编译后的特质清单」，不含判定函数，两者勿混。 */
+var TRAIT_EVAL_FN_CACHE = Object.create(null);
+var TRAIT_EVAL_FN_CACHE_N = 0;
 function traitEval(V, C, expr) {
 	try {
 		if (!expr) { return false; }
@@ -4296,7 +4313,13 @@ function traitEval(V, C, expr) {
 			if (name === "safeGet" || name === "globalThis") { return m0; }
 			return 'globalThis["' + name + '"](';
 		});
-		var fn = new Function("V", "C", "safeGet", "return (" + js + ");");
+		var fn = TRAIT_EVAL_FN_CACHE[js];
+		if (!fn) {
+			fn = new Function("V", "C", "safeGet", "return (" + js + ");");
+			if (TRAIT_EVAL_FN_CACHE_N >= 512) { TRAIT_EVAL_FN_CACHE = Object.create(null); TRAIT_EVAL_FN_CACHE_N = 0; }
+			TRAIT_EVAL_FN_CACHE[js] = fn;
+			TRAIT_EVAL_FN_CACHE_N += 1;
+		}
 		return !!fn(V, C, safeGetObj);
 	} catch (e) { return false; }
 }
@@ -5016,6 +5039,7 @@ function renderPlayerEdit() {
 	var curName = "";
 	var curInnerTab = "romance";
 	var initialized = false;
+	var mbCETheme = "gold"; /* v1.9.29 主题：gold 黑金 / starry 星空蓝 */
 
 	function el(tag, cls, text) {
 		var node = document.createElement(tag);
@@ -5209,7 +5233,45 @@ function renderPlayerEdit() {
 		"@keyframes mce-pop-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}" +
 		"@keyframes mce-pop-out{from{opacity:1}to{opacity:0}}" +
 		"@keyframes mce-fade-in{from{opacity:0}to{opacity:1}}" +
-		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}";
+		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}" +
+		/* v1.9.29 锚定确认条 token 化：此前内联米色/绿/灰（#f5f0e0/#7a9b4f/#888），与面板黑金 token 脱节——改走 CSS 类，换主题自动跟随 */
+		".mce-anchor-prompt{position:fixed;top:0;left:0;right:0;z-index:2147483647;background:var(--mce-gold-bg);color:var(--mce-gold-txt);" +
+		"border-bottom:2px solid var(--mce-accent);padding:8px 12px;font-size:14px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.3);" +
+		"display:flex;flex-wrap:wrap;align-items:center;gap:8px;animation:mce-prompt-in .18s ease-out}" +
+		".mce-anchor-prompt button{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);" +
+		"border-radius:var(--mce-radius);padding:4px 12px;cursor:pointer;font-size:13px;font-family:inherit;transition:background .12s ease,transform .12s ease}" +
+		".mce-anchor-prompt button:hover{background:var(--mce-bg-hover)}" +
+		".mce-anchor-prompt button:active{transform:scale(.96)}" +
+		".mce-anchor-prompt .mce-anchor-go{margin-left:auto;background:var(--mce-accent);color:var(--mce-txt-on-accent);" +
+		"border-color:var(--mce-accent-dark);font-weight:700}" +
+		".mce-anchor-prompt .mce-anchor-go:hover{background:var(--mce-accent-hover)}" +
+		"@keyframes mce-prompt-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}" +
+		/* v1.9.29 星空蓝主题：深蓝夜空 + 星辉（accent 星蓝、金保留为点缀）。token 化红利——换主题只覆盖变量，组件零改动 */
+		"#mce-root.mce-theme-starry{--mce-accent:#8fb3ff;--mce-accent-hover:#a9c4ff;--mce-accent-dark:#5d82d9;--mce-accent-55:rgba(143,179,255,.55);" +
+		"--mce-gold-soft:#ffd98a;--mce-gold-note:#8fa3d9;--mce-gold-bg:#1a2140;--mce-gold-txt:#c9d8ff;" +
+		"--mce-bg-panel:rgba(6,8,20,.94);--mce-bg-deep:#0c1022;--mce-bg-base:#10142a;--mce-bg-card:#131a36;--mce-bg-block:#0e1326;" +
+		"--mce-bg-stage:#111631;--mce-bg-detail:#141b3c;--mce-bg-ctl:#1a2142;--mce-bg-btn:#1e2750;--mce-bg-hover:#2a3768;--mce-bg-sel:#1a1f3d;" +
+		"--mce-border:#3d4a80;--mce-border-soft:#333e6e;--mce-border-dim:#2a3360;--mce-border-ctl:#3d4a80;--mce-border-stage:#5d7fd9;" +
+		"--mce-txt:#eef2ff;--mce-txt-bright:#fff;--mce-txt-on-accent:#0a0e20;--mce-txt-hi:#e8edff;--mce-txt-label:#d9e0ff;--mce-txt-strong:#f0f3ff;" +
+		"--mce-txt-mid:#c3cbee;--mce-txt-dim:#aab4e0;--mce-txt-faint:#96a2d4;--mce-txt-muted:#8b97cc;--mce-txt-weak:#7c88bf;--mce-txt-star:#5a679e;" +
+		"--mce-border-quiet:rgba(160,180,255,.12);" +
+		"background:radial-gradient(1200px 600px at 85% -10%,rgba(90,130,255,.16),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(150,100,255,.10),transparent 55%),var(--mce-bg-panel)}" +
+		/* 星空氛围：内容区星点（径向渐变点阵，无图零请求） */
+		"#mce-root.mce-theme-starry .mce-body{background-image:radial-gradient(1px 1px at 12% 20%,rgba(255,255,255,.55),transparent)," +
+		"radial-gradient(1px 1px at 31% 64%,rgba(190,215,255,.35),transparent),radial-gradient(1.2px 1.2px at 57% 10%,rgba(255,255,255,.4),transparent)," +
+		"radial-gradient(1px 1px at 76% 42%,rgba(190,215,255,.3),transparent),radial-gradient(1.3px 1.3px at 87% 76%,rgba(255,255,255,.45),transparent)," +
+		"radial-gradient(1px 1px at 44% 92%,rgba(190,215,255,.3),transparent);background-color:transparent}" +
+		/* 悬浮球星蓝渐变 + 星辉光晕呼吸（3.5s，不影响阅读） */
+		"#mce-toggle.mce-theme-starry{background:linear-gradient(135deg,#2a3768,#5d82d9 55%,#8fb3ff);border-color:#8fb3ff;animation:mce-toggle-glow 3.5s ease-in-out infinite}" +
+		"@keyframes mce-toggle-glow{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.6),0 0 8px rgba(143,179,255,.35)}50%{box-shadow:0 4px 14px rgba(0,0,0,.6),0 0 18px rgba(143,179,255,.7)}}" +
+		/* 锚定确认条跟随主题（条在 #story 内、root 外，不继承 root 星空变量——把星空 token 组定义在条自身元素上，子按钮经继承引用） */
+		".mce-anchor-prompt.mce-theme-starry{--mce-gold-bg:#1a2140;--mce-gold-txt:#c9d8ff;--mce-accent:#8fb3ff;--mce-accent-hover:#a9c4ff;" +
+		"--mce-accent-dark:#5d82d9;--mce-txt-on-accent:#0a0e20;--mce-bg-btn:#1e2750;--mce-txt-strong:#f0f3ff;--mce-border-ctl:#3d4a80;--mce-bg-hover:#2a3768;" +
+		"background:var(--mce-gold-bg);color:var(--mce-gold-txt);border-bottom-color:var(--mce-accent)}" +
+		".mce-anchor-prompt.mce-theme-starry button{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border-color:var(--mce-border-ctl)}" +
+		".mce-anchor-prompt.mce-theme-starry button:hover{background:var(--mce-bg-hover)}" +
+		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark)}" +
+		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }
@@ -5246,7 +5308,7 @@ function renderPlayerEdit() {
 	}
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
-	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct" };
+	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "" };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
 	function mbCEUiLoad() {
 		try {
@@ -5262,6 +5324,9 @@ function renderPlayerEdit() {
 				if (obj.innerTab === "romance" || obj.innerTab === "transform") { mbCEUiState.innerTab = obj.innerTab; curInnerTab = obj.innerTab; }
 				/* v1.9.0 场景页子页签持久化（场景直达/地点） */
 				if (obj.placesTab === "stage" || obj.placesTab === "direct") { mbCEUiState.placesTab = obj.placesTab; }
+				/* v1.9.29 主题与角色页搜索词持久化 */
+				if (obj.theme === "starry" || obj.theme === "gold") { mbCEUiState.theme = obj.theme; }
+				if (typeof obj.charFilter === "string") { mbCEUiState.charFilter = obj.charFilter; charSearch = obj.charFilter; }
 			}
 		} catch (e) {}
 	}
@@ -5274,6 +5339,8 @@ function renderPlayerEdit() {
 				if (typeof partial.curName === "string") { mbCEUiState.curName = partial.curName; }
 				if (partial.innerTab === "romance" || partial.innerTab === "transform") { mbCEUiState.innerTab = partial.innerTab; }
 				if (partial.placesTab === "stage" || partial.placesTab === "direct") { mbCEUiState.placesTab = partial.placesTab; }
+				if (partial.theme === "starry" || partial.theme === "gold") { mbCEUiState.theme = partial.theme; }
+				if (typeof partial.charFilter === "string") { mbCEUiState.charFilter = partial.charFilter; }
 			}
 			if (typeof localStorage !== "undefined" && localStorage) {
 				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));
@@ -5284,6 +5351,21 @@ function renderPlayerEdit() {
 		mbCEUiState.collapsed[tcat] = open ? 0 : 1;
 		mbCEUiSave({ collapsed: mbCEUiState.collapsed });
 	}
+
+	/* ============ v1.9.29 双主题：黑金（gold）⇄ 星空蓝（starry） ============ */
+	/* 切换只改 #mce-root 与悬浮球的主题类 + localStorage 持久化（token 覆盖在 07a-shell CSS 串）。
+	   silent=true 用于初始化恢复（mbCEUiLoad 已持久化到 state，恢复时不重复写）。 */
+	function setTheme(name, silent) {
+		try {
+			var t = name === "starry" ? "starry" : "gold";
+			mbCETheme = t;
+			if (root && root.classList) { root.classList.toggle("mce-theme-starry", t === "starry"); }
+			if (toggleBtn && toggleBtn.classList) { toggleBtn.classList.toggle("mce-theme-starry", t === "starry"); }
+			if (!silent) { mbCEUiSave({ theme: t }); }
+			return t;
+		} catch (e) { return "gold"; }
+	}
+	function getTheme() { return mbCETheme; }
 
 	/* ============ v1.8.12 面板内错误收集器（window error + console.error → 红点 + 堆栈 + 一键复制） ============ */
 	var mbCEErrors = [];
@@ -5468,6 +5550,8 @@ function renderPlayerEdit() {
 	}
 
 	/* ---- 角色一览卡片（v1.9.0：按类型拆子页面，按钮展开/收起） ---- */
+	/* v1.9.29 角色页搜索词（mbCEUiLoad 恢复时同步；input 实时过滤后重建卡片） */
+	var charSearch = "";
 	/* 分类顺序：模组角色 / 恋爱角色 / 普通角色 / 持久NPC（子页面名称按角色类型命名） */
 	var CHAR_CATEGORIES = [
 		{ cat: "mod", title: "模组角色", desc: "非原版角色池的角色（MOD 注入/框架注册）" },
@@ -5536,9 +5620,34 @@ function renderPlayerEdit() {
 			pane.appendChild(el("div", "mce-hint", "注册池为空：未枚举到任何角色。"));
 			return;
 		}
-		pane.appendChild(el("div", "mce-hint", "共 " + chars.length + " 个角色（自动枚举：本体 + 全部 MOD + 持久 NPC），按类型分组收起，点击分组标题展开。"));
+		/* v1.9.29 角色页搜索：与特质/Mod 数值搜索同款 .mce-search-inp；按原名/显示名实时过滤，词持久化 charFilter */
+		var q = charSearch.toLowerCase();
+		var searchRow = el("div", "mce-build");
+		var sInp = el("input", "mce-search-inp mce-char-search");
+		sInp.type = "search";
+		sInp.placeholder = "搜索角色（原名/显示名）…";
+		sInp.value = charSearch;
+		sInp.addEventListener("input", function () {
+			charSearch = sInp.value.replace(/^\s+|\s+$/g, "");
+			mbCEUiSave({ charFilter: charSearch });
+			renderCards();
+			var ni = pane.querySelector(".mce-char-search");
+			if (ni && document.activeElement !== ni) { try { ni.focus(); } catch (e2) {} }
+		});
+		searchRow.appendChild(sInp);
+		pane.appendChild(searchRow);
+		var hint = el("div", "mce-hint", "");
+		pane.appendChild(hint);
+		var matchCount = 0;
 		CHAR_CATEGORIES.forEach(function (group) {
 			var members = chars.filter(function (n) { return charCategory(n) === group.cat; });
+			if (q) {
+				members = members.filter(function (n) {
+					return String(displayNameEx(n)).toLowerCase().indexOf(q) !== -1
+						|| String(n).toLowerCase().indexOf(q) !== -1;
+				});
+			}
+			matchCount += members.length;
 			var block = el("div", "mce-grp");
 			block.setAttribute("data-tcat", group.title);
 			var head = el("div", "mce-grp-t mce-collapse-head");
@@ -5571,6 +5680,8 @@ function renderPlayerEdit() {
 			});
 			pane.appendChild(block);
 		});
+		hint.textContent = "共 " + chars.length + " 个角色（自动枚举：本体 + 全部 MOD + 持久 NPC），按类型分组收起，点击分组标题展开"
+			+ (q ? "；匹配 " + matchCount + " 个" : "") + "。";
 		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; }
 	}
 	/* ---- 阶段页：数据卡 + 双层内层标签 ---- */
@@ -6191,6 +6302,11 @@ function renderPlayerEdit() {
 			.replace(/\band\b/g, "&&").replace(/\bor\b/g, "||");
 		return s;
 	}
+	/* v1.9.28：evalSceneExpr 编译缓存（同表达式只 new Function 一次，判定函数每次调用实时读 V）。
+	   注意：V.scenePassages=[] 兜底初始化是场景求值语义的一部分（存档/流程缺失该 story 变量时防
+	   undefined.includes 崩溃），每次调用仍执行，不缓存；仅缓存编译后的判定函数。 */
+	var sceneExprFnCache = Object.create(null);
+	var sceneExprFnCacheN = 0;
 	function evalSceneExpr(expr) {
 		var s = String(expr || "").trim();
 		if (!s) { return true; }
@@ -6200,7 +6316,14 @@ function renderPlayerEdit() {
 		/* v1.4.4：原版 scenes 的 unlocked 全部依赖 $scenePassages.includes(...)（已看段落表），
 		   该 story 变量在部分存档/流程下缺失 → 兜底初始化为空数组，避免 undefined.includes 崩溃导致状态未知 */
 		if (!Array.isArray(V.scenePassages)) { V.scenePassages = V.scenePassages || []; }
-		return new Function("V", "return (" + code + ");")(V);
+		var fn = sceneExprFnCache[code];
+		if (!fn) {
+			fn = new Function("V", "return (" + code + ");");
+			if (sceneExprFnCacheN >= 512) { sceneExprFnCache = Object.create(null); sceneExprFnCacheN = 0; }
+			sceneExprFnCache[code] = fn;
+			sceneExprFnCacheN += 1;
+		}
+		return fn(V);
 	}
 	/* 键块扫描：从任意文本提取 "Key": { ... } 场景对象块（不依赖 <<set $scenes to { 前缀，
 	   供 widget 段落解析与 Story 全文恢复共用） */
@@ -6288,21 +6411,42 @@ function renderPlayerEdit() {
 			return Object.keys(collected).length ? collected : null;
 		} catch (e) { return null; }
 	}
-	/* 场景注册表：优先解析 Story 原文（实时求值 unlocked）→ Story 全文恢复 → V.scenes 缓存 */
+	/* 场景注册表：优先解析 Story 原文（实时求值 unlocked）→ Story 全文恢复 → V.scenes 缓存。
+	   v1.9.28：新增模块级缓存（键 = Story 对象引用 + size + passages 数组引用/长度 三重信号）——
+	   Story 被替换、passages 数组被原地替换/增删（测试与热重载场景）即失效重建，
+	   避免每次渲染全量扫描全部段落（07h:45 折叠懒渲染 / 07f 锚定 166/180/194 高频调用）。
+	   真机 SugarCube Story 静态不变 → 恒命中；缓存只存「widget 解析结果 / Story 恢复结果」，
+	   V.scenes 运行时注入每次调用实时合并（不缓存，防陈旧）。 */
+	var scenesDefsCache = null; /* { ref, size, passRef, passLen, parsed, recovered } */
 	function getScenesDefs() {
-		var parsed = null;
-		try { parsed = parseScenesFromText(findScenesWidgetText()); } catch (e) { parsed = null; }
-		if (parsed) {
+		var V = getV();
+		var st = (typeof Story !== "undefined" && Story) ? Story : null;
+		var stSize = (st && typeof st.size === "number") ? st.size : -1;
+		var stPass = (st && Array.isArray(st.passages)) ? st.passages : null;
+		var stPassLen = stPass ? stPass.length : -1;
+		if (!(scenesDefsCache && scenesDefsCache.ref === st && scenesDefsCache.size === stSize
+			&& scenesDefsCache.passRef === stPass && scenesDefsCache.passLen === stPassLen)) {
+			var parsed = null, recovered = null;
+			try {
+				var widget = findScenesWidgetText();
+				parsed = widget ? parseScenesFromText(widget) : null;
+				if (!parsed) { recovered = recoverSceneDefsFromStory(); }
+			} catch (e) { parsed = null; recovered = null; }
+			scenesDefsCache = { ref: st, size: stSize, passRef: stPass, passLen: stPassLen, parsed: parsed, recovered: recovered };
+		}
+		var parsedC = scenesDefsCache.parsed;
+		if (parsedC) {
+			var merged = {};
+			Object.keys(parsedC).forEach(function (k) { merged[k] = parsedC[k]; });
 			/* v1.9.2 自查：MOD 运行时注入（Object.assign($scenes, {...}) / 框架注册）的键只在
 			   V.scenes 存档缓存、不在 widget 原文——合并进解析结果，确保 MOD 区显示运行时新增场景 */
-			var V2 = getV();
-			var sc2 = V2 && V2.scenes;
+			var sc2 = V && V.scenes;
 			if (sc2 && typeof sc2 === "object") {
 				Object.keys(sc2).forEach(function (k) {
-					if (parsed[k]) { return; }
+					if (merged[k]) { return; }
 					var s = sc2[k];
 					if (!s || typeof s !== "object") { return; }
-					parsed[k] = {
+					merged[k] = {
 						name: s.name, startPassage: s.startPassage, passages: Array.isArray(s.passages) ? s.passages.slice() : [],
 						manualVariableChanges: s.manualVariableChanges,
 						unlockedExpr: typeof s.unlocked === "string" ? s.unlocked : "",
@@ -6311,13 +6455,15 @@ function renderPlayerEdit() {
 					};
 				});
 			}
-			return { defs: parsed, live: true };
+			return { defs: merged, live: true };
 		}
 		/* v1.4.8：widget 段落定位失败 → Story 全文恢复（汉化/段落名变体兜底） */
-		var recovered = null;
-		try { recovered = recoverSceneDefsFromStory(); } catch (e) { recovered = null; }
-		if (recovered) { return { defs: recovered, live: true }; }
-		var V = getV();
+		var recoveredC = scenesDefsCache.recovered;
+		if (recoveredC) {
+			var out2 = {};
+			Object.keys(recoveredC).forEach(function (k) { out2[k] = recoveredC[k]; });
+			return { defs: out2, live: true };
+		}
 		var sc = V && V.scenes;
 		if (sc && typeof sc === "object") {
 			var out = {};
@@ -6880,7 +7026,7 @@ var SCENE_LOCATIONS = {
 		"market": "市场", "meadow": "草地", "mer_pier": "美人鱼码头", "museum": "博物馆", "night_monster_lair": "夜魔巢穴",
 		"oak": "橡树", "pirate_ship": "海盗船", "pool": "泳池", "promenade": "海滨大道", "riding_school": "马术学校",
 		"sea": "海", "spa": "水疗馆", "strip_club": "脱衣舞俱乐部", "studio": "工作室", "tower": "塔", "wolf_cave": "狼穴",
-		"banner": "旗地", "blitz": "闪电区", "old_temple": "旧神殿"
+		"banner": "旗地", "blitz": "闪电区"
 	};
 	function locLabel(loc) { return LOCATION_LABELS[loc] || loc || "（未标注）"; }
 	/* 场景 key → 锚定元数据（表内命中；旧队列项无元数据 → null，保持旧段落跳转语义） */
@@ -7016,12 +7162,18 @@ var SCENE_LOCATIONS = {
 			   恢复快照会把 used 还原为 false（队列项复活 → 确认条循环弹；实机 F12 铁证：live=true / frozen=false）。
 			   先置 used=true 使冻结快照含 true，恢复后保持 true，配合 mbCEOnPassageEnd 残留清理闭环。 */
 			P.used = true;
-			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("freezePlayerStats"); } } catch (e) {}
+			/* v1.9.30-实机修复：直达触发（P.direct）不冻结数值——直达语义 = 剧情真实生效
+			   （剧情 effects 产生的数值变化播放后保留，"走完正常发展"），冻结仅用于锚定/固定触发的
+			   纯观看重放（unfreeze 用冻结快照 strict-replace 恢复，会把剧情效果一并抹掉）。 */
+			if (!P.direct) {
+				try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("freezePlayerStats"); } } catch (e) {}
+			}
 			V.replayScene = {
 				name: P.name,
 				startPassage: entry,
 				passages: Array.isArray(P.passages) ? P.passages.slice() : [],
-				exitpassage: currentPassageName()
+				exitpassage: currentPassageName(),
+				mbCE_direct: !!P.direct
 			};
 			V.mbCE_replayOnce = true;  /* 本重放由锚定触发启动：Scene Viewer passages 结束后走 default 退出，不再重播 */
 			V.mbCE_replayPending = (entry === "Scene Viewer passages");
@@ -7037,6 +7189,33 @@ var SCENE_LOCATIONS = {
 			return { ok: true, message: "已开始触发「" + P.name + "」" };
 		} catch (e) { return { ok: false, message: "触发失败：" + (e && e.message ? e.message : e) }; }
 	}
+	/* v1.9.30 剧情直达触发：从场景 def 构造临时 P 并直接开始锚定重放。
+	   与「锚定」的区别：跳过地点判定/确认条/队列——点即触发；不写 mbCE_queue，
+	   不干扰锚定状态机（cleanupUsedPins 只清队列 used 项，直达无队列项无操作）；
+	   播完走 startAnchoredReplay 既有出口清理（回原位 + 记「已完成 ✓」），即"走完正常发展"。 */
+	function directTriggerScene(key) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, message: "存档不可用，无法直达" }; }
+			if (V.replayScene) { return { ok: false, message: "已有剧情播放中，请先结束当前播放" }; }
+			var gd = typeof getScenesDefs === "function" ? getScenesDefs() : null;
+			var defs = gd && gd.defs ? gd.defs : gd; /* getScenesDefs 返回 {defs,live} 包装，兼容裸对象 */
+			var def = defs && defs[key];
+			if (!def) { return { ok: false, message: "未找到剧情「" + key + "」（未注册或未解析）" }; }
+			if (!def.startPassage) { return { ok: false, message: "「" + (def.name || key) + "」无入口段落，无法直达" }; }
+			var P = {
+				key: key,
+				name: def.name || key,
+				startPassage: def.startPassage,
+				passages: Array.isArray(def.passages) ? def.passages.slice() : [],
+				manualVariableChanges: def.manualVariableChanges || null,
+				direct: true /* v1.9.30-实机修复：直达 = 不冻结数值 + 不走白名单中断（onPassageOverride mbCE_direct 分支） */
+			};
+			var r = startAnchoredReplay(P);
+			if (!r.ok) { return r; }
+			return { ok: true, message: r.message, scene: P };
+		} catch (e) { return { ok: false, message: "直达失败：" + (e && e.message ? e.message : e) }; }
+	}
 	/* 挂载确认条（页面顶部，非阻断式） */
 	function showAnchorPrompt(P, meta) {
 		try {
@@ -7044,7 +7223,9 @@ var SCENE_LOCATIONS = {
 			if (mbCE_anchorPromptEl && mbCE_anchorPromptEl.parentNode) { mbCE_anchorPromptEl.parentNode.removeChild(mbCE_anchorPromptEl); }
 			var box = document.createElement("div");
 			box.className = "mce-anchor-prompt";
-			box.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#f5f0e0;color:#3a2e1c;border-bottom:2px solid #b89b5e;padding:8px 12px;font-size:14px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;flex-wrap:wrap;align-items:center;gap:8px;";
+			/* v1.9.29 确认条 token 化：样式全部移入 07a-shell CSS 类（此前内联 #f5f0e0 米色/绿/灰，与面板黑金脱节；
+			   现走 --mce-gold-* token，换主题自动跟随） */
+			if (getTheme() === "starry") { box.classList.add("mce-theme-starry"); }
 			var txt = document.createElement("span");
 			var timeTxt = meta.timeNote ? "｜时间 " + meta.timeNote : "";
 			var pre = pendingPreconds(P.key);
@@ -7057,7 +7238,7 @@ var SCENE_LOCATIONS = {
 			var go = document.createElement("button");
 			go.type = "button";
 			go.textContent = "立即触发★";
-			go.style.cssText = "margin-left:auto;background:#7a9b4f;color:#fff;border:0;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;";
+			go.className = "mce-anchor-go";
 			go.addEventListener("click", function () {
 				var r = startAnchoredReplay(P);
 				if (!r.ok) { setStatus(r.message, "mce-err"); }
@@ -7066,7 +7247,6 @@ var SCENE_LOCATIONS = {
 			var skip = document.createElement("button");
 			skip.type = "button";
 			skip.textContent = "暂不触发";
-			skip.style.cssText = "background:#888;color:#fff;border:0;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;";
 			skip.addEventListener("click", function () {
 				mbCE_anchorCooldown[P.key] = Date.now(); /* 60s 冷却：同地点不再反复弹，保留队列待下次（用户拍板 1h→60s） */
 				hideAnchorPrompt();
@@ -7599,9 +7779,12 @@ var SCENE_LOCATIONS = {
 	   skipUnfreeze=true 时不调 unfreeze（原版手动重放场景不干预原版流程）。 */
 	function mbCEClearReplay(skipUnfreeze) {
 		var Vr = getV();
+		/* v1.9.30-实机修复：直达触发未冻结数值（startAnchoredReplay 对 P.direct 跳过 freeze），
+		   清理时若再 unfreeze 会误恢复冻结快照/报错 → 仅对冻结过的重放（非 direct）执行 unfreeze。 */
+		var wasDirect = !!(Vr && Vr.replayScene && Vr.replayScene.mbCE_direct);
 		try { Vr.replayScene = undefined; } catch (e) { Vr.replayScene = undefined; }
 		try { Vr.mbCE_replayOnce = undefined; Vr.mbCE_replayPending = undefined; } catch (e) {}
-		if (!skipUnfreeze) {
+		if (!skipUnfreeze && !wasDirect) {
 			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
 		}
 	}
@@ -7645,6 +7828,65 @@ var SCENE_LOCATIONS = {
 				var exitDest = V.replayScene.exitpassage || "";
 				var inChain = Array.isArray(rpExit) && rpExit.indexOf(dest) !== -1;
 				var isEndUi = (dest === "Scene Viewer End" || dest === "Scene Viewer passages" || dest === "Scene Viewer End 2");
+				/* v1.9.30-实机修复：直达触发（mbCE_direct）不走白名单中断——
+				   直达语义 = 无条件开播、剧情自然流转、结束自然回主循环。
+				   实机 bug 根因：凯拉尔绑架等大剧情不在场景注册表显式 passages（getScenesDefs 走
+				   recover 兜底，白名单残缺），玩家选任意选项 → dest 不在白名单 → 下方「链外出口」
+				   判定/原版 redirect（DoL L31697：!passages.includes(dest) → "Scene Viewer End"）
+				   把剧情分支段当出口 → 清 replayScene + 改 dest 回触发点 → 「选选项跳回原地点」。
+				   修复：① 剧情内分支段动态并入白名单（redirect 判 dest ∈ passages → 放行，剧情不打断）；
+				   ② 剧情出口特征（当前段源码含 <<endevent>>/<<badEndTrackingEnd>>，玩家点 Next 跳普通段）
+				   → 剧情已结束 → 清理重放状态但保留 dest（剧情自身引导回主循环 = 走完正常发展）。 */
+				if (V.replayScene.mbCE_direct) {
+					if (dest === "Scene Viewer" || isEndUi) {
+						/* 直达不应落到场景查看器 UI（原版 redirect 兜底）：清理 + 回原位 */
+						cleanupUsedPins();
+						mbCEClearReplay();
+						if (exitDest && passageArgs) { passageArgs.name = exitDest; }
+						return;
+					}
+					var curSrc = "";
+					try {
+						if (typeof State !== "undefined" && State && typeof State.passage === "string") {
+							var curTpl = (typeof Story !== "undefined" && Story && typeof Story.get === "function") ? Story.get(State.passage) : null;
+							if (curTpl && (curTpl.source || curTpl.text)) { curSrc = curTpl.source || curTpl.text; }
+						}
+					} catch (e) {}
+					if (curSrc && (curSrc.indexOf("<<endevent") !== -1 || curSrc.indexOf("<<badEndTrackingEnd") !== -1) &&
+						!(Array.isArray(rpExit) && rpExit.indexOf(dest) !== -1)) {
+						/* 出口段点击（当前段源码含 <<endevent>>/<<badEndTrackingEnd>> = 剧情/事件结束信号）：
+						   剧情已结束 → 清理重放状态，保留 dest 让剧情自然回主循环（走完正常发展）。
+						   v1.9.30.002-实机修复：移除「dest !== startPassage」排除——学校检查剧情
+						   （SchoolInspection Breast/Penis/Pussy）出口段 "Breast Inspection End" 含 <<endevent>>
+						   且 Next 回 startPassage "Science Lesson"（原版场景回环设计，Science Lesson ∉ 白名单），
+						   旧排除把它当「剧情未结束」→ replayScene 残留 → 剧情页全部「直达触发」按钮
+						   永久禁用（title 正在播放剧情）。现改为：出口段一律判定剧情结束——
+						   dest 仍在本剧情白名单内（出口段通往剧情内段 = 中间事件结束/剧情回环，
+						   如 19.12a 凯拉尔 Release 4→Abduction）→ 由 rpExit 排除保护，不清理放行；
+						   dest=startPassage（∉ 白名单）/exitDest 触发点/剧情外段 → 清理，玩家随 dest 落主循环。
+						   v1.9.30.003-迭代优化：同时移除「dest !== exitDest」排除——出口段 Next 回触发点
+						   （玩家在 Danube Street 触发凯拉尔绑架直达，出口段 Release 4 回 Danube Street=exitDest；
+						   全量实证 110 场景/16087 段：含 endevent 链内段 Next 离链均为主循环段/触发点，语义即剧情结束）
+						   旧排除同样制造残留 → 全部直达按钮禁用；出口段一律以「当前段含结束信号」为准，
+						   与下方 dest===exitDest 清理分支共同覆盖所有返回触发点路径（对齐非 direct 分支 L1012 语义）。 */
+						cleanupUsedPins();
+						mbCEClearReplay();
+						return;
+					}
+					/* v1.9.30.003-迭代优化：玩家回到触发点（exitpassage）——剧情退出（中途返回/出口段回原位）
+					   → 清理重放状态（对齐非 direct 分支对 exitpassage 的清理语义，防残留致按钮永久禁用）；
+					   必须在并入白名单之前判定（exitDest 是触发时所在段，非剧情链段，不应被并入）。 */
+					if (dest === exitDest) {
+						cleanupUsedPins();
+						mbCEClearReplay();
+						return;
+					}
+					/* 剧情分支段：并入白名单防原版 redirect 改写为 Scene Viewer End，放行 */
+					if (Array.isArray(rpExit) && rpExit.indexOf(dest) === -1) {
+						try { rpExit.push(dest); } catch (e) {}
+					}
+					return;
+				}
 				if (dest === "Scene Viewer" || (!isEndUi && dest !== "Farm Work" && dest !== V.replayScene.startPassage && !inChain && dest !== exitDest)) {
 					cleanupUsedPins(); /* v1.9.23：统一清理（解锁 + 已完成记录 + 移除） */
 					mbCEClearReplay(); /* v1.9.5-自检：统一清理入口 */
@@ -8215,6 +8457,7 @@ var SCENE_LOCATIONS = {
 			return block;
 		}
 		function renderSceneCluster(container, keys2, defs) {
+			var replaying = !!(getV() && getV().replayScene); /* v1.9.30 直达触发：播放中禁用 */
 			var defsSub = {};
 			keys2.forEach(function (k) { defsSub[k] = defs[k]; });
 			var cluster = listSceneLines(defsSub);
@@ -8314,6 +8557,26 @@ var SCENE_LOCATIONS = {
 						})(it, st);
 						sh.appendChild(btn);
 					}
+					/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
+					var dtB = el("button", "mce-btn", "直达触发");
+					dtB.type = "button";
+					if (replaying) {
+						dtB.disabled = true;
+						dtB.title = "正在播放剧情，请先结束当前播放";
+					} else if (!it.def.startPassage) {
+						dtB.disabled = true;
+						dtB.title = "该剧情无入口段落，无法直达";
+					} else {
+						dtB.title = "直达触发此剧情：立即开始播放，播完自动回原位并标「已完成 ✓」（不改写剧情达成标记）";
+					}
+					(function (it2) {
+						dtB.addEventListener("click", function () {
+							var r = directTriggerScene(it2.key);
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(dtB);
 					srow.appendChild(sh);
 					var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
 					srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
@@ -8391,6 +8654,26 @@ var SCENE_LOCATIONS = {
 						})(it);
 						sh.appendChild(b2);
 					}
+					/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
+					var dtS = el("button", "mce-btn", "直达触发");
+					dtS.type = "button";
+					if (replaying) {
+						dtS.disabled = true;
+						dtS.title = "正在播放剧情，请先结束当前播放";
+					} else if (!it.def.startPassage) {
+						dtS.disabled = true;
+						dtS.title = "该剧情无入口段落，无法直达";
+					} else {
+						dtS.title = "直达触发此剧情：立即开始播放，播完自动回原位并标「已完成 ✓」（不改写剧情达成标记）";
+					}
+					(function (it2) {
+						dtS.addEventListener("click", function () {
+							var r = directTriggerScene(it2.key);
+							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(dtS);
 					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
 					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
 					srow.appendChild(sh);
@@ -9081,6 +9364,16 @@ var SCENE_LOCATIONS = {
 
 		var header = el("div", "mce-header");
 		header.appendChild(el("span", "mce-title", "剧情条件解锁面板 v" + MCE_VERSION));
+		/* v1.9.29 主题切换按钮（✦ 星星图标）：黑金 ⇄ 星空蓝 循环，持久化 localStorage */
+		var themeBtn = el("button", "mce-theme-btn", "✦");
+		themeBtn.type = "button";
+		themeBtn.title = "切换主题：黑金 / 星空蓝";
+		themeBtn.addEventListener("click", function () {
+			var next = getTheme() === "starry" ? "gold" : "starry";
+			setTheme(next);
+			setStatus(next === "starry" ? "已切换：星空蓝 ✦ 愿星光指引你" : "已切换：黑金", "mce-ok");
+		});
+		header.appendChild(themeBtn);
 		/* v1.8.12 错误收集红点（数量徽标，点击展开错误列表） */
 		var errBtn = el("button", "mce-errbtn", "0");
 		errBtn.type = "button";
@@ -9135,6 +9428,9 @@ var SCENE_LOCATIONS = {
 		mbCEErrBox = errBox;
 		mbCEErrRows = errRows;
 		mbCEUpdateErrBadge();
+
+		/* v1.9.29 主题恢复：mbCEUiLoad 已把持久化主题读入 state，ensureDom 后应用类（silent 不重复写） */
+		setTheme(mbCEUiState.theme === "starry" ? "starry" : "gold", true);
 
 		closeBtn.addEventListener("click", close);
 		tabs.addEventListener("click", function (e) {
@@ -9299,6 +9595,8 @@ var SCENE_LOCATIONS = {
 				/* v1.9.23 锚定触发：地点判定 / 确认条触发 / 元数据 / 前置提示 */
 				mbCEOnPassageEnd: mbCEOnPassageEnd,
 				startAnchoredReplay: startAnchoredReplay,
+				/* v1.9.30 剧情直达触发：从场景 def 直接开播（跳过地点判定/确认条/队列） */
+				directTriggerScene: directTriggerScene,
 				sceneAnchorMeta: sceneAnchorMeta,
 				pendingPreconds: pendingPreconds,
 				precondDone: precondDone,
@@ -9307,6 +9605,9 @@ var SCENE_LOCATIONS = {
 				globalFill: globalFill,
 				globalRomance: globalRomance,
 				globalTransform: globalTransform,
+				/* v1.9.28：全局页批量解锁（供外部自动化/测试调用，返回解锁计数） */
+				globalUnlockClothes: globalUnlockClothes,
+				globalUnlockRecipes: globalUnlockRecipes,
 				/* v1.8.8 庄园自动维护（学 AutoClean 0.1.5 原功能） */
 				mcFeedAvery: mcFeedAvery,
 				mcMaintainFarm: mcMaintainFarm,
@@ -9351,6 +9652,8 @@ var SCENE_LOCATIONS = {
 				isFavTrait: isFavTrait,
 				toggleFavTrait: toggleFavTrait,
 				VANILLA_TRAITS_RAW: VANILLA_TRAITS_RAW,
+				/* v1.9.28：特质分类中文组标题映射（与 RAW 配套，供外部校验覆盖完整性） */
+				TRAIT_ZH_CAT: TRAIT_ZH_CAT,
 				/* v1.9.15 数值固定（07f-lock.js）：锁定向/强制写回/取消 */
 				mbCELockSet: mbCELockSet,
 				mbCELockRemove: mbCELockRemove,
@@ -9387,6 +9690,11 @@ var SCENE_LOCATIONS = {
 				mbCEUiSave: mbCEUiSave,
 				mbCEUiLoad: mbCEUiLoad,
 				mbCEUiCollapsed: mbCEUiCollapsed,
+				/* v1.9.29 双主题：setTheme 切主题（starry/gold，自动持久化）；showAnchorPrompt 供外部/测试触发锚定确认条 */
+				setTheme: setTheme,
+				getTheme: getTheme,
+				showAnchorPrompt: showAnchorPrompt,
+				hideAnchorPrompt: hideAnchorPrompt,
 				/* v1.8.12 功能12：适配器工作流审计 */
 				auditAdapters: auditAdapters
 			};

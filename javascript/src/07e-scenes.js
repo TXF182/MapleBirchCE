@@ -72,6 +72,11 @@
 			.replace(/\band\b/g, "&&").replace(/\bor\b/g, "||");
 		return s;
 	}
+	/* v1.9.28：evalSceneExpr 编译缓存（同表达式只 new Function 一次，判定函数每次调用实时读 V）。
+	   注意：V.scenePassages=[] 兜底初始化是场景求值语义的一部分（存档/流程缺失该 story 变量时防
+	   undefined.includes 崩溃），每次调用仍执行，不缓存；仅缓存编译后的判定函数。 */
+	var sceneExprFnCache = Object.create(null);
+	var sceneExprFnCacheN = 0;
 	function evalSceneExpr(expr) {
 		var s = String(expr || "").trim();
 		if (!s) { return true; }
@@ -81,7 +86,14 @@
 		/* v1.4.4：原版 scenes 的 unlocked 全部依赖 $scenePassages.includes(...)（已看段落表），
 		   该 story 变量在部分存档/流程下缺失 → 兜底初始化为空数组，避免 undefined.includes 崩溃导致状态未知 */
 		if (!Array.isArray(V.scenePassages)) { V.scenePassages = V.scenePassages || []; }
-		return new Function("V", "return (" + code + ");")(V);
+		var fn = sceneExprFnCache[code];
+		if (!fn) {
+			fn = new Function("V", "return (" + code + ");");
+			if (sceneExprFnCacheN >= 512) { sceneExprFnCache = Object.create(null); sceneExprFnCacheN = 0; }
+			sceneExprFnCache[code] = fn;
+			sceneExprFnCacheN += 1;
+		}
+		return fn(V);
 	}
 	/* 键块扫描：从任意文本提取 "Key": { ... } 场景对象块（不依赖 <<set $scenes to { 前缀，
 	   供 widget 段落解析与 Story 全文恢复共用） */
@@ -169,21 +181,42 @@
 			return Object.keys(collected).length ? collected : null;
 		} catch (e) { return null; }
 	}
-	/* 场景注册表：优先解析 Story 原文（实时求值 unlocked）→ Story 全文恢复 → V.scenes 缓存 */
+	/* 场景注册表：优先解析 Story 原文（实时求值 unlocked）→ Story 全文恢复 → V.scenes 缓存。
+	   v1.9.28：新增模块级缓存（键 = Story 对象引用 + size + passages 数组引用/长度 三重信号）——
+	   Story 被替换、passages 数组被原地替换/增删（测试与热重载场景）即失效重建，
+	   避免每次渲染全量扫描全部段落（07h:45 折叠懒渲染 / 07f 锚定 166/180/194 高频调用）。
+	   真机 SugarCube Story 静态不变 → 恒命中；缓存只存「widget 解析结果 / Story 恢复结果」，
+	   V.scenes 运行时注入每次调用实时合并（不缓存，防陈旧）。 */
+	var scenesDefsCache = null; /* { ref, size, passRef, passLen, parsed, recovered } */
 	function getScenesDefs() {
-		var parsed = null;
-		try { parsed = parseScenesFromText(findScenesWidgetText()); } catch (e) { parsed = null; }
-		if (parsed) {
+		var V = getV();
+		var st = (typeof Story !== "undefined" && Story) ? Story : null;
+		var stSize = (st && typeof st.size === "number") ? st.size : -1;
+		var stPass = (st && Array.isArray(st.passages)) ? st.passages : null;
+		var stPassLen = stPass ? stPass.length : -1;
+		if (!(scenesDefsCache && scenesDefsCache.ref === st && scenesDefsCache.size === stSize
+			&& scenesDefsCache.passRef === stPass && scenesDefsCache.passLen === stPassLen)) {
+			var parsed = null, recovered = null;
+			try {
+				var widget = findScenesWidgetText();
+				parsed = widget ? parseScenesFromText(widget) : null;
+				if (!parsed) { recovered = recoverSceneDefsFromStory(); }
+			} catch (e) { parsed = null; recovered = null; }
+			scenesDefsCache = { ref: st, size: stSize, passRef: stPass, passLen: stPassLen, parsed: parsed, recovered: recovered };
+		}
+		var parsedC = scenesDefsCache.parsed;
+		if (parsedC) {
+			var merged = {};
+			Object.keys(parsedC).forEach(function (k) { merged[k] = parsedC[k]; });
 			/* v1.9.2 自查：MOD 运行时注入（Object.assign($scenes, {...}) / 框架注册）的键只在
 			   V.scenes 存档缓存、不在 widget 原文——合并进解析结果，确保 MOD 区显示运行时新增场景 */
-			var V2 = getV();
-			var sc2 = V2 && V2.scenes;
+			var sc2 = V && V.scenes;
 			if (sc2 && typeof sc2 === "object") {
 				Object.keys(sc2).forEach(function (k) {
-					if (parsed[k]) { return; }
+					if (merged[k]) { return; }
 					var s = sc2[k];
 					if (!s || typeof s !== "object") { return; }
-					parsed[k] = {
+					merged[k] = {
 						name: s.name, startPassage: s.startPassage, passages: Array.isArray(s.passages) ? s.passages.slice() : [],
 						manualVariableChanges: s.manualVariableChanges,
 						unlockedExpr: typeof s.unlocked === "string" ? s.unlocked : "",
@@ -192,13 +225,15 @@
 					};
 				});
 			}
-			return { defs: parsed, live: true };
+			return { defs: merged, live: true };
 		}
 		/* v1.4.8：widget 段落定位失败 → Story 全文恢复（汉化/段落名变体兜底） */
-		var recovered = null;
-		try { recovered = recoverSceneDefsFromStory(); } catch (e) { recovered = null; }
-		if (recovered) { return { defs: recovered, live: true }; }
-		var V = getV();
+		var recoveredC = scenesDefsCache.recovered;
+		if (recoveredC) {
+			var out2 = {};
+			Object.keys(recoveredC).forEach(function (k) { out2[k] = recoveredC[k]; });
+			return { defs: out2, live: true };
+		}
 		var sc = V && V.scenes;
 		if (sc && typeof sc === "object") {
 			var out = {};

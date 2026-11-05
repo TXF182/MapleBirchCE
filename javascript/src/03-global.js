@@ -125,6 +125,8 @@
 				} catch (e) {}
 			}
 			setup.specialClothes.forEach(function (item) {
+				/* v1.9.28：逐项守卫——坏条目（null/非对象/缺 name）跳过不中断，避免单条异常中止整批解锁 */
+				if (!item || typeof item !== "object" || !item.name) { return; }
 				var entry = null;
 				for (var i = 0; i < V.specialClothes.length; i++) {
 					if (V.specialClothes[i] && V.specialClothes[i].name === item.name) { entry = V.specialClothes[i]; break; }
@@ -139,6 +141,11 @@
 					});
 				}
 			});
+			/* v1.9.28：聚合审计留痕（type=batch，非面板写入——undo 按 rec.type!=="cheat" 拒绝，
+			   不提供逐键回退；仅记录受影响的解锁数与联动故事计数，供玩家自查批量操作） */
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			V.mbCE_wrote["cheat:global:unlockClothes"] = { type: "batch", modId: "global", op: "global_unlock:clothes", count: n, stories: stories, t: Date.now() };
+			mbCEWroteTrim(V);
 		} catch (e) {}
 		return { unlocked: n, stories: stories };
 	}
@@ -150,7 +157,9 @@
 				if (!V.foodstuff || typeof V.foodstuff !== "object") { V.foodstuff = {}; }
 				Object.keys(setup.foodstuff).forEach(function (k) {
 					var def = setup.foodstuff[k];
-					if (def && def.recipe && def.recipe.ingredients && def.recipe.ingredients.length) {
+					/* v1.9.28：逐项守卫——坏定义跳过不中断整批 */
+					if (!def || typeof def !== "object") { return; }
+					if (def.recipe && def.recipe.ingredients && def.recipe.ingredients.length) {
 						if (!V.foodstuff[k] || typeof V.foodstuff[k] !== "object") {
 							V.foodstuff[k] = { amount: 0 };
 						}
@@ -158,6 +167,10 @@
 						n += 1;
 					}
 				});
+				/* v1.9.28：聚合审计留痕（type=batch，不可逐键回退，仅记录解锁数） */
+				if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+				V.mbCE_wrote["cheat:global:unlockRecipes"] = { type: "batch", modId: "global", op: "global_unlock:recipes", count: n, t: Date.now() };
+				mbCEWroteTrim(V);
 			}
 		} catch (e) {}
 		return { unlocked: n };

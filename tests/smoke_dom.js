@@ -869,6 +869,245 @@ setTimeout(function () {
     console.error("FAIL: 16 分片测试异常：" + (e16 && e16.message ? e16.message : e16));
     window.__mbCE_forceSyncRows = true;
   }
+  /* ---------- 18. v1.9.29 UI 优化：星空蓝双主题 + 锚定确认条 token 化 + 角色页搜索 ---------- */
+  try {
+    const rootEl18 = document.querySelector("#mce-root");
+    const tg18 = document.querySelector("#mce-toggle");
+    assert(!!rootEl18 && !!tg18, "18 面板根与悬浮球存在（主题切换载体）");
+    assert(!!document.querySelector(".mce-theme-btn"), "18 header 主题按钮存在（✦，.mce-theme-btn）");
+    /* 18.1 主题切换：类挂载 + localStorage 持久化 + 恢复 */
+    api.setTheme("starry");
+    assert(rootEl18.classList.contains("mce-theme-starry"), "18 setTheme(starry) → #mce-root 挂 .mce-theme-starry");
+    assert(tg18.classList.contains("mce-theme-starry"), "18 setTheme(starry) → 悬浮球挂 .mce-theme-starry");
+    const st18 = JSON.parse(localStorage.getItem("mbCE_ui_state_v1") || "{}");
+    assert(st18.theme === "starry", "18 主题持久化 → mbCE_ui_state_v1.theme=starry");
+    assert(api.getTheme() === "starry", "18 api.getTheme()=starry");
+    api.setTheme("gold");
+    assert(!rootEl18.classList.contains("mce-theme-starry") && !tg18.classList.contains("mce-theme-starry"), "18 切回 gold → 星空类移除");
+    assert(api.getTheme() === "gold", "18 api.getTheme()=gold");
+    assert(mceCss.indexOf("#mce-root.mce-theme-starry{--mce-accent:#8fb3ff") !== -1, "18 CSS 星空主题变量组（accent 星蓝 #8fb3ff，深蓝夜空）");
+    assert(mceCss.indexOf("radial-gradient(1px 1px at 12% 20%") !== -1, "18 CSS 星空氛围：.mce-body 星点（径向渐变点阵，零图片请求）");
+    assert(mceCss.indexOf("@keyframes mce-toggle-glow") !== -1, "18 CSS 悬浮球星辉光晕呼吸动画");
+    /* 18.2 确认条 token 化：无内联色、类名/按钮类、进入动画、主题跟随 */
+    api.showAnchorPrompt({ key: "__smoke__", name: "测试锚定" }, { location: "Room" });
+    const ap18 = document.querySelector(".mce-anchor-prompt");
+    assert(!!ap18, "18 确认条 DOM 存在（.mce-anchor-prompt）");
+    assert(ap18.style.cssText.indexOf("background:") === -1, "18 确认条无内联背景色（此前 #f5f0e0 内联，现走 token CSS 类）");
+    assert(!!ap18.querySelector(".mce-anchor-go"), "18 确认条「立即触发★」带 .mce-anchor-go 类");
+    assert(ap18.querySelectorAll("button").length === 2, "18 确认条双按钮（立即触发/暂不触发）");
+    assert(mceCss.indexOf(".mce-anchor-prompt{position:fixed") !== -1 && mceCss.indexOf("@keyframes mce-prompt-in") !== -1, "18 CSS 定义 .mce-anchor-prompt + 进入动画");
+    assert(js.indexOf("background:#f5f0e0") === -1 && js.indexOf("background:#7a9b4f") === -1 && js.indexOf("background:#888") === -1, "18 源码无确认条旧内联硬编码色（f5f0e0/7a9b4f/888 已清除）");
+    api.setTheme("starry");
+    api.showAnchorPrompt({ key: "__smoke2__", name: "测试锚定2" }, { location: "Room" });
+    const ap18b = document.querySelector(".mce-anchor-prompt");
+    assert(!!ap18b && ap18b.classList.contains("mce-theme-starry"), "18 星空主题下确认条跟随 .mce-theme-starry");
+    api.hideAnchorPrompt();
+    api.setTheme("gold");
+    assert(!document.querySelector(".mce-anchor-prompt"), "18 hideAnchorPrompt → 确认条移除");
+    /* 18.3 角色页搜索：input 过滤 → 分组计数/hint 匹配数；清空恢复 */
+    api.renderCards();
+    const charPane18 = document.querySelector('[data-pane="char"]');
+    let cs18 = charPane18.querySelector(".mce-char-search");
+    assert(!!cs18, "18 角色页搜索框存在（.mce-char-search，复用 .mce-search-inp）");
+    assert(cs18.placeholder.indexOf("搜索角色") !== -1, "18 搜索框占位文案（placeholder 搜索角色）");
+    cs18.value = "爱丽丝";
+    cs18.dispatchEvent(new window.Event("input", { bubbles: true }));
+    const modHead18 = charPane18.querySelector('.mce-grp[data-tcat="模组角色"] .mce-grp-t');
+    assert(!!modHead18 && modHead18.textContent.indexOf("模组角色（1）") !== -1, "18 搜索「爱丽丝」→ 模组角色分区计数 1，实际 " + (modHead18 ? modHead18.textContent : "无"));
+    assert(charPane18.textContent.indexOf("匹配 1 个") !== -1, "18 hint 显示「匹配 1 个」");
+    cs18 = charPane18.querySelector(".mce-char-search");
+    cs18.value = "";
+    cs18.dispatchEvent(new window.Event("input", { bubbles: true }));
+    const modHead18b = charPane18.querySelector('.mce-grp[data-tcat="模组角色"] .mce-grp-t');
+    assert(!!modHead18b && modHead18b.textContent.indexOf("模组角色（4）") !== -1, "18 清空搜索 → 恢复计数 4，实际 " + (modHead18b ? modHead18b.textContent : "无"));
+    const st18b = JSON.parse(localStorage.getItem("mbCE_ui_state_v1") || "{}");
+    assert(st18b.charFilter === "", "18 搜索词清空后 charFilter 持久化为空串");
+  } catch (e18) {
+    failures++;
+    console.error("FAIL: 18 UI 优化测试异常：" + (e18 && e18.message ? e18.message : e18));
+  }
+  /* ---------- 19. v1.9.30 剧情直达触发：每场景行「直达触发」按钮 + directTriggerScene 链路 ---------- */
+  try {
+    /* 19.0 mock 引擎：捕获 Engine.play（startAnchoredReplay 内部调用点）；mock wikifier 记录 freeze/unfreeze */
+    const playCalls = [];
+    window.Engine = { play: function (name, pass) { playCalls.push(name); window.__mce_play_pass = pass; } };
+    window.wikifier = function (n) { (window.__mce_wiki = window.__mce_wiki || []).push(n); };
+    window.__mce_wiki = [];
+    delete V.replayScene;
+    /* 19.1 api 层：directTriggerScene 从 def 构造 P → startAnchoredReplay 开播（凯拉尔绑架） */
+    V.scenes = {
+      KylarAbduction: { name: "Kylar Abduction", startPassage: "Kylar Abduction Intro", passages: ["Kylar Abduction Intro", "Abduction", "Rescue Attempt", "Free Rescue"], unlocked: true }
+    };
+    const dr19 = api.directTriggerScene("KylarAbduction");
+    assert(!!dr19 && dr19.ok === true, "19 api.directTriggerScene(KylarAbduction) 返回 ok（直达凯拉尔绑架），实际 " + JSON.stringify(dr19));
+    assert(playCalls.indexOf("Kylar Abduction Intro") !== -1, "19 直达触发调用 Engine.play(入口段落 Kylar Abduction Intro)");
+    assert(!!V.replayScene && V.replayScene.name === "Kylar Abduction" && V.replayScene.startPassage === "Kylar Abduction Intro", "19 V.replayScene 已设置（name/startPassage，进入播放态）");
+    assert(V.replayScene.exitpassage === "Room", "19 exitpassage=当前段落（播完自动回原位），实际 " + (V.replayScene && V.replayScene.exitpassage));
+    assert(V.replayScene.mbCE_direct === true, "19 直达重放带 mbCE_direct 标志（不走白名单中断）");
+    assert(window.__mce_wiki.indexOf("freezePlayerStats") === -1, "19 直达不冻结数值（freezePlayerStats 未被调用，剧情效果真实生效）");
+    /* 19.2 防重入：播放中再次直达被拒 */
+    const dr19b = api.directTriggerScene("KylarAbduction");
+    assert(!!dr19b && dr19b.ok === false && String(dr19b.message).indexOf("播放") !== -1, "19 播放中再次直达被拒（防重入），实际 " + JSON.stringify(dr19b));
+    /* 19.3 无入口段落场景：def 无 startPassage → 拒绝且提示（先清播放态） */
+    delete V.replayScene;
+    V.scenes.NoEntry = { name: "无入口测试", unlocked: true };
+    const dr19c = api.directTriggerScene("NoEntry");
+    assert(!!dr19c && dr19c.ok === false && String(dr19c.message).indexOf("无入口") !== -1, "19 无 startPassage 场景直达被拒，实际 " + JSON.stringify(dr19c));
+    /* 19.4 播放结束清理：模拟退出重放（replayScene 清除）→ 可再次直达 */
+    delete V.replayScene;
+    const dr19d = api.directTriggerScene("KylarAbduction");
+    assert(!!dr19d && dr19d.ok === true, "19 播放结束后可再次直达（重看剧情），实际 " + JSON.stringify(dr19d));
+    delete V.replayScene;
+    delete V.scenes.NoEntry;
+    /* 19.5 UI：剧情页渲染 → 场景行「直达触发」按钮存在且可用 */
+    clickTabSafe("scenes");
+    const pane19 = document.querySelector('[data-pane="scenes"]');
+    const row19 = pane19 ? Array.prototype.slice.call(pane19.querySelectorAll(".mce-stage")).find(function (r) { return r.textContent.indexOf("Kylar Abduction") !== -1; }) : null;
+    assert(!!row19, "19 剧情页渲染出凯拉尔绑架场景行（Kylar Abduction）");
+    const dtBtn19 = row19 ? Array.prototype.slice.call(row19.querySelectorAll("button")).find(function (b) { return b.textContent === "直达触发"; }) : null;
+    assert(!!dtBtn19 && !dtBtn19.disabled, "19 场景行「直达触发」按钮存在且可用（非播放中）");
+    /* 19.6 点击按钮 → 触发播放（Engine.play + replayScene） */
+    playCalls.length = 0;
+    dtBtn19.click();
+    assert(playCalls.indexOf("Kylar Abduction Intro") !== -1, "19 点击「直达触发」→ Engine.play 被调用（入口段落）");
+    assert(!!V.replayScene && V.replayScene.name === "Kylar Abduction", "19 点击按钮后 V.replayScene 设置（进入播放态）");
+    /* 19.7 播放中重渲染 → 按钮禁用（title 提示「正在播放剧情」） */
+    clickTabSafe("scenes");
+    const pane19b = document.querySelector('[data-pane="scenes"]');
+    const dtBtn19b = pane19b ? Array.prototype.slice.call(pane19b.querySelectorAll("button")).find(function (b) { return b.textContent === "直达触发"; }) : null;
+    assert(!!dtBtn19b && dtBtn19b.disabled && String(dtBtn19b.title).indexOf("播放") !== -1, "19 播放中重渲染直达按钮禁用（title 提示正在播放剧情），实际 title=" + (dtBtn19b ? dtBtn19b.title : "无"));
+    /* 19.8 播放结束 → 按钮恢复可用 */
+    delete V.replayScene;
+    clickTabSafe("scenes");
+    const pane19c = document.querySelector('[data-pane="scenes"]');
+    const dtBtn19c = pane19c ? Array.prototype.slice.call(pane19c.querySelectorAll("button")).find(function (b) { return b.textContent === "直达触发"; }) : null;
+    assert(!!dtBtn19c && !dtBtn19c.disabled, "19 播放结束重渲染直达按钮恢复可用");
+    /* 19.9 重开直达（走完可重看）→ 直达语义：mbCE_direct + 不冻结数值 */
+    const dr19e = api.directTriggerScene("KylarAbduction");
+    assert(!!dr19e && dr19e.ok === true, "19 直达结束后可再次直达（重看剧情），实际 " + JSON.stringify(dr19e));
+    assert(!!V.replayScene && V.replayScene.mbCE_direct === true, "19 直达重放 mbCE_direct 标志保留");
+    assert(window.__mce_wiki.indexOf("freezePlayerStats") === -1, "19 直达全程不冻结数值（freezePlayerStats 始终未调用）");
+    /* 19.10 实机 bug 核心回归：剧情分支段跳转（玩家选任意选项）→ 不被判出口、不跳回原地点。
+       修复前：dest ∉ passages 白名单 → 链外出口判定清 replayScene + 改 dest 回触发点（牛津街） */
+    const paA = { name: "Kylar Abduction Angry" };
+    api.onPassageOverride(paA);
+    assert(!!V.replayScene, "19 选选项去分支段（白名单外）→ replayScene 保留（不跳回原地点）");
+    assert(Array.isArray(V.replayScene.passages) && V.replayScene.passages.indexOf("Kylar Abduction Angry") !== -1, "19 分支段动态并入白名单（防原版 redirect 改写）");
+    assert(paA.name === "Kylar Abduction Angry", "19 分支段 dest 未被改写为原位（剧情继续流转）");
+    /* 19.11 原版 redirect 兼容：并入后 passages.includes(dest) 命中 → 原版 checkPassages（L31697）放行 */
+    assert(V.replayScene.passages.includes("Kylar Abduction Angry"), "19 原版 redirect 判据 passages.includes 现命中 → 不再改 Scene Viewer End");
+    /* 19.12 走完剧情：出口段（当前段源码含 <<endevent>>/<<badEndTrackingEnd>>）点 Next 跳普通段
+       → 清理重放状态但保留 dest（剧情自然回主循环 = 走完正常发展） */
+    const savedPassage19 = global.State.passage;
+    const savedStory19 = global.Story;
+    global.State.passage = "Kylar Abduction Release 4";
+    global.Story = global.Story || {};
+    global.Story.get = function () { return { source: "<<link [[Next|Danube Street]]>><<endevent>><<badEndTrackingEnd \"Kylar Abduction\" { reason: \"kylarAbductionReleased\" }>><</link>>" }; };
+    const paB = { name: "Danube Street" };
+    api.onPassageOverride(paB);
+    assert(!V.replayScene, "19 出口段点 Next → replayScene 清理（剧情已结束）");
+    assert(paB.name === "Danube Street", "19 出口 dest 保留（剧情自然回 Danube Street，走完正常发展）");
+    global.State.passage = savedPassage19;
+    if (savedStory19) { global.Story = savedStory19; } else { delete global.Story; }
+    /* 19.12a 多段出口剧情：出口段（含 <<endevent>>）Next 指向剧情内段（白名单内）→ 不清理、放行（剧情继续流转） */
+    const dr19g = api.directTriggerScene("KylarAbduction");
+    assert(!!dr19g && dr19g.ok === true, "19 再次直达开播（19.12a 前置），实际 " + JSON.stringify(dr19g));
+    const savedPassage19b = global.State.passage;
+    const savedStory19b = global.Story;
+    global.State.passage = "Kylar Abduction Release 4";
+    global.Story = global.Story || {};
+    global.Story.get = function () { return { source: "<<link [[Next|Abduction]]>><<endevent>><<badEndTrackingEnd \"Kylar Abduction\" { reason: \"kylarAbductionReleased\" }>><</link>>" }; };
+    const paB2 = { name: "Abduction" };
+    api.onPassageOverride(paB2);
+    assert(!!V.replayScene, "19 出口段 Next 到剧情内段（白名单内）→ replayScene 保留（剧情继续，不误判出口）");
+    assert(paB2.name === "Abduction", "19 剧情内 dest 未被改写");
+    global.State.passage = savedPassage19b;
+    if (savedStory19b) { global.Story = savedStory19b; } else { delete global.Story; }
+    delete V.replayScene;
+    /* 19.14 实机 bug（v1.9.30.002）：学校检查剧情（SchoolInspection）出口段 Next 回 startPassage → 必须清理。
+       修复前：出口段含 <<endevent>> 但 dest === startPassage 被 (b) 排除 → replayScene 残留 → 剧情页全部
+       「直达触发」按钮永久禁用（title 正在播放剧情）。修复：出口段一律判定剧情结束（dest 在白名单内仍由
+       19.12a 保护放行；dest=startPassage ∉ 白名单 / 剧情外段 → 清理 + 保留 dest 落主循环）。 */
+    V.scenes.SchoolInspectionBreast = {
+      name: "School Inspection - Breast", startPassage: "Science Lesson",
+      passages: ["Breast Inspection", "Breast Inspection Comply", "Breast Inspection Flaunt", "Breast Inspection Flat Flaunt", "Breast Inspection Protest", "Breast Inspection End"],
+      unlocked: true
+    };
+    const dr19h = api.directTriggerScene("SchoolInspectionBreast");
+    assert(!!dr19h && dr19h.ok === true, "19 直达开播学校检查-胸部（19.14 前置），实际 " + JSON.stringify(dr19h));
+    assert(!!V.replayScene && V.replayScene.startPassage === "Science Lesson", "19 SchoolInspection startPassage=Science Lesson（∉ passages 白名单）");
+    const savedPassage19c = global.State.passage;
+    const savedStory19c = global.Story;
+    global.State.passage = "Breast Inspection End";
+    global.Story = global.Story || {};
+    global.Story.get = function () { return { source: "<<link [[Next|Science Lesson]]>><<endevent>><</link>>" }; };
+    const paB3 = { name: "Science Lesson" };
+    api.onPassageOverride(paB3);
+    assert(!V.replayScene, "19 学校检查出口段（<<endevent>>）Next 回 startPassage → replayScene 清理（修复直达按钮永久禁用）");
+    assert(paB3.name === "Science Lesson", "19 出口 dest 保留（玩家落 Science Lesson 课堂主循环，不跳回触发点）");
+    global.State.passage = savedPassage19c;
+    if (savedStory19c) { global.Story = savedStory19c; } else { delete global.Story; }
+    /* 19.14b 清理后重渲染：剧情页该行「直达触发」按钮恢复可用（title 不再是「正在播放剧情」） */
+    clickTabSafe("scenes");
+    const pane19d = document.querySelector('[data-pane="scenes"]');
+    const schoolHead19 = pane19d ? Array.prototype.slice.call(pane19d.querySelectorAll(".mce-grp-t")).find(function (h) { return h.textContent.indexOf("学校") !== -1; }) : null;
+    if (schoolHead19) { schoolHead19.click(); } else if (pane19d) { Array.prototype.slice.call(pane19d.querySelectorAll(".mce-grp-t")).forEach(function (h) { h.click(); }); } /* 学校组默认收起（懒渲染），先展开再找行 */
+    const row19d = pane19d ? Array.prototype.slice.call(pane19d.querySelectorAll(".mce-stage")).find(function (r) { return r.textContent.indexOf("School Inspection - Breast") !== -1; }) : null;
+    const dtBtn19d = row19d ? Array.prototype.slice.call(row19d.querySelectorAll("button")).find(function (b) { return b.textContent === "直达触发"; }) : null;
+    assert(!!dtBtn19d && !dtBtn19d.disabled && String(dtBtn19d.title).indexOf("正在播放剧情") === -1, "19 学校检查剧情播完 → 直达按钮恢复可用（title 非「正在播放剧情」），实际 title=" + (dtBtn19d ? dtBtn19d.title : "无"));
+    delete V.scenes.SchoolInspectionBreast;
+    delete V.replayScene;
+    /* 19.15 迭代优化（v1.9.30.003）：出口段 Next 回触发点（exitDest）→ 必须清理。
+       实证：玩家在 Danube Street 触发凯拉尔绑架直达（exitpassage=Danube Street），出口段
+       "Kylar Abduction Release 4"（含 <<endevent>>+<<badEndTrackingEnd>>）Next 回 Danube Street=exitDest，
+       旧 (b) 的「dest !== exitDest」排除把它当剧情未结束 → replayScene 残留 → 直达按钮永久禁用。
+       修复：出口段一律以「当前段含结束信号」为准（rpExit 白名单保护保留），dest=exitDest 同样清理。 */
+    const dr19i = api.directTriggerScene("KylarAbduction");
+    assert(!!dr19i && dr19i.ok === true, "19 直达开播凯拉尔绑架（19.15 前置），实际 " + JSON.stringify(dr19i));
+    const savedPassage19d = global.State.passage;
+    const savedStory19d = global.Story;
+    global.State.passage = "Kylar Abduction Release 4";
+    global.Story = global.Story || {};
+    global.Story.get = function () { return { source: "<<endevent>><<badEndTrackingEnd>><<link [[Next|Room]]>><</link>>" }; };
+    const paB4 = { name: "Room" };
+    api.onPassageOverride(paB4);
+    assert(!V.replayScene, "19 出口段（<<endevent>>）Next 回触发点 exitDest → replayScene 清理（防 Danube Street 直达残留）");
+    assert(paB4.name === "Room", "19 出口 dest 保留（玩家落触发点，剧情结束语义）");
+    global.State.passage = savedPassage19d;
+    if (savedStory19d) { global.Story = savedStory19d; } else { delete global.Story; }
+    /* 19.16 迭代优化（v1.9.30.003）：分支段（无 endevent）Next 回触发点（exitDest）→ 必须清理。
+       玩家在触发点中途从剧情分支段返回原位（剧情退出）→ 清理重放，防残留；须在并入白名单之前判定
+       （exitDest 非剧情链段，不应被并入）。 */
+    const dr19h2 = api.directTriggerScene("KylarAbduction");
+    assert(!!dr19h2 && dr19h2.ok === true, "19 再次直达开播（19.16 前置），实际 " + JSON.stringify(dr19h2));
+    const savedPassage19e = global.State.passage;
+    const savedStory19e = global.Story;
+    global.State.passage = "Kylar Abduction Intro";
+    global.Story = global.Story || {};
+    global.Story.get = function () { return { source: "<<link [[Next|Room]]>><</link>>" }; };
+    const paB5 = { name: "Room" };
+    api.onPassageOverride(paB5);
+    assert(!V.replayScene, "19 分支段（无 endevent）Next 回触发点 exitDest → replayScene 清理（防中途返回残留）");
+    assert(paB5.name === "Room", "19 返回 dest 保留");
+    global.State.passage = savedPassage19e;
+    if (savedStory19e) { global.Story = savedStory19e; } else { delete global.Story; }
+    delete V.replayScene;
+    /* 19.13 场景查看器 UI 兜底：直达被 redirect 落到 Scene Viewer End → 清理 + 回原位（exitpassage） */
+    const dr19f = api.directTriggerScene("KylarAbduction");
+    assert(!!dr19f && dr19f.ok === true, "19 再次直达开播（19.13 前置），实际 " + JSON.stringify(dr19f));
+    const paC = { name: "Scene Viewer End" };
+    api.onPassageOverride(paC);
+    assert(!V.replayScene, "19 直达落到 Scene Viewer End → 清理重放");
+    assert(paC.name === "Room", "19 Scene Viewer End 兜底回原位（exitpassage=Room），实际 " + paC.name);
+    delete V.replayScene;
+    delete V.scenes;
+    delete window.Engine;
+    delete window.wikifier;
+    delete window.__mce_wiki;
+  } catch (e19) {
+    failures++;
+    console.error("FAIL: 19 剧情直达触发测试异常：" + (e19 && e19.message ? e19.message : e19));
+  }
   console.log(failures === 0 ? "\nSMOKE ALL PASSED" : "\nSMOKE " + failures + " FAILURES");
   process.exitCode = failures === 0 ? 0 : 1;
 }, 20000);
