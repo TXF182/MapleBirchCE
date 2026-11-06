@@ -31,7 +31,7 @@
 - [ ] 打包 verifier 4/4：____
 - [ ] zip 正斜杠 4/4：____
 - [ ] SHA256（本地 / game / Release 回读一致）：____
-- [ ] 远端 CI 等价（`$env:MCE_DOL_HTML` 指向不存在路径跑 `npm ci` + smoke，SKIP 数 ____）：____
+- [ ] 远端 CI 等价（本机 Node ≥22.22.2 / CI 同为 22；`$env:MCE_DOL_HTML` 指向不存在路径跑 `npm ci` + smoke，SKIP 数 ____，并在 GitHub Actions 上确认一次 success）：____
 
 ## 3. 玩家路径走查（本次改动所有用户入口，逐条实机/模拟）
 | # | 用户入口（怎么进/怎么点/触发什么） | 走查方式 | 结果 |
