@@ -1,5 +1,10 @@
 # 行尾策略（core.autocrlf=true 的 Windows 环境下必需）
 # sh 钩子被转成 CRLF 后无法执行（#!/bin/sh\r 会直接失败），钩子门禁会整条失效；
-# ps1/js/md 仍按平台默认，不做全局重新规范化，避免历史文件一次性大 diff。
+# *.js 固定 LF：tools/build_js.js 只做纯拼接、不做行尾规范化，若 js 行尾随检出环境变化，
+#   同一 commit 会产出不同字节（CI 产物 ≠ 本地打包产物），见 ERR-20261106-012；
+#   实测证据：同一 commit 在 autocrlf=false（等价 Linux 检出）下产物 622,384 B / da827ca1…，
+#   与 CI 完全一致，而本地工作区因 autocrlf 二次转换多 154 个 CR → 622,538 B / ebe9e5f8…。
+# ps1/md/json 不参与产物字节，仍按平台默认，不做全局重新规范化。
 githooks/* text eol=lf
 *.sh     text eol=lf
+*.js     text eol=lf
