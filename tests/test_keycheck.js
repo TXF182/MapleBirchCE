@@ -90,5 +90,84 @@ ok("indexSegments 取出中间下标段", k.indexSegments("plots.farm.2.greenhou
 ok("indexSegments 不把叶子数字当下标", k.indexSegments("A.b.5").length === 0);
 ok("indexSegments 不把首段当下标", k.indexSegments("0.b.c").length === 0);
 
+console.log("[7] check_key_types 判据形态回归（fixture，不依赖 _modcache）");
+/* 回归对象：v2.0.0.002 扩展的三类证据判据
+   ① TS 字段类型声明 ② 初始化对象字面量 ③ ?? 惰性初始化，
+   以及两条已实证的误判防线：父键块隔离（repair_tools vs repair_parts）、跨父键上下文校验（Finance.bank.opened）。 */
+const os = require("os"), fsm = require("fs"), pathm = require("path");
+const ckt = require("../tools/check_key_types.js");
+const tmpDir = fsm.mkdtempSync(pathm.join(os.tmpdir(), "mce-kt-"));
+function fixture(name, body) {
+  const p = pathm.join(tmpDir, name);
+  fsm.writeFileSync(p, body, "utf8");
+  return p;
+}
+const fTransport = fixture("Transport.ts",
+  "class Transport {\n  public static readonly defaults = {\n    repair_tools: { bicycle: false, motor: false },\n    repair_parts: { bicycle: 0, motor: 7 }\n  };\n}\n");
+ok("父键块内 number 命中（repair_parts.bicycle 不串到相邻 repair_tools）",
+  ckt.collectEvidence([fTransport], "Transport.repair_parts.bicycle").got === "number",
+  JSON.stringify(ckt.collectEvidence([fTransport], "Transport.repair_parts.bicycle")));
+ok("父键块内 boolean 命中（repair_tools.bicycle 不串到相邻 repair_parts）",
+  ckt.collectEvidence([fTransport], "Transport.repair_tools.bicycle").got === "boolean");
+ok("块内非首字段也能命中（repair_parts.motor）",
+  ckt.collectEvidence([fTransport], "Transport.repair_parts.motor").got === "number");
+const fChoir = fixture("temple-choir.ts", "export interface TempleChoir {\n  joined: boolean;\n  singing: number;\n}\n");
+ok("interface 形态 → boolean", ckt.collectEvidence([fChoir], "TempleChoir.joined").got === "boolean");
+ok("interface 形态 → number", ckt.collectEvidence([fChoir], "TempleChoir.singing").got === "number");
+const fFacility = fixture("facility.ts", "type Facility = {\n  capacity: number;\n  owned: boolean;\n};\n");
+ok("type 形态 → number", ckt.collectEvidence([fFacility], "eden.Facility.capacity").got === "number");
+ok("type 形态 → boolean", ckt.collectEvidence([fFacility], "eden.Facility.owned").got === "boolean");
+const fMargin = fixture("MarginTrading.ts", "export class MarginTrading {\n  opened: number;\n}\n");
+ok("跨父键不误判（Finance.bank.opened 取不到 MarginTrading 的 opened）",
+  ckt.collectEvidence([fMargin], "Finance.bank.opened").got === null);
+const fWraith = fixture("Wraith.twee",
+  "<<set $RBR.necklace.retaken to ($RBR.necklace.retaken ?? 0) + 1>>\n");
+ok("?? 惰性初始化 → number", ckt.collectEvidence([fWraith], "RBR.necklace.retaken").got === "number");
+const fAssign = fixture("misc.js", "V.MoreTransformations.raven.met = true;\n");
+ok("V. 前缀赋值 → boolean", ckt.collectEvidence([fAssign], "MoreTransformations.raven.met").got === "boolean");
+const fNote = fixture("Note.ts", "export interface Note {\n  text: string;\n}\n");
+ok("string 字段声明", ckt.collectEvidence([fNote], "x.Note.text").got === "string");
+ok("含数字段路径跳过（skip-dynamic）",
+  String(ckt.collectEvidence([fTransport], "plots.farm.0.greenhouse").why).indexOf("skip-dynamic") >= 0);
+ok("零证据 → no-evidence", ckt.collectEvidence([fTransport], "Unknown.thing").why === "no-evidence");
+ok("classifyLiteral 空数组 → array", ckt.classifyLiteral("[]") === "array");
+ok("classifyLiteral 空对象 → object", ckt.classifyLiteral("{}") === "object");
+ok("classifyLiteral 表达式 → null", ckt.classifyLiteral("someVar + 1") === null);
+ok("classifyLiteral 带分号数字 → number", ckt.classifyLiteral("12;") === "number");
+try { fsm.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) { /* 临时目录清理失败不影响断言 */ }
+
+console.log("[8] 全量声明类型核查（需 tools/_modcache 对照源码）");
+/* 门禁语义：CONFLICT / STRICT 必须为 0；凡取证成功的键，其取证类型必须与声明类型一致。
+   _modcache 缺失时 SKIP（CI 干净克隆无对照源码，不计入断言）。 */
+const modcacheDir = pathm.join(__dirname, "..", "tools", "_modcache");
+if (!fsm.existsSync(modcacheDir)) {
+  console.log("  SKIP：缺少 tools/_modcache 对照源码，跳过全量声明类型核查");
+} else {
+  const { execFileSync } = require("child_process");
+  const toolPath = pathm.join(__dirname, "..", "tools", "check_key_types.js");
+  let raw = "";
+  try {
+    raw = execFileSync(process.execPath, [toolPath, "--json"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  } catch (e) {
+    raw = String(e.stdout || ""); /* exit 1 时 stdout 仍有完整 JSON */
+  }
+  raw = raw.slice(raw.indexOf("{"));
+  const rep = JSON.parse(raw);
+  ok("CONFLICT 为 0（无声明类型与源码形态直接冲突）", rep.conflict === 0, String(rep.conflict));
+  ok("STRICT_NUM 为 0", rep.strictNum === 0, String(rep.strictNum));
+  ok("STRICT_BOOL 为 0", rep.strictBool === 0, String(rep.strictBool));
+  const okItems = rep.results.filter((r) => r.verdict === "OK");
+  /* 口径归一：声明侧用 SugarCube 的 `list`，取证侧 classifyLiteral 返回 `array`，二者同义 */
+  const normType = (t) => (t === "array" ? "list" : t);
+  for (const r of okItems) {
+    ok("取证类型与声明一致 " + r.adapter + " | " + r.varPath,
+      normType(r.actual) === normType(r.declared) && !!r.evidence,
+      r.declared + " vs " + r.actual + " @" + r.evidence);
+  }
+  ok("取证条数不为 0（判据确实在工作）", okItems.length > 0, String(okItems.length));
+  ok("NO_EVIDENCE 不等于全量（仍有大量键取证）",
+    rep.results.filter((r) => r.verdict === "NO_EVIDENCE").length < rep.total, rep.total + " 条");
+}
+
 console.log("\n结果：通过 " + pass + "，失败 " + fail);
 process.exit(fail ? 1 : 0);

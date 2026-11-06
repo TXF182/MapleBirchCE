@@ -8,8 +8,12 @@ const path = require("path");
 // v1.9.0：测试读 git 源构建产物（javascript/maplebirchce.js），与打包源解耦；
 // 可用环境变量 MCE_PKG_JS 覆盖为打包源路径（run_all.ps1 提供 --sync-pkg 后设此变量）。
 const jsPath = process.env.MCE_PKG_JS || path.join(__dirname, "..", "javascript", "maplebirchce.js");
-const js = fs.readFileSync(jsPath, "utf8");
-fs.writeFileSync(path.join(__dirname, "mce_script.js"), js);
+const rawJs = fs.readFileSync(jsPath, "utf8");
+fs.writeFileSync(path.join(__dirname, "mce_script.js"), rawJs);
+// c8 覆盖率归因：eval 执行的代码没有脚本 URL，V8 覆盖率无法映射回源文件
+// （实测归因后 c8 才能统计 javascript/maplebirchce.js 的语句/分支/行覆盖）。
+// 只加在传给 eval 的副本上，mce_script.js 快照保持与原产物逐字节一致。
+const js = rawJs + "\n//# sourceURL=" + jsPath.replace(/\\/g, "/");
 
 // ---- 全局环境（rv 即框架对 V 的引用：rv.variables===V，rv.characters===V.characters） ----
 global.V = { maplebirch: { npc: {} }, NPCName: [], characters: { npc: {} } };
@@ -4192,6 +4196,420 @@ try {
   failures++;
   console.error("FAIL: 53 剧情直达 api 测试异常: " + (e53 && e53.message ? e53.message : e53));
 }
+
+
+/* ===== 54：v2.0.0.002 新增能力（说话态度自由选择 / 武器直接获得 / 潜伏者 / 新适配器） ===== */
+try {
+  const api54 = setup.mbStageCE;
+  const gV = global.V;
+
+  // 54.1 说话态度：原版门槛 $submissive gt 850（顺从档）与 lt 1150（抗拒档）的交集判定
+  const st851 = api54.attitudeState(851);
+  assert(st851.sub === true && st851.resist === true && st851.both === true, "54.1a 851 两档全开, " + JSON.stringify(st851));
+  const st1000 = api54.attitudeState(1000);
+  assert(st1000.both === true, "54.1b 1000 两档全开（区间中点）");
+  const st850 = api54.attitudeState(850);
+  assert(st850.sub === false && st850.resist === true, "54.1c 850 顺从档锁定（需 gt 850）, " + JSON.stringify(st850));
+  const st1150 = api54.attitudeState(1150);
+  assert(st1150.resist === false && st1150.sub === true, "54.1d 1150 抗拒档锁定（需 lt 1150）, " + JSON.stringify(st1150));
+  const stNull = api54.attitudeState(null);
+  assert(stNull.value === null && stNull.both === false, "54.1e 未初始化不误判为可用");
+  assert(api54.FSA_FREE_MID === 1000, "54.1f 一键中值常量=1000");
+
+  // 54.2 写入闭环：applyAttitude 写的是 submissive 本体，且能回退
+  gV.submissive = 400;
+  const a1 = api54.applyAttitude(api54.FSA_FREE_MID);
+  assert(a1.ok === true, "54.2a 写入 1000 成功, " + JSON.stringify(a1));
+  assert(gV.submissive === 1000, "54.2b 变量已落盘, " + gV.submissive);
+  assert(api54.attitudeState(gV.submissive).both === true, "54.2c 写入后两档全开");
+  const au = api54.undoCheatModValue("player-self", "p:submissive");
+  assert(au.ok === true && gV.submissive === 400, "54.2d 回退还原原值, " + gV.submissive);
+  const a2 = api54.applyAttitude("abc");
+  assert(a2.ok === false, "54.2e 非数字拒绝, " + a2.message);
+
+  // 54.3 锁定目标值解析（绝对 / 相对 / 非法）
+  assert(api54.quickTargetValue("100", 50) === 100, "54.3a 绝对值");
+  assert(api54.quickTargetValue("+30", 50) === 80, "54.3b +N 相对");
+  assert(api54.quickTargetValue("-20", 50) === 30, "54.3c -N 相对");
+  assert(api54.quickTargetValue("  +5 ", 0) === 5, "54.3d 空格容错");
+  assert(api54.quickTargetValue("abc", 0) === null, "54.3e 非法返回 null");
+  assert(api54.quickTargetValue("", 0) === null, "54.3f 空串返回 null");
+
+  // 54.4 武器直接获得：写 prof 键 = 原版持有判定（isnot undefined）
+  gV.prof = { spray: 0, baton: 0, whip: 0, net: 0, pickaxe: 0 };
+  delete gV.spray; delete gV.spraymax;
+  const gw1 = api54.grantWeapon("prof.whip");
+  assert(gw1.ok === true, "54.4a 获得鞭子 ok, " + JSON.stringify(gw1));
+  gV.prof.baton = 722;
+  const gwKeep = api54.grantWeapon("prof.baton");
+  assert(gwKeep.ok === true && gV.prof.baton === 722, "54.4b 已有熟练度不被覆盖（722 保持）, " + gV.prof.baton);
+  delete gV.prof.net;
+  const gw2 = api54.grantWeapon("prof.net");
+  assert(gw2.ok === true && gV.prof.net === 100, "54.4c 未定义武器建键=100, " + gV.prof.net);
+  const gw3 = api54.grantWeapon("prof.spray");
+  assert(gw3.ok === true, "54.4d 获得喷雾 ok");
+  assert(gV.prof.spray === 100, "54.4e 喷雾熟练度=100");
+  assert(gV.spraymax === 5, "54.4f 喷雾容量补到 5（否则 clamp 打不出）, " + gV.spraymax);
+  assert(gV.spray === 5, "54.4g 喷雾弹药补满, " + gV.spray);
+  const gw4 = api54.grantWeapon("prof.nope");
+  assert(gw4.ok === false, "54.4h 未知武器键拒绝, " + gw4.message);
+  delete gV.prof; delete gV.spray; delete gV.spraymax;
+  const ga = api54.grantAllWeapons();
+  assert(ga.ok === true, "54.4i 全部获得 ok, " + ga.message);
+  ["spray", "baton", "whip", "net", "pickaxe"].forEach(function (w, i) {
+    assert(typeof gV.prof[w] === "number" && gV.prof[w] > 0, "54.4j" + i + " " + w + " 已获得（非 undefined）");
+  });
+
+  // 54.5 潜伏者：状态 / 高值原样保留（无上限）/ 自动搬运（保底模式，补丁未命中时用）
+  gV.lurkers_held = 0; gV.lurkers_stored = 0; gV.mbCE_lurkerMoved = 0;
+  gV.hookah = { lurkers: 1, juice: 0 };
+  const ls = api54.mbCELurkerState();
+  assert(ls.ok === true && ls.fridge === 1 && ls.held === 0, "54.5a 状态读取, " + JSON.stringify(ls));
+  const s9 = api54.mbCELurkerSet("hookah.lurkers", 9);
+  assert(s9.ok === true && gV.hookah.lurkers === 9, "54.5b 冰箱写 9 原样保留（不再钳 5）, " + gV.hookah.lurkers);
+  const s12 = api54.mbCELurkerSet("lurkers_held", 12);
+  assert(s12.ok === true && gV.lurkers_held === 12, "54.5b2 手持写 12 原样保留, " + gV.lurkers_held);
+  gV.lurkers_held = 3; gV.hookah.lurkers = 4; gV.lurkers_stored = 0; gV.mbCE_lurkerAuto = true;
+  const moved = api54.mbCELurkerAutoTick();
+  assert(moved === 3, "54.5c 自动搬运 3 只, moved=" + moved);
+  assert(gV.lurkers_held === 0, "54.5d 手持清零（lt 1 恒成立，捕捉链不被卡）, " + gV.lurkers_held);
+  assert(gV.hookah.lurkers === 7, "54.5e 冰箱累加无上限（4+3=7）, " + gV.hookah.lurkers);
+  assert(gV.lurkers_stored === 0, "54.5f 冰箱不封顶故余量为 0, " + gV.lurkers_stored);
+  assert(gV.mbCE_lurkerMoved === 3, "54.5g 累计搬运计数, " + gV.mbCE_lurkerMoved);
+  api54.mbCELurkerSetAuto(false);
+  gV.lurkers_held = 2;
+  const moved0 = api54.mbCELurkerAutoTick();
+  assert(moved0 === 0 && gV.lurkers_held === 2, "54.5h 关闭后不搬运, moved=" + moved0);
+  assert(api54.MB_CE_LURKER_FRIDGE_MAX === 9999 && api54.MB_CE_LURKER_MAX === 9999, "54.5i 上限常量=9999（防呆值，非原版 5）");
+  // 54.5j 文本解限纯函数：门控移除 + 冰箱 switch 换真实数值 + 幂等
+  const p1 = api54.mbCELurkerPatchText("Farm Yard", '<<if $farm_stage gte 10 and $lurkers_held lt 1>>x<</if>>');
+  assert(p1.hits === 1 && p1.text.indexOf("lurkers_held lt 1") < 0 && p1.text.indexOf("$farm_stage gte 10>>") >= 0,
+    "54.5j 捕捉门控已移除, " + p1.text);
+  assert(api54.mbCELurkerPatchText("Farm Yard", p1.text).hits === 0, "54.5k 幂等（二次替换 0 处）");
+  const p2 = api54.mbCELurkerPatchText("Widgets Flats",
+    'and <<switch $hookah.lurkers>><<case 5>>five<</case>><<case 1>>one<</case>><<default>>no<</default>><</switch>> <<pluralise $hookah.lurkers "lurker">>');
+  assert(p2.hits === 1 && p2.text.indexOf("switch") < 0 && p2.text.indexOf("$hookah.lurkers gt 0") >= 0,
+    "54.5l 冰箱 switch 换成真实数值, " + p2.text);
+  const p3 = api54.mbCELurkerPatchText("Widgets Flats", '<<if $lurkers_held gte 1 and $hookah.lurkers lt 5>>store<</if>>');
+  assert(p3.hits === 1 && p3.text.indexOf("lt 5") < 0, "54.5m 存冰箱门控已移除, " + p3.text);
+  // 54.5n 态度：三档成对写入 + 维持（把被改坏的值拉回所选档）
+  gV.speech_attitude = "neutral"; gV.submissive = 1000; delete gV.mbCE_attitudeLock;
+  const ap = api54.mbCEAttitudeApply("meek");
+  assert(ap.ok === true, "54.5n 选 Meek 成功, " + ap.message);
+  assert(gV.speech_attitude === "meek" && gV.submissive === 1500, "54.5o 成对写入 meek/1500, " + gV.speech_attitude + "/" + gV.submissive);
+  gV.submissive = 300; gV.speech_attitude = "bratty";
+  const tk = api54.mbCEAttitudeTick();
+  assert(tk >= 1, "54.5p 维持触发修正, fixed=" + tk);
+  assert(gV.speech_attitude === "meek", "54.5q 态度复位回 Meek, " + gV.speech_attitude);
+  assert(gV.submissive === 851, "54.5r 顺从度拉回 Meek 门槛内侧（851）, " + gV.submissive);
+  api54.mbCEAttitudeApply("bratty");
+  gV.submissive = 1500;
+  api54.mbCEAttitudeTick();
+  assert(gV.speech_attitude === "bratty" && gV.submissive === 1149, "54.5s Bratty 拉回 1149, " + gV.submissive);
+  const rel = api54.mbCEAttitudeRelease(true);
+  assert(rel.ok === true && gV.speech_attitude === "neutral" && gV.submissive === 1000,
+    "54.5t 解除并还原到锁定前的 neutral/1000, " + gV.speech_attitude + "/" + gV.submissive);
+
+  // 54.6 FertilityExpansion 适配器：detect 依赖 ModLoader 列表 / 存档 eden 对象
+  const oldZip = global.window.modDataValueZipList;
+  global.window.modDataValueZipList = [{ name: "FertilityExpansion" }];
+  const mods54 = api54.getCheatMods();
+  const ids54 = mods54.map(function (m) { return m && m.modId; }).join(",");
+  assert(ids54.indexOf("fertility-expansion") >= 0, "54.6a FertilityExpansion 适配器可见, " + ids54);
+  const fert54 = mods54.filter(function (m) { return m && m.modId === "fertility-expansion"; })[0];
+  assert(!!fert54 && Array.isArray(fert54.values) && fert54.values.length === 2, "54.6b 声明 2 个数值项");
+  assert(!!fert54 && fert54.values[0].varPath === "eden.facility.capacity", "54.6c 首个数值项 = 房产容量");
+  assert(!!fert54 && Array.isArray(fert54.stages) && fert54.stages.length === 1, "54.6d 只声明 1 个阶段（lifeStoryReadMode 为字符串已排除）");
+  assert(!!fert54 && Array.isArray(fert54.abilities) && fert54.abilities.length === 11, "54.6e 11 个能力项（8 原有 + 3 个 settings 布尔）");
+  // 54.6f 模组自带作弊等价：10 项动作 + 面板接管 + 无 API 时优雅降级
+  assert(!!fert54 && Array.isArray(fert54.actions) && fert54.actions.length === 10, "54.6f 声明 10 个命令式动作（对齐 eden-cheats-ui）");
+  assert(!!fert54 && typeof fert54.actionPanel === "function", "54.6g actionPanel 接管渲染（孩子下拉 + 表单 + 一键）");
+  assert(api54.MB_CE_FERT_ACTIONS.map(function (a) { return a.key; }).join(",") ===
+    "fert_labour,fert_parasite_fert,fert_parasite_ripe,fert_innate,fert_skills,fert_reset,fert_adult,fert_remove,fert_reset_reason,fert_adult_reason",
+    "54.6h 10 项 key 与模组面板一一对应");
+  const oldEden = global.window.EdenCheats;
+  delete global.window.EdenCheats;
+  const nr = api54.mbCEFertReady();
+  assert(nr.ok === false && /EdenCheats/.test(nr.message), "54.6i 无 EdenCheats 时拒绝并说明原因, " + nr.message);
+  let called = [];
+  global.window.EdenCheats = {
+    available: function () { return true; },
+    labour: function () { called.push("labour"); return { ok: true, message: "已执行 labour" }; },
+    parasites: function (f) { called.push("parasites:" + f); return { ok: true, message: "已执行 parasites" }; },
+    children: function () { return [["7", { name: "测试孩子", gender: "f" }]]; },
+    resetReason: function () { return "伊甸园没有空位，无法重置成年孩子的养育进度。请先腾出空位。"; }
+  };
+  assert(api54.mbCEFertReady().ok === true, "54.6j 有 EdenCheats 时可用");
+  const fl = api54.mbCEFertRun("fert_labour", "", null);
+  assert(fl.ok === true && called.indexOf("labour") >= 0, "54.6k 一键分娩走模组 API, " + fl.message);
+  const fp = api54.mbCEFertRun("fert_parasite_fert", "", null);
+  assert(fp.ok === true && called.indexOf("parasites:true") >= 0, "54.6l 寄生卵受精走模组 API, " + fp.message);
+  const fr = api54.mbCEFertRun("fert_reset_reason", "7", null);
+  assert(fr.ok === true && fr.message.indexOf("空位") >= 0, "54.6m 只读前置查询透传模组文案, " + fr.message);
+  const fc = api54.mbCEFertChildren();
+  assert(fc.length === 1 && String(fc[0][0]) === "7", "54.6n 孩子列表透传");
+  // 54.6o/v2.0.0.002 补声明：eden-age.js normalizeSettings 里三个布尔设置
+  assert(fert54.abilities.filter(function (a) { return a.varPath === "eden.settings.resetAgeOnTransfer"; }).length === 1,
+    "54.6o 新增 resetAgeOnTransfer 声明");
+  assert(fert54.abilities.filter(function (a) { return a.varPath === "eden.settings.immediateLifeStory"; }).length === 1 &&
+    fert54.abilities.filter(function (a) { return a.varPath === "eden.settings.enableNightVisits"; }).length === 1,
+    "54.6o2 新增 immediateLifeStory / enableNightVisits 声明");
+  assert(fert54.abilities.filter(function (a) { return a.varPath === "eden.settings.parentTitleSource"; }).length === 0,
+    "54.6o3 有意不声明 parentTitleSource（字符串枚举，避免数字档位打坏模组判定）");
+
+  // 54.6p 需求③：孩子被注册进 $NPCList 后按 edenChildId 摘出，不进角色页
+  const gV54 = global.V;
+  const oldNpc54 = gV54.NPCList;
+  gV54.NPCList = [{ name: "Luna", fullDescription: "Luna", edenChildId: 3 }];
+  assert(api54.mbCEEdenChildIdOf("Luna") === "3", "54.6p 带 edenChildId 的 NPC 能识别出孩子 id");
+  assert(api54.charCategory("Luna") === "edenChild", "54.6p2 孩子的分类是 edenChild（角色页据此拦截）");
+  assert(api54.charCategory("Robin") !== "edenChild", "54.6p3 普通角色不受影响, " + api54.charCategory("Robin"));
+  assert(api54.mbCEEdenChildIdOf("Robin") === null, "54.6p4 无 edenChildId 标记时返回 null");
+  gV54.NPCList = oldNpc54;
+
+  // 54.6q 孩子页数据层：列表 / 存在性 / 好感 / 定向发送 / 随叫随到 / 一键长大
+  const oldEden54 = gV54.eden;
+  const oldRec54 = gV54.childRecords;
+  gV54.eden = {
+    settings: { maturityDays: 90 },
+    children: {
+      "3": { name: "Luna", affection: 40, lifeStage: "toddler", lifeStageLabel: "幼儿期", status: "resident", species: "human", training: { skills: {} }, innate: {} }
+    }
+  };
+  gV54.childRecords = [
+    { childId: 0, name: "Egg0", development: { location: "eden_home" }, bornDate: 3 },
+    null,
+    null,
+    { childId: 3, name: "Luna", development: { location: "eden_home" }, bornDate: 3 }
+  ];
+  const pairs54 = api54.mbCEFertKidPairs();
+  assert(pairs54.length === 2, "54.6q 孩子列表 2 条, " + pairs54.length);
+  assert(api54.mbCEFertKidAlive("3") !== null && api54.mbCEFertKidAlive("9") === null,
+    "54.6q2 存在性检测：有则返回 child、无则 null");
+  // 54.6q3 回退通道（模组 API 缺失时）不得留下「假存在」：childId 与下标不符、edenDeleted 的条目都不列
+  const savedECD54 = global.window.EdenChildData;
+  delete global.window.EdenChildData;
+  (function () {
+    const keep = gV54.childRecords;
+    gV54.childRecords = [
+      { childId: 0, bornDate: 3, development: { location: "eden_home" } },
+      { childId: 9, bornDate: 3, development: { location: "eden_home" } },
+      { childId: 2, bornDate: 3, development: { location: "eden_home" }, edenDeleted: true }
+    ];
+    const r = api54.mbCEFertKidPairs();
+    gV54.childRecords = keep;
+    assert(r.length === 1 && r[0][0] === "0", "54.6q3 回退跳过 childId≠下标 / edenDeleted 的假存在条目, " + JSON.stringify(r.map(function (x) { return x[0]; })));
+    assert(api54.mbCEFertKidAlive("9") === null && api54.mbCEFertKidAlive("2") === null, "54.6q4 回退通道下这些条目判为不存在");
+  })();
+  if (savedECD54 !== undefined) { global.window.EdenChildData = savedECD54; }
+  const aff54 = api54.mbCEFertKidSetAffection("3", "88");
+  assert(aff54.ok === true && gV54.eden.children["3"].affection === 88, "54.6r 好感写入 88, " + aff54.message);
+  assert(!!(gV54.mbCE_wrote && gV54.mbCE_wrote["cheat:fertility-expansion:fert_child_aff_3"]),
+    "54.6r2 好感写入走留痕通道（可回退）");
+  const loc54 = api54.mbCEFertKidSetLocation("3", "home");
+  assert(loc54.ok === true && gV54.childRecords[3].development.location === "home", "54.6s 定向发送写 development.location, " + loc54.message);
+  gV54.location = "home";
+  assert(api54.mbCEFertKidCallToMe("3").ok === true, "54.6s2 随叫随到（玩家在 home）");
+  gV54.location = "street";
+  const call54 = api54.mbCEFertKidCallToMe("3");
+  assert(call54.ok === true && /eden_home/.test(call54.message), "54.6s3 玩家不在居所时退回 eden_home 并说明, " + call54.message);
+  delete gV54.location;
+  const grow54 = api54.mbCEFertKidGrowUp("3", false);
+  assert(grow54.ok === true && gV54.eden.children["3"].forcedAdult === true && gV54.eden.children["3"].lifeStage === "adult",
+    "54.6t 一键长大写 forcedAdult 并置成年阶段, " + grow54.message);
+  // 54.6u 模组侧删孩子后：检测为不存在，写操作明确拒绝且不抛错
+  const saved54 = gV54.childRecords;
+  gV54.childRecords = saved54.filter(function (c) { return !!c && c.childId !== 3; });
+  assert(api54.mbCEFertKidAlive("3") === null, "54.6u 模组侧删掉后立即检测为不存在");
+  const dead54 = api54.mbCEFertKidSetAffection("3", "90");
+  assert(dead54.ok === false && /不存在/.test(dead54.message), "54.6u2 对已删孩子写入被拒绝并说明, " + dead54.message);
+  assert(api54.mbCEFertKidGrowUp("3", false).ok === false, "54.6u3 对已删孩子一键长大被拒绝");
+  gV54.childRecords = saved54;
+  // 54.6v EdenChildData 通道（模组在线时的正路）+ 页面渲染
+  const fakeApi54 = {
+    entries: function () {
+      return new Map([
+        ["3", { name: "Luna", bornDate: 3, development: { location: "eden_home" } }],
+        ["9", { name: "Gone", bornDate: 3, edenDeleted: true }]
+      ]);
+    },
+    get: function (id) {
+      if (String(id) === "3") { return { name: "Luna", bornDate: 3, development: { location: "eden_home" } }; }
+      if (String(id) === "9") { return { name: "Gone", bornDate: 3, edenDeleted: true }; }
+      return null;
+    },
+    phaseOf: function (c) { if (!c) { return "missing"; } if (c.edenDeleted) { return "removed"; } if (c.forcePhase) { return c.forcePhase; } return "born"; },
+    locationOf: function (c) { return (c && c.development) ? c.development.location : ""; },
+    ageDays: function () { return 12; },
+    setLocation: function (c, l) { if (!c) { return false; } c.development.location = l; return true; }
+  };
+  global.window.EdenChildData = fakeApi54;
+  const ep54 = api54.mbCEFertKidPairs();
+  assert(ep54.length === 2, "54.6v EdenChildData.entries 列出 2 条");
+  assert(api54.mbCEFertKidAlive("9") === null, "54.6v2 phaseOf=removed 判为不存在");
+  assert(api54.mbCEFertKidInfo("3").ageDays === 12, "54.6v3 年龄走 EdenChildData.ageDays");
+  assert(api54.mbCEFertKidSetLocation("3", "eden_contacts").ok === true, "54.6v4 地点走 EdenChildData.setLocation");
+  const paneKid54 = global.document.createElement("div");
+  api54.mbCEFertRenderChildren(paneKid54);
+  assert(paneKid54.children.length > 0, "54.6w 孩子页能渲染出内容, n=" + paneKid54.children.length);
+  // 54.6x 收敛轮：显式传存档变量 + 养育四项/先天四项（模组要求四项齐全，缺项抛错而非清零）
+  const varsX = api54.mbCEFertKidVars();
+  assert(!!varsX && varsX.eden === gV54.eden, "54.6x 孩子页显式把存档变量传给模组 API（不依赖 SugarCube.State 通道）");
+  gV54.eden.children["3"].training = { skills: { knowledge: 10, fitness: 20, social: 30, awareness: 40 } };
+  if (gV54.mbCE_wrote) { delete gV54.mbCE_wrote["cheat:fertility-expansion:fert_child_skills_3"]; }
+  const skRes = api54.mbCEFertKidSaveSkills("3", { knowledge: "66" });  assert(skRes.ok === true && gV54.eden.children["3"].training.skills.knowledge === 66
+    && gV54.eden.children["3"].training.skills.fitness === 20
+    && gV54.eden.children["3"].training.skills.social === 30
+    && gV54.eden.children["3"].training.skills.awareness === 40,
+    "54.6x2 养育四项只改填写项，其余沿用现值（不被清零）, " + skRes.message);
+  assert(!!(gV54.mbCE_wrote && gV54.mbCE_wrote["cheat:fertility-expansion:fert_child_skills_3"]),
+    "54.6x3 养育写入走留痕通道");
+  assert(api54.mbCEFertKidSaveSkills("3", { knowledge: "120" }).ok === false, "54.6x4 养育越界值被拒绝");
+  const inRes = api54.mbCEFertKidSaveInnate("3", { appearance: "77" });
+  assert(inRes.ok === true && gV54.eden.children["3"].innate.appearance === 77, "54.6x5 先天四项写入 77, " + inRes.message);
+  assert(api54.mbCEFertKidSaveInnate("3", { appearance: "50.5" }).ok === false, "54.6x6 先天属性要求整数（50.5 被拒）");
+  // 模组在线：patch 必须补齐四项，否则 eden-cheats.js 的 numeric(undefined) 会整笔抛错
+  const prevCheatsX = global.window.EdenCheats;
+  let spyX = null;
+  global.window.EdenCheats = {
+    available: function () { return true; },
+    saveSkills: function (id, patch) { spyX = { id: id, patch: patch }; return { ok: true, message: "mod-ok" }; }
+  };
+  const spyRes = api54.mbCEFertKidSaveSkills("3", { fitness: "55" });
+  assert(spyRes.ok === true && !!spyX && spyX.id === "3" && spyX.patch.knowledge === 66
+    && spyX.patch.fitness === 55 && spyX.patch.social === 30 && spyX.patch.awareness === 40,
+    "54.6x7 模组 saveSkills 收到补齐后的完整四项," + JSON.stringify(spyX));
+  global.window.EdenCheats = prevCheatsX;
+  // 54.6y phase 门控：未出生的孩子不能定向发送 / 一键长大（越过模组 born|egg 判定会写脏数据）
+  const unbornX = { name: "Fetus", forcePhase: "unborn", development: {} };
+  fakeApi54.get = function (id) {
+    if (String(id) === "3") { return { name: "Luna", bornDate: 3, development: { location: "eden_home" } }; }
+    if (String(id) === "4") { return unbornX; }
+    return null;
+  };
+  gV54.eden.children["4"] = { name: "Fetus", lifeStage: "infant", status: "active" };
+  const locX = api54.mbCEFertKidSetLocation("4", "home");
+  assert(locX.ok === false && unbornX.development.location === undefined,
+    "54.6y 未出生孩子拒绝定向发送且不写脏数据, " + locX.message);
+  assert(api54.mbCEFertKidGrowUp("4", false).ok === false, "54.6y2 未出生孩子拒绝一键长大");
+  assert(api54.mbCEFertKidSaveInnate("4", { appearance: "10" }).ok === false, "54.6y3 未出生孩子拒绝写先天属性");
+  /* 收敛轮新增的 7 个孩子页符号必须真的挂在 api 上（否则面板/外部调用拿不到） */
+  const kidApiNames54 = ["mbCEFertKidSaveSkills", "mbCEFertKidSaveInnate", "mbCEFertKidCurSkills",
+    "mbCEFertKidCurInnate", "MB_CE_FERT_KID_SKILLS", "MB_CE_FERT_KID_INNATE", "mbCEFertKidVars"];
+  const kidApiMiss54 = kidApiNames54.filter(function (k) { return typeof api54[k] === "undefined"; });
+  assert(kidApiMiss54.length === 0, "54.6y4 api 暴露孩子页 7 个符号, 缺失=" + JSON.stringify(kidApiMiss54));
+  assert(Array.isArray(api54.MB_CE_FERT_KID_SKILLS) && api54.MB_CE_FERT_KID_SKILLS.length === 4
+    && Array.isArray(api54.MB_CE_FERT_KID_INNATE) && api54.MB_CE_FERT_KID_INNATE.length === 4,
+    "54.6y5 养育/先天四项常量均为 4 项");
+  delete gV54.eden.children["4"];
+  delete global.window.EdenChildData;
+  gV54.eden = oldEden54;
+  gV54.childRecords = oldRec54;
+  if (oldEden === undefined) { delete global.window.EdenCheats; } else { global.window.EdenCheats = oldEden; }
+  if (oldZip === undefined) { delete global.window.modDataValueZipList; } else { global.window.modDataValueZipList = oldZip; }
+} catch (e54) {
+  failures++;
+  console.error("FAIL: 54 新增能力测试异常: " + (e54 && e54.message ? e54.message : e54));
+}
+
+/* ===== 55：v2.0.0.002 边界矩阵（态度区间 / 武器获得 / 潜伏者钳制 / 相对值解析） ===== */
+try {
+  const api55 = setup.mbStageCE;
+  const gV55 = global.V;
+
+  // 55.1 态度区间穷举：sub = v > 850；resist = v < 1150（原版两档门槛，交集 851..1149）
+  const attCases = [
+    [0, false, true], [1, false, true], [849, false, true], [850, false, true],
+    [851, true, true], [1000, true, true], [1149, true, true], [1150, true, false],
+    [1151, true, false], [2000, true, false]
+  ];
+  for (const c of attCases) {
+    const st = api55.attitudeState(c[0]);
+    assert(st.sub === c[1], "55.1 sub@" + c[0] + " 期望 " + c[1] + " 实际 " + st.sub);
+    assert(st.resist === c[2], "55.1 resist@" + c[0] + " 期望 " + c[2] + " 实际 " + st.resist);
+    assert(st.both === (c[1] && c[2]), "55.1 both@" + c[0]);
+  }
+
+  // 55.2 武器获得矩阵：键缺失 / 0 → 写 100；1 / 722 / 1000 → 保持现值
+  const weapons55 = ["spray", "baton", "whip", "net", "pickaxe"];
+  gV55.prof = { spray: 0, baton: 0, whip: 0, net: 0, pickaxe: 0 };
+  for (const w of weapons55) {
+    delete gV55.prof[w];
+    const r1 = api55.grantWeapon("prof." + w);
+    assert(r1.ok === true && gV55.prof[w] === 100, "55.2 键缺失→建键 100：" + w + " 实际 " + gV55.prof[w]);
+    gV55.prof[w] = 0;
+    api55.grantWeapon("prof." + w);
+    assert(gV55.prof[w] === 100, "55.2 值 0→写 100：" + w + " 实际 " + gV55.prof[w]);
+    gV55.prof[w] = 1;
+    api55.grantWeapon("prof." + w);
+    assert(gV55.prof[w] === 1, "55.2 值 1→保持：" + w);
+    gV55.prof[w] = 722;
+    api55.grantWeapon("prof." + w);
+    assert(gV55.prof[w] === 722, "55.2 已有 722 不被覆盖：" + w);
+    gV55.prof[w] = 1000;
+    api55.grantWeapon("prof." + w);
+    assert(gV55.prof[w] === 1000, "55.2 已满 1000 不被覆盖：" + w);
+  }
+
+  // 55.2b 喷雾附带容量与弹药（spray() 内 Math.clamp(V.spray,0,V.spraymax)，spraymax=0 时打不出）
+  gV55.spraymax = 0;
+  gV55.spray = 0;
+  const sp = api55.grantWeapon("prof.spray");
+  assert(sp.ok === true, "55.2b 喷雾获得成功");
+  assert(gV55.spraymax === 5, "55.2b spraymax=5，实际 " + gV55.spraymax);
+  assert(gV55.spray === 5, "55.2b spray=5，实际 " + gV55.spray);
+  assert(api55.grantWeapon("prof.nunchaku").ok === false, "55.2b 未知武器键被拒绝");
+  gV55.prof = {};
+  api55.grantAllWeapons();
+  for (const w of weapons55) {
+    assert(typeof gV55.prof[w] === "number" && gV55.prof[w] >= 1, "55.2c grantAllWeapons 后已获得：" + w);
+  }
+
+  // 55.3 潜伏者：冰箱/手持均无上限（原版 5 与 1 都是 twee 门控，不是数值上限）
+  gV55.hookah = { lurkers: 0, juice: 0 };
+  gV55.lurkers_held = 0;
+  gV55.lurkers_stored = 0;
+  assert(api55.MB_CE_LURKER_FRIDGE_MAX === 9999, "55.3 冰箱上限常量=9999（防呆值）");
+  api55.mbCELurkerSet("hookah.lurkers", 9);
+  assert(gV55.hookah.lurkers === 9, "55.3 写 9 原样保留，实际 " + gV55.hookah.lurkers);
+  api55.mbCELurkerSet("hookah.lurkers", 6);
+  assert(gV55.hookah.lurkers === 6, "55.3 写 6 原样保留");
+  api55.mbCELurkerSet("hookah.lurkers", 5);
+  assert(gV55.hookah.lurkers === 5, "55.3 写 5 原样");
+  api55.mbCELurkerSet("hookah.lurkers", 0);
+  assert(gV55.hookah.lurkers === 0, "55.3 写 0 原样");
+  api55.mbCELurkerSet("lurkers_held", 2);
+  assert(gV55.lurkers_held === 2, "55.3 手持写入，实际 " + gV55.lurkers_held);
+  api55.mbCELurkerSet("lurkers_stored", 3);
+  assert(gV55.lurkers_stored === 3, "55.3 蒸馏笼写入，实际 " + gV55.lurkers_stored);
+  const lst = api55.mbCELurkerState();
+  assert(lst.ok === true && lst.fridge === 0 && lst.held === 2, "55.3 状态读取 held=2 fridge=0");
+  gV55.mbCE_lurkerAuto = false;
+  assert(api55.mbCELurkerAutoTick() === 0, "55.3 未开自动搬运时不搬");
+
+  // 55.4 相对值解析：绝对 / +N / -N / 非法
+  const qc = api55.quickTargetValue;
+  assert(qc("100", 10) === 100, "55.4 绝对值");
+  assert(qc("+5", 10) === 15, "55.4 相对加");
+  assert(qc("+ 5", 10) === 15, "55.4 相对加带空格");
+  assert(qc("-5", 10) === 5, "55.4 相对减");
+  assert(qc(" 7 ", 0) === 7, "55.4 前后空格");
+  assert(qc("abc", 5) === null, "55.4 非法输入");
+  assert(qc("", 5) === null, "55.4 空串");
+  assert(qc(null, 5) === null, "55.4 null");
+  assert(qc("1e2", 5) === null, "55.4 科学计数法不认");
+  assert(qc("0x10", 5) === null, "55.4 十六进制不认");
+  assert(qc("5.5", 5) === 5.5, "55.4 小数");
+  assert(qc("+0", 10) === 10, "55.4 +0 保持当前值");
+  assert(qc("-0", 10) === 10, "55.4 -0 保持当前值");
+  assert(qc("-100", 5) === -95, "55.4 相对减可到负数（由写入层 clamp）");
+  assert(qc("+12.5", 7.5) === 20, "55.4 相对加小数");
+  assert(qc("5 ", 0) === 5, "55.4 尾随空格");
+} catch (e55) {
+  failures++;
+  console.error("FAIL: 55 边界矩阵测试异常: " + (e55 && e55.message ? e55.message : e55));
+}
+
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

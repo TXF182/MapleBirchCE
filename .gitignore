@@ -4,6 +4,7 @@
 # 依赖与运行副产物
 node_modules/
 tests/mce_script.js
+coverage/
 
 # 安装包
 *.zip

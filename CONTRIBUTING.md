@@ -18,9 +18,9 @@
 # 2) 只改分片源码：javascript\src\*.js
 #    绝不手改 javascript\maplebirchce.js —— 那是构建产物
 
-# 3) 跑全链（7 步，1-3 分钟）
+# 3) 跑全链（9 步，1-3 分钟）
 .\tools\run_all.ps1
-#    build → node --check → ESLint 四规则 → DOM 冒烟 → 全量回归 → 功能级 E2E → 性别集成
+#    build → node --check → ESLint 八规则 → DOM 冒烟 → 全量回归 → 功能级 E2E → 性别集成 → 适配器声明一致性 → 覆盖率门禁
 #    任何一步红都不算完成；末尾自动 codegraph sync
 
 # 4) 有 src 改动必须再跑实机冒烟（约 2-4 分钟）

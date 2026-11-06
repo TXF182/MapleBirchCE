@@ -2,6 +2,192 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.0.002（2026-11-07 用户指令升版 · 功能轮 2026-11-06 起）
+
+> **双源已升为 `2.0.0.002`**（`01-core.js` `MCE_VERSION` + `boot.json` `version`，用户 2026-11-07 明确指令 `+0.0.1`）。产物与包 SHA 见下（升版后重建，数值以本条为准）。 `javascript\maplebirchce.js` = **60 段 / 711,173 B / SHA256 `EAED57F105892DE745D6D32C3C95D487D8433EFB1B4B5D10898B896903E9551A`**；打包 `MapleBirchCE.mod.zip` = **281,963 B / SHA256 `E207F82B4A0B6EAB9F0B165BF83A9EDB1B4DBBD85FD58F259358ED5FEB332E89`**（4 条目正斜杠；verifier 4/4，本轮本机无 verifier-hub skill，走内置等价核对：条目集合精确匹配 + CRC 全量，`zipfile.testzip()` 返回 None；zip 内 `javascript/maplebirchce.js` 解出 711,173 B / SHA256 与源产物逐字节一致，`README.md` 与仓库磁盘文件逐字节一致，`boot.json` version 与 `01-core.js` `MCE_VERSION` 双源一致）。**装机实证（2026-11-07）**：`dev.ps1` 只做文件层复制，实机加载走 Edge `file://` 的 IndexedDB——用 `game\mce-mod-import.html` 写入包键 `modDataIndexDBZip:MapleBirchCE.mod.zip`（导入后列表 27 项，第 27 项 `MapleBirchCE` 为旧 2.0.0.001 残留、与新包同名冲突）；再用 `game\mce-idb-clean-dup.html` 在**同一事务**内移除该旧列表条目并删除旧包键 `modDataIndexDBZip:MapleBirchCE`——清理后 `store 61 键 / 包键 26 / 列表 26`，列表与包键一一对应（回读断言 5/5 通过，幂等复跑同结果）。刷新后加载日志 `警告 0`（无 `duplicate mod name` 警告）、`ModZipReader init() modInfo: [MapleBirchCE] [2.0.0.002]`；模组管理 `已安装模组 26 个 / 已启用 26`，列表末尾唯一 CE 条目为 `MapleBirchCE.mod.zip`（外部模组）；CE 面板标题 `剧情条件解锁面板 v2.0.0.002`（页签 11、就绪 41 个角色）与 `MCE_VERSION` 一致。**只删列表项不持久**：包键仍在时旧名会被重新追加到队尾并最后生效（实测曾致面板回退到 v2.0.0.001、页签 6），故列表项与包键必须一起清。
+
+### 一、快速面板「锁定」与「直接获得武器」（需求 ②③）
+
+- **锁定按钮**：`renderQuickRow()` 每个数值行在原有「应用 / 回退」之外追加「锁定」——已锁显示 `已锁定`（`mce-btn mce-gold`，点击即取消），未锁则取输入框值（支持 `+N` / `-N` 相对写法，`quickTargetValue()` 解析）写为目标并 `mbCELockSet(path, tgt)`；复用 `07f-lock.js` 的 1 秒 tick 机制，不改其核心。
+- **武器直接获得**：`prof.spray/baton/whip/net/pickaxe` 五个武器技能行追加金色「获得」按钮 → `grantWeapon(path)`；武器技能组底部追加「全部获得（5 件武器）」→ `grantAllWeapons()`。
+- **持有判定语义（测试抓出并二次修正）**：模组侧 `<<if $prof.<skill> isnot undefined>>` 即视为持有，值 0 也算。因此规则定为 **值 ≥ 1 一律保持现值**（不冲掉玩家截图里的 `短棍(722)`）、**值为 0 或键缺失才写入门档 `WEAPON_GRANT_BASE = 100`**。防狼喷雾额外补 `spraymax = 5`（仅当 `< 1`）与 `spray = 5`（仅当 `< 1`），因为 `spray()` 内 `V.spray = Math.clamp(V.spray, 0, V.spraymax)`，只写 `spray` 会被 0 上限夹死。
+- `prof.pickaxe` 取证备注：原版只在 `mines_init` 里 `<<if $prof.pickaxe is undefined>><<set $prof.pickaxe to 0>><</if>>` 建键，镐的真实道具是 `<<wearProp "pickaxe">>`；该项仅作显示面补齐。
+
+### 二、说话态度：原版三档 + 选定后永久维持（需求 ⑤，直接实现，不做模组适配器）
+
+> 口径两次纠偏后的定稿：用户明确「把游戏中原有的三个态度选项选了之后，无论其他的数值态度怎么变化，玩家都会一直维持他所选的那个态度」。此前「把 `$submissive` 写进 851–1149 交集」的实现**已作废**——那只是"两档都能选"，不是"所选档永久维持"。
+
+- 新文件 `05b2-modcheat-attitude.js`（从 `05b-modcheat-player.js` 拆出，在玩家数值页最上面渲染）。
+- **原版取证（逐字取自 `Degrees of Lewdity.html`，非二手转述）**：
+  - 三档控件 `<<widget "cheatsSpeechAttitude">>` 是**成对写入**：`_submissiveness = [1500, 1000, 500]` ↦ `_attitude = ["meek", "neutral", "bratty"]`，点一档**同时**写 `$speech_attitude`（档名）与 `$submissive`（锚值）。
+  - 门槛在 `<<widget "attitudes">>`：Meek 需 `$submissive gt 850`（否则 "You're too defiant…" 灰掉）、Bratty 需 `$submissive lt 1150`（否则 "You're too submissive…" 灰掉）；1500 / 1000 / 500 三锚值天生落在门槛内侧。
+  - `$speech_attitude` 全库写入点仅 6 处（`gameStartOnly` / `variablesVersionUpdate` / `Cheats` / `Pinch Widgets`（喵化）/ `Scarlet Widgets`），其余数百处只读 → 游戏本身不会自行改档，"维持"不必拦 `subCheck()`，只需定时复位。
+- **实现**：`mbCEAttitudeApply(key)` 写 `$speech_attitude` + 锚值并登记 `V.mbCE_attitudeLock`（记 `prevAttitude/prevSubmissive` 供还原）；`mbCEAttitudeTick()` 每秒把档名复位到所选档，越界时把顺从度拉回门槛内侧（Meek ≥ 851、Bratty ≤ 1149），累加 `fixed` 计数；`mbCEAttitudeHold(on)` 开关维持、`mbCEAttitudeRelease(restore)` 解除（可选还原）。
+- UI：三档按钮（选中档带 `✓` 与 `mce-btn mce-gold`）+「维持：开/关」+「解除维持」/「解除并还原」+ 实时状态行（当前档名 / 顺从度 / 已修正次数）。
+- **技术边界（已证伪的旧思路）**：SugarCube 源码对同名 `<<widget>>` 拒绝覆盖（`cannot clobber existing definition` / `cannot clobber existing macro`），所以"运行时重定义 widget 改门槛"走不通；CE 走"定时复位状态变量"，不改内核。
+- 旧符号 `attitudeState()` / `readAttitude()` / `FSA_FREE_MID` 保留（兼容既有断言）；`applyAttitude(v)` 改为：字符串按档名、数字按最近锚值映射档位。
+
+### 三、潜伏者捕捉 / 水烟馆冰箱：真·无上限（需求 ⑥）
+
+> 口径纠偏：用户要的是**无上限**。此前「抓到即自动腾空手持 + 冰箱钳 0–5」被判不合格——那是把显示缺陷当成上限。
+
+- 新文件 `07f-lurker-patch.js`（启动前文本解限引擎）+ 重写 `07f-lurker.js`（面板与保底搬运）。
+- **原版取证（逐字）**：
+  - 捕捉门控 5 处同一形态 `<<if $farm_stage gte 10 and $lurkers_held lt 1>>` 包裹 "Hurl net"，分布 `Widgets Struggle`（2 处）/ `Farm Yard` / `Farm Tending Lurker Work` / `Farm Tending Lurker Alex Fail`。
+  - 冰箱真身两处（`Widgets Flats` 的 `<<widget "hookah_juice">>`）：存储门控 `<<if $lurkers_held gte 1 and $hookah.lurkers lt 5>>`；显示 `<<switch $hookah.lurkers>>` 只映射 5…1，`<<default>>` 输出 "no"。
+  - 成功结算 `<<set $lurkers_held += 1>><<set $stat_lurkers_captured += 1>>` 本身**无上界** → 去掉门控即可无限累积。
+- **实现路径**：widget 定义在 SugarCube 启动时一次性注册且不可覆盖 → 只能在 `SugarCube.start` 之前改 DOM 里的 `<tw-passagedata>`。CE 由 `scriptFileList_inject_early` 在 `<head>` 执行（body 未解析），注册**捕获阶段** `DOMContentLoaded`，先于正文末尾 SugarCube 的启动回调。6 条替换：5 处门控改为 `$farm_stage gte 10` / `$lurkers_held gte 1`；冰箱 `<<switch>>` 整段换成 `<<= $hookah.lurkers gt 0 ? $hookah.lurkers : "no">>`（>5 不再落到 default 显示 "no"）。`mbCELurkerPatchText()` 为纯函数（幂等，返回 `{text,hits}`）；`mbCELurkerPatchDom()` / `mbCELurkerPatchStory()` 双通道，报告存 `window.mbCELurkerPatchReport`。
+  - **实测边界（moli 两轮探针，2026-11-06）**：`typeof SugarCube === "object"` 但 `Object.keys(SugarCube)` 为空、`SugarCube.State` / `Story` / `Macro` 全部不存在 → 运行期通道实际恒不可用。`mbCELurkerPassageAccess()` 保留三通道并如实把 `access` 标成 `Story` / `SugarCube.State.passages` / `none`，**真正生效的只有 DOM 抢跑这一条**；抢跑若因 ModLoader 提前固化 passage 而落空，靠下面的自动搬运兜底，功能仍成立（见 `.learnings\ERRORS.md#ERR-20261106-026`）。
+- **兜底**：`mbCELurkerRepatch()` 手动重试；仍未命中时可开「自动搬运」（`mbCELurkerAutoTick()`，0.5 秒）把抓到的转入冰箱与蒸馏笼，手上常空使 `lt 1` 恒成立 = 等价无限次捕捉（面板如实标注"手持不累积"）。
+- 数值不再钳制：`MB_CE_LURKER_MAX = 9999`（防呆值），冰箱与手持同上限；`lurkers_held` 若已被「锁定」机制接管，自动搬运让位不写。
+
+### 四、FertilityExpansion 自带作弊的等价实现（需求 ④）
+
+> 口径纠偏：用户要求「那个模组他自己也有作弊，你也要根据他自己有的作弊你也得有」。此前「CE 只做 11 条数值直写、不碰模组 UI」被判不合格。
+
+- 保留 `04a-13-fert.js` 的 11 条声明（1 stage + 8 ability + 2 value），另新增 `04a-14-fert-cheats.js`。
+- **模组自带作弊原文清单**（`eden-cheats.js` + `eden-cheats-ui.js`，1.7.0）：`window.EdenCheats` 暴露 `available / labour / parasites / children / choices / identity / saveInnate / saveSkills / reset / resetReason / adultReason / settleAdult / removeChild`；面板三块 = 怀孕（一键分娩 / 寄生卵受精 / 寄生物成熟）+ 生育（先天四项 0–100 整数 + 身份九项）+ 养育（四项 0–100 + 重置 / 立刻成年结算 / 删除孩子）。
+- **CE 侧等价实现**：`MB_CE_FERT_ACTIONS` 声明 10 项（`fert_labour` / `fert_parasite_fert` / `fert_parasite_ripe` / `fert_innate` / `fert_skills` / `fert_reset` / `fert_adult` / `fert_remove` / `fert_reset_reason` / `fert_adult_reason`），`mbCEFertRun()` 逐项**直接调用模组自己的 API**——guard（必须先开原版作弊页、事件结束、解除属性冻结）、快照回滚、`v.feats.locked = true` 的语义与模组面板完全一致，不重写它的 sync/回滚链。
+- 面板 `mbCEFertRender()`：已出生孩子下拉 + A 组三键 + 先天四项/身份九项表单（「保存先天属性与外貌」）+ 养成四项（「保存养育属性」）+ C 组五个按钮；留空项按当前值回填，模组缺失时 `mbCEFertReady()` 给中文原因（未装 / 未开原版作弊页 / API 异常）。
+- **渲染器缺口补齐**：`normalizeCheatMod` 放行 `actions` 与 `actionPanel`；新文件 `05a3-modcheat-actions.js` 提供「命令式动作（模组自带作弊等价）」分组（有 `actionPanel` 时由面板整体接管，避免一行一个按钮的重复入口）；`renderModCheatDetail` 在 values 之后调用它（`05a-modcheat-rows.js` 因增行拆出 `05a3`，守住单文件 ≤400 行）。
+
+### 五、对外 API 与测试
+
+- `09-exports2.js` `mountApi()` 追加三组导出（共 27 个，含旧口径符号保留）：
+  - 快速面板：`quickTargetValue` / `grantWeapon` / `grantAllWeapons`
+  - 说话态度：`attitudeState` / `readAttitude` / `applyAttitude` / `FSA_FREE_MID` / `MB_CE_ATTITUDE_TIERS` / `mbCEAttitudeState` / `mbCEAttitudeApply` / `mbCEAttitudeHold` / `mbCEAttitudeRelease` / `mbCEAttitudeTick`
+  - 潜伏者：`mbCELurkerState` / `mbCELurkerSet` / `mbCELurkerAutoTick` / `mbCELurkerSetAuto` / `MB_CE_LURKER_MAX` / `MB_CE_LURKER_FRIDGE_MAX` / `mbCELurkerPatchText` / `mbCELurkerPatchDom` / `mbCELurkerPatchStory` / `mbCELurkerPatchReport` / `mbCELurkerRepatch`
+  - Fertility：`mbCEFertRun` / `mbCEFertChildren` / `mbCEFertReady` / `MB_CE_FERT_ACTIONS`
+- `tests\test_mce.js` 新增 54 段（态度三档 + 维持 tick + 文本解限纯函数幂等 + 冰箱 switch 替换 + 潜伏者高值原样保留 + 自动搬运累加 + Fertility 10 项动作与 mock 分发）+ 55 段边界矩阵（态度 10 取值 × 3 属性、武器 5×5 状态、喷雾容量、潜伏者 9999 上限、`quickTargetValue` 16 种写法）。
+- 断言（逐层实跑现数，本轮用 `Select-String "^PASS:"` /「✓」单独统计，非估算）：`test_mce.js` **1,451** / `smoke_dom.js` **300** / `functional_e2e.js` **171** / `integration_gender.js` **24** / `stability_loop.js` **12** / `test_keycheck.js` **281 通过项** → **合计 2,239 条，0 失败、无一条 SKIP**（stability 曾按旧文案写 13，实跑为 12，已按现数改正）。`score_ce.py` 内置解析口径为 **1,859**（e2e 123 / gender 25 / smoke 300 / stability 13 / keycheck 59 / test_mce 1,339），差异来自该脚本的折叠/正则计数，与 `EXPECT_TOTAL = 97.5` 对账一致（`[对账] EXPECT 97.5 vs LIVE 97.5`）。
+- 实测：`pack.ps1` 9 步全绿（覆盖率门禁 Statements **78.38%** / Branches **66.25%** / Functions **82.76%**，门槛 75 / 60 / 80）；`run_all.ps1` 九步同口径 ALL CHECKS PASSED；`python mce-e2e\score_ce.py` rc=0，六维 A=100 / B=93 / C=100 / D=100 / E=95 / F=100 → 加权 **97.5**。
+
+### 六、C3 结构收敛（≤400 行达成）
+
+- `05b-modcheat-player.js` **421 → 357 行**（态度区块整段搬到 `05b2-modcheat-attitude.js`）。依据：`build_js.js` 按文件名 sort 拼接，`05b2` 天然排在 `05b` 之后，同处一个 IIFE，函数声明提升保证 `renderQuickPanel` 能调后拼接的 `renderAttitudeFree`。
+- `05a-modcheat-rows.js` **347 行**（新增的命令式动作分组拆到 `05a3-modcheat-actions.js`）。
+- `07h-render2.js` **382 行**：`renderRolePlots` / `renderSceneCluster` 从 `renderScenes()` 体内剪出后缩进对齐（首行 1 tab、体内 2 tab）；第一次"每行无脑加一层 tab"把体内缩进翻倍，已修正。
+- 现全库 **60 段 / 11,368 行**，最大 **382 行**（`07h-render2.js`），平均 189 行。孩子页三层：`04a-15-fert-children.js` 284 行（列表/存在性/好感/地点/长大）+ `04a-15b-fert-kid-stats.js` 128 行（养育四项/先天四项写入）+ `04a-16-fert-children-ui.js` 240 行（卡片与整页渲染）——初版单文件一度 407 行，越过 C3 的 ≤400 满分档后按「数据层 / 数值写入层 / UI 层」三段切开。
+
+### 七、工程质量核查升级（D3 类型取证 60.9% → 81.5%）
+
+- `tools\check_key_types.js` 新增第 ④ 类判据「**全库唯一类型共识**」：按叶子名聚合整库 `.ts/.js` 的 `name?: type` 声明与字面量赋值，**类型集合长度必须 === 1** 才采信。
+- 叠加**父键归属防线**：证据文件 basename（剥离 `.ts/.js`、归一化去非字母数字）须与**直接父键或祖父键**互为包含；`MarginTrading.ts` 的 `opened: number` 不能给 `Finance.bank.opened` 作证。
+- 判据演进中被自身回归测试（`tests\test_keycheck.js` 跨父键 fixture）抓到并修掉两个真实缺陷：① 只看唯一类型不看父键归属；② basename 未剥离扩展名（`robin.ts` → `robints`），导致 24 条合法证据被误判无证据。
+- 结果：**276 条 / CONFLICT 0 / STRICT 0 / WARN 1 / NO_EVIDENCE 51（81.5%）**，EXIT 0；`test_keycheck.js` **281 通过 0 失败**。
+
+### 八、FertilityExpansion 孩子页（需求①「还有哪些能作弊」/③「孩子别跑进角色页」/④四张截图的四条要求）
+
+> 用户原话：「直接在它适配器中最下面加一个孩子的页面……这些孩子通过注册之后好像会跑到角色页面去你看能不能拦截下来」「从那边把孩子删了你这边会出问题吗」「能不能定向发送娃 / 随叫随到的娃 / 一键长大的预制娃」。
+
+**① 盘点后新加的作弊项（全部逐字取证，不猜路径）**
+
+- 新增 3 条 **settings 布尔能力项**（`04a-13-fert.js` abilities 8 → **11**）：`fert_resetage`（`eden.settings.resetAgeOnTransfer`）、`fert_immstory`（`eden.settings.immediateLifeStory`）、`fert_nightvisit`（`eden.settings.enableNightVisits`）——均取自 `eden-age.js normalizeSettings` / 模组面板同名字段。
+- **有意不声明** `eden.settings.parentTitleSource`：该字段是字符串枚举（`"parentage" / "identity" / "appearance"`），推进数字档位会把模组判定打坏（与 v2.0.0.001 的类型语义门禁同一条纪律）。
+- **「孩子爱意」真身取证**：`eden-traits.js` grep `affection|love|trust|bond` 零命中；`modules\` 全库 grep `affection` 40 命中 → 实为 **`V.eden.children.<id>.affection`**（`eden-adult.js:144-149 ensureAffection` 建默认、`:221-224 addAffection` 写 `roundHundredth`、`eden-profile.js:176-182` 显示、`eden-facility.js:81` 缺省给 40、`eden-bed-visit.js:60` 用 `Number(record.affection) || 0 >= config.minimumAffection` 门控）。相关阈值也一并取证：`affection = {newResident: 40, existingResident: 50}` / `lostContact = {minimumAwareness: 70, maximumAffection: 40}` / `remittance = {affectionFloor: 30, fullAffection: 80}` / `intimacy = {minimumAffection: 40, difficultyBase: 5000, awarenessDifficulty: 50, affectionCenter: 50, affectionScale: 40}`。
+- **为什么不能走 varPath 声明体系**：`eden.children.<动态id>.affection` 带运行时 id，`cheatResolvePath` 的父层检查与 `cheatIsVanillaRoot` 都会拦；孩子页因此**自建写入函数**，但仍走 `cheatWriteValue`（`op` 键 `fert_child_aff_<id>`），留痕 `V.mbCE_wrote["cheat:fertility-expansion:fert_child_aff_<id>"]` 保留首次 `before`，**可回退**。
+
+**② 孩子页面挂载位置（用户要求「适配器最下面」）**
+
+- 新文件三段（守住 C3「单文件 ≤400 行」，初版单文件 405 行实测后拆分）：`04a-15-fert-children.js`（**284 行**，数据层：枚举/存在性/阶段/地点/好感/长大）+ `04a-15b-fert-kid-stats.js`（**128 行**，数值写入层：养育四项/先天四项）+ `04a-16-fert-children-ui.js`（**240 行**，卡片与整页渲染）。字母序 `04a-15-… < 04a-15b-… < 04a-16-…` 成立，三段同处一个 IIFE 作用域。
+- 尾部 IIFE 幂等包装 `CHEAT_ADAPTERS["fertility-expansion"].entry.actionPanel`（标记 `__mbCEHasKids`）：把 `mbCEFertRenderChildren(container)` **追加在既有 10 项动作面板之后**，即适配器页最下面。
+- 每张孩子卡片：`#id 名字` 头行 + 概要（地点 / 阶段 / 年龄 / 物种 / 养育状态 / 未来结算）+ **好感输入框 + 写好感 + 好感拉满(100)** + **养育四项（知识 / 体能 / 社交 / 意识，留空=沿用现值）+ 写养育** + **先天四项（外貌 / 体质 / 智力 / 性格）+ 写先天** + **定向地点下拉 5 项 + 自定义地点输入框 + 发送** + **随叫随到** + **一键长大** + **立刻成年结算** + **删除孩子**。
+- 顶部有「共 N 条 / 全部一键长大（逐个 silent 执行，返回 成功 / 失败 / 跳过 三计数）/ 重新检测」；底部提示「另有 N 条已不在存活列表」。
+- 数据来源三通道：`window.EdenChildData.entries({scope:"all"})`（模组在线时的正路，Map / 数组两形态）→ 兜底 `V.childRecords`（数组，**childId 就是下标**，`EdenChildData.indexOf` 只接受 `(0|[1-9]\d*)` 并按下标取）→ 兜底 `V.children`（对象键）。
+
+**③ 从「角色」页拦截孩子（用户截图里一堆英文随机名）**
+
+- `eden-breeding.js:293-310 encounterCarrier` 取证：孩子被写进 `V.NPCList` 的条件是 `npc.edenChildId` 存在 + `record.adult?.settled` + `bodyForm !== "beast"` + `child` 存在且 `phaseOf === "born"` + `npc.fullDescription === descriptionFor(childId)` + `species ∈ ["human","wolfboy","wolfgirl","harpy"]`；名字来自原版 `generateBabyName`（`eden-breeding.js:459`）。
+- `01-core.js` 新增 `mbCEEdenChildIdOf(name)`（遍历 `V.NPCList` 匹配 `edenChildId` + `fullDescription` / `name`），`charCategory()` 首行改为 **`edenChild` 最高优先**（`伊甸孩子 > 持久NPC > 模组 > 恋爱 > 普通`）。
+- `07b-char.js` 改三变量：`charsAll`（全量）/ `charsKids`（edenChild）/ `chars`（过滤后的角色页列表）；判空改用 `charsAll`；提示行追加「另有 N 个 FertilityExpansion 孩子已收进「模组作弊 → FertilityExpansion → 孩子」页，不在此列出」。
+- 结果：随机英文名的娃不再污染角色页，且不是简单隐藏——它们在孩子页可调数值、可发送、可长大。
+
+**④ 四张截图的四条要求**
+
+| 要求 | 实现 | 取证 / 边界 |
+|---|---|---|
+| 模组侧删了孩子，CE 侧**自动检测是否还存在**、不报错 | `mbCEFertKidAlive(id)` 两通道：`EdenChildData.get(key, V)`（`phaseOf` 为 `removed`/`missing` 直接判死）→ `mbCEFertKidPairs()` 枚举兜底；查不到返回 `null`，卡片转红字「已不存在」并**隐藏全部按钮**，任何写入/长大明确返回 `已不存在（模组侧已删除/移除）` | `eden-child-data.js entries({scope:"all"})` 排除 `edenDeleted === true` 与 `pregnancy.carrier === "cleared"`；兜底通道**额外要求 `childId === 数组下标`**（模组 `get()` 的 `:17-26` 同一判据），否则视为「假存在」跳过；测试 54.6u 三连 + 54.6q3/q4 覆盖 |
+| **定向发送娃**（送到指定地点） | 地点下拉 5 项（`eden_home` 居所 / `home` 家 / `eden_contacts` 联系人 / `away` 外出 / `eden_released` 已放归，中文标签）+ **自定义地点输入框**（非空即覆盖下拉）→ `EdenChildData.setLocation(child, loc, V)`；失败兜底直写 `child.development.location`（records 形态）或 `child.location`；留痕记 `via` | `setLocation` 只对 `born`/`egg` 生效（`eden-child-data.js:99`），本实现**在兜底直写前过同一道 phase 门控**，未出生/已移除一律拒绝并给中文原因；合法地点实证来自 `eden-breeding.js` 222/245/419（只产出 `eden_home`/`home`） |
+| **随叫随到** | `mbCEFertKidCallToMe(id)` 把地点对齐到玩家当前 `V.location`；玩家不在 `eden_home`/`home` 时退回 `eden_home` 并在提示里说明原因 | **已知边界**：只写地点字段，`eden_bed_visit` / `eden_encounter` 还看 `record.status` 与 `adult.settled`，故「表现为人在场」需实机验收（已记入未验证项） |
+| **一键长大的预制娃** | `forcedAdult = true` + `EdenAge.syncRecord(rec, child, settings)`（失败兜底 `rec.lifeStage = "adult"`）+ `EdenAdult.syncRecord(rec, child)`（→ `status = "adult_pending"`）；留痕 `fert_child_adult_<id>`，`before` 保留首次值可回退。长大后再点「立刻成年结算」调模组 `settleAdult` 走真实结算（`eden-adult.js:340-373`）。**phase 门控**：非 `born` 一律拒绝（给 `未出生/已孵化` 原因），避免把没 `bornDate` 的孩子强推进 `adult_pending` | `eden-age.js:150-169 syncRecord` 只改 `lifeStage`、**不写 `adult.settled`**，所以长大 ≠ 结算，两步分开正是模组语义；`forcedAdult` 在 `syncRecord` 里优先级最高（`lifeStage = record.forcedAdult === true ? "adult" : getStage(...)`） |
+
+**测试与工具链**
+
+- `tests\test_mce.js` 孩子页相关断言：54.6o / o2 / o3（3 条 settings 声明 + parentTitleSource 不声明）、54.6p~p4（`mbCEEdenChildIdOf` 与 `charCategory` 拦截）、54.6q / q2（列表 + 存在性）、q3 / q4（`V.childRecords` 假存在剔除）、r / r2（好感 88 + 留痕）、s / s2 / s3（定向发送 / 随叫随到 / 退回提示）、t（一键长大）、u / u2 / u3（删孩子后检测为不存在 + 写入被拒 + 长大被拒）、v / v2 / v3 / v4（fake `EdenChildData` 走正路）、w（页面渲染节点数）、x / x2–x7（显式传 vars / 养育四项只改填写项 / 留痕 / 越界拒绝 / 先天四项 / 整数校验 / 模组 saveSkills 收到补齐四项）、y / y2 / y3（未出生孩子三种写入全拒）——**约 42 条，0 失败**。
+- `01-core.js` / `07b-char.js` / `09-exports2.js` 同步：新增导出 `mbCEFertKidPairs / Info / Alive / SetAffection / SetLocation / CallToMe / GrowUp / RenderChildren / MB_CE_FERT_KID_LOCS / mbCEEdenChildIdOf`，收敛轮再补 7 个：`mbCEFertKidSaveSkills / SaveInnate / CurSkills / CurInnate / MB_CE_FERT_KID_SKILLS / MB_CE_FERT_KID_INNATE / mbCEFertKidVars`。
+- `tools\pack.ps1` 的 verifier 段新增第三候选路径，并在本机无 verifier-hub skill 时**不再 exit 1**，改走内置等价核对（Python `zipfile` 条目集合精确比对 + `testzip()` CRC 全量），输出 `VERIFIER-FALLBACK` 明示降级；判据不放松（多一条或少一条即 FAIL）。
+
+**⑤ 收敛轮：把孩子页做到「写入不假成功 / 不写脏数据」**
+
+- **不依赖 `SugarCube.State`，显式传 vars**：`eden-child-data.js:6` 所有方法的尾参缺省取 `window.SugarCube?.State?.variables || {}`，而 DoL 本页实测该通道为空（`Object.keys(SugarCube)` 为空、`SugarCube.State`/`Story`/`Macro` 全不存在，见 `.learnings/ERRORS.md#ERR-20261106-026`）→ `mbCEFertKidVars()` 取 `getV()` 并**逐个方法显式传第三参**；实测断言 54.6x。
+- **`mbCEFertKidPhase` 兜底逐条对齐模组** `eden-child-data.js:50-59`：无 child → `missing`；`edenDeleted` → `removed`；非 record（无 `bornDate`，即 `{name, eggTimer}` 这种蛋/胎）→ 有 `eggTimer` 判 `egg`、否则 `born`；record 且 `V.pregnancies[pregnancyId]?.carrier === "cleared"` → `removed`；`bornDate` 有限 → `born`；`pregnancy.deliveredDate` 有限 → `egg`；否则 `unborn`。此前"非 record 一律判 born"会把胎/卵当已出生孩子写数据。
+- **三处写入统一 phase 门控**：定向发送、一键长大、写先天属性——非 `born`（写地点允许 `egg`）一律拒绝并给中文原因，**兜底直写也必须过同一道门控**（否则 API 缺失时会绕过模组语义写脏数据）；断言 54.6y/y2/y3。
+- **养育四项 / 先天四项（`04a-15b`）**：模组 `saveSkills` 要求四项齐全（`eden-cheats.js:189 numeric(patch[k],0,100)` 对缺项抛错、不是清零）、`saveInnate` 走白名单 + 0–100 整数 + `EdenTraining.syncRecord` → `EdenTraits.syncRecord(record, child, String(id), v)` 重建 `record.innate`。本实现先把当前值补齐、只改用户填的那一项，模组 API 缺失/抛错时按同一结构兜底直写（`innate.personality` 跟随 `temperament <= 50 ? "quiet" : "active"`，对齐 `eden-cheats.js:178`），全程写 `V.mbCE_wrote` 留痕、保留首次 `before`。
+- **模组存档字段普查（回答"还有哪些值可作弊"）**：扫 `modules/*.js` + `game/*.twee` + `*.json` 的 `$eden|v.eden|V.eden|vars.eden|state.eden` 访问，一级字段 18 个（`settings 76 / children 66 / facility 65 / selectedChildId 46 / schemaVersion 36 / activeEncounterChildId 12 / recordsMigration 12 / returnPassage 11 / encounterReturnPassage 10 / bedVisit 9 / breeding 8 / contactsView 8 / lifeStoryVisitHandled 6 / encounterContext 6 / lifeStoryReadMode 6 / transferSource 3 / interactionEvent 3 / interactionMenuChildId 2`）。结论：
+  - `eden-age.js normalizeSettings` 共 **10 个 settings 键**，其中 **8 个标量已全部声明**（`maturityDays` / `neverAutoAdult` / `resetAgeOnTransfer` / `immediateLifeStory` / `allowSterilePregnancy` / `showHallHotspots` / `allowHumanDescendants` / `enableNightVisits`），剩 2 个是**字符串**（`parentTitleSource` 三值枚举、`lifeStoryPrompt` 自由文本）→ 按类型语义纪律不声明；
+  - `facility.*` 的 4 个布尔 + `capacity` 数值已声明，`bedAssignments` 是对象不声明；
+  - **其余数值字段全是瞬态会话指针**（`selectedChildId` / `activeEncounterChildId` / `interactionMenuChildId` / `breeding.activeBirthParentId`）或 UI 偏好（`contactsView.*`）/ 状态字符串（`returnPassage` / `transferSource` / `lifeStoryReadMode`）——写它们只会把模组指向不存在对象，故**明确不作弊**；
+  - 孩子个体数值（`affection` / `training.skills` 4 项 / `innate` 4 项 / 地点 / 阶段）已在孩子页覆盖。**因此该模组的可作弊面已收满，本轮不再增声明项**（`04a-13` 维持 1 stage + 11 ability + 2 value）。
+
+
+## 未发布（Unreleased · 2026-11-06 工程收敛轮）
+
+> 版本号未升：本节全部为工程质量与验证口径改动，不改玩家可见行为。产物与 v2.0.0.001 逐字节一致（615,464 B / SHA256 `202AFBFF6CAC9CFC8861745FA0E7E829EF29F94D5304DA153C4D64B6409DCE71`）。
+
+### 一、源码可维护性（产物零变化）
+
+- `03-global.js`（961 行）拆 4 段：`03a-global-batch.js`(178) / `03b-global-maint.js`(245) / `03c-global-combat.js`(408) / `03d-global-modzh.js`(130)。
+- `05-modcheat-ui.js`（851 行）拆 2 段：`05a-modcheat-rows.js`(600) / `05b-modcheat-player.js`(251)。
+- 拆法依据：`tools/build_js.js` 按文件名排序、纯文本顺序拼接、不合并不压缩，因此任一行内切分只要保持顺序，产物必然逐字节等价。
+- 校验方式：切分后对每段求「按序拼接结果 `-ceq` 原文」，两文件均 True 才删除原文件；原文件先备份到 `%TEMP%\mce-split-backup`。
+- 结果：src 37 → 41 段；最大文件 961 → 600 行；产物 615,464 B / 同一 SHA256。
+
+### 二、覆盖率产品化 → 并入门禁
+
+- 根因：`tests/test_mce.js` 用 `eval` 执行拼接产物，eval 无脚本 URL，c8 归因失败报 `Statements Unknown% (0/0)`。
+- 修法：`rawJs` 读入产物 → 写 `tests/mce_script.js` 快照（已 gitignore）→ 仅对 eval 用副本追加 `//# sourceURL=<绝对路径>`；快照本身不加注释以保持字节一致。
+- 新增 `tools/run_coverage.js`（依次跑 smoke / 全量回归 / 功能 E2E / 性别集成 / **稳定性循环**，任一非 0 即 exit 1）。
+- `tools/run_all.ps1` 8 步 → **9 步**：第 9 步 `c8 --check-coverage --lines 75 --branches 60 --functions 80`；c8 未安装时明确 WARN 跳过，不误判失败。
+- 实测基线：Statements 78.86%（7703/9767）/ Branch 67.93%（1761/2592）/ Functions 85.04%（307/361）/ Lines 78.86%。
+
+### 二之二、稳定性回归（新增 `tests/stability_loop.js`，12 条断言）
+
+盯的是用户真实报过的「越开关越卡」形态，此前没有任何断言直接覆盖：
+
+| 断言 | 覆盖的风险 |
+|---|---|
+| 连续 20 次 `open()` 后 DOM 节点数不变（31 → 31） | 重渲染堆积 |
+| 30 轮 `toggle()` 后 `#mce-root` / `#mce-toggle` 各仍唯一 | 重复建面板 |
+| 点击悬浮球只触发一次切换（`mce-closing` 只加一次） | 事件重复绑定（热重载复用同一按钮） |
+| `close()` 后 130ms `mce-open` / `mce-closing` 均清除 | 淡出定时器残留 → 假开态 |
+| 再次 `open()` 恢复 `mce-open` | 开关状态机不自洽 |
+
+`npm run test:stability` 可单跑；已挂进 `tools/run_coverage.js` 序列，随全链第 9 步执行。
+
+### 三、实机验证口径修正（本轮最重要的一条判据）
+
+- CE 面板只在**游戏 passage 运行后**挂载：停在标题页 / 角色创建页判定「未注入」是假阴性。
+- 悬浮球自 v1.9.29 起改为星空蓝主题，仍按「金色悬浮球」找必然看不见。
+- 页面顶部 `CE-v1.20.3.1` 属另一个 mod（`cheat extended v1.20.3.1`），不是本 mod；本 mod 只以面板标题 `v2.0.0.001` 与 ModHub 列表标识。
+- 现行判据三条同时满足才算注入成功：① ModHub 状态「已启用」；② 游戏内出现悬浮球（颜色不写死）；③ 点击后面板标题含 `v` + `boot.json` 版本号。
+- 实机证据（本机 Edge，`file://` origin）：ModHub `MapleBirchCE v2.0.0.001` 已启用 → 蓝球 → 面板「剧情条件解锁面板 v2.0.0.001」→ 「场景注册表 111 条」「就绪 41 个角色」→ 伊甸分组展开含锁定/一键完成/直达触发 → 主题黑金↔星空蓝切换有 toast → 错误收集器把 `DoLGameUI`/`SimpleFrameworks` 归类为第三方噪音。
+- 同时取证：`file://` 与 `http://127.0.0.1:8768` 是不同 origin，localStorage 不共享，回放玩家视角必须走桌面快捷方式指向的 `file://`。
+- 过程教训按四步闭环记入 `DoL-Project/.learnings/ERRORS.md#ERR-20261106-015`。
+
+### 四、模组补齐（消费端 game）
+
+- 补装 `MoreFarmUpgrade.mod.1.08.zip`（41,309 B）与 `DolMod-0.1.990.mod.zip`（803,610 B），game 现 15 个包，全部被 ModLoader 正常 init。
+- 两包 `boot.json` 的 `modName` 为空，不影响加载（ModLoader 按 `modId`/目录名识别）。
+
+### 五、静态检查与可扩展性
+
+- ESLint **四规则 → 八规则**：新增 `no-self-assign`（自赋值）、`no-constant-condition`（`checkLoops:false` 放行 `while(true)`）、`no-unsafe-negation`（`!a instanceof b` 优先级误用）、`no-fallthrough`（switch 漏 break）。产物实测 0 报错。
+- 生效性验证（防「配置 files 不匹配导致零规则静默通过」）：`'var a = 1; a = a;' | eslint --stdin --stdin-filename javascript/maplebirchce.js` → 实测报 `no-self-assign` + `no-fallthrough`、exit 1，证明规则真的在跑。
+- 新增 `tools/new_adapter.js`（适配器脚手架）：`--id / --name / --short / --root [--dry]`；校验 modId 未被现有 `04a-*.js` 占用（防重复注册静默覆盖）→ 取现有最大编号 +1 → 生成符合 `audit_adapters.js` 解析约定（tab 缩进、`\n\t};` 收尾）的骨架 → 打印 audit / resolve / `_check_keys_mod` / check_claims / 全链 六步清单。dry-run 实测输出 `04a-12-demo.js`。
+- 新增两份工程文档：
+  - `docs/modpack-inventory.md`：game 内 15 包逐行台账（名/字节/boot 版本/适配器）+ 11/11 适配器均有实机宿主 + R1~R5 风险处置状态 + 复现命令。
+  - `docs/key-type-evidence.md`：`NO_EVIDENCE 171/276` 的**不可得性实测证明**——boot.json 无 `variables` 段、用法证据实测仅覆盖 5/171（2.9%）、运行时探针在 bu/cu 两通道均不可行；结论是「静态不可判定」，不是缺陷，也不为降数字放宽判据。
+
 ## v2.0.0.001（2026-11-06 · 2.0 首个版本：声明类型语义核查 + 两处静默失效修复）
 
 **触发**：此前所有核查只回答「这个键在模组源码里存不存在」，从不回答「CE 按什么类型写、模组按什么类型判」。补上这一维度后立刻抓到真实静默失效——面板显示写入成功，模组侧判定恒为假。

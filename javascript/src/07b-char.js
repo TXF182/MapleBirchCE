@@ -64,8 +64,13 @@
 			pane.appendChild(el("div", "mce-err", "未检测到 Maplebirch 框架（window.maplebirch / setup.MapleBirch）。"));
 			return;
 		}
-		var chars = listCharacters();
-		if (!chars.length) {
+		var charsAll = listCharacters();
+		/* v2.0.0.002 需求③：FertilityExpansion「成年结算」的孩子会被写进 $NPCList（带 edenChildId 标记），
+		   随机英文名让它们被判成模组角色混进角色页（玩家截图「多出一堆英文名」）。这里统一摘出去，
+		   收进「模组作弊 → fertility-expansion → 孩子」页做数值调整。 */
+		var charsKids = charsAll.filter(function (n) { return charCategory(n) === "edenChild"; });
+		var chars = charsAll.filter(function (n) { return charCategory(n) !== "edenChild"; });
+		if (!charsAll.length) {
 			pane.appendChild(el("div", "mce-hint", "注册池为空：未枚举到任何角色。"));
 			return;
 		}
@@ -130,6 +135,7 @@
 			pane.appendChild(block);
 		});
 		hint.textContent = "共 " + chars.length + " 个角色（自动枚举：本体 + 全部 MOD + 持久 NPC），按类型分组收起，点击分组标题展开"
-			+ (q ? "；匹配 " + matchCount + " 个" : "") + "。";
+			+ (q ? "；匹配 " + matchCount + " 个" : "") + "。"
+			+ (charsKids.length ? "（另有 " + charsKids.length + " 个 FertilityExpansion 孩子已收进「模组作弊 → FertilityExpansion → 孩子」页，不在此列出）" : "");
 		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; }
 	}

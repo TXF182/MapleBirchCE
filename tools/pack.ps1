@@ -64,21 +64,36 @@ Write-Host "  全部 $entryCount 条正斜杠: $($entryNames -join ', ')"
 
 Write-Host "[4/5] verifier 校验（4/4 条目匹配）"
 # verifier-hub 入口：skill root 曾迁移（AppData\Local\Doubao\... → AppData\Roaming\LarkShell\aha\users\<id>\doubao\...），
-# 此处遍历候选位置取第一个存在的 bin\verifier，避免再次硬编码失效（ERR-20261105-001）
+# 此处遍历候选位置取第一个存在的 bin\verifier，避免再次硬编码失效（ERR-20261105-001）。
+# skill 被卸载/切换（本机已无 verifier-hub）时不再 fail-open 也不能 fail-shut 掉整条链：
+# 走内置等价核对（条目集合精确匹配 + CRC 全量校验），输出 VERIFIER-FALLBACK 明示降级，判据不放松。
+$expectedEntries = @("boot.json", "javascript/maplebirchce.js", "twee/maplebirchce-widget.twee", "README.md")
 $verifierCandidates = @()
 $roamingVerifier = Get-ChildItem -Path (Join-Path $env:APPDATA "LarkShell\aha\users\*\doubao\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier") -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($roamingVerifier) { $verifierCandidates += $roamingVerifier.FullName }
 $verifierCandidates += "C:\Users\27352\AppData\Local\Doubao\User Data\Default\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier"
+$verifierCandidates += "C:\Users\27352\AppData\Local\Doubao\User Data\Default\.doubao\agent_mode\workspace\.user_skills\verifier-hub\bin\verifier"
 $verifier = $verifierCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $verifier) { Write-Host "FAIL: 未找到 verifier-hub 入口（请检查 skill 安装位置）" -ForegroundColor Red; exit 1 }
-$check = python $verifier archive zip-check-entries $zip --expected boot.json javascript/maplebirchce.js twee/maplebirchce-widget.twee README.md
-if ($check -notmatch '"passed": true') {
-    Write-Host "FAIL: verifier" -ForegroundColor Red
-    Write-Host $check
-    exit 1
+if ($verifier) {
+    $check = python $verifier archive zip-check-entries $zip --expected @expectedEntries
+    if ($check -notmatch '"passed": true') {
+        Write-Host "FAIL: verifier" -ForegroundColor Red
+        Write-Host $check
+        exit 1
+    }
+    $quote = if ($check -match '"quote":\s*"([^"]+)"') { $matches[1] } else { "entries matched" }
+    Write-Host "  verifier: $quote"
+} else {
+    Write-Host "  WARN: 未找到 verifier-hub 入口（本机 skill 已不含该包），改用内置等价核对" -ForegroundColor Yellow
+    $pyCode = "import sys,json,zipfile; z=zipfile.ZipFile(sys.argv[1]); names=sorted(z.namelist()); exp=sorted(sys.argv[2:]); bad=z.testzip(); print(json.dumps({'passed': bool(names==exp and bad is None), 'names': names, 'expected': exp, 'crc_bad': bad}))"
+    $check = python -c $pyCode $zip @expectedEntries
+    if ($check -notmatch '"passed": true') {
+        Write-Host "FAIL: 等价核对（条目集合或 CRC 不匹配）" -ForegroundColor Red
+        Write-Host $check
+        exit 1
+    }
+    Write-Host "  VERIFIER-FALLBACK: 条目集合精确匹配 + CRC 全量校验通过（4/4）"
 }
-$quote = if ($check -match '"quote":\s*"([^"]+)"') { $matches[1] } else { "entries matched" }
-Write-Host "  verifier: $quote"
 
 Write-Host "[5/5] SHA256"
 $hash = Get-FileHash $zip -Algorithm SHA256

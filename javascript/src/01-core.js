@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.0.001";
+	var MCE_VERSION = "2.0.0.002";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -221,8 +221,34 @@
 		} catch (e) {}
 		return false;
 	}
-	/* 角色分类（优先级：持久NPC > 模组 > 恋爱 > 普通） */
+	/* v2.0.0.002 需求③：FertilityExpansion 的孩子识别。
+	   源码实证（_modcache/fert_tmp/.../modules/eden-breeding.js:292-305 encounterCarrier）：
+	   孩子「成年结算」后会被写进 $NPCList，条目带 edenChildId 字段，fullDescription 就是 descriptionFor(childId)
+	   （模组用这个名字做身份比对，名字永不作为键）。这类 NPC 的随机英文名不属于原版 32 个名字，
+	   会被 charCategory 判成 "mod" 而混进角色页（玩家截图「多出一堆英文名」即此）。
+	   这里只按 edenChildId 标记识别，不猜名字、不猜种族，判不出来就维持原分类。 */
+	function mbCEEdenChildIdOf(name) {
+		try {
+			if (name === null || name === undefined) { return null; }
+			var V = (typeof getV === "function") ? getV() : null;
+			if (!V || !Array.isArray(V.NPCList)) { return null; }
+			var key = String(name).trim();
+			if (!key) { return null; }
+			var list = V.NPCList;
+			for (var i = 0; i < list.length; i++) {
+				var npc = list[i];
+				if (!npc || typeof npc !== "object") { continue; }
+				if (npc.edenChildId === undefined || npc.edenChildId === null || npc.edenChildId === "") { continue; }
+				var nm = (npc.fullDescription !== undefined && npc.fullDescription !== null) ? npc.fullDescription : npc.name;
+				if (nm === undefined || nm === null) { continue; }
+				if (String(nm) === key) { return String(npc.edenChildId); }
+			}
+			return null;
+		} catch (e) { return null; }
+	}
+	/* 角色分类（优先级：伊甸孩子 > 持久NPC > 模组 > 恋爱 > 普通） */
 	function charCategory(name) {
+		if (mbCEEdenChildIdOf(name) !== null) { return "edenChild"; }
 		if (isPerNpcRole(name)) { return "pernpc"; }
 		if (!isVanillaNPC(name)) { return "mod"; }
 		if (isLoveCharacter(name)) { return "love"; }

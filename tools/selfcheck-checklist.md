@@ -22,7 +22,7 @@
 ## 2. 验证层清单（逐层状态，禁止"全绿"带过）
 - [ ] build_js：____
 - [ ] node --check（语法）：____
-- [ ] ESLint 四规则（no-dupe-keys / no-unreachable / no-func-assign / eqeqeq）：____
+- [ ] ESLint 八规则（no-dupe-keys / no-unreachable / no-func-assign / eqeqeq / no-self-assign / no-constant-condition / no-unsafe-negation / no-fallthrough）：____
 - [ ] DOM 冒烟（jsdom）：____
 - [ ] 全量回归（test_mce，断言数 ____/____ 通过，FAIL 条目逐一说明）：____
 - [ ] 功能级 E2E（____ 区块）：____

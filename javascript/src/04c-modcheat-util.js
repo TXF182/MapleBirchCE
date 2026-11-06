@@ -5,7 +5,11 @@
 			stages: Array.isArray(m.stages) ? m.stages : [],
 			abilities: Array.isArray(m.abilities) ? m.abilities : [],
 			scenes: Array.isArray(m.scenes) ? m.scenes : [],
-			values: Array.isArray(m.values) ? m.values : []
+			values: Array.isArray(m.values) ? m.values : [],
+			/* v2.0.0.002：命令式动作（适配器自己声明的"一键"按钮）。actionPanel 可整体接管渲染，
+			   用于复刻模组自带作弊面板（如 FertilityExpansion 的 window.EdenCheats）。 */
+			actions: Array.isArray(m.actions) ? m.actions : [],
+			actionPanel: (typeof m.actionPanel === "function") ? m.actionPanel : null
 		};
 	}
 

@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.0.001";
+	var MCE_VERSION = "2.0.0.002";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -335,8 +335,34 @@
 		} catch (e) {}
 		return false;
 	}
-	/* 角色分类（优先级：持久NPC > 模组 > 恋爱 > 普通） */
+	/* v2.0.0.002 需求③：FertilityExpansion 的孩子识别。
+	   源码实证（_modcache/fert_tmp/.../modules/eden-breeding.js:292-305 encounterCarrier）：
+	   孩子「成年结算」后会被写进 $NPCList，条目带 edenChildId 字段，fullDescription 就是 descriptionFor(childId)
+	   （模组用这个名字做身份比对，名字永不作为键）。这类 NPC 的随机英文名不属于原版 32 个名字，
+	   会被 charCategory 判成 "mod" 而混进角色页（玩家截图「多出一堆英文名」即此）。
+	   这里只按 edenChildId 标记识别，不猜名字、不猜种族，判不出来就维持原分类。 */
+	function mbCEEdenChildIdOf(name) {
+		try {
+			if (name === null || name === undefined) { return null; }
+			var V = (typeof getV === "function") ? getV() : null;
+			if (!V || !Array.isArray(V.NPCList)) { return null; }
+			var key = String(name).trim();
+			if (!key) { return null; }
+			var list = V.NPCList;
+			for (var i = 0; i < list.length; i++) {
+				var npc = list[i];
+				if (!npc || typeof npc !== "object") { continue; }
+				if (npc.edenChildId === undefined || npc.edenChildId === null || npc.edenChildId === "") { continue; }
+				var nm = (npc.fullDescription !== undefined && npc.fullDescription !== null) ? npc.fullDescription : npc.name;
+				if (nm === undefined || nm === null) { continue; }
+				if (String(nm) === key) { return String(npc.edenChildId); }
+			}
+			return null;
+		} catch (e) { return null; }
+	}
+	/* 角色分类（优先级：伊甸孩子 > 持久NPC > 模组 > 恋爱 > 普通） */
 	function charCategory(name) {
+		if (mbCEEdenChildIdOf(name) !== null) { return "edenChild"; }
 		if (isPerNpcRole(name)) { return "pernpc"; }
 		if (!isVanillaNPC(name)) { return "mod"; }
 		if (isLoveCharacter(name)) { return "love"; }
@@ -2923,6 +2949,942 @@ CHEAT_ADAPTERS["dolmod"] = {
 		]
 		}
 	};
+/* ============ v2.0.0.002 新适配：FertilityExpansion 1.7.0（伊甸生育/子女大扩展） ============
+   源码实证（GitHub Liliths-Legacy/DOL-FertilityExpansion-MOD@main，对照源码 _modcache/fert_tmp）：
+   mods/FertilityExpansion/boot.json —— name "FertilityExpansion"、version "1.7.0"，
+   tweeFileList/scriptFileList/styleFileList 全空（全部内容靠 TweeReplacer 注入 + game/*.twee 15 个 + modules 20+ js + img 22 张）；
+   addonPlugin = TweeReplacer（StoryCaption 挂 <<edenSetup>>、Children Activity Events 挂记录钩子等）。
+   变量命名空间 = V.eden.*（eden.twee 里 $eden 是 schema 迁移对象，逐档 0→8 迁移，默认结构见 eden.twee:40-50/79-84/91-95）。
+   本适配器只声明"源码有默认值、判定为标量"的键（object/array 如 eden.children / eden.facility 整体不声明，避免类型错配）。
+   已证伪不声明的一条：`eden.lifeStoryReadMode` 取值为字符串 "first"/"reread"/null
+   （eden-life-story.twee:3/93/121/128），不是 0/1 档位——按 v2.0.0.001 类型语义纪律，不建 stage。
+   注：该模组自带 eden-cheats.js / eden-cheats-ui.js 作弊面板（10 项）。v2.0.0.002 起 CE 不做"只写数值"的
+   缩水适配——04a-14-fert-cheats.js 直接复用其 window.EdenCheats，把模组面板的 10 项等价搬到 CE 的模组作弊页，
+   与模组共用同一套 guard / 快照回滚 / feats.locked 语义（不重写它的 sync 链，避免两套写入口互相打架）。 */
+/* 共享 helper：判定 ModLoader 是否装了某个名字的 mod。
+   window.modDataValueZipList 的条目形态不稳定（string / {name|modName|id} 两种都见过），故都兼容。 */
+function mbCEHasModNamed(names) {
+	try {
+		if (typeof window === "undefined") { return false; }
+		var want = Array.isArray(names) ? names : [names];
+		var list = window.modDataValueZipList;
+		if (list && list.length) {
+			for (var i = 0; i < list.length; i++) {
+				var it = list[i];
+				var n = "";
+				if (typeof it === "string") { n = it; }
+				else if (it && typeof it === "object") { n = String(it.name || it.modName || it.id || ""); }
+				if (!n) { continue; }
+				for (var j = 0; j < want.length; j++) {
+					if (n.indexOf(want[j]) >= 0) { return true; }
+				}
+			}
+		}
+		return false;
+	} catch (e) { return false; }
+}
+CHEAT_ADAPTERS["fertility-expansion"] = {
+	detect: function () {
+		try {
+			if (typeof window === "undefined") { return false; }
+			if (typeof mbCEHasModNamed === "function" && mbCEHasModNamed(["FertilityExpansion", "Fertility Expansion"])) { return true; }
+			var V = (typeof getV === "function") ? getV() : null;
+			return !!(V && V.eden && typeof V.eden === "object");
+		} catch (e) { return false; }
+	},
+	entry: {
+		modId: "fertility-expansion",
+		modName: "FertilityExpansion 1.7.0（伊甸子女/生育扩展）",
+		tasks: [],
+		stages: [
+			{ key: "fert_schema", name: "数据结构版本（0–8，逐档迁移）", varPath: "eden.schemaVersion",
+			  levels: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+			  labels: ["0 初始", "1 子女容器", "2 journal→profile", "3 伊甸房产", "4 成长阶段设置",
+			           "5 天赋与性格", "6 技能与日程", "7 亲密度/成年/通讯录", "8 成年遭遇指针"] }
+		],
+		abilities: [
+			{ key: "fert_owned", name: "已取得伊甸房产", varPath: "eden.facility.owned", type: "boolean" },
+			{ key: "fert_expanded", name: "伊甸房产已扩建", varPath: "eden.facility.expanded", type: "boolean" },
+			{ key: "fert_bailey", name: "贝利已上门（房产线前置）", varPath: "eden.facility.baileyIntroduced", type: "boolean" },
+			{ key: "fert_transfer", name: "转移流程已介绍", varPath: "eden.facility.transferIntroduced", type: "boolean" },
+			{ key: "fert_neveradult", name: "禁止自动成年", varPath: "eden.settings.neverAutoAdult", type: "boolean" },
+			{ key: "fert_sterile", name: "允许不孕妊娠分支", varPath: "eden.settings.allowSterilePregnancy", type: "boolean" },
+			{ key: "fert_hotspot", name: "大厅热点显示", varPath: "eden.settings.showHallHotspots", type: "boolean" },
+			{ key: "fert_human", name: "允许人类后代", varPath: "eden.settings.allowHumanDescendants", type: "boolean" },
+			/* v2.0.0.002 补声明：eden-age.js normalizeSettings 里还有 3 个未被 CE 覆盖的布尔设置
+			   （resetAgeOnTransfer:45 / immediateLifeStory:48 / enableNightVisits:52，均按 === true / !== false 判定）。
+			   有意不声明 eden.settings.parentTitleSource（取值是字符串 "parentage"/"identity"/"appearance"，
+			   eden-age.js:51，按 types-are-judgements 纪律不做 stage/number 档位，免得写入数字把模组判定打坏）。 */
+			{ key: "fert_resetage", name: "转移时重置成长年龄", varPath: "eden.settings.resetAgeOnTransfer", type: "boolean" },
+			{ key: "fert_immstory", name: "立即生成人生故事", varPath: "eden.settings.immediateLifeStory", type: "boolean" },
+			{ key: "fert_nightvisit", name: "启用夜间探访（关闭后不触发）", varPath: "eden.settings.enableNightVisits", type: "boolean" }
+		],
+		scenes: [],
+		values: [
+			{ key: "fert_capacity", name: "伊甸房产容量（默认 3）", varPath: "eden.facility.capacity", type: "number", min: 0, max: 20,
+			  note: "eden.twee:82 默认 3；模组按 gte 判定，写大值不会崩，但 UI 列表会随之变长" },
+			{ key: "fert_maturity", name: "成长天数阈值（默认 90）", varPath: "eden.settings.maturityDays", type: "number", min: 0, max: 365,
+			  note: "eden.twee:93 默认 90；写 0 会让子女立即进入下一成长阶段（模组按日结算）" }
+		]
+	}
+};
+/* ============ v2.0.0.002 需求④：FertilityExpansion 自带作弊的等价实现 ============
+   模组自带作弊的原始清单（逐字读自 _modcache\fert_tmp\...\modules\eden-cheats.js + eden-cheats-ui.js，
+   1.7.0，非二手转述）：window.EdenCheats = { available, labour, parasites, children, choices, identity,
+   saveInnate, saveSkills, reset, resetReason, adultReason, settleAdult, removeChild }
+   面板三块（eden-cheats-ui.js 挂在原版作弊页 #overlayTabs 的一个页签）：
+     A 怀孕作弊扩展：一键分娩 / 寄生卵一键受精 / 寄生物一键成熟
+     B 生育作弊扩展（单个已出生孩子）：先天四项 appearance/fitness/intelligence/temperament（0-100 整数）
+       + 身份九项 species / monster / beastTransform / divineTransform / gender / size / hairColour /
+         eyeColour / skinColour
+     C 养育作弊扩展：knowledge / fitness / social / awareness（0-100）+ 重置养育进度 / 立刻成年结算 / 删除孩子
+   本文件直接复用模组自己的 API（不重写它的 sync 链），因此行为与门控（guard/rollback/feats.locked）
+   与模组面板完全一致；模组未装或 API 缺失时优雅降级为不可用提示。 */
+var MB_CE_FERT_ACTIONS = [
+	{ key: "fert_labour", name: "一键分娩（孕期推进到足月破水）", note: "调 EdenCheats.labour()，随后需继续原版生产流程", needsChild: false },
+	{ key: "fert_parasite_fert", name: "寄生卵一键受精", note: "给未受精寄生卵置 fertilised 并满 daysLeft", needsChild: false },
+	{ key: "fert_parasite_ripe", name: "寄生物一键成熟", note: "把已受精寄生物的 daysLeft 置 0", needsChild: false },
+	{ key: "fert_innate", name: "保存先天属性与外貌（四项 + 身份九项）", note: "等价模组 saveInnate；改种族/性别受孕期与成年结算门控", needsChild: true },
+	{ key: "fert_skills", name: "保存养育属性（knowledge/fitness/social/awareness）", note: "等价模组 saveSkills", needsChild: true },
+	{ key: "fert_reset", name: "重置养育进度", note: "清年龄/养成/日程/成年 LLM 与孕期数据，地点回 eden_home", needsChild: true },
+	{ key: "fert_adult", name: "立刻成年结算", note: "forcedAdult=true，按已保存属性结算，不补收益", needsChild: true },
+	{ key: "fert_remove", name: "删除孩子（不可恢复）", note: "等价模组 removeChild", needsChild: true },
+	{ key: "fert_reset_reason", name: "查询重置前置（为何不可重置）", note: "只读：等价模组 resetReason", needsChild: true },
+	{ key: "fert_adult_reason", name: "查询成年前置（为何不可结算）", note: "只读：等价模组 adultReason", needsChild: true }
+];
+var MB_CE_FERT_INNATE_KEYS = ["appearance", "fitness", "intelligence", "temperament"];
+var MB_CE_FERT_SKILL_KEYS = ["knowledge", "fitness", "social", "awareness"];
+var MB_CE_FERT_ID_KEYS = ["species", "monster", "beastTransform", "divineTransform", "gender", "size", "hairColour", "eyeColour", "skinColour"];
+function mbCEFertApi() {
+	try { return (typeof window !== "undefined" && window.EdenCheats) ? window.EdenCheats : null; } catch (e) { return null; }
+}
+function mbCEFertReady() {
+	var api = mbCEFertApi();
+	if (!api) { return { ok: false, message: "未检测到 window.EdenCheats（FertilityExpansion 未加载或版本不含自带作弊）" }; }
+	try {
+		if (typeof api.available === "function" && !api.available()) {
+			return { ok: false, message: "模组要求先开启原版作弊页（cheatsEnabled / 原版 Cheats 面板处于打开状态）" };
+		}
+	} catch (e) { return { ok: false, message: "模组前置检查失败：" + (e && e.message ? e.message : e) }; }
+	return { ok: true };
+}
+function mbCEFertChildren() {
+	var api = mbCEFertApi();
+	if (!api || typeof api.children !== "function") { return []; }
+	try { return api.children("") || []; } catch (e) { return []; }
+}
+function mbCEFertRecord(id) {
+	try {
+		var V = getV();
+		return (V && V.eden && V.eden.children && V.eden.children[id]) ? V.eden.children[id] : null;
+	} catch (e) { return null; }
+}
+function mbCEFertChildLabel(entry) {
+	var id = String(entry[0]), child = entry[1] || {};
+	return "#" + id + " " + (child.name || "未命名") + "（" + (child.gender === "f" ? "女" : child.gender === "m" ? "男" : child.gender || "?") + "）";
+}
+/* 统一执行入口：所有动作都走模组 API，返回模组给出的 { ok, message } */
+function mbCEFertRun(key, id, patch) {
+	var r = mbCEFertReady();
+	if (!r.ok) { return r; }
+	var api = mbCEFertApi();
+	try {
+		if (key === "fert_labour") { return api.labour() || { ok: true, message: "已执行" }; }
+		if (key === "fert_parasite_fert") { return api.parasites(true) || { ok: true, message: "已执行" }; }
+		if (key === "fert_parasite_ripe") { return api.parasites(false) || { ok: true, message: "已执行" }; }
+		if (!id) { return { ok: false, message: "请先选择一个已出生的孩子" }; }
+		if (key === "fert_innate") { return api.saveInnate(id, patch || {}) || { ok: true, message: "已执行" }; }
+		if (key === "fert_skills") { return api.saveSkills(id, patch || {}) || { ok: true, message: "已执行" }; }
+		if (key === "fert_reset") { return api.reset(id) || { ok: true, message: "已执行" }; }
+		if (key === "fert_adult") { return api.settleAdult(id) || { ok: true, message: "已执行" }; }
+		if (key === "fert_remove") { return api.removeChild(id) || { ok: true, message: "已执行" }; }
+		if (key === "fert_reset_reason") {
+			var rr = api.resetReason(id);
+			return { ok: true, message: rr ? ("不可重置：" + rr) : "可以重置（无阻塞前置）" };
+		}
+		if (key === "fert_adult_reason") {
+			var ar = api.adultReason(id);
+			return { ok: true, message: ar ? ("不可成年结算：" + ar) : "可以成年结算（无阻塞前置）" };
+		}
+		return { ok: false, message: "未知动作：" + key };
+	} catch (e) { return { ok: false, message: "模组 API 抛出异常：" + (e && e.message ? e.message : e) }; }
+}
+/* 面板：孩子下拉 + 10 项动作（先天/养成需要填表，其余一键） */
+function mbCEFertRender(container) {
+	if (!container) { return; }
+	var ready = mbCEFertReady();
+	container.appendChild(el("div", "mce-hint",
+		"直接调用模组自带的 window.EdenCheats（等价 eden-cheats-ui 的全部 10 项），门控、快照回滚与 feats.locked 语义与模组一致。"));
+	if (!ready.ok) { container.appendChild(el("div", "mce-err", ready.message)); return; }
+	var list = mbCEFertChildren();
+	var sel = el("select", "mce-inp");
+	list.forEach(function (entry) { var o = el("option", "", mbCEFertChildLabel(entry)); o.value = String(entry[0]); sel.appendChild(o); });
+	var childRow = el("div", "mce-row");
+	childRow.appendChild(el("span", "mce-row-lbl", "目标孩子（" + list.length + " 个已出生）："));
+	childRow.appendChild(sel);
+	container.appendChild(childRow);
+	if (!list.length) { container.appendChild(el("div", "mce-hint", "当前没有已出生的孩子：先天/养成/重置/成年/删除需要先有孩子。")); }
+	/* A 怀孕三项：不需要孩子 */
+	var groupA = el("div", "mce-row");
+	["fert_labour", "fert_parasite_fert", "fert_parasite_ripe"].forEach(function (k) {
+		var a = MB_CE_FERT_ACTIONS.filter(function (x) { return x.key === k; })[0];
+		var b = el("button", "mce-btn mce-gold", a.name); b.type = "button"; b.title = a.note;
+		b.addEventListener("click", function () {
+			var res = mbCEFertRun(k, "", null);
+			setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+			renderModCheatDetail("fertility-expansion");
+		});
+		groupA.appendChild(b);
+	});
+	container.appendChild(groupA);
+	/* B 先天四项 + 身份九项 */
+	var innateBox = el("div", "mce-grp");
+	var rec0 = list.length ? mbCEFertRecord(String(sel.value)) : null;
+	var innate0 = (rec0 && rec0.innate) ? rec0.innate : {};
+	var inputs = {};
+	function addField(parent, label, key, value) {
+		var row = el("div", "mce-row");
+		row.appendChild(el("span", "mce-row-lbl", label + "："));
+		var inp = el("input", "mce-inp");
+		inp.type = "text"; inp.value = (value == null) ? "" : String(value);
+		inputs[key] = inp;
+		row.appendChild(inp);
+		parent.appendChild(row);
+	}
+	container.appendChild(el("div", "mce-hint", "先天属性（0–100 整数）与身份九项：留空按当前值提交（模组会校验可选值）"));
+	MB_CE_FERT_INNATE_KEYS.forEach(function (k) { addField(innateBox, "先天 " + k, k, innate0[k]); });
+	MB_CE_FERT_ID_KEYS.forEach(function (k) {
+		var cur = "";
+		try {
+			var api = mbCEFertApi();
+			if (list.length && api && typeof api.identity === "function") { cur = api.identity(list[0][1])[k] || ""; }
+		} catch (e) { cur = ""; }
+		addField(innateBox, "身份 " + k, k, cur);
+	});
+	container.appendChild(innateBox);
+	var bInnate = el("button", "mce-btn mce-gold", "保存先天属性与外貌"); bInnate.type = "button";
+	bInnate.addEventListener("click", function () {
+		var patch = {}, rec = mbCEFertRecord(String(sel.value));
+		var innate = (rec && rec.innate) ? rec.innate : {};
+		var missing = [];
+		MB_CE_FERT_INNATE_KEYS.forEach(function (k) {
+			var v = String(inputs[k].value || "").trim();
+			if (!v) { if (typeof innate[k] === "number") { patch[k] = innate[k]; } else { missing.push(k); } }
+			else { patch[k] = v; }
+		});
+		if (missing.length) { setStatus("缺少先天属性：" + missing.join(" / ") + "（模组要求四项全填）", "mce-err"); return; }
+		var api = mbCEFertApi(), child = null;
+		try { child = list.filter(function (e) { return String(e[0]) === String(sel.value); })[0]; } catch (e) { child = null; }
+		MB_CE_FERT_ID_KEYS.forEach(function (k) {
+			var v = String(inputs[k].value || "").trim();
+			if (v) { patch[k] = v; }
+			else if (api && child && typeof api.identity === "function") { patch[k] = api.identity(child[1])[k] || ""; }
+		});
+		if (patch.species === undefined) { patch.species = (child && child[1] && child[1].species) || "human"; }
+		if (patch.gender === undefined) { patch.gender = (child && child[1] && child[1].gender) || "f"; }
+		var res = mbCEFertRun("fert_innate", String(sel.value), patch);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		renderModCheatDetail("fertility-expansion");
+	});
+	container.appendChild(bInnate);
+	/* C 养成四项 + 三个二次确认动作 */
+	var skillBox = el("div", "mce-grp");
+	var training = (rec0 && rec0.training && rec0.training.skills) ? rec0.training.skills : {};
+	MB_CE_FERT_SKILL_KEYS.forEach(function (k) { addField(skillBox, "养成 " + k, k, training[k]); });
+	container.appendChild(skillBox);
+	var bSkills = el("button", "mce-btn mce-gold", "保存养育属性"); bSkills.type = "button";
+	bSkills.addEventListener("click", function () {
+		var patch = {}, missing = [];
+		MB_CE_FERT_SKILL_KEYS.forEach(function (k) {
+			var v = String(inputs[k].value || "").trim();
+			if (!v) { if (typeof training[k] === "number") { patch[k] = training[k]; } else { missing.push(k); } }
+			else { patch[k] = v; }
+		});
+		if (missing.length) { setStatus("缺少养成属性：" + missing.join(" / ") + "（模组要求四项全填）", "mce-err"); return; }
+		var res = mbCEFertRun("fert_skills", String(sel.value), patch);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		renderModCheatDetail("fertility-expansion");
+	});
+	container.appendChild(bSkills);
+	var groupC = el("div", "mce-row");
+	["fert_reset", "fert_adult", "fert_remove", "fert_reset_reason", "fert_adult_reason"].forEach(function (k) {
+		var a = MB_CE_FERT_ACTIONS.filter(function (x) { return x.key === k; })[0];
+		var destructive = (k === "fert_reset" || k === "fert_remove");
+		var b = el("button", destructive ? "mce-btn" : "mce-btn", a.name); b.type = "button"; b.title = a.note;
+		b.addEventListener("click", function () {
+			var res = mbCEFertRun(k, String(sel.value), null);
+			setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+			renderModCheatDetail("fertility-expansion");
+		});
+		groupC.appendChild(b);
+	});
+	container.appendChild(groupC);
+}
+/* 挂到已注册的适配器（04a-13 先拼接，本文件后拼接 → 此处 entry 一定存在） */
+(function () {
+	try {
+		var ad = CHEAT_ADAPTERS["fertility-expansion"];
+		if (!ad || !ad.entry) { return; }
+		ad.entry.actions = MB_CE_FERT_ACTIONS.map(function (a) {
+			return {
+				key: a.key, name: a.name, note: a.note, needsChild: !!a.needsChild,
+				run: function (arg) { return mbCEFertRun(a.key, arg && arg.id ? arg.id : "", arg && arg.patch ? arg.patch : null); }
+			};
+		});
+		ad.entry.actionPanel = mbCEFertRender;
+	} catch (e) { /* 适配器未注册时静默 */ }
+})();
+/* ============ v2.0.0.002 需求①③ + 玩家截图四条：FertilityExpansion 孩子页 ============
+   位置：挂在 fertility-expansion 适配器面板的最下面（04a-14 的 mbCEFertRender 之后），
+         孩子集中在这里做数值调整，不再散落在角色页。
+   源码实证（_modcache/fert_tmp/.../mods/FertilityExpansion/modules，1.7.0，逐字读，非二手）：
+   - 孩子数据两种形态：新存档 V.childRecords（数组）/ 旧存档 V.children（对象）；
+     统一走 window.EdenChildData 的 entries / get / phaseOf / locationOf / setLocation / ageDays。
+     EdenChildData.entries({scope:"all"}) 已排除 removed（edenDeleted === true 或 pregnancy.carrier === "cleared"）。
+   - 孩子「好感/爱意」= V.eden.children[<childId>].affection，范围 0-100、两位小数：
+     eden-adult.js:144-149 ensureAffection（默认 newResident 40 / existingResident 50）、
+     :488-490 remittance 用 affectionFloor 30 + fullAffection 80、
+     :539-549 intimacy minimumAffection 40；
+     eden-profile.js:176-182 面板显示为「好感」；eden-chat-prompt.js:10-15 按 20/40/60/80 分段描述亲疏。
+   - 成长：eden-age.js:150-169 syncRecord —— record.forcedAdult === true 时 lifeStage 直接置 "adult"
+     （只改阶段，不写 adult.settled）；年龄按 getAgeDays(child, record)（以 growthStartSerialDay 或 born 起算）。
+   - 地点：eden-child-data.js setLocation 只对 phase born/egg 生效，records 形态写 child.development.location；
+     源码实际产出过的合法值 = eden_home / home / eden_contacts / away / eden_released
+     （eden-breeding.js:222/245/419 生产 eden_home 与 home；eden-adult.js:357 结算写 eden_contacts / eden_released）。
+   - 「一键长大 + 立刻成年结算」的配合：settleAdult 的前置 needsSettlement 要求 lifeStage==="adult"
+     + phaseOf==="born" + locationOf==="eden_home" + !adult.settled（eden-adult.js:402-413）。
+     所以必须先在 eden_home 一键长大，再点「立刻成年结算」；已在其它地点的孩子按钮会如实报前置失败，不静默。 */
+var MB_CE_FERT_KID_LOCS = [
+	{ key: "eden_home", label: "伊甸园（eden_home）" },
+	{ key: "home", label: "玩家住处（home）" },
+	{ key: "eden_contacts", label: "成年·通讯录（eden_contacts）" },
+	{ key: "away", label: "成年·离家（away）" },
+	{ key: "eden_released", label: "成年·已放归（eden_released）" }
+];
+var MB_CE_FERT_KID_STATUS = {
+	active: "在园", resident: "常驻", adult_pending: "待成年结算", adult: "已成年", released: "已放归"
+};
+function mbCEFertKidData() {
+	try { return (typeof window !== "undefined" && window.EdenChildData) ? window.EdenChildData : null; } catch (e) { return null; }
+}
+/* 模组每个方法都有可选的 vars 尾参（eden-child-data.js: get(id, vars) / phaseOf(child, vars) /
+   setLocation(child, location, vars) / ageDays(child, record, vars) / entries(opts, vars)），
+   缺省值取自 window.SugarCube?.State?.variables。本页实测该通道不可见（SugarCube 只挂空壳对象），
+   所以一律显式传存档变量，避免整页静默空转；多传实参对旧版模组无副作用（多余实参被忽略）。 */
+function mbCEFertKidVars() {
+	try { var V = getV(); return (V && typeof V === "object") ? V : {}; } catch (e) { return {}; }
+}
+/* 取孩子列表（含未出生的卵/胎儿，scope=all 且排除 removed）。
+   优先 EdenChildData.entries，回退直读存档（模组未加载时孩子页也能列出并告警）。 */
+function mbCEFertKidPairs() {
+	var out = [];
+	var api = mbCEFertKidData();
+	var V0 = mbCEFertKidVars();
+	if (api && typeof api.entries === "function") {
+		try {
+			var e = api.entries({ scope: "all" }, V0);
+			if (e && typeof e.forEach === "function" && !Array.isArray(e)) { e.forEach(function (v, k) { out.push([String(k), v]); }); }
+			else if (Array.isArray(e)) {
+				e.forEach(function (it) {
+					if (Array.isArray(it) && it.length >= 2) { out.push([String(it[0]), it[1]]); }
+					else if (it && typeof it === "object") { out.push([String(it.childId), it]); }
+				});
+			}
+		} catch (x) { out = []; }
+	}
+	if (!out.length) {
+		var V = getV();
+		var rec = (V && V.childRecords) ? V.childRecords : null;
+		if (Array.isArray(rec)) {
+			/* records 形态：孩子 id 就是数组下标（EdenChildData.indexOf 只接受 (0|[1-9]\d*) 并按下标取），
+			   且模组 get() 要求 child.childId === 下标——childId 与下标不符的条目模组自己查不到，
+			   这里也不列出，否则删孩子后会留下「假存在」。edenDeleted === true 同样跳过。 */
+			rec.forEach(function (c, i) {
+				if (!c || typeof c !== "object" || c.edenDeleted === true) { return; }
+				var cid = (c.childId !== undefined && c.childId !== null) ? Number(c.childId) : i;
+				if (cid !== i) { return; }
+				out.push([String(i), c]);
+			});
+		}
+		else if (V && V.children && typeof V.children === "object") {
+			Object.keys(V.children).forEach(function (k) {
+				var c = V.children[k];
+				if (c && c.edenDeleted !== true) { out.push([k, c]); }
+			});
+		}
+	}
+	return out;
+}
+/* 存在性检测：模组侧删掉孩子后这里必须返回 null（玩家要求「自动检测是否还存在、不能出问题」）。
+   两道通道：EdenChildData.get（在线时的正路，phaseOf=removed 直接判死）→ 枚举兜底（API 缺失或查不到时）。 */
+function mbCEFertKidAlive(id) {
+	var key = String(id);
+	var api = mbCEFertKidData();
+	var V = mbCEFertKidVars();
+	var child = null;
+	if (api && typeof api.get === "function") {
+		try { child = api.get(key, V); } catch (e) { child = null; }
+		if (!child) { try { child = api.get(Number(key), V); } catch (e2) { child = null; } }
+		if (child) {
+			try {
+				if (typeof api.phaseOf === "function") {
+					var ph = api.phaseOf(child, V);
+					if (ph === "removed" || ph === "missing") { return null; }
+				}
+			} catch (e3) { /* 判定失败按存在处理，交给写入前的 record 校验兜底 */ }
+			return child;
+		}
+	}
+	var pairs = mbCEFertKidPairs();
+	for (var i = 0; i < pairs.length; i++) { if (pairs[i][0] === key) { return pairs[i][1]; } }
+	return null;
+}
+/* phase 判定兜底：逐条对齐 eden-child-data.js:50-59 的 phaseOf 语义
+   （无 child→missing / edenDeleted→removed / 非 record→eggTimer?egg:born /
+      record 且 pregnancy.carrier==="cleared"→removed / bornDate 有限→born /
+      hawk 且 pregnancy.deliveredDate 有限→egg / 其余 unborn）。 */
+function mbCEFertKidPhase(child) {
+	var api = mbCEFertKidData();
+	try { if (api && typeof api.phaseOf === "function") { return api.phaseOf(child, mbCEFertKidVars()); } } catch (e) { /* 回退下一条 */ }
+	if (!child || typeof child !== "object") { return "missing"; }
+	if (child.edenDeleted === true) { return "removed"; }
+	var isRec = (child.bornDate !== undefined);
+	if (!isRec) { return (child.eggTimer !== undefined) ? "egg" : "born"; }
+	var pg = null;
+	try {
+		var V = mbCEFertKidVars();
+		var idx = Number(child.pregnancyId);
+		if (Number.isInteger(idx) && idx >= 0 && Array.isArray(V.pregnancies)) { pg = V.pregnancies[idx] || null; }
+	} catch (e2) { pg = null; }
+	if (pg && pg.carrier === "cleared") { return "removed"; }
+	if (Number.isFinite(child.bornDate)) { return "born"; }
+	if (pg && Number.isFinite(pg.deliveredDate)) { return "egg"; }
+	return "unborn";
+}
+function mbCEFertKidLocation(child) {
+	var api = mbCEFertKidData();
+	try {
+		if (api && typeof api.locationOf === "function") {
+			var l = api.locationOf(child);
+			if (l !== undefined && l !== null && l !== "") { return String(l); }
+		}
+	} catch (e) { /* 回退直读 */ }
+	if (child && child.development && typeof child.development === "object" && child.development.location) { return String(child.development.location); }
+	if (child && child.location) { return String(child.location); }
+	return "";
+}
+/* 概要：一行里需要的全部只读信息，全部实时取，不缓存（保证删孩子后立刻反映） */
+function mbCEFertKidInfo(id) {
+	var child = mbCEFertKidAlive(id);
+	var rec = mbCEFertRecord(String(id));
+	var api = mbCEFertKidData();
+	var ageDays = null;
+	if (child) {
+		try { ageDays = (api && typeof api.ageDays === "function") ? api.ageDays(child, rec, mbCEFertKidVars()) : ((rec && typeof rec.ageDays === "number") ? rec.ageDays : null); } catch (e) { ageDays = null; }
+	}
+	var affection = (rec && Number.isFinite(Number(rec.affection))) ? Number(rec.affection) : null;
+	return {
+		id: String(id),
+		alive: !!child,
+		child: child,
+		record: rec,
+		name: (child && child.name) ? String(child.name) : "未命名",
+		gender: (child && child.gender) ? String(child.gender) : "",
+		phase: child ? mbCEFertKidPhase(child) : "missing",
+		location: child ? mbCEFertKidLocation(child) : "",
+		species: (rec && rec.species) ? String(rec.species) : ((child && child.species) ? String(child.species) : ""),
+		lifeStage: (rec && rec.lifeStage) ? String(rec.lifeStage) : "",
+		lifeStageLabel: (rec && rec.lifeStageLabel) ? String(rec.lifeStageLabel) : "",
+		ageDays: ageDays,
+		affection: affection,
+		status: (rec && rec.status) ? String(rec.status) : "",
+		settled: !!(rec && rec.adult && rec.adult.settled),
+		outcome: (rec && rec.adult && rec.adult.outcome) ? String(rec.adult.outcome) : "",
+		training: (rec && rec.training && rec.training.skills) ? rec.training.skills : null,
+		innate: (rec && rec.innate) ? rec.innate : null
+	};
+}
+/* 写好感：走通用执行器（0-100 下限钳制 + V.mbCE_wrote 留痕可回退），
+   动态 id 路径 eden.children.<id>.affection 不在 varPath 声明体系里，只能这样写。 */
+function mbCEFertKidSetAffection(id, raw) {
+	var rec = mbCEFertRecord(String(id));
+	if (!rec) { return { ok: false, message: "这个孩子在养育记录 eden.children 里不存在（可能刚被模组侧删除），已刷新列表" }; }
+	if (!mbCEFertKidAlive(id)) { return { ok: false, message: "这个孩子已不存在（模组侧已删除/移除），已刷新列表" }; }
+	return cheatWriteValue("fertility-expansion", "fert_child_aff_" + id, "fert_child_aff", "eden.children." + id + ".affection", raw, "number", 0, 100);
+}
+/* 定向发送：走模组 EdenChildData.setLocation（只对 born/egg 生效），失败不静默 */
+function mbCEFertKidSetLocation(id, loc) {
+	var child = mbCEFertKidAlive(id);
+	if (!child) { return { ok: false, message: "这个孩子已不存在（模组侧已删除/移除），已刷新列表" }; }
+	var target = String(loc === undefined || loc === null ? "" : loc).trim();
+	if (!target) { return { ok: false, message: "地点不能为空（例：eden_home / home / eden_contacts）" }; }
+	/* 模组 setLocation 的前置：phase 必须是 born / egg（eden-child-data.js:99）。
+	   兜底直写前必须先过同一道门控，否则会把未出生的胎儿也写出地点（越过模组语义）。 */
+	var phase = mbCEFertKidPhase(child);
+	if (phase !== "born" && phase !== "egg") {
+		return { ok: false, message: "无法发送：该孩子当前是「" + phase + "」（未出生/已移除），模组只允许已出生或已产卵的孩子指定地点" };
+	}
+	var before = mbCEFertKidLocation(child);
+	var ok = false, via = "setLocation";
+	var api = mbCEFertKidData();
+	var V = mbCEFertKidVars();
+	try { if (api && typeof api.setLocation === "function") { ok = api.setLocation(child, target, V) !== false; } } catch (e) { ok = false; }
+	if (!ok) {
+		/* 兜底直写（模组 API 缺失或被拒时按数据结构写，已过上面的 phase 门控） */
+		try {
+			if (child.development && typeof child.development === "object") { child.development.location = target; }
+			else { child.location = target; }
+			ok = mbCEFertKidLocation(child) === target;
+			via = "direct";
+		} catch (e2) { ok = false; }
+	}
+	if (!ok) { return { ok: false, message: "无法更新这个孩子的地点（模组 setLocation 拒绝，通常是还没出生/已移除）" }; }
+	try {
+		var V = getV();
+		if (V) {
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			var key = "cheat:fertility-expansion:fert_child_loc_" + id;
+			var prev = V.mbCE_wrote[key];
+			var keepBefore = (prev && "before" in prev) ? prev.before : before;
+			V.mbCE_wrote[key] = { type: "cheat", modId: "fertility-expansion", op: "fert_child_loc", path: "eden.children." + id + ".location", childId: String(id), before: keepBefore, after: target, via: via, t: Date.now() };
+			if (typeof mbCEWroteTrim === "function") { mbCEWroteTrim(V); }
+		}
+	} catch (e3) { /* 留痕失败不影响写入结果 */ }
+	return { ok: true, message: "已把孩子 #" + id + " 定向送到 " + target + "（原地点 " + (before || "未知") + "）" };
+}
+/* 随叫随到：把地点对齐到玩家当前位置；玩家所在位置若不是模组认的两个居所，退回 eden_home 并说明 */
+function mbCEFertKidCallToMe(id) {
+	var V = getV();
+	var here = (V && V.location) ? String(V.location) : "";
+	var target = here;
+	if (target !== "eden_home" && target !== "home") { target = "eden_home"; }
+	var res = mbCEFertKidSetLocation(id, target);
+	if (res.ok && here && here !== target) {
+		res.message += "（玩家当前在 " + here + "，模组只认 eden_home/home 作为孩子居所，已送到 eden_home）";
+	}
+	return res;
+}
+/* 一键长大：forcedAdult = true + EdenAge.syncRecord（lifeStage 直接成年），
+   随后跑 EdenAdult.syncRecord 让 status 变成 adult_pending（不等于结算，收益仍需「立刻成年结算」）。 */
+function mbCEFertKidGrowUp(id, silent) {
+	var child = mbCEFertKidAlive(id);
+	var rec = mbCEFertRecord(String(id));
+	if (!child || !rec) { return { ok: false, message: "这个孩子已不存在（模组侧已删除/移除），已刷新列表" }; }
+	/* 只对已出生的孩子长大：胎儿/未孵化的卵没有年龄起点，模组 syncRecord 会按 0 天算出婴儿期，
+       forcedAdult 虽能强推成年，但会连带把 bornDate 缺失的孩子写进 adult_pending，属越过模组语义。 */
+	var phase = mbCEFertKidPhase(child);
+	if (phase !== "born") {
+		return { ok: false, message: "无法长大：#" + id + " 当前是「" + phase + "」，只有已出生的孩子可以一键长大" };
+	}
+	var V = getV();
+	var settings = (V && V.eden && V.eden.settings && typeof V.eden.settings === "object") ? V.eden.settings : {};
+	var before = { forcedAdult: rec.forcedAdult, lifeStage: rec.lifeStage, status: rec.status };
+	rec.forcedAdult = true;
+	var synced = false;
+	try {
+		if (typeof window !== "undefined" && window.EdenAge && typeof window.EdenAge.syncRecord === "function") {
+			window.EdenAge.syncRecord(rec, child, settings);
+			synced = true;
+		}
+	} catch (e) { synced = false; }
+	if (!synced) { rec.lifeStage = "adult"; rec.lifeStageLabel = (rec.lifeStageLabel || "") || "成年"; }
+	try {
+		if (typeof window !== "undefined" && window.EdenAdult && typeof window.EdenAdult.syncRecord === "function") { window.EdenAdult.syncRecord(rec, child); }
+	} catch (e2) { /* 成年状态同步失败不影响已长大 */ }
+	try {
+		if (V) {
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			var key = "cheat:fertility-expansion:fert_child_adult_" + id;
+			var prev = V.mbCE_wrote[key];
+			var keep = (prev && "before" in prev) ? prev.before : before;
+			V.mbCE_wrote[key] = { type: "cheat", modId: "fertility-expansion", op: "fert_child_adult", path: "eden.children." + id + ".forcedAdult", childId: String(id), before: keep, after: true, via: synced ? "EdenAge.syncRecord" : "direct", t: Date.now() };
+			if (typeof mbCEWroteTrim === "function") { mbCEWroteTrim(V); }
+		}
+	} catch (e3) { /* 留痕失败不影响写入结果 */ }
+	if (silent) { return { ok: true, message: "" }; }
+	return {
+		ok: true,
+		message: "已把 #" + id + " 一键长大：阶段 " + (rec.lifeStageLabel || rec.lifeStage || "?")
+			+ "、" + (MB_CE_FERT_KID_STATUS[rec.status] || rec.status || "?")
+			+ (rec.lifeStage === "adult" ? "（要结算未来收益请再点「立刻成年结算」）" : "（模组未把阶段推到成年，请检查该孩子的种族是否可养育）")
+	};
+}
+function mbCEFertKidLocLabel(loc) {
+	var hit = MB_CE_FERT_KID_LOCS.filter(function (x) { return x.key === loc; })[0];
+	return hit ? hit.label : (loc || "未知");
+}
+function mbCEFertKidAgeText(info) {
+	if (info.phase === "egg") { return "未孵化"; }
+	if (typeof info.ageDays !== "number" || !isFinite(info.ageDays)) { return "年龄未知"; }
+	return "约 " + Math.max(0, Math.floor(info.ageDays)) + " 天";
+}
+/* ============ v2.0.0.002 收敛轮：孩子个体数值写入层（养育四项 / 先天四项）============ 
+   从 04a-15-fert-children.js 拆出（原文件 407 行会越过评分 C3 的 ≤400 满分档）。
+   模组 EdenCheats.saveSkills / saveInnate 的 patch 要求四项齐全（eden-cheats.js:189 numeric(patch[k]) 对缺项抛错，
+   不是清零），所以这里先用记录当前值补齐、只改用户填的那一项；模组 API 缺失/失败时按同一结构兜底直写。
+   全部写入走 V.mbCE_wrote 留痕（与好感/地点同一通道，可回退）。 */
+/* ===== 养育四项 / 先天四项（孩子页里的数值调整主体） =====
+   模组 EdenCheats.saveSkills / saveInnate 的 patch 要求四项齐全：
+   eden-cheats.js:189 `numeric(patch[k], 0, 100)` 对缺项直接抛错（不是清零），
+   所以调用前必须先用记录里的当前值补齐，只改用户填的那一项。 */
+var MB_CE_FERT_KID_SKILLS = ["knowledge", "fitness", "social", "awareness"];
+var MB_CE_FERT_KID_INNATE = ["appearance", "fitness", "intelligence", "temperament"];
+function mbCEFertKidCurSkills(rec) {
+	var src = (rec && rec.training && rec.training.skills && typeof rec.training.skills === "object") ? rec.training.skills : {};
+	var out = {};
+	MB_CE_FERT_KID_SKILLS.forEach(function (k) { var n = Number(src[k]); out[k] = Number.isFinite(n) ? n : 0; });
+	return out;
+}
+function mbCEFertKidCurInnate(rec) {
+	var src = (rec && rec.innate && typeof rec.innate === "object") ? rec.innate : {};
+	var out = {};
+	MB_CE_FERT_KID_INNATE.forEach(function (k) { var n = Number(src[k]); out[k] = Number.isFinite(n) ? n : 0; });
+	return out;
+}
+/* 记录里的四项若还没由模组初始化（record.innate / record.training.skills 缺项），
+   先让模组自己的 syncRecord 生成默认值再读，避免把「未生成」当成 0 写死。 */
+function mbCEFertKidEnsureSkills(rec, child) {
+	try {
+		var cur = mbCEFertKidCurSkills(rec), miss = false;
+		MB_CE_FERT_KID_SKILLS.forEach(function (k) { if (!(rec && rec.training && rec.training.skills && rec.training.skills[k] !== undefined)) { miss = true; } });
+		if (!miss) { return cur; }
+		if (typeof window !== "undefined" && window.EdenTraining && typeof window.EdenTraining.syncRecord === "function") {
+			var V = mbCEFertKidVars();
+			window.EdenTraining.syncRecord(rec, child, (V && V.eden && V.eden.settings) ? V.eden.settings : {});
+			return mbCEFertKidCurSkills(rec);
+		}
+	} catch (e) { /* 同步失败按当前值处理 */ }
+	return mbCEFertKidCurSkills(rec);
+}
+function mbCEFertKidEnsureInnate(rec, child, id) {
+	try {
+		var miss = false;
+		MB_CE_FERT_KID_INNATE.forEach(function (k) { if (!(rec && rec.innate && rec.innate[k] !== undefined)) { miss = true; } });
+		if (!miss) { return mbCEFertKidCurInnate(rec); }
+		if (typeof window !== "undefined" && window.EdenTraits && typeof window.EdenTraits.syncRecord === "function") {
+			/* 签名见 eden-cheats.js:168 syncRecord(record, child, String(id), v) */
+			window.EdenTraits.syncRecord(rec, child, String(id), mbCEFertKidVars());
+			return mbCEFertKidCurInnate(rec);
+		}
+	} catch (e) { /* 同步失败按当前值处理 */ }
+	return mbCEFertKidCurInnate(rec);
+}
+/* 合并优先级：用户填的值 > 记录当前值；空串视为「不改」，避免误清 0 */
+function mbCEFertKidMerge4(base, keys, supplied, integer) {
+	var out = {}, bad = "";
+	for (var i = 0; i < keys.length; i++) {
+		var k = keys[i];
+		var s = supplied ? supplied[k] : undefined;
+		var use = (s !== undefined && s !== null && String(s).trim() !== "") ? s : base[k];
+		var n = Number(String(use === undefined || use === null ? "" : use).trim());
+		if (!Number.isFinite(n) || n < 0 || n > 100) { bad = k + "=" + use; break; }
+		if (integer && !Number.isInteger(n)) { bad = k + "=" + use + "（需整数）"; break; }
+		out[k] = n;
+	}
+	return bad ? { ok: false, message: "数值需为 0–100" + (integer ? " 的整数" : "") + "：" + bad } : { ok: true, vals: out };
+}
+/* 留痕（与好感/地点同一通道，回退语义一致：保留首次 before） */
+function mbCEFertKidMark(id, op, before, after, via, path) {
+	try {
+		var V = getV();
+		if (!V) { return; }
+		if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+		var key = "cheat:fertility-expansion:" + op + "_" + id;
+		var prev = V.mbCE_wrote[key];
+		V.mbCE_wrote[key] = {
+			type: "cheat", modId: "fertility-expansion", op: op, path: path || ("eden.children." + id), childId: String(id),
+			before: (prev && "before" in prev) ? prev.before : before, after: after, via: via, t: Date.now()
+		};
+		if (typeof mbCEWroteTrim === "function") { mbCEWroteTrim(V); }
+	} catch (e) { /* 留痕失败不影响写入 */ }
+}
+function mbCEFertKidSaveSkills(id, vals) {
+	var child = mbCEFertKidAlive(id);
+	var rec = mbCEFertRecord(String(id));
+	if (!child || !rec) { return { ok: false, message: "这个孩子已不存在（模组侧已删除/移除），已刷新列表" }; }
+	if (mbCEFertKidPhase(child) !== "born") { return { ok: false, message: "孩子还没出生，养育属性只在出生后可写" }; }
+	var before = mbCEFertKidEnsureSkills(rec, child);
+	var merged = mbCEFertKidMerge4(before, MB_CE_FERT_KID_SKILLS, vals, false);
+	if (!merged.ok) { return merged; }
+	var full = merged.vals, res = null, via = "direct";
+	var api = mbCEFertApi();
+	if (api && typeof api.saveSkills === "function") {
+		try { res = api.saveSkills(String(id), full); if (res && res.ok === true) { via = "EdenCheats.saveSkills"; } } catch (e) { res = null; }
+	}
+	if (!res || res.ok !== true) {
+		try {
+			if (!rec.training || typeof rec.training !== "object" || Array.isArray(rec.training)) { rec.training = {}; }
+			if (!rec.training.skills || typeof rec.training.skills !== "object" || Array.isArray(rec.training.skills)) { rec.training.skills = {}; }
+			Object.assign(rec.training.skills, full);
+		} catch (e2) { return { ok: false, message: "写入养育属性失败：" + (e2 && e2.message ? e2.message : e2) }; }
+	}
+	mbCEFertKidMark(id, "fert_child_skills", before, full, via, "eden.children." + id + ".training.skills");
+	return { ok: true, message: "已写入养育属性 " + MB_CE_FERT_KID_SKILLS.map(function (k) { return k + "=" + full[k]; }).join(" / ") + "（" + via + "）" };
+}
+function mbCEFertKidSaveInnate(id, vals) {
+	var child = mbCEFertKidAlive(id);
+	var rec = mbCEFertRecord(String(id));
+	if (!child || !rec) { return { ok: false, message: "这个孩子已不存在（模组侧已删除/移除），已刷新列表" }; }
+	if (mbCEFertKidPhase(child) !== "born") { return { ok: false, message: "孩子还没出生，先天属性只在出生后可写" }; }
+	var before = mbCEFertKidEnsureInnate(rec, child, id);
+	var merged = mbCEFertKidMerge4(before, MB_CE_FERT_KID_INNATE, vals, true);
+	if (!merged.ok) { return merged; }
+	var full = merged.vals, res = null, via = "direct";
+	var api = mbCEFertApi();
+	if (api && typeof api.saveInnate === "function") {
+		/* 只给四项先天；身份九项由模组用 patch[key] ?? before[key] 自动沿用，不会被打乱 */
+		try { res = api.saveInnate(String(id), full); if (res && res.ok === true) { via = "EdenCheats.saveInnate"; } } catch (e) { res = null; }
+	}
+	if (!res || res.ok !== true) {
+		try {
+			if (!rec.innate || typeof rec.innate !== "object" || Array.isArray(rec.innate)) { rec.innate = {}; }
+			Object.assign(rec.innate, full);
+			/* 与模组 eden-cheats.js:178 同一判据：temperament<=50 为 quiet，否则 active；仅在该字段已存在时跟随 */
+			if (rec.innate.personality !== undefined) { rec.innate.personality = full.temperament <= 50 ? "quiet" : "active"; }
+		} catch (e2) { return { ok: false, message: "写入先天属性失败：" + (e2 && e2.message ? e2.message : e2) }; }
+	}
+	mbCEFertKidMark(id, "fert_child_innate", before, full, via, "eden.children." + id + ".innate");
+	return { ok: true, message: "已写入先天属性 " + MB_CE_FERT_KID_INNATE.map(function (k) { return k + "=" + full[k]; }).join(" / ") + "（" + via + "）" };
+}
+// v2.0.0.002 需求①③（续）：FertilityExpansion 孩子页 UI 层（由 04a-15 拆出，单文件 ≤400 行门禁）
+// 构建按文件名升序拼接，两层同处一个作用域，可直接互调。
+// 符号：mbCEFertKidCard（单孩子卡片）/ mbCEFertRenderChildren（整块孩子页）/ 尾部 IIFE 把本页挂到适配器面板最下面。
+/* 单个孩子的卡片 */
+function mbCEFertKidCard(info, refresh) {
+	var box = el("div", "mce-grp");
+	var head = el("div", "mce-row");
+	var title = el("span", "mce-row-lbl", "孩子 #" + info.id + " " + info.name
+		+ (info.gender === "f" ? "（女）" : info.gender === "m" ? "（男）" : ""));
+	head.appendChild(title);
+	box.appendChild(head);
+	if (!info.alive || info.phase === "missing") {
+		box.appendChild(el("div", "mce-err", "该孩子已不存在（模组侧已删除或已移除），列表已自动刷新；这里不再提供按钮，避免写入已删数据。"));
+		return box;
+	}
+	var line = "地点：" + mbCEFertKidLocLabel(info.location)
+		+ " · " + (info.lifeStageLabel || info.lifeStage || "阶段未知")
+		+ " · " + mbCEFertKidAgeText(info)
+		+ (info.species ? (" · " + info.species) : "")
+		+ " · 养育状态：" + (MB_CE_FERT_KID_STATUS[info.status] || info.status || "未知")
+		+ " · " + (info.settled ? ("未来已结算（" + (info.outcome || "?") + "）") : "未来未结算");
+	box.appendChild(el("div", "mce-hint", line));
+	/* 好感（爱意） */
+	var affRow = el("div", "mce-row");
+	affRow.appendChild(el("span", "mce-row-lbl", "好感/爱意（0–100）："));
+	var affInp = el("input", "mce-inp");
+	affInp.type = "text";
+	affInp.value = (info.affection === null) ? "" : String(info.affection);
+	affRow.appendChild(affInp);
+	var affBtn = el("button", "mce-btn mce-gold", "写好感");
+	affBtn.type = "button";
+	affBtn.title = "写 V.eden.children." + info.id + ".affection（模组 eden-adult.js 用该值判定亲疏/汇款/亲密难度）";
+	affBtn.addEventListener("click", function () {
+		var res = mbCEFertKidSetAffection(info.id, String(affInp.value || "").trim());
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	affRow.appendChild(affBtn);
+	var affHint = el("button", "mce-btn", "好感拉满");
+	affHint.type = "button";
+	affHint.addEventListener("click", function () {
+		var res = mbCEFertKidSetAffection(info.id, 100);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	affRow.appendChild(affHint);
+	box.appendChild(affRow);
+	/* 养育四项（模组 EdenCheats.saveSkills：knowledge/fitness/social/awareness，0–100）。
+	   模组要求四项齐全（缺项抛错），这里留空即沿用当前值，不会被清零。 */
+	var skNow = (info.training && typeof info.training === "object") ? info.training : {};
+	var SK_CN = { knowledge: "知识", fitness: "体能", social: "社交", awareness: "意识" };
+	var skRow = el("div", "mce-row");
+	skRow.appendChild(el("span", "mce-row-lbl", "养育四项："));
+	var skInp = {};
+	MB_CE_FERT_KID_SKILLS.forEach(function (k) {
+		skRow.appendChild(el("span", "mce-row-lbl", SK_CN[k] + " "));
+		var i2 = el("input", "mce-inp");
+		i2.type = "text";
+		i2.value = (skNow[k] === undefined || skNow[k] === null) ? "" : String(skNow[k]);
+		i2.title = "V.eden.children." + info.id + ".training.skills." + k + "（0–100，留空=不改）";
+		skRow.appendChild(i2);
+		skInp[k] = i2;
+	});
+	var skBtn = el("button", "mce-btn mce-gold", "写养育");
+	skBtn.type = "button";
+	skBtn.title = "调 EdenCheats.saveSkills（四项必须齐全；留空的项沿用当前值）";
+	skBtn.addEventListener("click", function () {
+		var patch = {};
+		MB_CE_FERT_KID_SKILLS.forEach(function (k) { patch[k] = String(skInp[k].value || "").trim(); });
+		var res = mbCEFertKidSaveSkills(info.id, patch);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	skRow.appendChild(skBtn);
+	box.appendChild(skRow);
+	/* 先天四项（模组 EdenCheats.saveInnate：appearance/fitness/intelligence/temperament，0–100 整数） */
+	var inNow = (info.innate && typeof info.innate === "object") ? info.innate : {};
+	var IN_CN = { appearance: "外貌", fitness: "体质", intelligence: "智力", temperament: "性格" };
+	var inRow = el("div", "mce-row");
+	inRow.appendChild(el("span", "mce-row-lbl", "先天四项："));
+	var inInp = {};
+	MB_CE_FERT_KID_INNATE.forEach(function (k) {
+		inRow.appendChild(el("span", "mce-row-lbl", IN_CN[k] + " "));
+		var i3 = el("input", "mce-inp");
+		i3.type = "text";
+		i3.value = (inNow[k] === undefined || inNow[k] === null) ? "" : String(inNow[k]);
+		i3.title = "V.eden.children." + info.id + ".innate." + k + "（0–100 整数，留空=不改）";
+		inRow.appendChild(i3);
+		inInp[k] = i3;
+	});
+	var inBtn = el("button", "mce-btn mce-gold", "写先天");
+	inBtn.type = "button";
+	inBtn.title = "调 EdenCheats.saveInnate（四项必须齐全且为整数；身份九项自动沿用现值）";
+	inBtn.addEventListener("click", function () {
+		var patch = {};
+		MB_CE_FERT_KID_INNATE.forEach(function (k) { patch[k] = String(inInp[k].value || "").trim(); });
+		var res = mbCEFertKidSaveInnate(info.id, patch);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	inRow.appendChild(inBtn);
+	box.appendChild(inRow);
+	/* 定向发送 / 随叫随到 */
+	var locRow = el("div", "mce-row");
+	locRow.appendChild(el("span", "mce-row-lbl", "定向发送："));
+	var sel = el("select", "mce-inp");
+	MB_CE_FERT_KID_LOCS.forEach(function (o) {
+		var op = el("option", "", o.label);
+		op.value = o.key;
+		if (o.key === info.location) { op.selected = true; }
+		sel.appendChild(op);
+	});
+	locRow.appendChild(sel);
+	var locInp = el("input", "mce-inp");
+	locInp.type = "text";
+	locInp.placeholder = "自定义地点（留空=用左侧下拉）";
+	locInp.title = "模组 location 是自由字符串；只对已出生/已产卵生效";
+	locRow.appendChild(locInp);
+	var sendBtn = el("button", "mce-btn mce-gold", "发送");
+	sendBtn.type = "button";
+	sendBtn.title = "写 EdenChildData.setLocation（只对已出生/蛋生效，等价 eden-adult.js 结算里的目的地写入）";
+	sendBtn.addEventListener("click", function () {
+		var custom = String(locInp.value || "").trim();
+		var res = mbCEFertKidSetLocation(info.id, custom || sel.value);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	locRow.appendChild(sendBtn);
+	var callBtn = el("button", "mce-btn", "随叫随到");
+	callBtn.type = "button";
+	callBtn.title = "把孩子的居所对齐到玩家当前位置（模组只认 eden_home/home，其余位置退回 eden_home 并提示）";
+	callBtn.addEventListener("click", function () {
+		var res = mbCEFertKidCallToMe(info.id);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	locRow.appendChild(callBtn);
+	box.appendChild(locRow);
+	/* 一键长大 / 成年结算 / 删除 */
+	var actRow = el("div", "mce-row");
+	var growBtn = el("button", "mce-btn mce-gold", "一键长大");
+	growBtn.type = "button";
+	growBtn.title = "forcedAdult=true + EdenAge.syncRecord（lifeStage 直接成年，不改未来结算状态）";
+	growBtn.addEventListener("click", function () {
+		var res = mbCEFertKidGrowUp(info.id, false);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	actRow.appendChild(growBtn);
+	var settleBtn = el("button", "mce-btn", "立刻成年结算");
+	settleBtn.type = "button";
+	settleBtn.title = "调 EdenCheats.settleAdult：要求已成年 + 已出生 + 在 eden_home + 未结算";
+	settleBtn.addEventListener("click", function () {
+		var res = mbCEFertRun("fert_adult", info.id, null);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	actRow.appendChild(settleBtn);
+	var delBtn = el("button", "mce-btn", "删除孩子（不可恢复）");
+	delBtn.type = "button";
+	delBtn.addEventListener("click", function () {
+		if (typeof window === "undefined" || typeof window.confirm !== "function") { return; }
+		if (!window.confirm("确认删除 #" + info.id + " " + info.name + "？该操作不可恢复（等价模组 removeChild）。")) { return; }
+		var res = mbCEFertRun("fert_remove", info.id, null);
+		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		refresh();
+	});
+	actRow.appendChild(delBtn);
+	box.appendChild(actRow);
+	return box;
+}
+/* 孩子页：适配器面板最下面的一块 */
+function mbCEFertRenderChildren(container) {
+	if (!container) { return; }
+	var refresh = function () {
+		try { if (typeof renderModCheatDetail === "function") { renderModCheatDetail("fertility-expansion"); } } catch (e) { /* 刷新失败不影响已写入 */ }
+	};
+	var pairs = mbCEFertKidPairs();
+	var aliveCount = 0;
+	container.appendChild(el("div", "mce-hint", "—— 孩子（FertilityExpansion）—— 板块内每个孩子独立调整；模组侧删掉孩子后这里会实时消失，按钮失效时会明确提示，不写已删数据。"));
+	if (!pairs.length) {
+		container.appendChild(el("div", "mce-hint", "当前没有任何孩子记录（V.childRecords / V.children 均为空）。孩子出生后会自动出现在这里。"));
+		return;
+	}
+	var barRow = el("div", "mce-row");
+	barRow.appendChild(el("span", "mce-row-lbl", "共 " + pairs.length + " 条记录："));
+	var growAll = el("button", "mce-btn mce-gold", "全部一键长大");
+	growAll.type = "button";
+	growAll.addEventListener("click", function () {
+		if (typeof window === "undefined" || typeof window.confirm !== "function") { return; }
+		if (!window.confirm("把当前 " + pairs.length + " 条孩子记录全部一键长大？")) { return; }
+		var okN = 0, failN = 0, skipN = 0;
+		pairs.forEach(function (p) {
+			var inf;
+			try { inf = mbCEFertKidInfo(p[0]); } catch (e) { inf = null; }
+			if (!inf || !inf.alive || inf.phase !== "born") { skipN++; return; }
+			var r = mbCEFertKidGrowUp(p[0], true);
+			if (r.ok) { okN++; } else { failN++; }
+		});
+		setStatus("批量一键长大：成功 " + okN + " 个，失败 " + failN + " 个"
+			+ (skipN ? "，跳过 " + skipN + " 个（未出生/未孵化/已不存在）" : ""), failN ? "mce-err" : "mce-ok");
+		refresh();
+	});
+	barRow.appendChild(growAll);
+	var reloadBtn = el("button", "mce-btn", "重新检测");
+	reloadBtn.type = "button";
+	reloadBtn.title = "按 EdenChildData 重新枚举一次（模组侧删/加孩子后手动刷新）";
+	reloadBtn.addEventListener("click", function () { refresh(); });
+	barRow.appendChild(reloadBtn);
+	container.appendChild(barRow);
+	pairs.forEach(function (p) {
+		var info;
+		try { info = mbCEFertKidInfo(p[0]); } catch (e) { info = null; }
+		if (!info) {
+			container.appendChild(el("div", "mce-err", "孩子 #" + p[0] + " 读取失败（数据结构异常），已跳过。"));
+			return;
+		}
+		if (info.alive) { aliveCount++; }
+		container.appendChild(mbCEFertKidCard(info, refresh));
+	});
+	if (aliveCount !== pairs.length) {
+		container.appendChild(el("div", "mce-hint", "（" + (pairs.length - aliveCount) + " 条记录已不在存活列表中，可能刚被模组侧删除；重新打开面板会彻底消失。）"));
+	}
+}
+/* 在 04a-14 的 actionPanel 之后追加孩子页：适配器面板最下面就是孩子 */
+(function () {
+	try {
+		var ad = (typeof CHEAT_ADAPTERS !== "undefined") ? CHEAT_ADAPTERS["fertility-expansion"] : null;
+		if (!ad || !ad.entry) { return; }
+		var base = ad.entry.actionPanel;
+		if (typeof base !== "function") { return; }
+		if (base.__mbCEHasKids) { return; }
+		ad.entry.actionPanel = function (container) {
+			base(container);
+			mbCEFertRenderChildren(container);
+		};
+		ad.entry.actionPanel.__mbCEHasKids = true;
+	} catch (e) { /* 适配器未注册时静默 */ }
+})();
 
 	function cheatIsVanillaRoot(root) {
 		var i;
@@ -3125,7 +4087,11 @@ CHEAT_ADAPTERS["dolmod"] = {
 			stages: Array.isArray(m.stages) ? m.stages : [],
 			abilities: Array.isArray(m.abilities) ? m.abilities : [],
 			scenes: Array.isArray(m.scenes) ? m.scenes : [],
-			values: Array.isArray(m.values) ? m.values : []
+			values: Array.isArray(m.values) ? m.values : [],
+			/* v2.0.0.002：命令式动作（适配器自己声明的"一键"按钮）。actionPanel 可整体接管渲染，
+			   用于复刻模组自带作弊面板（如 FertilityExpansion 的 window.EdenCheats）。 */
+			actions: Array.isArray(m.actions) ? m.actions : [],
+			actionPanel: (typeof m.actionPanel === "function") ? m.actionPanel : null
 		};
 	}
 
@@ -3210,84 +4176,6 @@ CHEAT_ADAPTERS["dolmod"] = {
 		else { modRowBatchTimer = null; }
 	}
 	/* 动态发现：注册制 + 内置适配器（探测命中即合并）+ 被动识别占位；每次调用重扫。 */
-	function getCheatMods() {
-		try {
-			var out = [], seen = {}, i;
-			var regs = (setup && Array.isArray(setup.mbCE_modCheats)) ? setup.mbCE_modCheats : [];
-			for (i = 0; i < regs.length; i++) {
-				var m = regs[i];
-				if (!m || !m.modId || !m.modName) { continue; }
-				seen[m.modId] = true;
-				out.push(normalizeCheatMod(m));
-			}
-			var adIds = Object.keys(CHEAT_ADAPTERS);
-			for (i = 0; i < adIds.length; i++) {
-				var ad = CHEAT_ADAPTERS[adIds[i]];
-				if (!ad || seen[adIds[i]]) { continue; }
-				try { if (typeof ad.detect !== "function" || !ad.detect()) { continue; } } catch (e) { continue; }
-				seen[adIds[i]] = true;
-				out.push(normalizeCheatMod(ad.entry));
-			}
-			for (i = 0; i < CHEAT_PASSIVE_PROBES.length; i++) {
-				var p = CHEAT_PASSIVE_PROBES[i];
-				if (!p || !p.modId || seen[p.modId]) { continue; }
-				try { if (typeof p.detect !== "function" || !p.detect()) { continue; } } catch (e) { continue; }
-				seen[p.modId] = true;
-				out.push({ modId: p.modId, modName: p.modName, declared: false, tasks: [], stages: [], abilities: [], scenes: [], values: [] });
-			}
-			return out;
-		} catch (e) { return []; }
-	}
-	function findCheatMod(modId) {
-		var mods = getCheatMods(), i;
-		for (i = 0; i < mods.length; i++) { if (mods[i].modId === modId) { return mods[i]; } }
-		return null;
-	}
-	function findCheatItem(list, key) {
-		var i;
-		for (i = 0; i < list.length; i++) { if (list[i] && list[i].key === key) { return list[i]; } }
-		return null;
-	}
-	/* ---- 四分组动作（统一走通用执行器，不写模组专属逻辑） ---- */
-	function skipCheatTask(modId, key) {
-		var m = findCheatMod(modId), t = m && findCheatItem(m.tasks, key);
-		if (!t) { return { ok: false, message: "任务不存在或该模组未注册" }; }
-		if (!t.skipVar) { return { ok: false, message: "「" + t.name + "」未声明跳过标记变量（skipVar），无法跳过" }; }
-		return cheatWriteValue(modId, "task_skip:" + key, "task_skip", t.skipVar, true, "boolean");
-	}
-	function completeCheatTask(modId, key) {
-		var m = findCheatMod(modId), t = m && findCheatItem(m.tasks, key);
-		if (!t) { return { ok: false, message: "任务不存在或该模组未注册" }; }
-		if (!t.completeVar) { return { ok: false, message: "「" + t.name + "」未声明完成标记变量（completeVar），无法直接完成" }; }
-		return cheatWriteValue(modId, "task_complete:" + key, "task_complete", t.completeVar, true, "boolean");
-	}
-	function setCheatStage(modId, key, level) {
-		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
-		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
-		if (!s.varPath) { return { ok: false, message: "「" + s.name + "」未声明阶段变量（varPath），无法修改" }; }
-		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
-		if (typeof levels[0] === "string") {
-			/* 字符串枚举阶段（v1.4.1）：目标值必须在 levels 内，越界拒绝，保持幂等 */
-			var idxStr = levels.indexOf(String(level));
-			if (idxStr === -1) { return { ok: false, message: "阶段值「" + level + "」不在枚举范围内（" + levels.join(" / ") + "）" }; }
-			return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, levels[idxStr], "string", 0, levels.length - 1, s.sync);
-		}
-		/* v1.9.10：阶段是枚举语义（UI 下拉限定）——仍钳制到 levels 范围，与数值项放开上限区分 */
-		var lvStage = Math.max(levels[0], Math.min(levels[levels.length - 1], Number(level) || 0));
-		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, lvStage, "number", levels[0], levels[levels.length - 1], s.sync);
-	}
-	function jumpCheatStageMax(modId, key) {
-		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
-		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
-		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
-		return setCheatStage(modId, key, levels[levels.length - 1]);
-	}
-	function resetCheatStage(modId, key) {
-		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
-		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
-		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
-		return setCheatStage(modId, key, levels[0]);
-	}
 	function toggleCheatAbility(modId, key, enabled) {
 		var m = findCheatMod(modId), a = m && findCheatItem(m.abilities, key);
 		if (!a) { return { ok: false, message: "能力不存在或该模组未注册" }; }
@@ -3512,6 +4400,7 @@ CHEAT_ADAPTERS["dolmod"] = {
 		if (m.stages.length || m.abilities.length) { any = true; renderCheatStages(m, grpFor, buildModGrpRows); }
 		if (m.scenes.length) { any = true; renderCheatScenes(m, grpFor, buildModGrpRows); }
 		if (m.values.length) { any = true; renderCheatValues(m, grpFor, buildModGrpRows); }
+		if (m.actions.length || typeof m.actionPanel === "function") { any = true; renderCheatActions(m, grpFor, buildModGrpRows); }
 		if (!any) {
 			pane.appendChild(el("div", "mce-hint", "该模组已识别但未声明可操控项（任务/阶段/剧情/数值均为空）。"));
 		}
@@ -3525,6 +4414,155 @@ CHEAT_ADAPTERS["dolmod"] = {
 		pane.scrollTop = st; /* 五巡：恢复滚动位置 */
 	}
 	/* 行构建抽为独立小函数（返回 node，懒渲染闭包内执行；data-mce-key 与事件保持五巡局部刷新兼容） */
+	function actCheat(res, modId, key) {
+		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
+		/* 五巡：操作后局部刷新目标行（不再全量重建整个模组页——高频操作下 DOM churn 是卡顿/闪退累积源之一） */
+		if (modId && key) {
+			var pane = root.querySelector('[data-pane="mods"]');
+			if (pane && refreshModRow(pane, modId, key)) {
+				/* v1.9.14 效果2：写入成功 → 刷新回显后的目标行金底闪烁（反馈落在可见新值上） */
+				if (res && res.ok) {
+					var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
+					var newRow = pane.querySelector('[data-mce-key="' + esc + '"]');
+					if (newRow) { mbCEFlash(newRow); }
+				}
+				return;
+			}
+		}
+		if (modId) { renderModCheatDetail(modId); }
+	}
+	/* 阶段下拉回显公共（渲染与局部刷新共用，v1.4.4 行为保持） */
+	function reflectStageSelect(sel, s, modId) {
+		try {
+			var curStage = cheatReadSafe(modId, s.varPath);
+			if (curStage !== undefined && curStage !== null) {
+				var curStr = String(curStage);
+				for (var si = 0; si < s.levels.length; si++) {
+					if (String(s.levels[si]) === curStr) { sel.selectedIndex = si; return; }
+				}
+			}
+		} catch (e) {}
+	}
+	/* 五巡：局部刷新单行回显态；行不存在或出错返回 false（调用方兜底全量重建） */
+	function refreshModRow(pane, modId, key) {
+		try {
+			var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
+			var row = pane.querySelector('[data-mce-key="' + esc + '"]');
+			if (!row) { return false; }
+			var m = findCheatMod(modId);
+			if (!m) { return false; }
+			var parts = String(key).split(":");
+			var kind = parts[0];
+			if (kind === "stages") {
+				var s = findCheatItem(m.stages, parts.slice(1).join(":"));
+				var sel = row.querySelector("select");
+				if (s && sel) { reflectStageSelect(sel, s, modId); }
+				return true;
+			}
+			if (kind === "abilities") {
+				var a = findCheatItem(m.abilities, parts.slice(1).join(":"));
+				var box = row.querySelector('input[type="checkbox"]');
+				if (a && box) { box.checked = !!cheatReadSafe(modId, a.varPath); }
+				return true;
+			}
+			if (kind === "values") {
+				var it = findCheatItem(m.values, parts[1]);
+				if (it && it.type === "list") {
+					var opt = parts.slice(2).join(":");
+					var lb = row.querySelector('input[type="checkbox"]');
+					var arr = Array.isArray(cheatReadSafe(modId, it.varPath)) ? cheatReadSafe(modId, it.varPath) : [];
+					if (lb) { lb.checked = arr.indexOf(opt) !== -1; }
+				} else if (it) {
+					var inp = row.querySelector("input");
+					var cur = cheatReadSafe(modId, it.varPath);
+					if (inp) {
+						if (it.type === "boolean") { inp.checked = !!cur; }
+						else if (cur !== undefined && cur !== null) { inp.value = String(cur); }
+					}
+				}
+				return true;
+			}
+			return true; /* 任务/剧情行无回显态，行存在即视为已刷新 */
+		} catch (e) { return false; }
+	}
+	function getCheatMods() {
+		try {
+			var out = [], seen = {}, i;
+			var regs = (setup && Array.isArray(setup.mbCE_modCheats)) ? setup.mbCE_modCheats : [];
+			for (i = 0; i < regs.length; i++) {
+				var m = regs[i];
+				if (!m || !m.modId || !m.modName) { continue; }
+				seen[m.modId] = true;
+				out.push(normalizeCheatMod(m));
+			}
+			var adIds = Object.keys(CHEAT_ADAPTERS);
+			for (i = 0; i < adIds.length; i++) {
+				var ad = CHEAT_ADAPTERS[adIds[i]];
+				if (!ad || seen[adIds[i]]) { continue; }
+				try { if (typeof ad.detect !== "function" || !ad.detect()) { continue; } } catch (e) { continue; }
+				seen[adIds[i]] = true;
+				out.push(normalizeCheatMod(ad.entry));
+			}
+			for (i = 0; i < CHEAT_PASSIVE_PROBES.length; i++) {
+				var p = CHEAT_PASSIVE_PROBES[i];
+				if (!p || !p.modId || seen[p.modId]) { continue; }
+				try { if (typeof p.detect !== "function" || !p.detect()) { continue; } } catch (e) { continue; }
+				seen[p.modId] = true;
+				out.push({ modId: p.modId, modName: p.modName, declared: false, tasks: [], stages: [], abilities: [], scenes: [], values: [] });
+			}
+			return out;
+		} catch (e) { return []; }
+	}
+	function findCheatMod(modId) {
+		var mods = getCheatMods(), i;
+		for (i = 0; i < mods.length; i++) { if (mods[i].modId === modId) { return mods[i]; } }
+		return null;
+	}
+	function findCheatItem(list, key) {
+		var i;
+		for (i = 0; i < list.length; i++) { if (list[i] && list[i].key === key) { return list[i]; } }
+		return null;
+	}
+	/* ---- 四分组动作（统一走通用执行器，不写模组专属逻辑） ---- */
+	function skipCheatTask(modId, key) {
+		var m = findCheatMod(modId), t = m && findCheatItem(m.tasks, key);
+		if (!t) { return { ok: false, message: "任务不存在或该模组未注册" }; }
+		if (!t.skipVar) { return { ok: false, message: "「" + t.name + "」未声明跳过标记变量（skipVar），无法跳过" }; }
+		return cheatWriteValue(modId, "task_skip:" + key, "task_skip", t.skipVar, true, "boolean");
+	}
+	function completeCheatTask(modId, key) {
+		var m = findCheatMod(modId), t = m && findCheatItem(m.tasks, key);
+		if (!t) { return { ok: false, message: "任务不存在或该模组未注册" }; }
+		if (!t.completeVar) { return { ok: false, message: "「" + t.name + "」未声明完成标记变量（completeVar），无法直接完成" }; }
+		return cheatWriteValue(modId, "task_complete:" + key, "task_complete", t.completeVar, true, "boolean");
+	}
+	function setCheatStage(modId, key, level) {
+		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
+		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
+		if (!s.varPath) { return { ok: false, message: "「" + s.name + "」未声明阶段变量（varPath），无法修改" }; }
+		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
+		if (typeof levels[0] === "string") {
+			/* 字符串枚举阶段（v1.4.1）：目标值必须在 levels 内，越界拒绝，保持幂等 */
+			var idxStr = levels.indexOf(String(level));
+			if (idxStr === -1) { return { ok: false, message: "阶段值「" + level + "」不在枚举范围内（" + levels.join(" / ") + "）" }; }
+			return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, levels[idxStr], "string", 0, levels.length - 1, s.sync);
+		}
+		/* v1.9.10：阶段是枚举语义（UI 下拉限定）——仍钳制到 levels 范围，与数值项放开上限区分 */
+		var lvStage = Math.max(levels[0], Math.min(levels[levels.length - 1], Number(level) || 0));
+		return cheatWriteValue(modId, "stage_set:" + key, "stage_set", s.varPath, lvStage, "number", levels[0], levels[levels.length - 1], s.sync);
+	}
+	function jumpCheatStageMax(modId, key) {
+		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
+		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
+		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
+		return setCheatStage(modId, key, levels[levels.length - 1]);
+	}
+	function resetCheatStage(modId, key) {
+		var m = findCheatMod(modId), s = m && findCheatItem(m.stages, key);
+		if (!s) { return { ok: false, message: "阶段不存在或该模组未注册" }; }
+		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
+		return setCheatStage(modId, key, levels[0]);
+	}
 	function buildCheatTaskRow(m, t) {
 		var row = el("div", "mce-row");
 		row.setAttribute("data-mce-key", "tasks:" + t.key);
@@ -3699,79 +4737,49 @@ CHEAT_ADAPTERS["dolmod"] = {
 			g.pending.push(function () { return buildCheatValueRow(m, it); });
 		});
 		if (q && g.body) { g.body.setAttribute("data-collapsed", "0"); }
-	}
-	function actCheat(res, modId, key) {
+	}/* ============ v2.0.0.002：模组页「命令式动作」分组渲染（从 05a 拆出，守住单文件 ≤400 行） ============
+   用途：适配器可以声明 actions（自己的"一键"按钮），或用 actionPanel 整体接管一组渲染。
+   首个使用者是 FertilityExpansion：它自带 eden-cheats-ui.js（10 项作弊），CE 直接调用其
+   window.EdenCheats 复刻同一套能力（04a-14-fert-cheats.js），不重写模组的 sync/回滚链。
+   行构建沿用模组页既有懒渲染协议：grpFor 建组 → g.pending 存返回节点的函数 → 展开时 buildModGrpRows 补建。 */
+function mbCEActionRow(m, a) {
+	var row = el("div", "mce-row");
+	row.setAttribute("data-mce-key", "action:" + a.key);
+	row.appendChild(el("span", "mce-row-lbl", a.name));
+	var b = el("button", "mce-btn mce-gold", "执行");
+	b.type = "button";
+	b.title = a.note || "";
+	b.addEventListener("click", function () {
+		var res;
+		try {
+			res = (typeof a.run === "function") ? a.run({}) : { ok: false, message: "该动作未实现" };
+		} catch (e) { res = { ok: false, message: "动作抛出异常：" + (e && e.message ? e.message : e) }; }
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
-		/* 五巡：操作后局部刷新目标行（不再全量重建整个模组页——高频操作下 DOM churn 是卡顿/闪退累积源之一） */
-		if (modId && key) {
-			var pane = root.querySelector('[data-pane="mods"]');
-			if (pane && refreshModRow(pane, modId, key)) {
-				/* v1.9.14 效果2：写入成功 → 刷新回显后的目标行金底闪烁（反馈落在可见新值上） */
-				if (res && res.ok) {
-					var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
-					var newRow = pane.querySelector('[data-mce-key="' + esc + '"]');
-					if (newRow) { mbCEFlash(newRow); }
-				}
-				return;
-			}
-		}
-		if (modId) { renderModCheatDetail(modId); }
+	});
+	row.appendChild(b);
+	if (a.note) { row.appendChild(el("span", "mce-hint", a.note)); }
+	return row;
+}
+function renderCheatActions(m, grpFor, buildModGrpRows) {
+	var list = Array.isArray(m.actions) ? m.actions : [];
+	if (!list.length && typeof m.actionPanel !== "function") { return; }
+	var g = grpFor("actions", "命令式动作（模组自带作弊等价）");
+	if (typeof m.actionPanel === "function") {
+		/* 适配器自带完整面板：面板里已有全部动作入口，不再重复铺一行一个按钮 */
+		g.pending.push(function () {
+			var box = el("div", "mce-col");
+			try { m.actionPanel(box, m); } catch (e) { box.appendChild(el("div", "mce-err", "动作面板渲染失败：" + (e && e.message ? e.message : e))); }
+			return box;
+		});
+		g.count += 1;
+		return;
 	}
-	/* 阶段下拉回显公共（渲染与局部刷新共用，v1.4.4 行为保持） */
-	function reflectStageSelect(sel, s, modId) {
-		try {
-			var curStage = cheatReadSafe(modId, s.varPath);
-			if (curStage !== undefined && curStage !== null) {
-				var curStr = String(curStage);
-				for (var si = 0; si < s.levels.length; si++) {
-					if (String(s.levels[si]) === curStr) { sel.selectedIndex = si; return; }
-				}
-			}
-		} catch (e) {}
-	}
-	/* 五巡：局部刷新单行回显态；行不存在或出错返回 false（调用方兜底全量重建） */
-	function refreshModRow(pane, modId, key) {
-		try {
-			var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
-			var row = pane.querySelector('[data-mce-key="' + esc + '"]');
-			if (!row) { return false; }
-			var m = findCheatMod(modId);
-			if (!m) { return false; }
-			var parts = String(key).split(":");
-			var kind = parts[0];
-			if (kind === "stages") {
-				var s = findCheatItem(m.stages, parts.slice(1).join(":"));
-				var sel = row.querySelector("select");
-				if (s && sel) { reflectStageSelect(sel, s, modId); }
-				return true;
-			}
-			if (kind === "abilities") {
-				var a = findCheatItem(m.abilities, parts.slice(1).join(":"));
-				var box = row.querySelector('input[type="checkbox"]');
-				if (a && box) { box.checked = !!cheatReadSafe(modId, a.varPath); }
-				return true;
-			}
-			if (kind === "values") {
-				var it = findCheatItem(m.values, parts[1]);
-				if (it && it.type === "list") {
-					var opt = parts.slice(2).join(":");
-					var lb = row.querySelector('input[type="checkbox"]');
-					var arr = Array.isArray(cheatReadSafe(modId, it.varPath)) ? cheatReadSafe(modId, it.varPath) : [];
-					if (lb) { lb.checked = arr.indexOf(opt) !== -1; }
-				} else if (it) {
-					var inp = row.querySelector("input");
-					var cur = cheatReadSafe(modId, it.varPath);
-					if (inp) {
-						if (it.type === "boolean") { inp.checked = !!cur; }
-						else if (cur !== undefined && cur !== null) { inp.value = String(cur); }
-					}
-				}
-				return true;
-			}
-			return true; /* 任务/剧情行无回显态，行存在即视为已刷新 */
-		} catch (e) { return false; }
-	}
-
+	list.forEach(function (a) {
+		if (!a || !a.key) { return; }
+		g.pending.push(function () { return mbCEActionRow(m, a); });
+		g.count += 1;
+	});
+}
 	/* ============ v1.7.0 玩家属性全量编辑（Mod作弊 主容器页「玩家自己」入口）
 	       数据源：① V.player 全量（递归限深 3，循环引用防崩）；② 模组属性 = 运行时 V 顶层键
 	       - ORIGINAL_V_ROOT_KEYS - CHEAT_VANILLA_ROOTS - mbCE_*（与原版比对，只添加没有的）。
@@ -3908,6 +4916,75 @@ CHEAT_ADAPTERS["dolmod"] = {
 			return { ok: true, created: false };
 		} catch (e) { return { ok: false, message: "武器数据初始化失败" }; }
 	}
+	/* ===== v2.0.0.002 需求②：武器「直接获得」=====
+	   原版武器持有语义实证（DoL 0.5.12.13 源码逐条取证）：
+	   - 持有判定 = V.prof.<武器> 键存在。角色页特性栏 `<<if $prof.whip isnot undefined>>` 才显示该武器特性，
+	     未定义时走 _hiddenConfig（截图里「网（当前 —）」「镐（当前 —）」即 undefined 的呈现）。
+	     神殿开启战斗链 `<<set $prof.baton to 200>><<<set $prof.whip to 800>><<<set $temple_weapon to "whip">>`
+	     就是"直接给武器"的原版写法，故 CB 侧等价实现 = 建 prof 键 + 给入门熟练度。
+	   - 防狼喷雾还有独立物资：V.spray（弹药数）/ V.spraymax（容量）/ V.infinitespray。
+	     `spray()` 内 `V.spray = Math.clamp(V.spray, 0, V.spraymax)`，spraymax=0 时有熟练度也打不出，
+	     故获得喷雾必须同时给容量与弹药（否则面板显示"已获得"但实战无弹）。
+	   - 镐的真身是道具 `<<wearProp "pickaxe">>`（矿山/废土派发），prof.pickaxe 的显示块在原版被注释块包裹，
+	     写键只为对齐"非 undefined"判定，道具本身由 game 的 wearProp 管理，不在此伪造。 */
+	var WEAPON_GRANT_BASE = 100; /* 入门档：原版武器四档 100/300/500/1000 */
+	var WEAPON_LABEL = { spray: "防狼喷雾", baton: "短棍", whip: "鞭子", net: "网", pickaxe: "镐" };
+	function quickTargetValue(raw, cur) {
+		var s = String(raw == null ? "" : raw).trim();
+		if (!s) { return null; }
+		var rel = /^([+-])\s*(\d+(?:\.\d+)?)$/.exec(s);
+		if (rel) {
+			var base = (typeof cur === "number" ? cur : 0);
+			return rel[1] === "+" ? base + Number(rel[2]) : base - Number(rel[2]);
+		}
+		return /^-?\d+(?:\.\d+)?$/.test(s) ? Number(s) : null;
+	}
+	function grantWeapon(path, base) {
+		var w = String(path || "").replace(/^prof\./, "");
+		if (!w || !WEAPON_LABEL[w]) { return { ok: false, message: "未知武器键：" + w }; }
+		var es = ensureProfShell();
+		if (!es.ok) { return es; }
+		var V2 = getV();
+		if (!V2) { return { ok: false, message: "存档变量不可用" }; }
+		var val = (typeof base === "number" && base > 0 ? base : WEAPON_GRANT_BASE);
+		var msgs = [], allOk = true;
+		/* 自检（测试 54.4 抓到）：原版持有判定是 `isnot undefined`，但值为 0 时武器已"在手"却毫无熟练度——
+		   玩家点「获得」的预期是"拿到能用"，所以规则定为：值 ≥1 一律保持（不冲掉 722 这类已有熟练度），
+		   值为 0 或键缺失才写入门档 100。 */
+		var curProf = (typeof V2.prof[w] === "number") ? V2.prof[w] : null;
+		if (curProf !== null && curProf >= 1) {
+			msgs.push("已持有，保持现值 " + curProf);
+		} else {
+			var r1 = cheatWriteValue("player-self", "p:prof." + w, "value_set", "prof." + w, val, "number", 0, 1000);
+			allOk = allOk && !!(r1 && r1.ok);
+			msgs.push(r1 && r1.ok ? "熟练度 " + val : "熟练度写入失败");
+		}
+		if (w === "spray") {
+			if (!((typeof V2.spraymax === "number" ? V2.spraymax : 0) >= 1)) {
+				var r2 = cheatWriteValue("player-self", "p:spraymax", "value_set", "spraymax", 5, "number", 0, 8);
+				allOk = allOk && !!(r2 && r2.ok);
+				msgs.push(r2 && r2.ok ? "容量 5" : "容量写入失败");
+			}
+			if (!((typeof V2.spray === "number" ? V2.spray : 0) >= 1)) {
+				var cap = ((typeof V2.spraymax === "number" && V2.spraymax >= 1) ? V2.spraymax : 5);
+				var r3 = cheatWriteValue("player-self", "p:spray", "value_set", "spray", cap, "number", 0, 8);
+				allOk = allOk && !!(r3 && r3.ok);
+				msgs.push(r3 && r3.ok ? "弹药 " + cap : "弹药写入失败");
+			}
+		}
+		return { ok: allOk, message: "已获得「" + WEAPON_LABEL[w] + "」：" + msgs.join("，") };
+	}
+	function grantAllWeapons() {
+		var done = 0, fails = [];
+		["spray", "baton", "whip", "net", "pickaxe"].forEach(function (w) {
+			var r = grantWeapon("prof." + w);
+			if (r.ok) { done++; } else { fails.push(WEAPON_LABEL[w]); }
+		});
+		return {
+			ok: fails.length === 0,
+			message: "已获得 " + done + " 件武器" + (fails.length ? "，失败：" + fails.join("、") : "（喷雾含容量/弹药）")
+		};
+	}
 	function quickWrite(path, raw) {
 		if (String(path).indexOf("prof.") === 0) {
 			var es = ensureProfShell();
@@ -3941,10 +5018,36 @@ CHEAT_ADAPTERS["dolmod"] = {
 		b.addEventListener("click", function () { actPlayer(quickWrite(path, inp.value), path); });
 		var und = el("button", "", "回退"); und.type = "button";
 		und.addEventListener("click", function () { actPlayer(undoCheatModValue("player-self", "p:" + path), path); });
-		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
+		/* v2.0.0.002 需求①：数值锁定（复用 07f-lock.js 通道，每 1 秒强制写回，存存档） */
+		var lockedNow = (typeof mbCELockHas === "function") ? !!mbCELockHas(path) : false;
+		var lk = el("button", lockedNow ? "mce-btn mce-gold" : "", lockedNow ? "已锁定" : "锁定");
+		lk.type = "button";
+		lk.title = lockedNow
+			? "该值已锁定（每 1 秒强制写回目标 " + mbCELockTarget(path) + "）；点击取消锁定"
+			: "锁定：输入框的数值（含 +N/-N 相对写法）成为目标值，每 1 秒强制写回，存存档";
+		lk.addEventListener("click", function () {
+			if (typeof mbCELockHas !== "function" || typeof mbCELockSet !== "function" || typeof mbCELockRemove !== "function") {
+				setStatus("锁定模块未加载（07f-lock.js）", "mce-err"); return;
+			}
+			if (mbCELockHas(path)) { actPlayer(mbCELockRemove(path), path); return; }
+			var tgt = quickTargetValue(inp.value, quickReadValue(path));
+			if (tgt == null) { setStatus("锁定需要具体目标值（也支持 +N / -N 相对写法）", "mce-err"); return; }
+			actPlayer(mbCELockSet(path, tgt), path);
+		});
+		row.appendChild(inp); row.appendChild(b); row.appendChild(und); row.appendChild(lk);
+		/* v2.0.0.002 需求②：武器组每行加「获得」（非武器组不出现） */
+		if (String(path).indexOf("prof.") === 0) {
+			var gr = el("button", "mce-btn", "获得");
+			gr.type = "button";
+			gr.title = "直接获得该武器：写 prof 键（原版持有判定）+ 入门熟练度 100；喷雾同时补容量 5 与满弹药";
+			gr.addEventListener("click", function () { actPlayer(grantWeapon(path), path); });
+			row.appendChild(gr);
+		}
 		pane.appendChild(row);
 	}
 	function renderQuickPanel(pane) {
+		/* v2.0.0.002 需求③：自由选择说话态度——放在本页最上方（用户指定位置） */
+		renderAttitudeFree(pane);
 		/* v1.9.13 预设模板：一键批量写入（逐项走 quickWrite 统一留痕，可单独回退） */
 		var psec = el("div", "mce-section", "一键方案（预设模板）");
 		var pWrap = el("div", "mce-row");
@@ -3983,6 +5086,17 @@ CHEAT_ADAPTERS["dolmod"] = {
 			grp.appendChild(head);
 			grp.appendChild(body);
 			g.items.forEach(function (it) { renderQuickRow(body, it); });
+			if (g.title === "武器技能") {
+				var allG = el("button", "mce-btn mce-gold", "全部获得（5 件武器）");
+				allG.type = "button";
+				allG.title = "一次获得 防狼喷雾/短棍/鞭子/网/镐（写 prof 键 = 原版持有判定）；喷雾同时补容量 5 与满弹药";
+				allG.addEventListener("click", function () {
+					var r = grantAllWeapons();
+					setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+					renderPlayerEdit();
+				});
+				body.appendChild(allG);
+			}
 			pane.appendChild(grp);
 		});
 	}
@@ -4022,6 +5136,208 @@ CHEAT_ADAPTERS["dolmod"] = {
 		} catch (e) {
 			return { ok: false, message: "预设执行异常：" + (e && e.message ? e.message : e) };
 		}
+	}
+	/* ============ v2.0.0.002 需求⑤：原版三档说话态度 + 选定后永久维持 ============
+	   原版取证（DoL 0.5.12.13，逐字取自 Degrees of Lewdity.html，非二手转述）：
+	   1) 三档控件 `<<widget "cheatsSpeechAttitude">>`（Cheats passage）：
+	        <<set _submissiveness = [1500, 1000, 500]>>
+	        <<set _attitude = ["meek", "neutral", "bratty"]>>
+	        … <<set $speech_attitude to _attitude[_i]>><<<set $submissive to _submissiveness[_i]>>
+	      ￼点一档 = 同时写 `$speech_attitude`（档名）与 `$submissive`（对应锚值）。
+	   2) 门槛（`<<widget "attitudes">>`）：Meek 需 `$submissive gt 850`、Bratty 需 `$submissive lt 1150`；
+	      ￼1500 / 1000 / 500 三锚值分别落在门槛内侧，所以只要锚值不漂移，三档都保持可选。
+	   3) `$speech_attitude` 全库写入点仅 6 处（gameStartOnly / variablesVersionUpdate / Cheats /
+	      Pinch Widgets（喵化）/ Scarlet Widgets），其余数百处只读 → 游戏本身不会自行改档。
+	   旧实现（只把 `$submissive` 写进 851–1149 交集）按用户口径作废：那是"两档都能选"，不是"所选档永久维持"。
+	   维持语义 = 每秒把 `$speech_attitude` 复位到所选档；同时把所选档的门槛锚值拉回门槛内侧
+	   （Meek 不低于 851、Bratty 不高于 1149），原版设置页才会继续把该档显示为选中而不是灰掉。 */
+	var MB_CE_ATTITUDE_TIERS = [
+		{ key: "meek", label: "Meek（温顺）", anchor: 1500, gateMin: 851, gateMax: null, gateNote: "需顺从度 > 850" },
+		{ key: "neutral", label: "Neutral（中性）", anchor: 1000, gateMin: null, gateMax: null, gateNote: "无门槛" },
+		{ key: "bratty", label: "Bratty（叛逆）", anchor: 500, gateMin: null, gateMax: 1149, gateNote: "需顺从度 < 1150" }
+	];
+	/* 旧符号保留（09-exports2 与既有断言在引用）：区间判定仍按原版两条门槛取值 */
+	var FSA_FREE_MIN = 851;
+	var FSA_FREE_MAX = 1149;
+	var FSA_FREE_MID = 1000;
+	function mbCEAttitudeTier(key) {
+		var i;
+		for (i = 0; i < MB_CE_ATTITUDE_TIERS.length; i++) {
+			if (MB_CE_ATTITUDE_TIERS[i].key === key) { return MB_CE_ATTITUDE_TIERS[i]; }
+		}
+		return null;
+	}
+	function readAttitude() {
+		var V2 = getV();
+		return (V2 && typeof V2.speech_attitude === "string") ? V2.speech_attitude : null;
+	}
+	function attitudeState(v) {
+		var n = (typeof v === "number") ? v : null;
+		return {
+			value: n,
+			sub: (n !== null && n > 850),
+			resist: (n !== null && n < 1150),
+			both: (n !== null && n > 850 && n < 1150)
+		};
+	}
+	function mbCEAttitudeState() {
+		var V = getV(), lock = V && V.mbCE_attitudeLock;
+		var has = !!(lock && typeof lock === "object" && typeof lock.value === "string");
+		return {
+			attitude: (V && typeof V.speech_attitude === "string") ? V.speech_attitude : null,
+			submissive: (V && typeof V.submissive === "number") ? V.submissive : null,
+			lock: has ? lock : null,
+			value: has ? lock.value : null,
+			anchor: (has && typeof lock.anchor === "number") ? lock.anchor : null,
+			hold: !!(has && lock.hold),
+			fixed: (has && typeof lock.fixed === "number") ? lock.fixed : 0
+		};
+	}
+	/* 选定档位：写 $speech_attitude + 锚值，并登记维持锁（prev 只在首次锁定时留，用于回退） */
+	function mbCEAttitudeApply(key) {
+		var t = mbCEAttitudeTier(key);
+		if (!t) { return { ok: false, message: "未知态度档位：" + key }; }
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var cur = mbCEAttitudeState();
+		var r1 = cheatWriteValue("player-self", "p:speech_attitude", "value_set", "speech_attitude", t.key, "string");
+		if (!r1 || !r1.ok) { return r1 || { ok: false, message: "态度写入失败" }; }
+		var r2 = cheatWriteValue("player-self", "p:submissive", "value_set", "submissive", t.anchor, "number", 0, 2000);
+		if (!r2 || !r2.ok) { return r2 || { ok: false, message: "顺从度写入失败" }; }
+		if (!cur.lock) {
+			V.mbCE_attitudeLock = {
+				prevAttitude: cur.attitude,
+				prevSubmissive: cur.submissive,
+				fixed: 0
+			};
+		}
+		V.mbCE_attitudeLock.value = t.key;
+		V.mbCE_attitudeLock.anchor = t.anchor;
+		V.mbCE_attitudeLock.hold = true;
+		mbCEAttitudeEnsureTimer();
+		return { ok: true, message: "已选定「" + t.label + "」并开启永久维持（" + t.gateNote + "，锚值 " + t.anchor + "）" };
+	}
+	function mbCEAttitudeHold(on) {
+		var st = mbCEAttitudeState();
+		if (!st.lock) { return { ok: false, message: "尚未选定档位：请先在下方三档里选一个" }; }
+		getV().mbCE_attitudeLock.hold = !!on;
+		mbCEAttitudeEnsureTimer();
+		return { ok: true, message: on ? "已开启维持：态度不会再被其它数值变化带偏" : "已暂停维持（当前档位不再被复位，但仍记录着你的选择）" };
+	}
+	/* 解除维持：清锁；restore=true 时把锁定前的 $speech_attitude / $submissive 还原 */
+	function mbCEAttitudeRelease(restore) {
+		var V = getV(), st = mbCEAttitudeState();
+		if (!V || !st.lock) { return { ok: false, message: "当前没有锁定中的态度" }; }
+		if (restore) {
+			if (typeof st.lock.prevAttitude === "string") { V.speech_attitude = st.lock.prevAttitude; }
+			if (typeof st.lock.prevSubmissive === "number") { V.submissive = st.lock.prevSubmissive; }
+		}
+		delete V.mbCE_attitudeLock;
+		mbCEAttitudeEnsureTimer();
+		return { ok: true, message: restore ? "已解除维持并还原锁定前的态度与顺从度" : "已解除维持（保留当前态度值）" };
+	}
+	/* 维持一轮：返回本轮修正动作数（0 = 无需修正） */
+	function mbCEAttitudeTick() {
+		try {
+			var V = getV(), st = mbCEAttitudeState();
+			if (!V || !st.lock || !st.hold) { return 0; }
+			var t = mbCEAttitudeTier(st.value);
+			if (!t) { return 0; }
+			var fixed = 0;
+			if (V.speech_attitude !== t.key) { V.speech_attitude = t.key; fixed++; }
+			var sub = (typeof V.submissive === "number") ? V.submissive : 0;
+			if (t.gateMin !== null && sub < t.gateMin) { V.submissive = t.gateMin; fixed++; }
+			else if (t.gateMax !== null && sub > t.gateMax) { V.submissive = t.gateMax; fixed++; }
+			if (fixed) { V.mbCE_attitudeLock.fixed = (st.fixed || 0) + fixed; }
+			return fixed;
+		} catch (e) { return 0; }
+	}
+	var mbCEAttitudeTimer = null;
+	/* 状态行文本：渲染与 tick 共用，tick 只改这一段文字，不重渲染整页（避免打断用户输入） */
+	function mbCEAttitudeStatusLine(st) {
+		if (!st) { st = mbCEAttitudeState(); }
+		return "在原版三档（Meek / Neutral / Bratty）里选一个后，CE 每秒把 $speech_attitude 复位到该档，"
+			+ "并把顺从度拉回该档门槛内侧（Meek ≥851 / Bratty ≤1149），其它数值怎么变都不会把态度带偏。"
+			+ "当前：态度 " + (st.attitude || "—") + "，顺从度 " + (st.submissive === null ? "—" : st.submissive)
+			+ "；维持 " + (st.hold ? "开" : "关") + "，已修正 " + st.fixed + " 次。";
+	}
+	function mbCEAttitudeEnsureTimer() {
+		try {
+			var st = mbCEAttitudeState();
+			var on = !!(st.lock && st.hold);
+			if (on && !mbCEAttitudeTimer) {
+				mbCEAttitudeTimer = setInterval(function () {
+					try {
+						var n = mbCEAttitudeTick();
+						if (!n) { return; }
+						var line = document.querySelector('[data-mce-att="1"]');
+						if (line) { line.textContent = mbCEAttitudeStatusLine(); }
+					} catch (e) { /* tick 失败静默，不打断游戏 */ }
+				}, 1000);
+			} else if (!on && mbCEAttitudeTimer) {
+				clearInterval(mbCEAttitudeTimer); mbCEAttitudeTimer = null;
+			}
+		} catch (e) { /* 面板未就绪时静默 */ }
+	}
+	/* 兼容旧入口：字符串按档位名；数字按最近的锚值映射档位（旧版写区间的调用不会静默失效） */
+	function applyAttitude(v) {
+		if (typeof v === "string") { return mbCEAttitudeApply(v); }
+		if (typeof v !== "number" || !isFinite(v)) { return { ok: false, message: "请输入数字或档位名（meek/neutral/bratty）" }; }
+		var best = MB_CE_ATTITUDE_TIERS[0], i, d;
+		for (i = 1; i < MB_CE_ATTITUDE_TIERS.length; i++) {
+			d = Math.abs(MB_CE_ATTITUDE_TIERS[i].anchor - v);
+			if (d < Math.abs(best.anchor - v)) { best = MB_CE_ATTITUDE_TIERS[i]; }
+		}
+		return mbCEAttitudeApply(best.key);
+	}
+	function renderAttitudeFree(pane) {
+		if (!pane) { return; }
+		mbCEAttitudeEnsureTimer();
+		var st = mbCEAttitudeState();
+		var curTier = st.lock ? mbCEAttitudeTier(st.value) : null;
+		pane.appendChild(el("div", "mce-section", "说话态度（原版三档 · 选定后永久维持）"));
+		var hint = el("div", "mce-hint", mbCEAttitudeStatusLine(st));
+		hint.setAttribute("data-mce-att", "1");
+		pane.appendChild(hint);
+		var row = el("div", "mce-row");
+		MB_CE_ATTITUDE_TIERS.forEach(function (t) {
+			var on = !!(curTier && curTier.key === t.key);
+			var b = el("button", on ? "mce-btn mce-gold" : "mce-btn", (on ? "✓ " : "") + t.label);
+			b.type = "button";
+			b.title = t.gateNote + "；锚值 " + t.anchor;
+			b.addEventListener("click", function () {
+				var r = mbCEAttitudeApply(t.key);
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
+			});
+			row.appendChild(b);
+		});
+		pane.appendChild(row);
+		var ctl = el("div", "mce-row");
+		var hold = el("button", st.hold ? "mce-btn mce-gold" : "mce-btn", st.hold ? "维持：开" : "维持：关");
+		hold.type = "button";
+		hold.title = "开启后每秒复位 $speech_attitude 到所选档，并把顺从度拉回该档门槛内侧";
+		hold.addEventListener("click", function () {
+			var r = mbCEAttitudeHold(!st.hold);
+			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
+		});
+		var rel = el("button", "", "解除维持"); rel.type = "button";
+		rel.title = "清除锁定（保留当前态度值）";
+		rel.addEventListener("click", function () {
+			var r = mbCEAttitudeRelease(false);
+			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
+		});
+		var back = el("button", "", "解除并还原"); back.type = "button";
+		back.title = "清除锁定，并把态度与顺从度恢复为首次锁定前的值";
+		back.addEventListener("click", function () {
+			var r = mbCEAttitudeRelease(true);
+			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
+		});
+		ctl.appendChild(hold); ctl.appendChild(rel); ctl.appendChild(back);
+		pane.appendChild(ctl);
 	}
 	/* 原版特质静态表（v1.8.0 自本体 traits widget 提取） */
 var VANILLA_TRAITS_RAW = [
@@ -5287,7 +6603,6 @@ function renderPlayerEdit() {
 		st.textContent = text;
 		st.className = "mce-status" + (cls ? " " + cls : "");
 	}
-
 	function switchOuterTab(name) {
 		var tabs = root.querySelectorAll(".mce-tabs button");
 		var i;
@@ -5615,8 +6930,13 @@ function renderPlayerEdit() {
 			pane.appendChild(el("div", "mce-err", "未检测到 Maplebirch 框架（window.maplebirch / setup.MapleBirch）。"));
 			return;
 		}
-		var chars = listCharacters();
-		if (!chars.length) {
+		var charsAll = listCharacters();
+		/* v2.0.0.002 需求③：FertilityExpansion「成年结算」的孩子会被写进 $NPCList（带 edenChildId 标记），
+		   随机英文名让它们被判成模组角色混进角色页（玩家截图「多出一堆英文名」）。这里统一摘出去，
+		   收进「模组作弊 → fertility-expansion → 孩子」页做数值调整。 */
+		var charsKids = charsAll.filter(function (n) { return charCategory(n) === "edenChild"; });
+		var chars = charsAll.filter(function (n) { return charCategory(n) !== "edenChild"; });
+		if (!charsAll.length) {
 			pane.appendChild(el("div", "mce-hint", "注册池为空：未枚举到任何角色。"));
 			return;
 		}
@@ -5681,7 +7001,8 @@ function renderPlayerEdit() {
 			pane.appendChild(block);
 		});
 		hint.textContent = "共 " + chars.length + " 个角色（自动枚举：本体 + 全部 MOD + 持久 NPC），按类型分组收起，点击分组标题展开"
-			+ (q ? "；匹配 " + matchCount + " 个" : "") + "。";
+			+ (q ? "；匹配 " + matchCount + " 个" : "") + "。"
+			+ (charsKids.length ? "（另有 " + charsKids.length + " 个 FertilityExpansion 孩子已收进「模组作弊 → FertilityExpansion → 孩子」页，不在此列出）" : "");
 		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; }
 	}
 	/* ---- 阶段页：数据卡 + 双层内层标签 ---- */
@@ -6880,6 +8201,321 @@ function mbCERenderLock(pane) {
 
 /* 模块加载兜底：读档后 V 已有锁定向时恢复写回（V 未就绪时静默跳过，开面板时 mbCERenderLock 再补） */
 mbCELockEnsureTimer();
+/* ============ v2.0.0.002 需求⑥：潜伏者捕捉上限 / 水烟馆冰箱上限 —— 文本解限引擎 ============
+   原版硬约束（逐字取证自 DoL 0.5.12.13 的 Degrees of Lewdity.html）：
+   A. 捕捉门控 5 处，同一形态：<<if $farm_stage gte 10 and $lurkers_held lt 1>> 包裹 "Hurl net"
+      分布：Widgets Struggle（widget "struggle"，2 处）、Farm Yard（1）、Farm Tending Lurker Work（1）、
+            Farm Tending Lurker Alex Fail（1）。手上已有 1 只就不再出网 → 这就是"上限 1"的真身。
+   B. 冰箱上限 5 的真身两处（Widgets Flats 的 widget "hookah_juice"）：
+      B1 <<if $lurkers_held gte 1 and $hookah.lurkers lt 5>> 包裹 "Store a lurker in the fridge"
+      B2 <<switch $hookah.lurkers>> 只映射 5/4/3/2/1，<<default>> 输出 "no" → 写 >5 显示 "no lurker"
+   C. 成功结算本身无上界：<<set $lurkers_held += 1>><<<set $stat_lurkers_captured += 1>>（Farm Yard
+      Hurl net / Farm Tending Lurker Hurl net 两处）→ 去掉门控即可无限累积。
+   D. 为何必须改文本而非改数值：门控写在 twee 里，靠"抓到即清零"只能绕成"手上永远 0 只"，
+      不是"可持有无限只"。widget 定义在 SugarCube 启动时一次性注册，运行期再执行 <<widget>> 会报
+      `cannot clobber existing definition "..."`（本版内核源码含此判定）→ 只能在 SugarCube.start
+      之前改 DOM 里的 <tw-passagedata>。CE 走 scriptFileList_inject_early（脚本在 <head> 执行），
+      body 尚未解析，因此注册捕获阶段的 DOMContentLoaded 先于正文末尾 SugarCube 的启动回调。
+   兜底：DOM 未命中时改 Story.get(name).text（普通 passage 每次渲染重新 wikify，有效；widget 无效，
+      此时 UI 会明示"仅普通剧情入口生效"，并由自动搬运保底"可以无限抓"）。 */
+var MB_CE_LURKER_PATCHES = [
+	{ name: "Farm Yard", find: "$farm_stage gte 10 and $lurkers_held lt 1", repl: "$farm_stage gte 10" },
+	{ name: "Farm Tending Lurker Work", find: "$farm_stage gte 10 and $lurkers_held lt 1", repl: "$farm_stage gte 10" },
+	{ name: "Farm Tending Lurker Alex Fail", find: "$farm_stage gte 10 and $lurkers_held lt 1", repl: "$farm_stage gte 10" },
+	{ name: "Widgets Struggle", find: "$farm_stage gte 10 and $lurkers_held lt 1", repl: "$farm_stage gte 10" },
+	{ name: "Widgets Flats", find: "$lurkers_held gte 1 and $hookah.lurkers lt 5", repl: "$lurkers_held gte 1" },
+	{ name: "Widgets Flats", find: "<<switch $hookah.lurkers>>", repl: "", regex: true }
+];
+/* 冰箱显示：把只映射 1–5 的 switch 段整体换成真实数值（>5 不再落到 <<default>> 显示 "no"） */
+var MB_CE_LURKER_SWITCH_RE = /<<switch \$hookah\.lurkers>>[\s\S]*?<<\/switch>>/;
+var MB_CE_LURKER_SWITCH_TO = '<<= $hookah.lurkers gt 0 ? $hookah.lurkers : "no">>';
+/* 纯函数：对单个 passage 文本做全套替换，返回 { text, hits }（幂等：已替换的文本再跑 hits=0） */
+function mbCELurkerPatchText(name, text) {
+	var out = String(text == null ? "" : text), hits = 0, i, p;
+	for (i = 0; i < MB_CE_LURKER_PATCHES.length; i++) {
+		p = MB_CE_LURKER_PATCHES[i];
+		if (p.name !== name) { continue; }
+		if (p.regex) {
+			if (MB_CE_LURKER_SWITCH_RE.test(out)) {
+				out = out.replace(MB_CE_LURKER_SWITCH_RE, MB_CE_LURKER_SWITCH_TO);
+				hits++;
+			}
+			continue;
+		}
+		if (out.indexOf(p.find) >= 0) {
+			out = out.split(p.find).join(p.repl);
+			hits++;
+		}
+	}
+	return { text: out, hits: hits };
+}
+function mbCELurkerPatchNames() {
+	var names = [], i;
+	for (i = 0; i < MB_CE_LURKER_PATCHES.length; i++) {
+		if (names.indexOf(MB_CE_LURKER_PATCHES[i].name) < 0) { names.push(MB_CE_LURKER_PATCHES[i].name); }
+	}
+	return names;
+}
+/* ① 启动前改 DOM（唯一能改到 widget 定义的通道） */
+function mbCELurkerPatchDom() {
+	var report = { ok: false, hits: 0, nodes: 0, missed: mbCELurkerPatchNames(), channel: "dom" };
+	try {
+		if (typeof document === "undefined" || !document.getElementsByTagName) { return report; }
+		var nodes = document.getElementsByTagName("tw-passagedata");
+		var names = mbCELurkerPatchNames(), done = {}, i, n;
+		report.nodes = nodes.length;
+		for (i = 0; i < nodes.length; i++) {
+			n = nodes[i];
+			var nm = n.getAttribute ? n.getAttribute("name") : "";
+			if (!nm || names.indexOf(nm) < 0 || done[nm]) { continue; }
+			var before = n.textContent || "";
+			var res = mbCELurkerPatchText(nm, before);
+			if (!res.hits) { continue; }
+			/* textContent 写回由浏览器重新转义，SugarCube 读到的就是替换后的源码 */
+			n.textContent = res.text;
+			done[nm] = true;
+			report.hits += res.hits;
+		}
+		report.missed = names.filter(function (x) { return !done[x]; });
+		report.ok = report.hits > 0;
+	} catch (e) { report.error = String(e && e.message ? e.message : e); }
+	window.mbCELurkerPatchReport = report;
+	return report;
+}
+/* 运行期 passage 文本入口：moli 实测（DoL 0.5.12.13 内嵌 ModLoader）页面全局既无 Story 也无 Macro，
+   SugarCube 未把 State/Story 挂到 window → 优先 Story，其次 SugarCube.State.passages，都没有则返回 null。 */
+function mbCELurkerPassageAccess() {
+	try {
+		if (typeof Story !== "undefined" && Story && typeof Story.get === "function") {
+			return { get: function (n) { return Story.get(n); }, channel: "Story" };
+		}
+	} catch (e) { /* 落到下一条 */ }
+	try {
+		var P = window.SugarCube && window.SugarCube.State && window.SugarCube.State.passages;
+		if (P && typeof P === "object") {
+			return { get: function (n) { return P[n] || null; }, channel: "SugarCube.State.passages" };
+		}
+	} catch (e) { /* 无通道 */ }
+	return null;
+}
+/* ② 运行期兜底：改 passage 文本（普通 passage 每次渲染重新 wikify 有效；已注册的 widget 定义无效） */
+function mbCELurkerPatchStory() {
+	var report = { ok: false, hits: 0, missed: mbCELurkerPatchNames(), channel: "story", access: null };
+	try {
+		var access = mbCELurkerPassageAccess();
+		if (!access) { report.access = "none"; return report; }
+		report.access = access.channel;
+		var names = mbCELurkerPatchNames(), done = {}, i;
+		for (i = 0; i < names.length; i++) {
+			var p = null;
+			try { p = access.get(names[i]); } catch (e) { p = null; }
+			if (!p || typeof p.text !== "string") { continue; }
+			var res = mbCELurkerPatchText(names[i], p.text);
+			if (!res.hits) { done[names[i]] = true; continue; }
+			p.text = res.text;
+			done[names[i]] = true;
+			report.hits += res.hits;
+		}
+		report.missed = names.filter(function (x) { return !done[x]; });
+		report.ok = report.hits > 0;
+	} catch (e) { report.error = String(e && e.message ? e.message : e); }
+	var prev = window.mbCELurkerPatchReport;
+	window.mbCELurkerPatchReport = {
+		ok: report.ok || !!(prev && prev.ok),
+		hits: (prev && prev.hits ? prev.hits : 0) + report.hits,
+		dom: prev && prev.channel === "dom" ? prev : null,
+		story: report,
+		channel: prev && prev.ok ? "dom" : report.channel,
+		missed: report.missed
+	};
+	return report;
+}
+/* ③ 安装：CE 在 <head> 执行时 body 未解析 → 用捕获阶段 DOMContentLoaded 抢在 SugarCube.start 之前 */
+function mbCELurkerInstallEarly() {
+	try {
+		if (typeof document === "undefined") { return; }
+		var fire = function () {
+			mbCELurkerPatchDom();
+			/* 同一事件里再补一次 Story 兜底（此时 Story 可能尚未构建，失败也无害） */
+			mbCELurkerPatchStory();
+		};
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", fire, true);
+		} else {
+			fire();
+		}
+	} catch (e) { /* 无 DOM 环境（Node 测试）时静默 */ }
+}
+function mbCELurkerPatchReport() {
+	return window.mbCELurkerPatchReport || null;
+}
+/* 面板/命令：手动重新尝试补丁（自动搬运之外的第二道保险） */
+function mbCELurkerRepatch() {
+	var dom = mbCELurkerPatchDom();
+	var story = mbCELurkerPatchStory();
+	var r = mbCELurkerPatchReport();
+	return {
+		ok: !!(r && r.ok),
+		message: r && r.ok
+			? "解限补丁已生效（累计替换 " + r.hits + " 处；未命中：" + ((r.missed && r.missed.length) ? r.missed.join(" / ") : "无") + "）"
+			: "解限补丁未命中（可能页面已启动或版本差异）——自动搬运仍可保底「无限次捕捉」；详情：" + JSON.stringify({ dom: dom.hits, story: story.hits })
+	};
+}
+mbCELurkerInstallEarly();
+/* ============ v2.0.0.002 需求⑥：潜伏者捕捉狂（无上限）+ 水烟馆冰箱（无上限） ============
+   原版取证见同批次 07f-lurker-patch.js 头部（逐字取自 DoL 0.5.12.13）：
+     捕捉门控 5 处 `$farm_stage gte 10 and $lurkers_held lt 1`；
+     冰箱门控 `$lurkers_held gte 1 and $hookah.lurkers lt 5` + `<<switch $hookah.lurkers>>` 只映射 1–5；
+     成功结算 `$lurkers_held += 1` 本身无上界。
+   本文件的两条语义：
+     ① 无上限 —— 由 07f-lurker-patch 在 SugarCube 启动前改 passage 文本解除门控，手持/冰箱都能累积到任意只；
+     ② 保底 —— 补丁未命中时（版本差异/加载顺序），可开"自动搬运"把抓到的转入冰箱与蒸馏笼，
+        手上常空使 `lt 1` 恒成立，等价"可以无限次捕捉"（但手持不累积，UI 会如实标注）。
+   旧口径（`hookah.lurkers` 一律钳 0–5）已作废：那是把显示缺陷当成上限。 */
+var mbCELurkerTimer = null;
+var MB_CE_LURKER_MAX = 9999; /* 数值写入上限（原版无上界，这里只做防呆） */
+var MB_CE_LURKER_FRIDGE_MAX = MB_CE_LURKER_MAX; /* 兼容旧符号：冰箱不再钳 5 */
+function mbCELurkerV() {
+	try { return (typeof getV === "function") ? getV() : null; } catch (e) { return null; }
+}
+function mbCELurkerState() {
+	var V = mbCELurkerV();
+	if (!V) { return { ok: false, message: "存档变量不可用" }; }
+	var patch = (typeof mbCELurkerPatchReport === "function") ? mbCELurkerPatchReport() : null;
+	return {
+		ok: true,
+		held: (typeof V.lurkers_held === "number") ? V.lurkers_held : null,
+		fridge: (V.hookah && typeof V.hookah === "object" && typeof V.hookah.lurkers === "number") ? V.hookah.lurkers : null,
+		juice: (V.hookah && typeof V.hookah === "object" && typeof V.hookah.juice === "number") ? V.hookah.juice : null,
+		stored: (typeof V.lurkers_stored === "number") ? V.lurkers_stored : null,
+		captured: (typeof V.stat_lurkers_captured === "number") ? V.stat_lurkers_captured : null,
+		farmStage: (typeof V.farm_stage === "number") ? V.farm_stage : null,
+		auto: !!(V.mbCE_lurkerAuto),
+		patch: patch
+	};
+}
+function mbCELurkerSet(path, val) {
+	return cheatWriteValue("player-self", "p:lurker:" + path, "value_set", path, val, "number", 0, MB_CE_LURKER_MAX);
+}
+/* 自动搬运一轮：held → 冰箱 → 农场笼；返回搬运只数（仅在补丁未生效时由玩家手动开启） */
+function mbCELurkerAutoTick() {
+	try {
+		var V = mbCELurkerV();
+		if (!V || !V.mbCE_lurkerAuto) { return 0; }
+		var held = (typeof V.lurkers_held === "number") ? V.lurkers_held : 0;
+		if (held < 1) { return 0; }
+		if (typeof mbCELockHas === "function" && mbCELockHas("lurkers_held")) { return 0; } /* 锁定优先，不抢写 */
+		var moved = 0;
+		if (V.hookah && typeof V.hookah === "object") {
+			var hl = (typeof V.hookah.lurkers === "number") ? V.hookah.lurkers : 0;
+			/* 补丁生效后冰箱无上限，直接全搬；未生效时也照搬（消耗/pluralise 按真实值走，仅文案显示降级） */
+			V.hookah.lurkers = hl + held;
+			moved += held; held = 0;
+		}
+		if (held > 0) {
+			V.lurkers_stored = ((typeof V.lurkers_stored === "number") ? V.lurkers_stored : 0) + held;
+			moved += held; held = 0;
+		}
+		V.lurkers_held = held;
+		V.mbCE_lurkerMoved = ((typeof V.mbCE_lurkerMoved === "number") ? V.mbCE_lurkerMoved : 0) + moved;
+		return moved;
+	} catch (e) { return 0; }
+}
+function mbCELurkerEnsureTimer() {
+	try {
+		var V = mbCELurkerV();
+		var on = !!(V && V.mbCE_lurkerAuto);
+		if (on && !mbCELurkerTimer) {
+			mbCELurkerTimer = setInterval(function () {
+				var moved = mbCELurkerAutoTick();
+				if (moved && typeof renderGlobal === "function" && root.querySelector('[data-pane="global"]')) { renderGlobal(); }
+			}, 500);
+		} else if (!on && mbCELurkerTimer) {
+			clearInterval(mbCELurkerTimer); mbCELurkerTimer = null;
+		}
+	} catch (e) { /* 面板未就绪时静默 */ }
+}
+function mbCELurkerSetAuto(on) {
+	var V = mbCELurkerV();
+	if (!V) { return { ok: false, message: "存档变量不可用" }; }
+	V.mbCE_lurkerAuto = !!on;
+	mbCELurkerEnsureTimer();
+	return {
+		ok: true,
+		message: on
+			? "已开启自动搬运（保底模式）：抓到即刻转入冰箱与农场笼，手上常空 → 捕捉链永不被上限卡住"
+			: "已关闭自动搬运：手持可累积（解限补丁生效时正常无上限）"
+	};
+}
+function mbCELurkerPatchLabel(st) {
+	if (st && st.patch && st.patch.ok) { return "解限补丁：已生效（" + st.patch.hits + " 处）"; }
+	return "解限补丁：未命中";
+}
+function mbCERenderLurker(pane) {
+	if (!pane) { return; }
+	mbCELurkerEnsureTimer();
+	var st = mbCELurkerState();
+	pane.appendChild(el("div", "mce-section", "潜伏者（捕捉上限 / 水烟馆冰箱 · 无上限）"));
+	pane.appendChild(el("div", "mce-hint",
+		"原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、"
+		+ "存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。"
+		+ "CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。"
+		+ "未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。"));
+	if (!st.ok) { pane.appendChild(el("div", "mce-err", st.message)); return; }
+	var rows = [
+		{ path: "lurkers_held", name: "手持潜伏者（无上限）", cur: st.held, note: "原版 ≥1 即不再出网；解限后不再受限" },
+		{ path: "hookah.lurkers", name: "水烟馆冰箱（无上限）", cur: st.fridge, note: "≥1 可消耗换 50 juice；解限后显示真实数量" },
+		{ path: "lurkers_stored", name: "农场蒸馏笼", cur: st.stored, note: "farm_stage ≥9 时每 7 天 1 只 → 1 瓶" }
+	];
+	rows.forEach(function (r) {
+		var row = el("div", "mce-row");
+		row.appendChild(el("span", "mce-row-lbl", r.name + "（当前 " + (r.cur == null ? "—" : r.cur) + "）"));
+		var inp = el("input", "mce-inp");
+		inp.type = "text"; inp.inputmode = "decimal"; inp.value = (r.cur == null) ? "0" : String(r.cur);
+		inp.title = r.note;
+		var b = el("button", "", "应用"); b.type = "button";
+		b.addEventListener("click", function () {
+			var raw = String(inp.value || "").trim();
+			if (!/^-?\d+(?:\.\d+)?$/.test(raw)) { setStatus("请输入数字", "mce-err"); return; }
+			var res = mbCELurkerSet(r.path, Number(raw));
+			setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+			renderGlobal();
+		});
+		var und = el("button", "", "回退"); und.type = "button";
+		und.addEventListener("click", function () {
+			var res = undoCheatModValue("player-self", "p:lurker:" + r.path);
+			setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+			renderGlobal();
+		});
+		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
+		pane.appendChild(row);
+	});
+	var actRow = el("div", "mce-row");
+	var rep = el("button", "mce-btn mce-gold", "重新应用解限补丁"); rep.type = "button";
+	rep.title = "DOM 通道已过时点时改 Story 文本重试（普通剧情入口有效，widget 定义无法覆盖）";
+	rep.addEventListener("click", function () {
+		var r = mbCELurkerRepatch();
+		setStatus(r.message, r.ok ? "mce-ok" : "mce-warn");
+		renderGlobal();
+	});
+	var sw = el("button", st.auto ? "mce-btn mce-gold" : "mce-btn", st.auto ? "自动搬运：开" : "自动搬运：关");
+	sw.type = "button";
+	sw.title = "补丁未命中时的保底：每 0.5 秒把手持潜伏者转入冰箱/蒸馏笼，手上常空 → 捕捉不再被 1 只卡住";
+	sw.addEventListener("click", function () {
+		var r = mbCELurkerSetAuto(!st.auto);
+		setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		renderGlobal();
+	});
+	actRow.appendChild(rep); actRow.appendChild(sw);
+	pane.appendChild(actRow);
+	pane.appendChild(el("div", "mce-hint",
+		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只"));
+}
+function mbCELurkerAutoLabel() { var st = mbCELurkerState(); return st && st.auto ? "自动搬运：开" : "自动搬运：关"; }
+function mbCELurkerMovedText() {
+	var V = mbCELurkerV();
+	return (V && typeof V.mbCE_lurkerMoved === "number") ? V.mbCE_lurkerMoved : 0;
+}
 	/* ============ 锚定触发（v1.9.23）：把某个剧情锚定到其发生地点，走到该地点交互时
 	     弹确认条（含地点/时间/前置说明），确认后复用原版 $replayScene 重放通道播放
 	     （startPassage/passages 内段落正常播放，离开场景自动回原位）；播放完标
@@ -8324,22 +9960,331 @@ var SCENE_LOCATIONS = {
 	}
 	/* ---- 特殊剧情页（$scenes 场景注册表动态枚举） ---- */
 	var sHeadGuardTimer = null; /* v1.9.5-自检：乱码兜底单定时器——renderScenes 频繁重建时清旧设新，防 800ms 闭包堆积扫描旧 pane */
+	/* v2.0.0.002（C3 拆分回归修复）：sceneSectionKey / sceneStored / sceneSet 原本是 renderScenes() 的局部函数，
+	   而 renderSceneRegion 已拆到 07h-render3.js，跨文件调用会报 ReferenceError: sceneStored is not defined。
+	   三者只依赖模块级 mbCEUiState / mbCEUiSave，故提升到模块级供两处共用（语义与实现未变）。 */
+	function sceneSectionKey(role) { return "剧情:" + role; }
+	function sceneStored(role) {
+		return mbCEUiState.collapsed && mbCEUiState.collapsed[sceneSectionKey(role)] != null
+			? Number(mbCEUiState.collapsed[sceneSectionKey(role)]) : 1;
+	}
+	function sceneSet(role, val) {
+		mbCEUiState.collapsed = mbCEUiState.collapsed || {};
+		mbCEUiState.collapsed[sceneSectionKey(role)] = val;
+		mbCEUiSave({ collapsed: mbCEUiState.collapsed });
+	}
+	function renderRolePlots(plots) {
+		var block = el("div", "mce-stage mce-plots");
+		var head = el("div", "mce-stage-head mce-line-head");
+		head.appendChild(el("span", "mce-dot", ""));
+		head.appendChild(el("span", "mce-stage-name", "剧情进度（非场景事件状态）"));
+		block.appendChild(head);
+		var body = el("div", "mce-grp-body");
+		body.appendChild(el("div", "mce-hint", plots.intro));
+		plots.items.forEach(function (it) {
+			var row = el("div", "mce-row");
+			row.appendChild(el("span", "mce-row-name", it.name));
+			var curBadge = el("span", "mce-badge mce-on", "");
+			var refreshCur = function () {
+				var cv = getDotPath(it.varPath);
+				curBadge.textContent = "当前: " + (cv === undefined ? "未设置" : cv);
+			};
+			refreshCur();
+			row.appendChild(curBadge);
+			if (it.type === "range" || it.type === "select") {
+				var ctrl;
+				if (it.type === "range") {
+					var inp = el("input", "mce-inp");
+					inp.type = "number"; inp.min = String(it.min); inp.max = String(it.max); inp.step = String(it.step || 1); /* 剧情进度是进度档位：钳制在 [min,max]（用户澄清：仅"直接填数值"放开上限，进度保留） */
+					var apply = el("button", "mce-btn", "应用");
+					apply.type = "button";
+					apply.addEventListener("click", function () {
+						var v = parseFloat(inp.value);
+						if (isNaN(v)) { v = 0; }
+						if (v < it.min) { v = it.min; } if (v > it.max) { v = it.max; } /* 进度档位语义，钳制在上限内 */
+						setDotPath(it.varPath, v);
+						refreshCur();
+						setStatus(it.name + " → " + v, "mce-ok");
+					});
+					row.appendChild(inp); row.appendChild(apply);
+				} else {
+					var sel = el("select");
+					(it.options || []).forEach(function (o) {
+						var op = el("option"); op.value = String(o[0]); op.textContent = o[1];
+						var cv = getDotPath(it.varPath);
+						if (String(cv) === String(o[0])) { op.selected = true; }
+						sel.appendChild(op);
+					});
+					var applyS = el("button", "mce-btn", "应用");
+					applyS.type = "button";
+					applyS.addEventListener("click", function () {
+						var v = parseInt(sel.value, 10);
+						setDotPath(it.varPath, v);
+						refreshCur();
+						setStatus(it.name + " → " + sel.value, "mce-ok");
+					});
+					row.appendChild(sel); row.appendChild(applyS);
+				}
+			} else if (it.type === "action") {
+				var act = el("button", "mce-btn mce-gold", it.name);
+				act.type = "button";
+				act.addEventListener("click", function () {
+					setStatus(applyRolePlotAction(it.action), "mce-ok");
+					if (it.action === "kylarSeen") {
+						var cv = getDotPath("kylarSeen");
+						curBadge.textContent = "当前: " + (Array.isArray(cv) ? cv.length + " 项标记" : "未设置");
+					}
+				});
+				row.appendChild(act);
+			} else if (it.type === "info") {
+				row.appendChild(el("span", "mce-note", it.note));
+			}
+			body.appendChild(row);
+			body.appendChild(el("div", "mce-note", it.note));
+		});
+		block.appendChild(body);
+		return block;
+	}
+	function renderSceneCluster(container, keys2, defs) {
+		var replaying = !!(getV() && getV().replayScene); /* v1.9.30 直达触发：播放中禁用 */
+		var defsSub = {};
+		keys2.forEach(function (k) { defsSub[k] = defs[k]; });
+		var cluster = listSceneLines(defsSub);
+		var lineTotal = cluster.lines.length, singleTotal = cluster.singles.length;
+		var lineDone = 0;
+		cluster.lines.forEach(function (line) {
+			var done = line.items.filter(function (it) { return sceneStatus(it.def).state === "pass"; }).length;
+			lineDone += done;
+			var block = el("div", "mce-stage");
+			var head = el("div", "mce-stage-head mce-line-head");
+			head.appendChild(el("span", "mce-dot", ""));
+			var stages = el("div", "mce-stages");
+			stages.style.display = "none"; /* v1.3：剧情线默认收起（合在一起不展开），点线头展开 */
+			head.appendChild(el("span", "mce-stage-name", "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，收起）"));
+			/* 锚定整线（v1.9.23）：已标注触发地点的阶段按顺序入队，走到地点交互时依次触发，触发完自动完成 */
+			var linePin = el("button", "mce-btn", "锚定整线");
+			linePin.type = "button";
+			linePin.title = "把本系列全部阶段按顺序锚定：走到各阶段发生地点交互时弹确认条，触发完自动完成";
+			(function (line2) {
+				linePin.addEventListener("click", function () {
+					var pr = pinSceneLine(line2);
+					setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+					renderScenes();
+				});
+			})(line);
+			head.appendChild(linePin);
+			/* 展开/收起切换 */
+			var tog = el("button", "mce-btn mce-gold", "展开各阶段");
+			tog.type = "button";
+			tog.title = "展开查看本线各阶段，可对单阶段锚定/取消锚定/一键完成";
+			tog.addEventListener("click", function () {
+				var open = stages.style.display === "none";
+				stages.style.display = open ? "" : "none";
+				tog.textContent = open ? "收起各阶段" : "展开各阶段";
+				var nm = head.querySelector(".mce-stage-name");
+				if (nm) { nm.textContent = "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，" + (open ? "展开" : "收起") + "）"; }
+			});
+			head.appendChild(tog);
+			block.appendChild(head);
+			line.items.forEach(function (it) {
+				var st = sceneStatus(it.def);
+				var completed = isSceneCompleted(it.key);
+				var done = st.state === "pass" || completed;
+				var srow = el("div", "mce-stage " + (done ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
+				var sh = el("div", "mce-stage-head");
+				sh.appendChild(el("span", "mce-dot", ""));
+				var nm = it.def.name || it.key;
+				sh.appendChild(el("span", "mce-stage-name", "阶段 " + it.num + "　" + nm));
+				/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
+				var pi = pinQueueIndex(it.key);
+				var anchorMeta = sceneAnchorMeta(it.key, it.def);
+				if (pi >= 0) {
+					sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (pi + 1) + "位"));
+					var unpinB = el("button", "mce-btn mce-red", "取消锚定");
+					unpinB.type = "button";
+					unpinB.title = "取消该剧情的锚定，恢复原版随机触发";
+					(function (it2) {
+						unpinB.addEventListener("click", function () {
+							var was = unpinScene(it2.key);
+							setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(unpinB);
+				} else {
+					var pinB = el("button", "mce-btn", "锚定");
+					pinB.type = "button";
+					if (anchorMeta && anchorMeta.location) {
+						pinB.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
+					} else {
+						pinB.disabled = true;
+						pinB.title = "该剧情未标注触发地点，暂不可锚定";
+					}
+					(function (it2) {
+						pinB.addEventListener("click", function () {
+							var pr = pinScene(it2);
+							setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(pinB);
+				}
+				if (st.state === "pass") {
+					sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
+				} else if (completed) {
+					sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓"));
+				} else {
+					var btn = el("button", "mce-btn mce-gold", "一键完成");
+					btn.type = "button";
+					btn.title = "把该场景所有段落与解锁条件写入经历表（scenePassages）";
+					(function (it2, st2) {
+						btn.addEventListener("click", function () {
+							var res = completeScene(it2.def);
+							setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
+							renderScenes();
+						});
+					})(it, st);
+					sh.appendChild(btn);
+				}
+				/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
+				var dtB = el("button", "mce-btn", "直达触发");
+				dtB.type = "button";
+				if (replaying) {
+					dtB.disabled = true;
+					dtB.title = "正在播放剧情，请先结束当前播放";
+				} else if (!it.def.startPassage) {
+					dtB.disabled = true;
+					dtB.title = "该剧情无入口段落，无法直达";
+				} else {
+					dtB.title = "直达触发此剧情：立即开始播放，播完自动回原位并标「已完成 ✓」（不改写剧情达成标记）";
+				}
+				(function (it2) {
+					dtB.addEventListener("click", function () {
+						var r = directTriggerScene(it2.key);
+						setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+						renderScenes();
+					});
+				})(it);
+				sh.appendChild(dtB);
+				srow.appendChild(sh);
+				var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
+				srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
+				srow.appendChild(el("div", "mce-stage-note", "段落数 " + (it.def.passages || []).length + (it.def.startPassage ? "　入口 " + it.def.startPassage : "") + "　键 " + it.key));
+				/* v1.9.26：已锚定时在条目下方直接显示触发地点提示（手机版无 hover，tooltip 看不了） */
+				if (pi >= 0 && anchorMeta && anchorMeta.location) {
+					srow.appendChild(el("div", "mce-stage-note", "▸ 触发地点：「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "　走到该地点交互时弹确认条"));
+				}
+				stages.appendChild(srow);
+			});
+			block.appendChild(stages);
+			container.appendChild(block);
+		});
+		if (singleTotal) {
+			var sblock = el("div", "mce-stage");
+			var sHead = el("div", "mce-stage-head");
+			/* v1.9.4-自检：sHead 曾只挂一个 span（mce-stage-name），实测被第三方 UI 模组
+			   改写为文本 [object HTMLSpanElement]；改为「mce-dot + mce-stage-name」双 span 后
+			   新包实测仍被改写（16 处）——外部脚本非按子元素数量判断。
+			   现改为纯文本（head 无子元素，外部脚本无元素可对象化），并辅以渲染后延迟兜底修复。 */
+			sHead.textContent = "独立场景（未聚合成线）";
+			sblock.appendChild(sHead);
+			var sstages = el("div", "mce-stages");
+			cluster.singles.forEach(function (it) {
+				var st = sceneStatus(it.def);
+				var srow = el("div", "mce-stage " + (st.state === "pass" ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
+				var sh = el("div", "mce-stage-head");
+				sh.appendChild(el("span", "mce-dot", ""));
+				sh.appendChild(el("span", "mce-stage-name", it.def.name || it.key));
+				/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
+				var piS = pinQueueIndex(it.key);
+				if (piS >= 0) {
+					sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (piS + 1) + "位"));
+					var unpinS = el("button", "mce-btn mce-red", "取消锚定");
+					unpinS.type = "button";
+					unpinS.title = "取消该剧情的锚定，恢复原版随机触发";
+					(function (it2) {
+						unpinS.addEventListener("click", function () {
+							var was = unpinScene(it2.key);
+							setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(unpinS);
+				} else {
+					var anchorMetaS = sceneAnchorMeta(it.key, it.def);
+					var pinS = el("button", "mce-btn", "锚定");
+					pinS.type = "button";
+					if (anchorMetaS && anchorMetaS.location) {
+						pinS.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMetaS.location) + "」" + (anchorMetaS.timeNote ? "（时间 " + anchorMetaS.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
+					} else {
+						pinS.disabled = true;
+						pinS.title = "该剧情未标注触发地点（第一批元数据未覆盖），暂不可锚定";
+					}
+					(function (it2) {
+						pinS.addEventListener("click", function () {
+							var pr = pinScene(it2);
+							setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(pinS);
+				}
+				if (st.state === "pass") {
+					sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
+				} else {
+					var b2 = el("button", "mce-btn mce-gold", "一键完成");
+					b2.type = "button";
+					(function (it2) {
+						b2.addEventListener("click", function () {
+							var res = completeScene(it2.def);
+							setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
+							renderScenes();
+						});
+					})(it);
+					sh.appendChild(b2);
+				}
+				/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
+				var dtS = el("button", "mce-btn", "直达触发");
+				dtS.type = "button";
+				if (replaying) {
+					dtS.disabled = true;
+					dtS.title = "正在播放剧情，请先结束当前播放";
+				} else if (!it.def.startPassage) {
+					dtS.disabled = true;
+					dtS.title = "该剧情无入口段落，无法直达";
+				} else {
+					dtS.title = "直达触发此剧情：立即开始播放，播完自动回原位并标「已完成 ✓」（不改写剧情达成标记）";
+				}
+				(function (it2) {
+					dtS.addEventListener("click", function () {
+						var r = directTriggerScene(it2.key);
+						setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+						renderScenes();
+					});
+				})(it);
+				sh.appendChild(dtS);
+				/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
+				if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
+				srow.appendChild(sh);
+				var note2 = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
+				srow.appendChild(el("div", "mce-stage-txt", note2 + (st.note || "（无说明）")));
+				sstages.appendChild(srow);
+			});
+			sblock.appendChild(sstages);
+			container.appendChild(sblock);
+		}
+		if (!cluster.lines.length && !cluster.singles.length) {
+			container.appendChild(el("div", "mce-hint", "本分组无场景。"));
+		} else {
+			container.appendChild(el("div", "mce-hint", "剧情线 " + lineTotal + " 条（已达成 " + lineDone + "），独立场景 " + singleTotal + " 个。"));
+		}
+	}
 	function renderScenes() {
 		var pane = root.querySelector('[data-pane="scenes"]');
 		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* v1.9.4：重建后保持滚动位置（锚定/取消锚定/一键完成后不跳回顶部） */
 		pane.textContent = "";
 		/* v1.9.4：折叠组展开状态键「剧情:<组名>」（与角色页「角色:<cat>」同语义、互不冲突），
 		   展开状态持久化到 mbCEUiState.collapsed——操作后 renderScenes() 重建不再全部收回去 */
-		function sceneSectionKey(role) { return "剧情:" + role; }
-		function sceneStored(role) {
-			return mbCEUiState.collapsed && mbCEUiState.collapsed[sceneSectionKey(role)] != null
-				? Number(mbCEUiState.collapsed[sceneSectionKey(role)]) : 1;
-		}
-		function sceneSet(role, val) {
-			mbCEUiState.collapsed = mbCEUiState.collapsed || {};
-			mbCEUiState.collapsed[sceneSectionKey(role)] = val;
-			mbCEUiSave({ collapsed: mbCEUiState.collapsed });
-		}
 		/* 使用提示（v1.9.4-自检）：与修复后行为一致（触发一次自动停止、退出场景返回原位，不再被困） */
 		pane.appendChild(el("div", "mce-warn", "使用提示：锚定剧情后，走到该剧情发生地点并交互时会弹确认条（含地点/时间/前置说明），确认后触发、播放完标「已完成 ✓」；「暂不触发」保留待下次。旧「固定触发」已移除，「一键完成」「场景直达」保留；若需恢复原版随机触发，点顶部横幅「清空队列」即可。"));
 		/* 锚定触发状态横幅（v1.9.23：队列，显示全部未触发项） */
@@ -8375,376 +10320,10 @@ var SCENE_LOCATIONS = {
 		renderSceneRegion(pane, "原版剧情（游戏本体注册，" + vanillaKeys.length + " 场景）", vanillaKeys, r.defs, true);
 		renderSceneRegion(pane, "MOD 剧情（第三方模组注册，" + modKeys.length + " 场景）", modKeys, r.defs, false);
 		/* 分区渲染：原版按角色分组（sceneRoleOf），MOD 单组 */
-		function renderSceneRegion(pane2, title, keys, defs, byRole) {
-			if (!keys.length) { return; }
-			pane2.appendChild(el("div", "mce-section", title));
-			var sub = {};
-			keys.forEach(function (k) { var role = byRole ? sceneRoleOf(k) : "全部 MOD 场景"; (sub[role] = sub[role] || []).push(k); });
-			Object.keys(sub).sort().forEach(function (role) {
-				if (byRole) {
-					/* v1.9.4：角色/地点分组默认收起 + 懒渲染——收起只建组标题，展开才补建该组全部场景
-					   与剧情进度块（用户要求：按角色/地点所属合在一起，不要全部平铺太长）；展开状态持久化 */
-					var g = el("div", "mce-grp");
-					g.setAttribute("data-tcat", role);
-					var gh = el("div", "mce-grp-t mce-collapse-head");
-					gh.title = "点击展开/收起该分组场景（懒渲染：展开时才构建场景控件）";
-					var open0 = sceneStored(role) === 0;
-					gh.textContent = (open0 ? "▾" : "▸") + role + "（" + sub[role].length + " 场景）";
-					g.appendChild(gh);
-					var gb = el("div", "mce-grp-body");
-					gb.setAttribute("data-collapsed", open0 ? "0" : "1");
-					if (open0) {
-						renderSceneCluster(gb, sub[role], defs);
-						/* 任务三（v1.9.2）：非场景注册表的剧情进度控制，按角色收纳在本组尾部 */
-						var plots = getRolePlots(role);
-						if (plots) { gb.appendChild(renderRolePlots(plots)); }
-					}
-					gh.addEventListener("click", function () {
-						var nowOpen = gb.getAttribute("data-collapsed") === "0";
-						gb.setAttribute("data-collapsed", nowOpen ? "1" : "0");
-						gh.textContent = (nowOpen ? "▸" : "▾") + role + "（" + sub[role].length + " 场景）";
-						if (!nowOpen && !gb.querySelector(".mce-stage")) {
-							renderSceneCluster(gb, sub[role], defs);
-							var plots = getRolePlots(role);
-							if (plots) { gb.appendChild(renderRolePlots(plots)); }
-						}
-						sceneSet(role, nowOpen ? 1 : 0);
-					});
-					g.appendChild(gb);
-					pane2.appendChild(g);
-				} else {
-					/* v1.9.2 自查：MOD 场景区懒渲染折叠——收起只建标题，展开才补建全部 MOD 场景，
-					   避免 MOD 场景多时每次切剧情页全量建 DOM 卡顿（用户历史痛点：展开过多卡住/闪退）；
-					   v1.9.4：展开状态持久化 */
-					var mWrap = el("div", "mce-grp");
-					mWrap.setAttribute("data-tcat", "MOD 场景");
-					var mHead = el("div", "mce-grp-t mce-collapse-head");
-					mHead.title = "点击展开/收起全部 MOD 场景（懒渲染：展开时才构建场景控件）";
-					var mOpen0 = sceneStored("MOD") === 0;
-					mHead.textContent = (mOpen0 ? "▾" : "▸") + " 全部 MOD 场景（" + sub[role].length + "）";
-					mWrap.appendChild(mHead);
-					var mBody = el("div", "mce-grp-body");
-					mBody.setAttribute("data-collapsed", mOpen0 ? "0" : "1");
-					if (mOpen0) { renderSceneCluster(mBody, sub[role], defs); }
-					mHead.addEventListener("click", function () {
-						var open = mBody.getAttribute("data-collapsed") === "0";
-						mBody.setAttribute("data-collapsed", open ? "1" : "0");
-						mHead.textContent = (open ? "▸" : "▾") + " 全部 MOD 场景（" + sub[role].length + "）";
-						if (!open && !mBody.querySelector(".mce-stage")) { renderSceneCluster(mBody, sub[role], defs); }
-						sceneSet("MOD", open ? 1 : 0);
-					});
-					mWrap.appendChild(mBody);
-					pane2.appendChild(mWrap);
-				}
-			});
-		}
+		/* v2.0.0.002：renderSceneRegion 已拆到 07h-render3.js（C3 全库单文件 ≤400 行）。 */
 		/* 剧情进度控制块（任务三）：渲染 EXTRA_ROLE_PLOTS 条目，行内应用不重建整组 */
-		function renderRolePlots(plots) {
-			var block = el("div", "mce-stage mce-plots");
-			var head = el("div", "mce-stage-head mce-line-head");
-			head.appendChild(el("span", "mce-dot", ""));
-			head.appendChild(el("span", "mce-stage-name", "剧情进度（非场景事件状态）"));
-			block.appendChild(head);
-			var body = el("div", "mce-grp-body");
-			body.appendChild(el("div", "mce-hint", plots.intro));
-			plots.items.forEach(function (it) {
-				var row = el("div", "mce-row");
-				row.appendChild(el("span", "mce-row-name", it.name));
-				var curBadge = el("span", "mce-badge mce-on", "");
-				var refreshCur = function () {
-					var cv = getDotPath(it.varPath);
-					curBadge.textContent = "当前: " + (cv === undefined ? "未设置" : cv);
-				};
-				refreshCur();
-				row.appendChild(curBadge);
-				if (it.type === "range" || it.type === "select") {
-					var ctrl;
-					if (it.type === "range") {
-						var inp = el("input", "mce-inp");
-						inp.type = "number"; inp.min = String(it.min); inp.max = String(it.max); inp.step = String(it.step || 1); /* 剧情进度是进度档位：钳制在 [min,max]（用户澄清：仅"直接填数值"放开上限，进度保留） */
-						var apply = el("button", "mce-btn", "应用");
-						apply.type = "button";
-						apply.addEventListener("click", function () {
-							var v = parseFloat(inp.value);
-							if (isNaN(v)) { v = 0; }
-							if (v < it.min) { v = it.min; } if (v > it.max) { v = it.max; } /* 进度档位语义，钳制在上限内 */
-							setDotPath(it.varPath, v);
-							refreshCur();
-							setStatus(it.name + " → " + v, "mce-ok");
-						});
-						row.appendChild(inp); row.appendChild(apply);
-					} else {
-						var sel = el("select");
-						(it.options || []).forEach(function (o) {
-							var op = el("option"); op.value = String(o[0]); op.textContent = o[1];
-							var cv = getDotPath(it.varPath);
-							if (String(cv) === String(o[0])) { op.selected = true; }
-							sel.appendChild(op);
-						});
-						var applyS = el("button", "mce-btn", "应用");
-						applyS.type = "button";
-						applyS.addEventListener("click", function () {
-							var v = parseInt(sel.value, 10);
-							setDotPath(it.varPath, v);
-							refreshCur();
-							setStatus(it.name + " → " + sel.value, "mce-ok");
-						});
-						row.appendChild(sel); row.appendChild(applyS);
-					}
-				} else if (it.type === "action") {
-					var act = el("button", "mce-btn mce-gold", it.name);
-					act.type = "button";
-					act.addEventListener("click", function () {
-						setStatus(applyRolePlotAction(it.action), "mce-ok");
-						if (it.action === "kylarSeen") {
-							var cv = getDotPath("kylarSeen");
-							curBadge.textContent = "当前: " + (Array.isArray(cv) ? cv.length + " 项标记" : "未设置");
-						}
-					});
-					row.appendChild(act);
-				} else if (it.type === "info") {
-					row.appendChild(el("span", "mce-note", it.note));
-				}
-				body.appendChild(row);
-				body.appendChild(el("div", "mce-note", it.note));
-			});
-			block.appendChild(body);
-			return block;
-		}
-		function renderSceneCluster(container, keys2, defs) {
-			var replaying = !!(getV() && getV().replayScene); /* v1.9.30 直达触发：播放中禁用 */
-			var defsSub = {};
-			keys2.forEach(function (k) { defsSub[k] = defs[k]; });
-			var cluster = listSceneLines(defsSub);
-			var lineTotal = cluster.lines.length, singleTotal = cluster.singles.length;
-			var lineDone = 0;
-			cluster.lines.forEach(function (line) {
-				var done = line.items.filter(function (it) { return sceneStatus(it.def).state === "pass"; }).length;
-				lineDone += done;
-				var block = el("div", "mce-stage");
-				var head = el("div", "mce-stage-head mce-line-head");
-				head.appendChild(el("span", "mce-dot", ""));
-				var stages = el("div", "mce-stages");
-				stages.style.display = "none"; /* v1.3：剧情线默认收起（合在一起不展开），点线头展开 */
-				head.appendChild(el("span", "mce-stage-name", "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，收起）"));
-				/* 锚定整线（v1.9.23）：已标注触发地点的阶段按顺序入队，走到地点交互时依次触发，触发完自动完成 */
-				var linePin = el("button", "mce-btn", "锚定整线");
-				linePin.type = "button";
-				linePin.title = "把本系列全部阶段按顺序锚定：走到各阶段发生地点交互时弹确认条，触发完自动完成";
-				(function (line2) {
-					linePin.addEventListener("click", function () {
-						var pr = pinSceneLine(line2);
-						setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
-						renderScenes();
-					});
-				})(line);
-				head.appendChild(linePin);
-				/* 展开/收起切换 */
-				var tog = el("button", "mce-btn mce-gold", "展开各阶段");
-				tog.type = "button";
-				tog.title = "展开查看本线各阶段，可对单阶段锚定/取消锚定/一键完成";
-				tog.addEventListener("click", function () {
-					var open = stages.style.display === "none";
-					stages.style.display = open ? "" : "none";
-					tog.textContent = open ? "收起各阶段" : "展开各阶段";
-					var nm = head.querySelector(".mce-stage-name");
-					if (nm) { nm.textContent = "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，" + (open ? "展开" : "收起") + "）"; }
-				});
-				head.appendChild(tog);
-				block.appendChild(head);
-				line.items.forEach(function (it) {
-					var st = sceneStatus(it.def);
-					var completed = isSceneCompleted(it.key);
-					var done = st.state === "pass" || completed;
-					var srow = el("div", "mce-stage " + (done ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
-					var sh = el("div", "mce-stage-head");
-					sh.appendChild(el("span", "mce-dot", ""));
-					var nm = it.def.name || it.key;
-					sh.appendChild(el("span", "mce-stage-name", "阶段 " + it.num + "　" + nm));
-					/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
-					var pi = pinQueueIndex(it.key);
-					var anchorMeta = sceneAnchorMeta(it.key, it.def);
-					if (pi >= 0) {
-						sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (pi + 1) + "位"));
-						var unpinB = el("button", "mce-btn mce-red", "取消锚定");
-						unpinB.type = "button";
-						unpinB.title = "取消该剧情的锚定，恢复原版随机触发";
-						(function (it2) {
-							unpinB.addEventListener("click", function () {
-								var was = unpinScene(it2.key);
-								setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
-								renderScenes();
-							});
-						})(it);
-						sh.appendChild(unpinB);
-					} else {
-						var pinB = el("button", "mce-btn", "锚定");
-						pinB.type = "button";
-						if (anchorMeta && anchorMeta.location) {
-							pinB.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
-						} else {
-							pinB.disabled = true;
-							pinB.title = "该剧情未标注触发地点，暂不可锚定";
-						}
-						(function (it2) {
-							pinB.addEventListener("click", function () {
-								var pr = pinScene(it2);
-								setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
-								renderScenes();
-							});
-						})(it);
-						sh.appendChild(pinB);
-					}
-					if (st.state === "pass") {
-						sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
-					} else if (completed) {
-						sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓"));
-					} else {
-						var btn = el("button", "mce-btn mce-gold", "一键完成");
-						btn.type = "button";
-						btn.title = "把该场景所有段落与解锁条件写入经历表（scenePassages）";
-						(function (it2, st2) {
-							btn.addEventListener("click", function () {
-								var res = completeScene(it2.def);
-								setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
-								renderScenes();
-							});
-						})(it, st);
-						sh.appendChild(btn);
-					}
-					/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
-					var dtB = el("button", "mce-btn", "直达触发");
-					dtB.type = "button";
-					if (replaying) {
-						dtB.disabled = true;
-						dtB.title = "正在播放剧情，请先结束当前播放";
-					} else if (!it.def.startPassage) {
-						dtB.disabled = true;
-						dtB.title = "该剧情无入口段落，无法直达";
-					} else {
-						dtB.title = "直达触发此剧情：立即开始播放，播完自动回原位并标「已完成 ✓」（不改写剧情达成标记）";
-					}
-					(function (it2) {
-						dtB.addEventListener("click", function () {
-							var r = directTriggerScene(it2.key);
-							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
-							renderScenes();
-						});
-					})(it);
-					sh.appendChild(dtB);
-					srow.appendChild(sh);
-					var note = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
-					srow.appendChild(el("div", "mce-stage-txt", note + (st.note || "（无说明）")));
-					srow.appendChild(el("div", "mce-stage-note", "段落数 " + (it.def.passages || []).length + (it.def.startPassage ? "　入口 " + it.def.startPassage : "") + "　键 " + it.key));
-					/* v1.9.26：已锚定时在条目下方直接显示触发地点提示（手机版无 hover，tooltip 看不了） */
-					if (pi >= 0 && anchorMeta && anchorMeta.location) {
-						srow.appendChild(el("div", "mce-stage-note", "▸ 触发地点：「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "　走到该地点交互时弹确认条"));
-					}
-					stages.appendChild(srow);
-				});
-				block.appendChild(stages);
-				container.appendChild(block);
-			});
-			if (singleTotal) {
-				var sblock = el("div", "mce-stage");
-				var sHead = el("div", "mce-stage-head");
-				/* v1.9.4-自检：sHead 曾只挂一个 span（mce-stage-name），实测被第三方 UI 模组
-				   改写为文本 [object HTMLSpanElement]；改为「mce-dot + mce-stage-name」双 span 后
-				   新包实测仍被改写（16 处）——外部脚本非按子元素数量判断。
-				   现改为纯文本（head 无子元素，外部脚本无元素可对象化），并辅以渲染后延迟兜底修复。 */
-				sHead.textContent = "独立场景（未聚合成线）";
-				sblock.appendChild(sHead);
-				var sstages = el("div", "mce-stages");
-				cluster.singles.forEach(function (it) {
-					var st = sceneStatus(it.def);
-					var srow = el("div", "mce-stage " + (st.state === "pass" ? "mce-pass" : st.state === "fail" ? "mce-fail" : ""));
-					var sh = el("div", "mce-stage-head");
-					sh.appendChild(el("span", "mce-dot", ""));
-					sh.appendChild(el("span", "mce-stage-name", it.def.name || it.key));
-					/* 锚定触发 / 取消锚定（v1.9.23）：走到地点交互时弹确认条；无地点元数据暂不可锚定 */
-					var piS = pinQueueIndex(it.key);
-					if (piS >= 0) {
-						sh.appendChild(el("span", "mce-badge mce-on", "已锚定 第" + (piS + 1) + "位"));
-						var unpinS = el("button", "mce-btn mce-red", "取消锚定");
-						unpinS.type = "button";
-						unpinS.title = "取消该剧情的锚定，恢复原版随机触发";
-						(function (it2) {
-							unpinS.addEventListener("click", function () {
-								var was = unpinScene(it2.key);
-								setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
-								renderScenes();
-							});
-						})(it);
-						sh.appendChild(unpinS);
-					} else {
-						var anchorMetaS = sceneAnchorMeta(it.key, it.def);
-						var pinS = el("button", "mce-btn", "锚定");
-						pinS.type = "button";
-						if (anchorMetaS && anchorMetaS.location) {
-							pinS.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMetaS.location) + "」" + (anchorMetaS.timeNote ? "（时间 " + anchorMetaS.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
-						} else {
-							pinS.disabled = true;
-							pinS.title = "该剧情未标注触发地点（第一批元数据未覆盖），暂不可锚定";
-						}
-						(function (it2) {
-							pinS.addEventListener("click", function () {
-								var pr = pinScene(it2);
-								setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
-								renderScenes();
-							});
-						})(it);
-						sh.appendChild(pinS);
-					}
-					if (st.state === "pass") {
-						sh.appendChild(el("span", "mce-badge mce-on", "已达成"));
-					} else {
-						var b2 = el("button", "mce-btn mce-gold", "一键完成");
-						b2.type = "button";
-						(function (it2) {
-							b2.addEventListener("click", function () {
-								var res = completeScene(it2.def);
-								setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
-								renderScenes();
-							});
-						})(it);
-						sh.appendChild(b2);
-					}
-					/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
-					var dtS = el("button", "mce-btn", "直达触发");
-					dtS.type = "button";
-					if (replaying) {
-						dtS.disabled = true;
-						dtS.title = "正在播放剧情，请先结束当前播放";
-					} else if (!it.def.startPassage) {
-						dtS.disabled = true;
-						dtS.title = "该剧情无入口段落，无法直达";
-					} else {
-						dtS.title = "直达触发此剧情：立即开始播放，播完自动回原位并标「已完成 ✓」（不改写剧情达成标记）";
-					}
-					(function (it2) {
-						dtS.addEventListener("click", function () {
-							var r = directTriggerScene(it2.key);
-							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
-							renderScenes();
-						});
-					})(it);
-					sh.appendChild(dtS);
-					/* v1.9.23：锚定播放完成 → 「已完成 ✓」（区别于 scenePassages 达成绿标；可再自由锚定） */
-					if (isSceneCompleted(it.key)) { sh.appendChild(el("span", "mce-badge mce-on", "已完成 ✓")); }
-					srow.appendChild(sh);
-					var note2 = st.state === "pass" ? "已达成：" : st.state === "fail" ? "要求：" : "状态：";
-					srow.appendChild(el("div", "mce-stage-txt", note2 + (st.note || "（无说明）")));
-					sstages.appendChild(srow);
-				});
-				sblock.appendChild(sstages);
-				container.appendChild(sblock);
-			}
-			if (!cluster.lines.length && !cluster.singles.length) {
-				container.appendChild(el("div", "mce-hint", "本分组无场景。"));
-			} else {
-				container.appendChild(el("div", "mce-hint", "剧情线 " + lineTotal + " 条（已达成 " + lineDone + "），独立场景 " + singleTotal + " 个。"));
-			}
-		}
+		
+		
 		if (typeof pane.scrollTop === "number") { pane.scrollTop = keepScroll; } /* v1.9.4：重建后保持滚动位置 */
 		/* v1.9.4-自检：防御第三方 UI 模组在 CE 渲染后对「无按钮纯文本 head」的对象化改写
 		   （实测 sHead 被改成 [object HTMLSpanElement]，双 span 结构亦未能幸免）。
@@ -8764,6 +10343,69 @@ var SCENE_LOCATIONS = {
 	}
 
 	/* ---- 全局页 ---- */
+	function renderSceneRegion(pane2, title, keys, defs, byRole) {
+		if (!keys.length) { return; }
+		pane2.appendChild(el("div", "mce-section", title));
+		var sub = {};
+		keys.forEach(function (k) { var role = byRole ? sceneRoleOf(k) : "全部 MOD 场景"; (sub[role] = sub[role] || []).push(k); });
+		Object.keys(sub).sort().forEach(function (role) {
+			if (byRole) {
+				/* v1.9.4：角色/地点分组默认收起 + 懒渲染——收起只建组标题，展开才补建该组全部场景
+				   与剧情进度块（用户要求：按角色/地点所属合在一起，不要全部平铺太长）；展开状态持久化 */
+				var g = el("div", "mce-grp");
+				g.setAttribute("data-tcat", role);
+				var gh = el("div", "mce-grp-t mce-collapse-head");
+				gh.title = "点击展开/收起该分组场景（懒渲染：展开时才构建场景控件）";
+				var open0 = sceneStored(role) === 0;
+				gh.textContent = (open0 ? "▾" : "▸") + role + "（" + sub[role].length + " 场景）";
+				g.appendChild(gh);
+				var gb = el("div", "mce-grp-body");
+				gb.setAttribute("data-collapsed", open0 ? "0" : "1");
+				if (open0) {
+					renderSceneCluster(gb, sub[role], defs);
+					/* 任务三（v1.9.2）：非场景注册表的剧情进度控制，按角色收纳在本组尾部 */
+					var plots = getRolePlots(role);
+					if (plots) { gb.appendChild(renderRolePlots(plots)); }
+				}
+				gh.addEventListener("click", function () {
+					var nowOpen = gb.getAttribute("data-collapsed") === "0";
+					gb.setAttribute("data-collapsed", nowOpen ? "1" : "0");
+					gh.textContent = (nowOpen ? "▸" : "▾") + role + "（" + sub[role].length + " 场景）";
+					if (!nowOpen && !gb.querySelector(".mce-stage")) {
+						renderSceneCluster(gb, sub[role], defs);
+						var plots = getRolePlots(role);
+						if (plots) { gb.appendChild(renderRolePlots(plots)); }
+					}
+					sceneSet(role, nowOpen ? 1 : 0);
+				});
+				g.appendChild(gb);
+				pane2.appendChild(g);
+			} else {
+				/* v1.9.2 自查：MOD 场景区懒渲染折叠——收起只建标题，展开才补建全部 MOD 场景，
+				   避免 MOD 场景多时每次切剧情页全量建 DOM 卡顿（用户历史痛点：展开过多卡住/闪退）；
+				   v1.9.4：展开状态持久化 */
+				var mWrap = el("div", "mce-grp");
+				mWrap.setAttribute("data-tcat", "MOD 场景");
+				var mHead = el("div", "mce-grp-t mce-collapse-head");
+				mHead.title = "点击展开/收起全部 MOD 场景（懒渲染：展开时才构建场景控件）";
+				var mOpen0 = sceneStored("MOD") === 0;
+				mHead.textContent = (mOpen0 ? "▾" : "▸") + " 全部 MOD 场景（" + sub[role].length + "）";
+				mWrap.appendChild(mHead);
+				var mBody = el("div", "mce-grp-body");
+				mBody.setAttribute("data-collapsed", mOpen0 ? "0" : "1");
+				if (mOpen0) { renderSceneCluster(mBody, sub[role], defs); }
+				mHead.addEventListener("click", function () {
+					var open = mBody.getAttribute("data-collapsed") === "0";
+					mBody.setAttribute("data-collapsed", open ? "1" : "0");
+					mHead.textContent = (open ? "▸" : "▾") + " 全部 MOD 场景（" + sub[role].length + "）";
+					if (!open && !mBody.querySelector(".mce-stage")) { renderSceneCluster(mBody, sub[role], defs); }
+					sceneSet("MOD", open ? 1 : 0);
+				});
+				mWrap.appendChild(mBody);
+				pane2.appendChild(mWrap);
+			}
+		});
+	}
 	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
 	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
 	var NPC_TRAITS = [
@@ -9247,6 +10889,8 @@ var SCENE_LOCATIONS = {
 
 		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
 		mbCERenderLock(pane);
+		/* v2.0.0.002 潜伏者（07f-lurker.js）：捕捉上限等价解除 + 水烟馆冰箱（0–5）+ 农场蒸馏笼 */
+		mbCERenderLurker(pane);
 	}
 
 	function render() {
@@ -9507,7 +11151,6 @@ var SCENE_LOCATIONS = {
 		}, ms || 60);
 		if (bucket === "search") { mceSearchTimer = t; } else { mceRenderTimer = t; }
 	}
-
 	function hookRefresh() {
 		var mb = resolveMB();
 		if (mb && typeof mb.on === "function") {
@@ -9643,6 +11286,58 @@ var SCENE_LOCATIONS = {
 				toggleCheatAbility: toggleCheatAbility,
 				cheatSceneAction: cheatSceneAction,
 				cheatWriteValue: cheatWriteValue,
+				/* v2.0.0.002 快速面板：数值锁定（复用 07f-lock）+ 武器直接获得 */
+				quickTargetValue: quickTargetValue,
+				grantWeapon: grantWeapon,
+				grantAllWeapons: grantAllWeapons,
+				/* v2.0.0.002 说话态度：原版三档（meek/neutral/bratty）+ 选定后永久维持
+				   （旧口径"把 $submissive 写进 851–1149 交集"已按用户纠偏作废，符号保留供兼容） */
+				attitudeState: attitudeState,
+				applyAttitude: applyAttitude,
+				readAttitude: readAttitude,
+				FSA_FREE_MID: FSA_FREE_MID,
+				MB_CE_ATTITUDE_TIERS: MB_CE_ATTITUDE_TIERS,
+				mbCEAttitudeState: mbCEAttitudeState,
+				mbCEAttitudeApply: mbCEAttitudeApply,
+				mbCEAttitudeHold: mbCEAttitudeHold,
+				mbCEAttitudeRelease: mbCEAttitudeRelease,
+				mbCEAttitudeTick: mbCEAttitudeTick,
+				/* v2.0.0.002 潜伏者：捕捉/冰箱无上限（启动前文本解限 + 自动搬运保底） */
+				mbCELurkerState: mbCELurkerState,
+				mbCELurkerSet: mbCELurkerSet,
+				mbCELurkerAutoTick: mbCELurkerAutoTick,
+				mbCELurkerSetAuto: mbCELurkerSetAuto,
+				MB_CE_LURKER_MAX: MB_CE_LURKER_MAX,
+				MB_CE_LURKER_FRIDGE_MAX: MB_CE_LURKER_FRIDGE_MAX,
+				mbCELurkerPatchText: mbCELurkerPatchText,
+				mbCELurkerPatchDom: mbCELurkerPatchDom,
+				mbCELurkerPatchStory: mbCELurkerPatchStory,
+				mbCELurkerPatchReport: mbCELurkerPatchReport,
+				mbCELurkerRepatch: mbCELurkerRepatch,
+				/* v2.0.0.002 FertilityExpansion 自带作弊等价（10 项，直连 window.EdenCheats） */
+				mbCEFertRun: mbCEFertRun,
+				mbCEFertChildren: mbCEFertChildren,
+				mbCEFertReady: mbCEFertReady,
+				MB_CE_FERT_ACTIONS: MB_CE_FERT_ACTIONS,
+				/* v2.0.0.002 需求①③：孩子页（好感/定向发送/随叫随到/一键长大）+ 角色页孩子拦截 */
+				mbCEFertKidPairs: mbCEFertKidPairs,
+				mbCEFertKidInfo: mbCEFertKidInfo,
+				mbCEFertKidAlive: mbCEFertKidAlive,
+				mbCEFertKidSetAffection: mbCEFertKidSetAffection,
+				mbCEFertKidSetLocation: mbCEFertKidSetLocation,
+				mbCEFertKidCallToMe: mbCEFertKidCallToMe,
+				mbCEFertKidGrowUp: mbCEFertKidGrowUp,
+				mbCEFertRenderChildren: mbCEFertRenderChildren,
+				MB_CE_FERT_KID_LOCS: MB_CE_FERT_KID_LOCS,
+				/* v2.0.0.002 收敛轮：养育四项 / 先天四项写入（补齐四项后调模组 API，缺失则兜底直写） */
+				mbCEFertKidSaveSkills: mbCEFertKidSaveSkills,
+				mbCEFertKidSaveInnate: mbCEFertKidSaveInnate,
+				mbCEFertKidCurSkills: mbCEFertKidCurSkills,
+				mbCEFertKidCurInnate: mbCEFertKidCurInnate,
+				MB_CE_FERT_KID_SKILLS: MB_CE_FERT_KID_SKILLS,
+				MB_CE_FERT_KID_INNATE: MB_CE_FERT_KID_INNATE,
+				mbCEFertKidVars: mbCEFertKidVars,
+				mbCEEdenChildIdOf: mbCEEdenChildIdOf,
 				mbCEOnPassageInit: mbCEOnPassageInit,
 				undoRomanceStage: undoRomanceStage,
 				undoVanillaStage: undoVanillaStage,

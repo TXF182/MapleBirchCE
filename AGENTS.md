@@ -7,8 +7,8 @@
 - **本目录（生产端）**：源码 `javascript\src\*.js`、测试 `tests\`、工具 `tools\`（pack/release/push/audit/resolve/snap/核查）、对照源码 `tools\_modcache\`、版本双源（`01-core.js:3` MCE_VERSION + `boot.json:7` version）、git、CHANGELOG/README。
 - **消费端（物理位置不变）**：`C:\Users\27352\Doubao\chats\2026-10-19\new-chat\DoL-Project` —— `game\` 游戏本体、`real_smoke.ps1`（moli 实机冒烟）、旧桥接 `dev.ps1`。
 - 完整闭环入口（本目录即可跑完，消费端仅作脚本外部目标）：
-  - `.\tools\run_all.ps1`：全链 8 步（build / `node --check` / ESLint 四规则 / DOM 冒烟 / 全量回归 / E2E / 性别集成 / **适配器声明一致性**）→ 末尾自动 `codegraph sync`。第 8 步 = `check_claims.js`（结构自洽，命中即 fail）+ `check_key_types.js`（类型形态，仅在 `tools\_modcache\STATE.json` 存在时跑，缺失则 WARN 跳过）。
-  - `.\dev.ps1`：单元测试 → 全链（内含上述 7 步）→ 打包 verifier 4/4 + SHA256 → 复制 zip 装进消费端 game\（`$env:MCE_DOL_PROJECT` 可覆盖消费端路径）。
+  - `.\tools\run_all.ps1`：全链 9 步（build / `node --check` / ESLint 八规则 / DOM 冒烟 / 全量回归 / E2E / 性别集成 / **适配器声明一致性** / **覆盖率门禁**）→ 末尾自动 `codegraph sync`。第 8 步 = `check_claims.js`（结构自洽，命中即 fail）+ `check_key_types.js`（类型形态，仅在 `tools\_modcache\STATE.json` 存在时跑，缺失则 WARN 跳过）。
+  - `.\dev.ps1`：单元测试 → 全链（内含上述 9 步）→ 打包 verifier 4/4 + SHA256 → 复制 zip 装进消费端 game\（`$env:MCE_DOL_PROJECT` 可覆盖消费端路径）。
   - `.\real_smoke.ps1`：包装调消费端 real_smoke.ps1。
   - 远端 CI：`.github/workflows/ci.yml`（push main / PR / 手动）在 ubuntu-latest + node 22 上跑 `npm ci` + 同口径验证（无 moli / 打包 / codegraph / 原版 HTML）。
 
@@ -25,6 +25,8 @@
 ## 已知边界（防盲区）
 
 - **声明类型必须匹配模组判据（v2.0 起的核心核查维度）**：SugarCube 的 `is` 等价 `===`。模组写 `<<if $X is 1>>` / `$X is true` 时，CE 若把 `X` 声明成 `boolean`，写入的 `true` 在模组侧恒为假——面板显示成功、功能静默失效（最隐蔽的一类）。判据：模组用 `1/0` 严格比较或数字哨兵 → 声明必须带 `numeric: true`（`04b-modcheat-write.js:106` 走 number 路径写 1）；模组用真值判定（`<<if $X>>`、`!V.X`）→ boolean 正确。取证用 `tools\check_key_types.js`（`blockOf()` 取真正包住 varPath 的对象块，`EXTS` 必须含 `txt/json5/html`——判定常藏在这些扩展名里）。既有先例：`04a-01-revelation.js` 的 `nkl_retaken`。
+- **`check_key_types.js` 的四类判据与两条防线（v2.0.0.002 起，改判据前必读）**：① 显式赋值（`V.x =` / `$x =` / `<<set $x>>`）② `?? <字面量>` 惰性初始化 ③ TS 父键块内声明/字面量（`blockOf` 限定在真正包住 varPath 的对象块）④ **全库唯一类型共识**（按叶子名聚合整库 `.ts/.js` 的 `name?: type` 与字面量赋值，**类型集合必须唯一**才采信）。④ 必须叠加**父键归属防线**：证据文件 basename（**先剥 `.ts/.js` 再归一化去非字母数字**）要与**直接父键或祖父键**互为包含，否则 `MarginTrading.ts` 的 `opened: number` 会给 `Finance.bank.opened` 作证（`tests\test_keycheck.js` 有专门 fixture 拦这条）。基线：276 条 / CONFLICT 0 / STRICT 0 / WARN 1 / NO_EVIDENCE 51（81.5%）。**改进判据后必须同步跑 `node tests\test_keycheck.js`**——共识判据两次真实缺陷都是被这份 fixture 抓出来的。
+- **`04a-13-fert.js` 的对照源码在 `tools\_modcache\fert_tmp\`（FertilityExpansion 1.7.0）**：尚未按版本目录规范（`fert170`）落位，也未登记进 `STATE.json`；引用它做核查时直接给 `_modcache\fert_tmp` 路径。
 - **结构自洽用 `tools\check_claims.js`**（D1 跨适配器同 varPath / D2 同适配器重复 / D3 同 key / D4 levels-labels 数量 / D5 min>max）。`SHARED_OK` 白名单只放**已取证为逐项增删语义**的键（当前仅 `loveInterestList`，list 走 `cheatWriteListValue`）——新增白名单条目必须先取证写入语义，不能因为"不报了"就加。
 - `tools\check_coverage.js` 只产出**人工参考候选**（有 NOISE 黑名单降噪），不作门禁；`tools\_modcache\` 只保留当前对照版本。**权威现状表 = `tools\_modcache\STATE.json`（由 `tools\modcache_state.js` 生成，勿手改）**：`node tools\modcache_state.js` 刷新盘上事实，加 `--keys` 附带键数定案（audit + resolve），加 `--check` 校验表是否已滞后（滞后 exit 1，可做门禁）。手写版本表（本文档旧版、消费端 AGENTS.md §5、技能文档）一律滞后，改版后以 STATE.json 为准。
 - STATE.json 里 `versionConsistent=false`（目录名口径 vs 包内 boot.json 版本不一致）需人工确认哪个是当前对照版本；`keys` 的 `R/W/S/X` 分别是待复核/弱证据/换源核对/判删，**只有 `X`（REMOVE）是删除信号**。

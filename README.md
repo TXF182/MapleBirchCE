@@ -1,10 +1,10 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**12 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**13 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.0.0.001**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.0.0.002**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -85,7 +85,7 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（v1.9.29）
+## Mod作弊 适配器一览（当前版本 2.0.0.002）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -101,9 +101,29 @@
 | 更多农场升级 More Farm Upgrade | 1.0.8 | 数值 21 / 能力 16（11 设施/资源/农夫/温室田/许可） | `V.farm` 扩展字段并集（cultivator/seeder/harvester/compost/laboratory 等） |
 | 人物附加与生活质量提升 DolMod-（MyFirstMod，阿电/电脑/银行/网课/转化/NG+/伊洛） | 0.1.990 | 阶段 1 / 能力 12 / 数值 18（告白状态机/斯德哥尔摩/囚禁信任（未囚禁写入不生效但无害，先勾「已囚禁」或先写再勾均可）/拒绝日/活期/网课 8 键/转化/NG+/伊洛圣化） | `window.ComputerMod/BankMod/NgPlus`（V 兜底：computer/computerApps/ngplusCycle 或 adian 双键） |
 | maplebirch 框架本体 | 5.6.2 | 兼容性核对（API 8 项） | `window.maplebirch` |
+| FertilityExpansion · 伊甸生育/子女扩展 | 1.7.0 | 阶段 1（schemaVersion 0–8）/ 能力 11 / 数值 2 + **模组自带 10 项动作等价**（生育/劳动/寄生虫/身份/先天/技能/重置/删除等）+ **孩子页**（每个孩子：好感爱意 / 养育四项（知识·体能·社交·意识）/ 先天四项（外貌·体质·智力·性格）/ 定向发送含自定义地点 / 随叫随到 / 一键长大 / 立刻成年结算 / 删除） | `window.EdenChildData` / `window.EdenCheats`（`V.eden` 兜底） |
 
-> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**自动检测 12 渠道 + 适配 12 面**：12 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade/人物附加与生活质量提升/框架本体，全部已纳入每日检测——其中 DolMod 走资产名版本提取，框架走 check_framework_api.js API 兼容核对）。
+> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**自动检测 12 渠道 + 适配 13 面**：12 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade/人物附加与生活质量提升/框架本体，全部已纳入每日检测——其中 DolMod 走资产名版本提取，框架走 check_framework_api.js API 兼容核对）+ FertilityExpansion（已适配但**尚未登记进 `check_mod_updates.js` 的 `CHANNELS`**，故暂不随每日检测自动跟进版本）。
 > **自动替换旧模组包**：`tools/check_mod_updates.js --apply` 检测到适配模组有新版时，自动下载官方最新包（api.github.com assets 端点 + 302 跟随）并替换 `game` 内旧模组包（按 gameGlob 匹配删除旧包后放入新包）；框架渠道不自动替换（升版前必须人工跑 `check_framework_api.js` 核对 API 兼容）。GitHub API 未认证有速率限制（403）时，设置 `GITHUB_TOKEN` 环境变量（仅内存使用）即可。已装模组包即官方最新版时，替换为幂等覆盖。
+
+## 工程文档索引
+
+> 交付说明按 `AGENTS.md §4` 要求附本索引：文档 + 已知坑位 + 反馈入口。
+
+| 文档 | 内容 | 何时看 |
+|---|---|---|
+| [docs/modpack-inventory.md](docs/modpack-inventory.md) | 18 个模组包台账（名/字节/SHA 前 8）+ **第六节「mod 的真实加载通道」**（ModLoader 走浏览器 IndexedDB 而非目录、证据链、正确补装步骤、四层数字口径） | 补装/更新任何模组包、怀疑"装了没生效"时**先看这一节** |
+| [docs/key-type-evidence.md](docs/key-type-evidence.md) | `check_key_types.js` 报 `NO_EVIDENCE 171/276` 的逐项不可得性证明（为何静态源码拿不到类型证据） | 怀疑类型核查"漏检"时 |
+| [AGENTS.md](AGENTS.md) | 分支纪律：§5 对照源码权威表与适配器键数、§6 mod 装载通道 | 改装配流程、加适配器前 |
+| [CHANGELOG.md](CHANGELOG.md) | 逐版本变更（发布 body 的来源） | 回溯某版本改了什么 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 提交流程、钩子、ESLint 八规则、全链 9 步 | 首次贡献/改工具链前 |
+
+**已知坑位**（消费端 `DoL-Project\.learnings\`）：
+- `ERRORS.md#ERR-20261106-016` — 把 zip 复制进 `game\` 就算装好模组（实机加载走 IndexedDB，且 `init` 计数是自举数不是 mod 数）
+- `ERRORS.md#ERR-20261106-015` — CE 注入判定必须在游戏 passage 内，标题页判必然假阴性
+- `ERRORS.md#ERR-20261028-001` — moli 单会话引擎交互阶段局限
+
+**用户反馈入口**：GitHub Issues（<https://github.com/TXF182/MapleBirchCE/issues>，含 Bug/功能模板）。
 
 ## 常见问题（FAQ）
 
@@ -579,7 +599,7 @@ MapleBirchCE.mod.zip
 ```
 MapleBirchCE/（git 源码真相源）
 ├── javascript/
-│   ├── src/                       # 开发源，按功能域拆 31 段（改代码改这里）
+│   ├── src/                       # 开发源，按功能域拆 60 段（改代码改这里）
 │   │   ├── 00-preamble.js         # 顶部版本注释 + IIFE 头
 │   │   ├── 01-core.js             # 基础：版本号/框架解析/数值/中文/角色枚举/数值读写
 │   │   ├── 02-romance.js          # 恋爱剧情阶段 + 转化阶段
@@ -595,6 +615,7 @@ MapleBirchCE/（git 源码真相源）
 │   │   ├── 04a-08-dolsims.js       # 适配器：DoLSims
 │   │   ├── 04a-09-cattery.js       # 适配器：Cattery
 │   │   ├── 04a-10-morefarm.js      # 适配器：More Farm Upgrade（农场 11 设施/资源/农夫）
+│   │   ├── 04a-11~16-*.js          # 后续新增段（本清单未逐条展开）：dolmod 适配器 / 预言者声明(04a-13) / 十项动作(04a-14) / 孩子页数据层(04a-15) + 数值写入层(04a-15b：养育四项/先天四项) + UI(04a-16)
 │   │   ├── 04b-modcheat-write.js  # 通用写入执行器 + 回退
 │   │   ├── 04c-modcheat-util.js   # 适配器标准化/审计工具
 │   │   ├── 05-modcheat-ui.js      # Mod作弊动态发现 + 渲染 + 玩家属性编辑
@@ -640,7 +661,7 @@ MapleBirchCE/（git 源码真相源）
 **一键验证**（日常改完代码只需一条命令）：
 
 ```powershell
-.\tools\run_all.ps1            # build → 语法 → ESLint → DOM 冒烟 → 全量回归 → E2E → 性别集成（7 步）
+.\tools\run_all.ps1            # build → 语法 → ESLint → DOM 冒烟 → 全量回归 → E2E → 性别集成（9 步）
 .\tools\run_all.ps1 -Pkg <打包源目录>   # 额外把构建产物同步到打包源
 ```
 
@@ -656,7 +677,7 @@ MapleBirchCE/（git 源码真相源）
 
 **原版 HTML 路径可覆盖**：`tests/smoke_dom.js` 与 `tests/integration_gender.js` 都按 `MCE_DOL_HTML` 环境变量取原版游戏 HTML，未设时回退到本机默认路径；文件不存在则相关段落 SKIP（不误报）。CI / 他人机器无需修改源码即可指定，例：`$env:MCE_DOL_HTML="D:\games\Degrees of Lewdity.html"; node tests/smoke_dom.js`。
 
-**代码检查（ESLint 四规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是 34 段不完整片段，单文件解析必然失败）。四条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
+**代码检查（ESLint 八规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是 57 段不完整片段，单文件解析必然失败）。八条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）/ 自赋值 / 恒定条件（`while(true)` 放行）/ 不安全取反 / switch 贯穿。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
 
 **日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（build → 语法 → ESLint → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
 
