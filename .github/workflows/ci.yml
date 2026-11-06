@@ -5,6 +5,12 @@ name: CI
 # 原版 HTML 缺失时，smoke 的 19.5-19.8 / 19.14b 与性别集成测试按设计 SKIP；
 # 矩阵（tests/data/direct_exit_matrix.json）随仓库走，19.17/19.19/19.20 与
 # 19.21/19.22 判据断言在 CI 上照常强制。
+#
+# Node 版本必须是 22.22.2+：jsdom@30 声明 ^22.22.2 || ^24.15.0 || >=26，
+# 其依赖 undici@8（engines >=22.19.0）在 Node 20 上没有 zlib zstd 导出，
+# node_modules/undici/lib/interceptor/decompress.js 加载即
+# TypeError: Cannot read properties of undefined (reading 'bind')，
+# smoke 会连一个断言都跑不到（run 42152880121 实证）。见 package.json engines。
 
 on:
   push:
@@ -23,7 +29,7 @@ jobs:
       - name: 安装 Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: 安装依赖
