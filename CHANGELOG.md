@@ -55,14 +55,14 @@
 - 两处硬编码本机绝对路径：`tests/smoke_dom.js` 的 `GAME_HTML`、`tests/integration_gender.js` 的 `DOL_HTML`。→ 统一改为 `process.env.MCE_DOL_HTML || <原路径>`；smoke 文件头新增 `GAME_HTML_PATH` / `HAS_GAME_HTML` 两个常量，第 15 段改用 `const GAME_HTML = GAME_HTML_PATH;`。
 - **干净克隆下的真实红点**：原版 HTML 缺失时，smoke 的 19.5–19.8（剧情页 UI 四条）与 19.14b（学校检查行按钮恢复）必红——剧情页场景行来自原版 HTML 的 `<<widget "scenes">>` 场景元数据，缺 HTML 时 `V.scenes` 只有手动 mock 的 `KylarAbduction`，行不渲染 → `dtBtn19.click()` 抛 `Cannot read properties of null`。→ 两处各包一层 `if (!HAS_GAME_HTML) SKIP else {…}`；api 层（19.1–19.4、19.9–19.16、19.17–19.22、矩阵与判据）无 HTML 依赖，照常强制。
 
-**workflow**（`.github/workflows/ci.yml`，新建）：`push(main)` / `pull_request` / `workflow_dispatch`；`ubuntu-latest` + `actions/setup-node@v4`（node 20，`cache: npm`）；`npm ci` → `[1/6] node tools/build_js.js` → `[2/6] node --check javascript/maplebirchce.js` → `[3/6] npx eslint javascript/maplebirchce.js` → `[4/6] node tests/smoke_dom.js` → `[5/6] node tests/test_mce.js` → `[6/6] node tests/functional_e2e.js && node tests/integration_gender.js`。与本地 `tools/run_all.ps1` 同口径，去掉依赖本机资源的部分（moli 实机冒烟、打包 zip、codegraph、原版 64MB HTML）。
+**workflow**（`.github/workflows/ci.yml`，新建）：`push(main)` / `pull_request` / `workflow_dispatch`；`ubuntu-latest` + `actions/setup-node@v4`（**node 22**，`cache: npm`；曾用 node 20，会让 jsdom@30 依赖链在 `require` 阶段直接崩，见 §七）；`npm ci` → `[1/6] node tools/build_js.js` → `[2/6] node --check javascript/maplebirchce.js` → `[3/6] npx eslint javascript/maplebirchce.js` → `[4/6] node tests/smoke_dom.js` → `[5/6] node tests/test_mce.js` → `[6/6] node tests/functional_e2e.js && node tests/integration_gender.js`。与本地 `tools/run_all.ps1` 同口径，去掉依赖本机资源的部分（moli 实机冒烟、打包 zip、codegraph、原版 64MB HTML）。
 
 **CI 等价实测**（`MCE_DOL_HTML=Z:\no-such\Degrees of Lewdity.html`，即模拟干净克隆）：
 
 | 步骤 | 结果 |
 | --- | --- |
 | `npm ci` | `added 112 packages`，exit 0 |
-| `[1/6]` build | 34 段 / 622,538 B / SHA256 `ebe9e5f8…c4188` |
+| `[1/6]` build | 34 段 / 615,126 B / SHA256 `2e0e0052…569b`（行尾统一后的最终值，见 §七） |
 | `[2/6]` `node --check` | exit 0 |
 | `[3/6]` ESLint（四规则） | exit 0 |
 | `[4/6]` smoke | `SMOKE ALL PASSED`（2 条 SKIP：19.5-19.8 / 19.14b） |
@@ -71,7 +71,23 @@
 
 **本机带真实 HTML 全链（7 步）**：`ALL CHECKS PASSED`；19.17 逐 rule 全中（R1 781 · R2 191 · R3 481 · R4 553 · R5 47 · R6 105，失配 0）；19.18 SHA256 `9ecc02d9…` / 64,576,232 B 一致；19.19 间接段 151 / case 310 / R5 残留 0；19.20 三序列；19.21 五条 + 19.22 两条全 PASS；性别集成 `passed=24 failed=0`。
 
-**打包**：251,228 B / SHA256 `80683C4B4C8FFD72E3C3A2D388F5155CACCAADE46DDDCD7F8B4B60032B1916F2`，verifier 4/4，4 条 zip 条目全正斜杠，已覆盖 `DoL-Project\game\MapleBirchCE.mod.zip`（双端 bytes/SHA 一致）。
+**打包**：250,878 B / SHA256 `5E7A6C46E5AFC02EEC179A6596B4325C77096B23D5FEF149475711E7AB4B89E2`，verifier 4/4，4 条 zip 条目全正斜杠，已覆盖 `DoL-Project\game\MapleBirchCE.mod.zip`（双端 bytes/SHA 一致）。
+
+### 七、产物确定性与推送通道（本轮最后三块）
+
+**① CI Node 版本（ERR-20261106-011）**：workflow 原用 node 20，`npm ci` 后 smoke 一条断言都跑不到就红 —— `jsdom@30` 的 engines 要求 `^22.22.2 || ^24.15.0 || >=26`，其依赖 `undici@8`（engines `>=22.19.0`）在 Node 20 上没有 zlib zstd 导出，`require('jsdom')` 阶段即 `TypeError: Cannot read properties of undefined (reading 'bind')`。本地跑的是 Node 22，**永不复现**，只有真实 Actions 暴露（run `42152880121` 全红）。改用 node 22 后 run `42153833342` 全绿。
+
+**② 构建产物随检出环境变化（ERR-20261106-012）**：CI 构建 622,384 B / CR 7,258 / `da827ca1…`，本地 622,538 B / `ebe9e5f8…`，差 154 B。取证结论是**仓库 blob 本身就混了 7,258 个 CR**，本地 `core.autocrlf=true` 又把 154 个 LF 行二次转成 CRLF，于是三方各不同（干净 clone 全 CRLF 为 624,894 B / `2dfafb92…`）。修法：`.gitattributes` 给 `*.js` / `*.md` / `*.json` / `*.ps1` 补 `text eol=lf`（此前只覆盖 `githooks/*` 与 `*.sh`）→ 仓库级 `core.autocrlf=false` → `git add --renormalize .`（55 个文件，`git diff --cached --ignore-cr-at-eol` 只剩 `.gitattributes` 自身，**零内容变化**）→ 重检出为纯 LF → 重建产物。
+
+统一后：`src` 34 段 615,126 B / CR 0；产物 **615,126 B / CR 0 / `2e0e0052382e61735b46a40625d05f263e953a2ba4d243b4569a6e20f614569b`**；zip **250,878 B / `5E7A6C46…89E2`**（zip 自身的确定性见 §七⑤）。CI run `42155827690` 的构建日志为 `615126 B / SHA256 2e0e0052…569b` —— **与本地逐字节一致**，这就是「产物确定性」的判据（不是字节数接近，是 SHA 相同）。
+
+两个实操陷阱（都已写进排障笔记）：`git checkout-index -f -a` **不做行尾转换**，只有 `git checkout -- <path>` 走 smudge 路径才转；`git reset --hard` 受 index stat 缓存影响**只重写部分文件**（实测 `src` 仍残留 7,057 个 CR，而 `git status` 显示干净 = 假绿），须删掉全部跟踪文件再 `git checkout -- .`。
+
+**③ 推送通道改造（`tools/push_api.js`）**：旧实现按**工作区** `fs.readFileSync` 建 blob、mode 硬编码 `100644`、不做任何 sha 校验 —— 工作区一旦与 index 不一致（行尾转换 / 未提交改动），推上去的内容就与本地提交不同，而且错误会静默进远端。现改为：读 `git ls-files -s` 的 index mode+sha（不碰工作区）、`git cat-file blob` 取原始字节、逐 blob 回读 sha 校验、复用远端已有 blob（本次 109 条里复用 107 / 上传 2）、新增 `--dry`（不联网只做本地门禁），并加**双重 fail-closed**：index tree 必须等于 HEAD tree，API 建出的 tree sha 也必须等于 HEAD tree，不等即拒绝提交。
+
+**④ 历史遗留提交的处置（`95cb2d0`）**：它是 Git Data API 重建的旧提交（本地无此对象），仍是远端 main 的祖先（`compare` → `ahead_by=5`），其 tree 里是修复前的 CRLF blob。当前可达 tree 已全 LF（远端 tree 与本地 HEAD tree 相同，抽验 7 个代表文件 `git hash-object --no-filters` 与 index blob 一致且 CR=0），所以**不做历史重写** —— force-push 会让 main 上 5 个提交哈希全变、破坏 CI 记录与已有 clone，且不可逆，而旧 blob 不参与任何构建或发布字节。
+
+**⑤ zip 打包本身的确定性（ERR-20261106-013）**：发布前重打包时发现 —— 字节数一模一样（250,878 B），SHA 却从 `7DE2E707…` 变成 `066EA2E7…`。原因是 `tools/pack.ps1` 用 `ZipArchive.CreateEntry()` 建条目后**没有设置时间戳**，每个条目默认取当前时间，于是同内容每次打包出不同 zip —— 发布说明里写的 SHA256 因此永远对不上刚发出去的资产。修法：建条目后固定 `LastWriteTime = 2026-01-01T00:00:00Z`，并按文件全路径排序后写入（顺序也不依赖文件系统枚举）。验证是连打两次完整 `pack.ps1`（含全链），两次 SHA 均为 `5E7A6C46E5AFC02EEC179A6596B4325C77096B23D5FEF149475711E7AB4B89E2`、250,878 B。
 
 ## v1.9.30.004（2026-11-06 · 测试方法论升级：间接结束信号审计 + 判据可追溯 + 多跳序列）
 

@@ -27,13 +27,19 @@ Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $fs = [System.IO.File]::Open($zip, [System.IO.FileMode]::Create)
 $arch = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create)
+# 条目时间戳固定 + 按路径排序：否则每次打包写入当前时间、字节数相同但 SHA 每次都变，
+# 发布说明里的 SHA256 就失去核对意义（ERR-20261106-013）
+$FIXED_MTIME = [DateTimeOffset]::new(2026, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
+$stagingRoot = (Resolve-Path $staging).Path
 try {
-  Get-ChildItem -Path $staging -Recurse -File | ForEach-Object {
-    $rel = $_.FullName.Substring((Resolve-Path $staging).Path.Length + 1) -replace '\\', '/'
+  $packFiles = @(Get-ChildItem -LiteralPath $stagingRoot -Recurse -File | Sort-Object FullName)
+  foreach ($f in $packFiles) {
+    $rel = $f.FullName.Substring($stagingRoot.Length + 1) -replace '\\', '/'
     $entry = $arch.CreateEntry($rel, [System.IO.Compression.CompressionLevel]::Optimal)
+    $entry.LastWriteTime = $FIXED_MTIME
     $es = $entry.Open()
     try {
-      $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
+      $bytes = [System.IO.File]::ReadAllBytes($f.FullName)
       $es.Write($bytes, 0, $bytes.Length)
     } finally { $es.Dispose() }
   }
