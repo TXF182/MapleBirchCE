@@ -32,6 +32,7 @@
 - [ ] zip 正斜杠 4/4：____
 - [ ] SHA256（本地 / game / Release 回读一致）：____
 - [ ] 远端 CI 等价（本机 Node ≥22.22.2 / CI 同为 22；`$env:MCE_DOL_HTML` 指向不存在路径跑 `npm ci` + smoke，SKIP 数 ____，并在 GitHub Actions 上确认一次 success）：____
+- [ ] 产物确定性（`git config core.autocrlf` = false；`node tools/build_js.js` 的 SHA256 与 CI `[1/6] 构建拼接产物` 日志输出逐字节一致，基准 615126 B / 2e0e0052…）：____
 
 ## 3. 玩家路径走查（本次改动所有用户入口，逐条实机/模拟）
 | # | 用户入口（怎么进/怎么点/触发什么） | 走查方式 | 结果 |
