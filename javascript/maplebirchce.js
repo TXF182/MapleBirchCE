@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "1.9.30.005";
+	var MCE_VERSION = "2.0.0.001";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -2437,9 +2437,9 @@ var CHEAT_ADAPTERS = {};
 				  note: "模组自身 Return Necklace 2 写入「rreturn」（双 r），但 Lake Ruin Plinth/Schism/Nightmare 等约 6 处补丁只认「return」——写「return」覆盖面最全" }
 			],
 			abilities: [
-				{ key: "wr_admit", name: "监狱对峙 · 承认罪过", varPath: "AdmitMR", type: "boolean" },
+				{ key: "wr_admit", name: "监狱对峙 · 承认罪过", varPath: "AdmitMR", type: "boolean", numeric: true, note: "v2.0：模组按严格比较 <<if $AdmitMR is 1>> 判定（ReturnNecklace.twee:34），写 true 恒为假、作弊项静默失效；numeric 勾选写 1" },
 				{ key: "wr_refuse", name: "分裂 · 已拒绝", varPath: "RefuseWR", type: "boolean" },
-				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean" }
+				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean", numeric: true, note: "v2.0：LakeConchTalk.txt:4 按 <<if $SilverConchWR is 1 and $SilverConchAsk is 1>> 严格比较，写 true 恒为假；numeric 勾选写 1" }
 			],
 			scenes: [],
 			values: [

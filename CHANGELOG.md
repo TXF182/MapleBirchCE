@@ -2,6 +2,28 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.0.001（2026-11-06 · 2.0 首个版本：声明类型语义核查 + 两处静默失效修复）
+
+**触发**：此前所有核查只回答「这个键在模组源码里存不存在」，从不回答「CE 按什么类型写、模组按什么类型判」。补上这一维度后立刻抓到真实静默失效——面板显示写入成功，模组侧判定恒为假。
+
+### 一、修复（影响玩家行为）
+
+- `wraiths-reflection · 监狱对峙 · 承认罪过（AdmitMR）`：模组按严格比较 `<<if $AdmitMR is 1>>` 判定（`ReturnNecklace.twee:34`，SugarCube 的 `is` 等价 `===`），CE 声明 `type: "boolean"` 使面板写入 `true`，`true === 1` 恒为假，该作弊项**永远不生效**。改用项目既有 `numeric: true` 约定（`05-modcheat-ui.js:124` 渲染数字控件、写 1；`04b-modcheat-write.js:108` 走 number 分支）。
+- `wraiths-reflection · 银海螺 · 已咨询约旦（SilverConchAsk）`：同源问题，判定藏在 `LakeConchTalk.txt:4` 的 `<<if $SilverConchWR is 1 and $SilverConchAsk is 1>>`（模组用 `.txt` 存 passage）。同改 `numeric: true`。
+- 取证后**不改**（避免误改）：`RefuseWR` 只用真值判定 `!$RefuseWR`（`SchismWR.txt:3`）与 `<<unset>>`（`Shit.json5:78`），写 `true` 与写 `1` 等价；`more-farm-upgrade · farmerCanSell` 全部真值判定（`FarmFarmer.twee:110/183/375`、`FarmerEvents.js:109`），boolean 语义正确。
+
+### 二、工具（新增/升级，均可单独运行）
+
+- `tools/check_key_types.js`（新增）：解析 `04a-*.js` 对象字面量里成对的 `varPath` + `type`（括号配对取真块，type 必须同块，避免跨块误配）；扫对照源码全扩展名 `js|ts|twee|txt|json|json5|mjs|cjs|html|htm`；按显式赋值右值判实际形态（number/string/boolean/array/object/null）；另查严格比较（`$x is 1|0`、`V.x ===|!==|==|!= 1|0|true|false`）。**识别 `numeric: true` 并按 number 语义比对**，否则会把该约定误报成冲突。有冲突或严格比较失配时退出码 1。
+- `tools/check_claims.js`（新增）：声明结构自洽——跨适配器同一 `varPath`、同适配器 `varPath` 重复、同适配器 `key` 重复、`levels` 与 `labels` 数量不一致、`min > max`。`loveInterestList` 经取证为合法共享键（两适配器按单项增删、不整体覆盖，留痕键各带 modId），登记白名单。
+- `tools/check_coverage.js`（新增）：列出模组源码高频读写但 CE 未声明的路径候选。**参考用**——清单含大量原版变量与内部流程标记，不作收敛判据。
+- `tools/run_all.ps1` 全链 7 步 → **8 步**：第 8 步跑 `check_claims` + `check_key_types`（`STATE.json` 缺失时明确 WARN 跳过，不误判失败）。`package.json` 补 `test:keycheck` / `check:claims` / `check:types` / `check:coverage` / `check:state`。
+
+### 三、收敛口径与结果
+
+- 类型形态：**276 条声明，CONFLICT 0 / STRICT 0 / WARN_BOOL_01 1**（`RefuseWR`，已取证为正常）。
+- 声明结构：**409 条声明，命中 0**。
+- 未覆盖部分如实记录：`NO_EVIDENCE` 171 条——模组通过对象字面量默认与构建式赋值定义状态，静态源码没有显式赋值证据；已实测各模组 `boot.json` 均无 `variables` 段（4 个有 boot.json 的模组 `variables=false`，其余无 boot.json），无法由此加宽取证口径。报 NO_EVIDENCE 不等于有问题。
 ## v1.9.30.005（2026-11-06 · 判据升级：94 条语义偏差归零 + 工程质量收口）
 
 **触发**：上一轮审计查出「`endevent` 是运行时 widget、两端判据都只看源码字面」这一同源盲区，其中 94 条 depth=1 case 被错判 R5(push) 而语义应为 clear。本轮把判据升级为「**段完成时能观测到 endevent 的运行时而不仅是段源码字面**」，并连带收口 P0 门禁、P1 工程文件、P2 四处硬编码。版本双源 1.9.30.003 → **1.9.30.005**（004 为判据升级、005 叠加注释剔除与 CI）。

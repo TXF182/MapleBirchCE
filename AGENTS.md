@@ -24,8 +24,10 @@
 
 ## 已知边界（防盲区）
 
-- `tools\_modcache\` 只保留当前对照版本（权威现状表见消费端 AGENTS.md §5：dw258/rv146/fw562 等）。
+- `tools\_modcache\` 只保留当前对照版本。**权威现状表 = `tools\_modcache\STATE.json`（由 `tools\modcache_state.js` 生成，勿手改）**：`node tools\modcache_state.js` 刷新盘上事实，加 `--keys` 附带键数定案（audit + resolve），加 `--check` 校验表是否已滞后（滞后 exit 1，可做门禁）。手写版本表（本文档旧版、消费端 AGENTS.md §5、技能文档）一律滞后，改版后以 STATE.json 为准。
+- STATE.json 里 `versionConsistent=false`（目录名口径 vs 包内 boot.json 版本不一致）需人工确认哪个是当前对照版本；`keys` 的 `R/W/S/X` 分别是待复核/弱证据/换源核对/判删，**只有 `X`（REMOVE）是删除信号**。
 - audit 标"声明缺失"多为动态键拼接盲区（如 `$featsBoosts.upgrades['deadwood-' + attr]`）——源码实证后走 `tools\resolve_missing.js` 定案；featsBoosts 类动态键 **KEEP 严禁 REMOVE**。
+- 声明路径含数字下标（`plots.farm.0.greenhouse`）时，源码常写作 `$plots.farm[0].greenhouse` 或遍历元素 `_plantbed.greenhouse`；`resolve_missing.js` 的方括号改写与下标通配规则专门处理这两类，**不要因为它们"字面搜不到"就删声明**。
 - git 不在 PATH：用绝对路径 `C:\Users\27352\Git\cmd\git.exe` 调用；发布/对齐仍走 Node 通道。
 - `dev.ps1` / `real_smoke.ps1` 的消费端路径默认本机，换机用 `$env:MCE_DOL_PROJECT` 覆盖（**不要改脚本里的默认值**）。
 - 测试里的原版游戏 HTML 路径用 `$env:MCE_DOL_HTML` 覆盖；该文件缺失时 smoke 的 19.5–19.8、19.14b 与性别集成显式 SKIP（api 层断言照常强制），**不得把 SKIP 当通过**。

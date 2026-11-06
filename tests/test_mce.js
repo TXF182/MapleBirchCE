@@ -2655,7 +2655,10 @@ eval(js);
 const api37 = setup.mbStageCE;
 const root37 = dBody.children.filter(c => c.id === "mce-root")[0];
 assert(!!root37, "37.2 ensureDom 建立面板根节点");
-assert(/剧情条件解锁面板 v1\.\d+\.\d+/.test(root37.textContent) && root37.textContent.indexOf("关闭") !== -1 && root37.textContent.indexOf("收起") === -1, "37.2 面板标题版本号动态化（header=标题+主题✦+错误红点+关闭，无收起）, 实际 " + root37.textContent.slice(0, 70));
+/* 版本断言不硬编码大版本号：直接与 boot.json 的 version 自洽比对，
+   升版只改双源即通过；同时守住了「MCE_VERSION 与 boot.json 必须同步」这条项目纪律 */
+const bootVer = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "boot.json"), "utf8")).version;
+assert(root37.textContent.indexOf("剧情条件解锁面板 v" + bootVer) !== -1 && root37.textContent.indexOf("关闭") !== -1 && root37.textContent.indexOf("收起") === -1, "37.2 面板标题版本号动态化（header=标题+v boot.json 版本+主题✦+错误红点+关闭，无收起）, 实际 " + root37.textContent.slice(0, 70));
 api37.renderPlayerEdit();
 let pane37 = root37.querySelector('[data-pane="mods"]');
 /* v1.8.15 懒渲染：特质区默认收起 → 先展开全部分类，后续行级断言才能命中 */

@@ -11,7 +11,12 @@
     "test:smoke": "node tests/smoke_dom.js",
     "test:regression": "node tests/test_mce.js",
     "test:e2e": "node tests/functional_e2e.js",
-    "test:gender": "node tests/integration_gender.js"
+    "test:gender": "node tests/integration_gender.js",
+    "test:keycheck": "node tests/test_keycheck.js",
+    "check:claims": "node tools/check_claims.js",
+    "check:types": "node tools/check_key_types.js",
+    "check:coverage": "node tools/check_coverage.js",
+    "check:state": "node tools/modcache_state.js --check"
   },
   "devDependencies": {
     "eslint": "^10.14.0",

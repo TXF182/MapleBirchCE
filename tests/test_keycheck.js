@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+/* 键名核对启发式单测：node tests/test_keycheck.js
+ * 覆盖：归一化 / 编辑距离 / 近似候选 / 动态键两侧闭合 / 证据分级 / 覆盖率口径。
+ * 全部为纯函数断言，不读磁盘，CI 秒级完成。
+ */
+"use strict";
+const k = require("../tools/lib/keycheck.js");
+
+let pass = 0, fail = 0;
+function ok(name, cond, info) {
+  if (cond) { pass++; console.log("  ✓ " + name); }
+  else { fail++; console.log("  ✗ " + name + (info ? "  → " + info : "")); }
+}
+
+console.log("[1] 归一化与编辑距离");
+ok("camel vs snake 归一化相等", k.normKey("museumCoins") === k.normKey("museum_coins"),
+  k.normKey("museumCoins") + " vs " + k.normKey("museum_coins"));
+ok("kebab 归一化相等", k.normKey("deadwood-willpower") === k.normKey("deadwood_willpower"));
+ok("不同词不相等", k.normKey("motor") !== k.normKey("rotor"));
+ok("相同串距离 0", k.levenshtein("motor", "motor") === 0);
+ok("单字符替换距离 1", k.levenshtein("motor", "rotor") === 1);
+ok("早停上限生效（超限返回 >max）", k.levenshtein("abcdefgh", "zyxwvuts", 2) > 2);
+ok("相似度对称", Math.abs(k.similarity("motor", "rotor") - k.similarity("rotor", "motor")) < 1e-9);
+
+console.log("[2] 近似候选");
+const paths = [
+  "SydneyExpansion.repair_tools.motor",
+  "Transport.repair_parts.motor",
+  "Transport.repair_tools.bicycle",
+  "Transport.repair_tools.motors",
+  "Unrelated.foo"
+];
+const cand = k.findCandidates("Transport.repair_tools.motor", paths);
+ok("首位候选是共父段的换 root 同尾段", cand.length > 0 && cand[0].path === "SydneyExpansion.repair_tools.motor",
+  cand.length ? cand[0].path : "无候选");
+ok("共父段同尾段标 same-parent-tail", cand[0] && cand[0].reason === "same-parent-tail", cand[0] && cand[0].reason);
+ok("不把自身列为候选", !cand.some((c) => c.path === "Transport.repair_tools.motor"));
+ok("无关路径不入候选", !cand.some((c) => c.path === "Unrelated.foo"));
+ok("候选分数降序", cand.every((c, i) => i === 0 || c.score <= cand[i - 1].score));
+
+/* 噪声抑制：短词、无共同父段一律不给候选 */
+const noise = k.findCandidates("VanillaPlus.deviancy.mirrors.home",
+  ["Transport.commute.home", "_estate.household.home", "Orchard.farm", "timer"]);
+ok("短词无共享父段 → 零候选", noise.length === 0, JSON.stringify(noise));
+
+/* 长且唯一：允许跨命名空间的改名搬家线索 */
+const uniq = k.findCandidates("VanillaPlus.divineTransformations.expungeUsed", ["SydneyExpansion.expungeUsed"]);
+ok("长且唯一 → leaf-unique", uniq.length === 1 && uniq[0].reason === "leaf-unique", JSON.stringify(uniq));
+
+const snake = k.findCandidates("Transport.repair_tools.motor", ["Transport.repairTools.motor"]);
+ok("归一化变体给最高档", snake.length && snake[0].reason === "normalized-equal", snake.length ? snake[0].reason : "无");
+
+console.log("[3] 动态键两侧闭合");
+const d1 = k.dynamicClosure("featsBoosts.upgrades.deadwood-willpower", ["deadwood-"], ["willpower", "physique", "beauty"]);
+ok("前缀+枚举值齐 → 闭合", d1 && d1.closed === true, JSON.stringify(d1));
+ok("拆出前缀与余部", d1 && d1.prefix === "deadwood-" && d1.rest === "willpower", JSON.stringify(d1));
+const d2 = k.dynamicClosure("featsBoosts.upgrades.deadwood-willpower", ["deadwood-"], ["physique"]);
+ok("枚举缺该值 → 不闭合（降级 REVIEW）", d2 && d2.closed === false, JSON.stringify(d2));
+const d3 = k.dynamicClosure("featsBoosts.upgrades.deadwood-willpower", ["temple_"], ["willpower"]);
+ok("前缀对不上 → 无动态解释", d3 === null, JSON.stringify(d3));
+
+console.log("[4] 证据分级");
+ok("字面命中 → KEEP", k.classifyEvidence({ vp: "A.b", hasLiteral: true, rootInSource: true }).verdict === k.KEEP);
+ok("属主归位 → KEEP", k.classifyEvidence({ vp: "RobinExpansion.investment.agreed", ownerRelocated: true, rootInSource: true }).verdict === k.KEEP);
+ok("动态闭合 → KEEP_DYNAMIC",
+  k.classifyEvidence({ vp: "featsBoosts.upgrades.deadwood-willpower", dyn: d1, rootInSource: true }).verdict === k.KEEP_DYNAMIC);
+ok("根零出现 → SOURCE_MISMATCH",
+  k.classifyEvidence({ vp: "featsBoosts.upgrades.deadwood-willpower", rootInSource: false }).verdict === k.SOURCE_MISMATCH);
+ok("仅远处字符串 → WEAK 而非 KEEP",
+  k.classifyEvidence({ vp: "MoreTransformations.raven.met", stringFar: true, rootInSource: true }).verdict === k.WEAK);
+ok("邻近字符串 → REVIEW",
+  k.classifyEvidence({ vp: "MoreTransformations.treasure.coins", stringNear: true, rootInSource: true }).verdict === k.REVIEW);
+ok("零证据 → MISSING",
+  k.classifyEvidence({ vp: "X.y", rootInSource: true }).verdict === k.MISSING);
+ok("强证据优先于 SOURCE_MISMATCH",
+  k.classifyEvidence({ vp: "X.y", hasLiteral: true, rootInSource: false }).verdict === k.KEEP);
+
+console.log("[5] 覆盖率口径");
+const cov = k.coverage([
+  { verdict: k.KEEP }, { verdict: k.KEEP_DYNAMIC }, { verdict: k.WEAK }, { verdict: k.MISSING }
+]);
+ok("只算 KEEP + KEEP_DYNAMIC", cov.alive === 2 && cov.total === 4, JSON.stringify(cov));
+ok("百分比取整", cov.pct === 50, String(cov.pct));
+
+console.log("[6] 数字下标形态（farm108 温室误判 REMOVE 的回归）");
+ok("bracketize 把点号数字段改写成方括号", k.bracketize("plots.farm.0.greenhouse") === "plots.farm[0].greenhouse");
+ok("bracketize 覆盖多个数字段", k.bracketize("a.0.b.12") === "a[0].b[12]");
+ok("bracketize 对无数字路径原样返回", k.bracketize("A.b.c") === "A.b.c");
+ok("indexSegments 取出中间下标段", k.indexSegments("plots.farm.2.greenhouse").join(",") === "2");
+ok("indexSegments 不把叶子数字当下标", k.indexSegments("A.b.5").length === 0);
+ok("indexSegments 不把首段当下标", k.indexSegments("0.b.c").length === 0);
+
+console.log("\n结果：通过 " + pass + "，失败 " + fail);
+process.exit(fail ? 1 : 0);
