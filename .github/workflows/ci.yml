@@ -1,0 +1,50 @@
+name: CI
+
+# 与本地 tools/run_all.ps1 同口径的自动化验证（去掉依赖本机资源的部分：
+# moli 实机冒烟、打包 zip、codegraph 图谱、原版 64MB HTML）。
+# 原版 HTML 缺失时，smoke 的 19.5-19.8 / 19.14b 与性别集成测试按设计 SKIP；
+# 矩阵（tests/data/direct_exit_matrix.json）随仓库走，19.17/19.19/19.20 与
+# 19.21/19.22 判据断言在 CI 上照常强制。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: 全链验证
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: "[1/6] 构建拼接产物"
+        run: node tools/build_js.js
+
+      - name: "[2/6] 产物语法检查"
+        run: node --check javascript/maplebirchce.js
+
+      - name: "[3/6] ESLint 四规则"
+        run: npx eslint javascript/maplebirchce.js
+
+      - name: "[4/6] DOM 冒烟（jsdom）"
+        run: node tests/smoke_dom.js
+
+      - name: "[5/6] 全量回归"
+        run: node tests/test_mce.js
+
+      - name: "[6/6] 功能级 E2E + 性别集成"
+        run: |
+          node tests/functional_e2e.js
+          node tests/integration_gender.js

@@ -402,6 +402,12 @@
 				startAnchoredReplay: startAnchoredReplay,
 				/* v1.9.30 剧情直达触发：从场景 def 直接开播（跳过地点判定/确认条/队列） */
 				directTriggerScene: directTriggerScene,
+				/* v1.9.30.005 出口判据升级：widget 结束信号表为惰性缓存（首次判定构建一次）。
+				   游戏内段落集合固定，正常运行不会重建；测试注入 mock 段落后需显式重置。 */
+				resetWidgetEndSignalCache: function () { mbCE_widgetEndTbl = null; },
+				/* v1.9.30.005 判据自检口：注释被剔除后的纯函数级判定（供 smoke 直接断言，
+				   不必构造 Story 段落实例；判据改动必须能在这里被单测抓到） */
+				srcHasEndSignal: function (src) { return mbCESrcHasEndSignal(src); },
 				sceneAnchorMeta: sceneAnchorMeta,
 				pendingPreconds: pendingPreconds,
 				precondDone: precondDone,

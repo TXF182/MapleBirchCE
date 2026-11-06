@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安装与使用说明
+    url: https://github.com/TXF182/MapleBirchCE#readme
+    about: 安装步骤、面板用法、已知限制与对照模组清单，先看 README 再提问
+  - name: 已知坑位与排障
+    url: https://github.com/TXF182/MapleBirchCE/blob/main/CHANGELOG.md
+    about: 历史版本改动与已修问题，报 bug 前请先对照 CHANGELOG 确认是否已修

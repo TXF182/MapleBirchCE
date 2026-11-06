@@ -1,0 +1,5 @@
+# 行尾策略（core.autocrlf=true 的 Windows 环境下必需）
+# sh 钩子被转成 CRLF 后无法执行（#!/bin/sh\r 会直接失败），钩子门禁会整条失效；
+# ps1/js/md 仍按平台默认，不做全局重新规范化，避免历史文件一次性大 diff。
+githooks/* text eol=lf
+*.sh     text eol=lf

@@ -906,6 +906,58 @@ var SCENE_LOCATIONS = {
 			try { if (typeof window !== "undefined" && window.wikifier) { window.wikifier("unfreezePlayerStats"); } } catch (e) {}
 		}
 	}
+	/* ============ 出口“结束信号”判据（v1.9.30.005：字面 → 字面 + 一层 widget 展开）
+	   背景：SugarCube 的 <<widget>> 是运行时展开，段内写 <<endcombat>> 时源码看不到 <<endevent；
+	   只判字面会把 94 条 depth=1 出口段（BlackWolfIntro / EdenIntro / FreeTheBlackDog /
+	   PrisonScarredInmate / MoorFlower … 段名多带 Finish）误判为「剧情未结束」→ 出口段被当分支
+	   push 并入白名单 → 剧情播完仍残留 replayScene → 剧情页直达按钮永久禁用。
+	   做法：惰性构建「定义体内直接含 <<endevent / <<badEndTrackingEnd>> 的 widget 名表」（排除 endevent
+	   自身），段内任一次 <<name 调用命中即视为含结束信号。深度只做 1 层（对齐矩阵 depth=1 定案；
+	   depth≥2 已取证定案不做：14 条候选中 3 条是 loadNPC→checkEventNPC 伪信号（其实体里的信号在
+	   HTML 注释内），其余 11 条都落在 <<if !$replayScene>> / <<if $frozenValues>> 等条件分支内，
+	  「调用 A」不保证「执行到信号」，展开会引入误判；证据见 tests/data/direct_exit_matrix.meta.txt）。
+	   取不到段落 / 构建异常 → 退化为字面判据，绝不阻断直达。
+	   注释排除：HTML 注释与块注释（斜杠星号对）里的 <<endevent 不算信号（原文 4 段仅注释含信号：
+	   Bus Station Livestock / Elk Compound Station Badge / Mines Intro / Pirate Deck；1 个 widget
+	   checkEventNPC 同理），否则会提前判定剧情已结束、把还剩可选链接的段直接清锁。
+	   一致性约束：build 侧独立实现 tools/gen_direct_exit_matrix.py::end_signal_widgets 与此逐条一致；
+   任一侧改判据必须两侧同改 → 重生成矩阵 → 重跑全链（19.17 穷举会立即暴露分歧）。 */
+	var mbCE_widgetEndTbl = null; /* null = 未构建；对象 = 已构建（键为命中 widget 名） */
+	/* 去掉两类注释后的源码（判据只在有效代码上生效） */
+	function mbCEStripComments(src) {
+		if (!src) { return ""; }
+		return src.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+	}
+	function mbCEWidgetEndTable() {
+		if (mbCE_widgetEndTbl !== null) { return mbCE_widgetEndTbl; }
+		var out = {};
+		try {
+			var ps = (typeof listAllPassages === "function") ? listAllPassages() : [];
+			for (var i = 0; i < ps.length; i++) {
+				var s = ps[i] && ps[i].text;
+				if (!s || s.indexOf("<<widget") === -1) { continue; }
+				var reW = /<<widget\s+"([^"]+)"\s*>>([\s\S]*?)<<\/widget>>/g, mm;
+				while ((mm = reW.exec(s)) !== null) {
+					var nm = mm[1], body = mbCEStripComments(mm[2]);
+					if (nm === "endevent") { continue; }
+					if (body.indexOf("<<endevent") !== -1 || body.indexOf("<<badEndTrackingEnd") !== -1) { out[nm] = true; }
+				}
+			}
+		} catch (e) { out = {}; }
+		mbCE_widgetEndTbl = out;
+		return out;
+	}
+	function mbCESrcHasEndSignal(src) {
+		if (!src) { return false; }
+		src = mbCEStripComments(src);
+		if (src.indexOf("<<endevent") !== -1 || src.indexOf("<<badEndTrackingEnd") !== -1) { return true; }
+		var tbl = mbCEWidgetEndTable();
+		var reC = /<<([A-Za-z_][A-Za-z0-9_]*)/g, mm;
+		while ((mm = reC.exec(src)) !== null) {
+			if (tbl[mm[1]] === true) { return true; }
+		}
+		return false;
+	}
 	/* :passageoverride 钩子：固定触发判定（在 SugarCube 原版 redirect 之前改 passageArgs.name） */
 	function onPassageOverride(passageArgs) {
 		try {
@@ -953,7 +1005,8 @@ var SCENE_LOCATIONS = {
 				   判定/原版 redirect（DoL L31697：!passages.includes(dest) → "Scene Viewer End"）
 				   把剧情分支段当出口 → 清 replayScene + 改 dest 回触发点 → 「选选项跳回原地点」。
 				   修复：① 剧情内分支段动态并入白名单（redirect 判 dest ∈ passages → 放行，剧情不打断）；
-				   ② 剧情出口特征（当前段源码含 <<endevent>>/<<badEndTrackingEnd>>，玩家点 Next 跳普通段）
+				   ② 剧情出口特征（当前段「含结束信号」——字面 <<endevent>>/<<badEndTrackingEnd>>，或 v1.9.30.005 起
+				   段内调用的 widget 定义体内部含之（<<endcombat>> 等运行时展开才可见），玩家点 Next 跳普通段）
 				   → 剧情已结束 → 清理重放状态但保留 dest（剧情自身引导回主循环 = 走完正常发展）。 */
 				if (V.replayScene.mbCE_direct) {
 					if (dest === "Scene Viewer" || isEndUi) {
@@ -970,9 +1023,11 @@ var SCENE_LOCATIONS = {
 							if (curTpl && (curTpl.source || curTpl.text)) { curSrc = curTpl.source || curTpl.text; }
 						}
 					} catch (e) {}
-					if (curSrc && (curSrc.indexOf("<<endevent") !== -1 || curSrc.indexOf("<<badEndTrackingEnd") !== -1) &&
+					if (curSrc && mbCESrcHasEndSignal(curSrc) &&
 						!(Array.isArray(rpExit) && rpExit.indexOf(dest) !== -1)) {
-						/* 出口段点击（当前段源码含 <<endevent>>/<<badEndTrackingEnd>> = 剧情/事件结束信号）：
+						/* 出口段点击（当前段「含结束信号」= 字面 <<endevent>>/<<badEndTrackingEnd>>，
+						   或 v1.9.30.005 起：段内直接调用的 widget 定义体内部含之——<<endcombat>> /
+						   <<girlfriend>> / <<nightmareEnd>> 等 94 条 depth=1，widget 运行时展开才可见）：
 						   剧情已结束 → 清理重放状态，保留 dest 让剧情自然回主循环（走完正常发展）。
 						   v1.9.30.002-实机修复：移除「dest !== startPassage」排除——学校检查剧情
 						   （SchoolInspection Breast/Penis/Pussy）出口段 "Breast Inspection End" 含 <<endevent>>

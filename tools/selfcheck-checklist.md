@@ -22,6 +22,7 @@
 ## 2. 验证层清单（逐层状态，禁止"全绿"带过）
 - [ ] build_js：____
 - [ ] node --check（语法）：____
+- [ ] ESLint 四规则（no-dupe-keys / no-unreachable / no-func-assign / eqeqeq）：____
 - [ ] DOM 冒烟（jsdom）：____
 - [ ] 全量回归（test_mce，断言数 ____/____ 通过，FAIL 条目逐一说明）：____
 - [ ] 功能级 E2E（____ 区块）：____
@@ -30,6 +31,7 @@
 - [ ] 打包 verifier 4/4：____
 - [ ] zip 正斜杠 4/4：____
 - [ ] SHA256（本地 / game / Release 回读一致）：____
+- [ ] 远端 CI 等价（`$env:MCE_DOL_HTML` 指向不存在路径跑 `npm ci` + smoke，SKIP 数 ____）：____
 
 ## 3. 玩家路径走查（本次改动所有用户入口，逐条实机/模拟）
 | # | 用户入口（怎么进/怎么点/触发什么） | 走查方式 | 结果 |

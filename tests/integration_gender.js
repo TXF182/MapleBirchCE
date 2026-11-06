@@ -9,7 +9,8 @@ const fs = require("fs");
 const path = require("path");
 const VM = require("vm");
 
-const DOL_HTML = "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
+/* 原版 HTML 路径可用 MCE_DOL_HTML 覆盖（CI / 他人机器上无原版文件时走下方 SKIP）。 */
+const DOL_HTML = process.env.MCE_DOL_HTML || "C:\\Users\\27352\\Doubao\\chats\\2026-10-19\\new-chat\\DoL-Project\\game\\Degrees of Lewdity.html";
 const MCE_JS = path.join(__dirname, "..", "javascript", "maplebirchce.js");
 
 let passed = 0, failed = 0;

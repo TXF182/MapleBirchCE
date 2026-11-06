@@ -1,0 +1,17 @@
+{
+  "name": "maplebirchce",
+  "private": true,
+  "description": "Degrees of Lewdity · MapleBirch Framework 兼容作弊器（MapleBirchCE）",
+  "scripts": {
+    "build": "node tools/build_js.js",
+    "lint": "eslint javascript/maplebirchce.js",
+    "test:smoke": "node tests/smoke_dom.js",
+    "test:regression": "node tests/test_mce.js",
+    "test:e2e": "node tests/functional_e2e.js",
+    "test:gender": "node tests/integration_gender.js"
+  },
+  "devDependencies": {
+    "eslint": "^10.14.0",
+    "jsdom": "^30.1.3"
+  }
+}

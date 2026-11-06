@@ -7,6 +7,10 @@
  */
 const { JSDOM } = require("jsdom");
 const fs = require("fs"), path = require("path");
+/* 原版游戏 HTML（64MB，不入库）：路径可用 MCE_DOL_HTML 覆盖；缺失时依赖它的用例显式 SKIP，
+   其余矩阵/判据/direct 链路断言照常强制（否则干净克隆或 CI 上整份冒烟都跑不起来）。 */
+const GAME_HTML_PATH = process.env.MCE_DOL_HTML || "C:/Users/27352/Doubao/chats/2026-10-19/new-chat/DoL-Project/game/Degrees of Lewdity.html";
+const HAS_GAME_HTML = fs.existsSync(GAME_HTML_PATH);
 
 let failures = 0;
 function assert(cond, msg) {
@@ -663,7 +667,8 @@ setTimeout(function () {
   api.mbCEUiSave({ filter: "" });
   /* ---------- 15. v1.9.2 玩家真实路径自查：本体 111 键全量渲染 + 剧情进度控件真实点击 + 救星三按钮真实点击 ---------- */
   try {
-    const GAME_HTML = "C:/Users/27352/Doubao/chats/2026-10-19/new-chat/DoL-Project/game/Degrees of Lewdity.html";
+    /* 原版 HTML 路径见文件头 GAME_HTML_PATH（可用 MCE_DOL_HTML 覆盖；缺失时本段自然跳过）。 */
+    const GAME_HTML = GAME_HTML_PATH;
     if (fs.existsSync(GAME_HTML)) {
       const html = fs.readFileSync(GAME_HTML, "utf8");
       const rePD = /<tw-passagedata[^>]*name="([^"]*)"[^>]*>(.*?)<\/tw-passagedata>/gs;
@@ -959,6 +964,11 @@ setTimeout(function () {
     assert(!!dr19d && dr19d.ok === true, "19 播放结束后可再次直达（重看剧情），实际 " + JSON.stringify(dr19d));
     delete V.replayScene;
     delete V.scenes.NoEntry;
+    /* 19.5–19.8 UI：剧情页渲染 → 场景行「直达触发」按钮存在且可用。
+       依赖原版 HTML 抽取的场景元数据（干净克隆 / CI 上无原版文件 → SKIP，不误报）。 */
+    if (!HAS_GAME_HTML) {
+      console.log("SKIP: 19.5-19.8 剧情页 UI 断言（原版 HTML 不在本机：" + GAME_HTML_PATH + "）");
+    } else {
     /* 19.5 UI：剧情页渲染 → 场景行「直达触发」按钮存在且可用 */
     clickTabSafe("scenes");
     const pane19 = document.querySelector('[data-pane="scenes"]');
@@ -982,6 +992,7 @@ setTimeout(function () {
     const pane19c = document.querySelector('[data-pane="scenes"]');
     const dtBtn19c = pane19c ? Array.prototype.slice.call(pane19c.querySelectorAll("button")).find(function (b) { return b.textContent === "直达触发"; }) : null;
     assert(!!dtBtn19c && !dtBtn19c.disabled, "19 播放结束重渲染直达按钮恢复可用");
+    }
     /* 19.9 重开直达（走完可重看）→ 直达语义：mbCE_direct + 不冻结数值 */
     const dr19e = api.directTriggerScene("KylarAbduction");
     assert(!!dr19e && dr19e.ok === true, "19 直达结束后可再次直达（重看剧情），实际 " + JSON.stringify(dr19e));
@@ -1047,7 +1058,11 @@ setTimeout(function () {
     assert(paB3.name === "Science Lesson", "19 出口 dest 保留（玩家落 Science Lesson 课堂主循环，不跳回触发点）");
     global.State.passage = savedPassage19c;
     if (savedStory19c) { global.Story = savedStory19c; } else { delete global.Story; }
-    /* 19.14b 清理后重渲染：剧情页该行「直达触发」按钮恢复可用（title 不再是「正在播放剧情」） */
+    /* 19.14b 清理后重渲染：剧情页该行「直达触发」按钮恢复可用（title 不再是「正在播放剧情」）。
+       同样依赖原版 HTML 的场景元数据 → 缺失时 SKIP。 */
+    if (!HAS_GAME_HTML) {
+      console.log("SKIP: 19.14b 学校检查行按钮恢复断言（原版 HTML 不在本机）");
+    } else {
     clickTabSafe("scenes");
     const pane19d = document.querySelector('[data-pane="scenes"]');
     const schoolHead19 = pane19d ? Array.prototype.slice.call(pane19d.querySelectorAll(".mce-grp-t")).find(function (h) { return h.textContent.indexOf("学校") !== -1; }) : null;
@@ -1055,6 +1070,7 @@ setTimeout(function () {
     const row19d = pane19d ? Array.prototype.slice.call(pane19d.querySelectorAll(".mce-stage")).find(function (r) { return r.textContent.indexOf("School Inspection - Breast") !== -1; }) : null;
     const dtBtn19d = row19d ? Array.prototype.slice.call(row19d.querySelectorAll("button")).find(function (b) { return b.textContent === "直达触发"; }) : null;
     assert(!!dtBtn19d && !dtBtn19d.disabled && String(dtBtn19d.title).indexOf("正在播放剧情") === -1, "19 学校检查剧情播完 → 直达按钮恢复可用（title 非「正在播放剧情」），实际 title=" + (dtBtn19d ? dtBtn19d.title : "无"));
+    }
     delete V.scenes.SchoolInspectionBreast;
     delete V.replayScene;
     /* 19.15 迭代优化（v1.9.30.003）：出口段 Next 回触发点（exitDest）→ 必须清理。
@@ -1100,6 +1116,248 @@ setTimeout(function () {
     assert(!V.replayScene, "19 直达落到 Scene Viewer End → 清理重放");
     assert(paC.name === "Room", "19 Scene Viewer End 兜底回原位（exitpassage=Room），实际 " + paC.name);
     delete V.replayScene;
+    /* 19.17 穷举回归（v1.9.30.003 提分项）：地点 × 出口组合矩阵。
+       数据源 tests/data/direct_exit_matrix.json —— tools/gen_direct_exit_matrix.py 从原版 HTML
+       （110 场景 def / 16087 段 / 355 个链内含结束信号段）解析生成 2080 条 (场景, 当前段, Next 目标)
+       组合；期望值由生成器内独立规则判定器 R1-R6 给出，与 07f-pins.js 实现构成双实现交叉验证：
+         R1 出口段(dest∉链)→clear  R2 出口段(dest∈链)→keep  R3 无信号段(dest=触发点槽位)→clear
+         R4 无信号段(dest∈链)→keep  R5 无信号段(dest∉链)→push 并入白名单  R6 Scene Viewer→clear+回原位
+       覆盖 .002 只测「出口≠触发点」单路径的盲区：R3 全 110 场景 × 每段逐一跑到，实机才暴露的
+       残留洞（如 Danube Street 触发凯拉尔）在 CI 即被拦截。表缺失 → SKIP（不误报），表存在 → 必须全绿。 */
+    const mxPath19 = path.join(__dirname, "data", "direct_exit_matrix.json");
+    let mx19 = null, scenes19 = null, cases19 = null; /* 提升到块外：19.18/19.19/19.20 复用同一份解析结果，避免重复读 1MB JSON */
+    if (!fs.existsSync(mxPath19)) {
+      console.log("SKIP: 19.17 穷举矩阵表缺失（先跑 python tools/gen_direct_exit_matrix.py）");
+    } else {
+      mx19 = JSON.parse(fs.readFileSync(mxPath19, "utf8"));
+      scenes19 = mx19.scenes || {};
+      cases19 = mx19.cases || [];
+      /* 判据升级（v1.9.30.004）：段「含结束信号」= 源码字面 OR 段内直接调用「定义体内含 <<endevent>> 的
+         widget」（depth=1）。mock 必须提供 widget 定义载体，否则实现退化为字面判据 → 94 条 depth=1 出口段
+         会被误判 push（假红）。这里按矩阵 indirectVia 名单动态生成一份 widget 定义段落。 */
+      const wName19 = new Set();
+      cases19.forEach(function (c) { (c.indirectVia || []).forEach(function (n) { wName19.add(n); }); });
+      const wSrc19 = Array.from(wName19).map(function (n) { return '<<widget "' + n + '">><<endevent>><</widget>>'; }).join("\n");
+      global.Story = global.Story || {};
+      const wSaved19f = global.Story.passages;
+      global.Story.passages = [{ name: "__mce_widget_defs_19", text: wSrc19 }];
+      api.resetWidgetEndSignalCache();
+      const bad19 = [];
+      const stat19 = {};
+      V.daily = (typeof V.daily === "object" && V.daily) ? V.daily : {};
+      V.scenes = (typeof V.scenes === "object" && V.scenes) ? V.scenes : {};
+      const savedPassage19f = global.State.passage;
+      const savedStory19f = global.Story;
+      window.__mce_wiki = []; /* 清空 wikifier 调用记录：direct 路径不应触发 unfreeze（见下方断言） */
+      for (let ci19 = 0; ci19 < cases19.length; ci19++) {
+        const cs19 = cases19[ci19];
+        const sc19 = scenes19[cs19.scene];
+        if (!sc19) { bad19.push(cs19.id + " 场景表缺失"); continue; }
+        V.replayScene = { mbCE_direct: true, passages: sc19.passages.slice(), exitpassage: mx19.meta.exitSlot, startPassage: sc19.startPassage };
+        V.mbCE_replayOnce = { key: cs19.scene }; /* 实现前置条件：MOD 触发标记为真才进入判定（否则按原版手动重放直接 return） */
+        global.State.passage = cs19.curPassage;
+        global.Story = global.Story || {};
+        /* 三类段源码：字面含信号 / 仅段内调用含信号 widget（indirectVia）/ 无任何信号。
+           第三类之外必须让实现能真正"看到"间接信号，否则等于没测到新判据。 */
+        const via19 = (cs19.curHasEndIndirect && Array.isArray(cs19.indirectVia) && cs19.indirectVia.length)
+          ? ("<<" + cs19.indirectVia[0] + ">>") : "";
+        global.Story.get = function () {
+          return {
+            source: cs19.curHasEnd
+              ? "<<endevent>><<badEndTrackingEnd>><<link [[Next|X]]>><</link>>"
+              : (via19 + "<<link [[Next|X]]>><</link>>")
+          };
+        };
+        const pa19 = { name: cs19.dest };
+        api.onPassageOverride(pa19);
+        let ok19 = false, act19 = "";
+        const rp19 = V.replayScene;
+        /* 清理完整性：清 replayScene 之外还必须清掉触发标记，否则剧情页直达按钮仍被禁用（v1.9.30 实机症状） */
+        const pend19 = (V.mbCE_replayOnce !== undefined) || (V.mbCE_replayPending !== undefined);
+        const pendMsg19 = pend19 ? " 清理不完整（mbCE_replayOnce/mbCE_replayPending 残留 → 按钮仍禁用）" : "";
+        if (cs19.expect === "clear") {
+          ok19 = !rp19 && pa19.name === cs19.dest && !pend19;
+          act19 = (rp19 ? "replayScene 残留" : "") + (pa19.name !== cs19.dest ? " dest 被改写→" + pa19.name : "") + pendMsg19;
+        } else if (cs19.expect === "clear_return") {
+          ok19 = !rp19 && pa19.name === mx19.meta.exitSlot && !pend19;
+          act19 = (rp19 ? "replayScene 残留" : "") + (pa19.name !== mx19.meta.exitSlot ? " name=" + pa19.name : "") + pendMsg19;
+        } else if (cs19.expect === "keep") {
+          ok19 = !!rp19 && pa19.name === cs19.dest;
+          act19 = (!rp19 ? "replayScene 被清" : "") + (pa19.name !== cs19.dest ? " dest 被改写→" + pa19.name : "");
+        } else if (cs19.expect === "push") {
+          ok19 = !!rp19 && Array.isArray(rp19.passages) && rp19.passages.indexOf(cs19.dest) !== -1;
+          act19 = (!rp19 ? "replayScene 被清" : ((!rp19.passages || rp19.passages.indexOf(cs19.dest) === -1) ? " dest 未并入白名单" : ""));
+        } else {
+          act19 = "未知期望 " + cs19.expect;
+        }
+        stat19[cs19.rule] = stat19[cs19.rule] || { pass: 0, fail: 0 };
+        if (ok19) { stat19[cs19.rule].pass++; }
+        else { stat19[cs19.rule].fail++; bad19.push(cs19.id + " [expect=" + cs19.expect + "/" + cs19.rule + "] " + act19); }
+      }
+      global.State.passage = savedPassage19f;
+      if (savedStory19f) { global.Story = savedStory19f; } else { delete global.Story; }
+      /* 还原 widget 定义载体并重置判据缓存，避免污染后续 19.18/19.19/19.20 与其它块 */
+      if (global.Story) { global.Story.passages = wSaved19f; }
+      api.resetWidgetEndSignalCache();
+      delete V.replayScene;
+      /* direct 路径在进入时就不冻结数值（startAnchoredReplay 对 P.direct 跳过 freeze），因此清理阶段
+         也不得调用 unfreeze——误调会把冻结快照恢复回去，造成数值跳变（v1.9.30 实机修复点）。 */
+      const unfr19 = (window.__mce_wiki || []).filter(function (n) { return n === "unfreezePlayerStats"; }).length;
+      assert(unfr19 === 0, "19.17 direct 路径清理不触发 unfreeze（wikifier(unfreezePlayerStats) 实际调用 " + unfr19 + " 次，应为 0）");
+      const rules19 = ["R1", "R2", "R3", "R4", "R5", "R6"];
+      const summary19 = rules19.map(function (r) {
+        const s = stat19[r] || { pass: 0, fail: 0 };
+        return r + " " + s.pass + "/" + (s.pass + s.fail);
+      }).join(", ");
+      /* P2：规模不再硬编码 2080（判据升级后矩阵会变），改为「与 meta 自洽 + 不退化下限」双锁：
+         meta.caseCount 与 cases 实际长度必须相等（生成器自洽）；同时给下限，防止生成器退化成空表后全绿假象。 */
+      assert(cases19.length === mx19.meta.caseCount, "19.17 矩阵规模与 meta 自洽（meta " + mx19.meta.caseCount + " 条 / 实际 " + cases19.length + " 条）");
+      assert(cases19.length >= 2000, "19.17 矩阵规模未退化（下限 2000 条，实际 " + cases19.length + " 条；110 场景/16087 段解析）");
+      assert(bad19.length === 0, "19.17 地点×出口穷举全绿 [" + summary19 + "]，失配 " + bad19.length + (bad19.length ? "：\n      " + bad19.slice(0, 15).join("\n      ") : ""));
+      /* 强化锚点：.003 实机 bug 的两类组合必须各自被覆盖到（防生成器退化成空表后"全绿"假象） */
+      const coversR3Exit19 = cases19.some(function (c) { return c.rule === "R3" && c.scene === "KylarAbduction"; });
+      const coversR1Exit19 = cases19.some(function (c) { return c.rule === "R1" && c.scene === "SchoolInspectionBreast"; });
+      assert(coversR3Exit19 && coversR1Exit19, "19.17 关键组合在表内（凯拉尔 R3 返回触发点 / 学校检查 R1 出口段），实际 " + coversR3Exit19 + "/" + coversR1Exit19);
+    }
+    /* 19.18 矩阵新鲜度护栏：矩阵是原版 HTML 的快照产物，HTML 版本更新/场景段改名后不重生成 → 回归跑的是
+       过期数据（规模自洽也可能"全绿"假象）。meta.source 存在且可读时按字节数比对，不一致即失败并提示重生成。 */
+    const mxPath19b = path.join(__dirname, "data", "direct_exit_matrix.json");
+    if (fs.existsSync(mxPath19b)) {
+      const meta19b = (mx19 && mx19.meta) || JSON.parse(fs.readFileSync(mxPath19b, "utf8")).meta || {};
+      if (meta19b.source && fs.existsSync(meta19b.source)) {
+        const bytes19b = fs.statSync(meta19b.source).size;
+        /* 字节数比对挡不住「内容改但长度不变」的替换（等长改写/换字），SHA256 才能证明矩阵对应哪一版 HTML */
+        if (meta19b.srcHash) {
+          const sha19 = require("crypto").createHash("sha256").update(fs.readFileSync(meta19b.source)).digest("hex");
+          assert(sha19 === meta19b.srcHash, "19.18 矩阵与原版 HTML 同步（SHA256 " + meta19b.srcHash.slice(0, 12) + "… / 实际 " + sha19.slice(0, 12) + "…，" + bytes19b + " B；不一致请重跑 python tools/gen_direct_exit_matrix.py）");
+        } else {
+          assert(bytes19b === meta19b.htmlBytes, "19.18 矩阵与原版 HTML 同步（meta " + meta19b.htmlBytes + " B / 实际 " + bytes19b + " B，不一致请重跑 python tools/gen_direct_exit_matrix.py）");
+        }
+      } else {
+        console.log("SKIP: 19.18 原版 HTML 不在本机，跳过矩阵新鲜度比对（矩阵快照 " + (meta19b.htmlBytes || "?") + " B，source=" + (meta19b.source || "?") + "）");
+      }
+    }
+    /* 19.19 间接结束信号已纳入判定：段内字面无 <<endevent>>，但直接调用了内部含 <<endevent>> 的 widget
+       （endcombat / kylar_abduction_end / endconfession 等 365 个）。v1.9.30.004 起两端判据升级为
+       「字面 OR depth=1 间接」，这类段不再判 R5(push) → 不许出现 R5 残留（残留即判据回退，
+       replayScene 残留 = v1.9.30 实机 bug 的同构复发）。本块锁「数据一致性 + 零残留 + 判据同源」。 */
+    if (mx19 && cases19) {
+      const ind19 = cases19.filter(function (c) { return c.curHasEndIndirect; });
+      assert(ind19.length === mx19.meta.indirectEndCaseCount, "19.19 间接结束信号字段与 meta 一致（矩阵 " + ind19.length + " 条 / meta " + mx19.meta.indirectEndCaseCount + " 条）");
+      assert(mx19.meta.indirectEndPassages >= 151, "19.19 间接结束信号段数不低于基线 151（实际 " + mx19.meta.indirectEndPassages + "；下降说明 widget 解析能力退化）");
+      /* 判据升级的核心回归：间接结束信号段不得再落 R5（历史 94 条 depth=1 正是此偏差） */
+      const drift19 = ind19.filter(function (c) { return !c.destIsExitSlot && c.rule === "R5"; });
+      assert(drift19.length === 0, "19.19 间接结束信号段零 R5 残留（实际 " + drift19.length + " 条；≥1 说明判据回退到字面判定，历史 94 条偏差会复发）");
+      /* 判据同源护栏：有效结束信号段数必须 = 字面段数 + 间接段数（两侧都不许漏算/重复算） */
+      const effSum19 = mx19.meta.chainEndSignalPassages + mx19.meta.indirectEndPassages;
+      assert(mx19.meta.effEndSignalPassages === effSum19, "19.19 有效结束信号段数自洽（eff " + mx19.meta.effEndSignalPassages + " = 字面 " + mx19.meta.chainEndSignalPassages + " + 间接 " + mx19.meta.indirectEndPassages + "）");
+      /* 间接段必须有对外可见的调用证据（indirectVia 非空），否则字段语义被破坏 */
+      const badVia19 = ind19.filter(function (c) { return !(c.indirectVia && c.indirectVia.length); });
+      assert(badVia19.length === 0, "19.19 间接段均携带 indirectVia 证据（缺失 " + badVia19.length + " 条：" + badVia19.slice(0, 3).map(function (c) { return c.id; }).join(", ") + "）");
+    } else {
+      console.log("SKIP: 19.19 矩阵缺失，跳过间接结束信号审计");
+    }
+    /* 19.20 多跳序列回归：19.17 每条都是「干净初始白名单 + 单跳」，测不到运行时白名单累积后
+       被再次使用的情形（push 会改 rpExit，进而改变后续 inChain 判定与清理时机）。
+       用真实场景串一次「链内 keep → 链外分支 push → 回触发点 clear → 重复调用幂等」。 */
+    if (mx19 && scenes19) {
+      const scA19 = scenes19.MoorFlower;
+      if (!scA19) {
+        console.log("SKIP: 19.20 MoorFlower 场景不在矩阵内，跳过多跳序列");
+      } else {
+        const savedPassage19g = global.State.passage;
+        const savedStory19g = global.Story;
+        V.replayScene = { mbCE_direct: true, passages: scA19.passages.slice(), exitpassage: "Moor", startPassage: scA19.startPassage };
+        V.mbCE_replayOnce = { key: "MoorFlower" };
+        global.State.passage = scA19.startPassage;
+        global.Story = global.Story || {};
+        global.Story.get = function () { return { source: "<<link [[Next|X]]>><</link>>" }; }; /* 无结束信号的链内段 */
+        const len19a = V.replayScene.passages.length;
+        const pa19a = { name: "Moor Plant Sex" }; /* 该场景 Next 目标之一、但不在白名单链内 → 应 push 并入 */
+        api.onPassageOverride(pa19a);
+        const len19b = V.replayScene && Array.isArray(V.replayScene.passages) ? V.replayScene.passages.length : -1;
+        assert(len19b === len19a + 1 && V.replayScene.passages.indexOf("Moor Plant Sex") !== -1,
+          "19.20 序列1 链外分支段并入白名单（白名单 " + len19a + "→" + len19b + " 段）");
+        const pa19b = { name: "Moor" }; /* 回触发点（= exitpassage）→ 应整体清理 */
+        api.onPassageOverride(pa19b);
+        assert(!V.replayScene && V.mbCE_replayOnce === undefined && pa19b.name === "Moor",
+          "19.20 序列2 白名单累积后回触发点仍能清理（replayScene=" + !!V.replayScene + " / 标记=" + (V.mbCE_replayOnce !== undefined) + "）");
+        const pa19c = { name: "Moor" }; /* 清理后重复调用：不得崩、不得改写 dest */
+        let idem19 = true;
+        try { api.onPassageOverride(pa19c); idem19 = (pa19c.name === "Moor" && !V.replayScene); }
+        catch (e) { idem19 = false; console.error("19.20 幂等调用抛错: " + (e && e.message)); }
+        assert(idem19, "19.20 序列3 清理后重复调用幂等（不崩、不改写 dest）");
+        global.State.passage = savedPassage19g;
+        if (savedStory19g) { global.Story = savedStory19g; } else { delete global.Story; }
+        delete V.replayScene;
+        delete V.mbCE_replayOnce;
+      }
+    }
+    /* 19.21 判据只在有效代码上生效（注释剔除）：原文有 4 段的 <<endevent 仅存在于块注释、
+       1 个 widget（checkEventNPC）的信号仅在 <!-- --> 里。若把注释当信号，这些段会被提前判「剧情已结束」
+       → 直接清锁（还剩可选链接的剧情被中断）。本块用纯函数口锁住三种噪声形态 + widget 表同步口径。 */
+    try {
+      const sig19n = api.srcHasEndSignal;
+      assert(typeof sig19n === "function", "19.21 判据自检口已导出（srcHasEndSignal）");
+      if (typeof sig19n === "function") {
+        /* 形态 A：块注释里的信号不算 */
+        assert(sig19n("段正文 /* <<endevent>> */ 结束") === false,
+          "19.21 块注释里的 <<endevent>> 不算信号（实测 Pirate Deck 等 4 段即此形态）");
+        /* 形态 B：HTML 注释里的信号不算 */
+        assert(sig19n("段正文 <!-- <<endevent phaseless>> --> 结束") === false,
+          "19.21 HTML 注释里的 <<endevent>> 不算信号（实测 checkEventNPC 即此形态）");
+        /* 形态 C：真信号仍然命中（防止剔除过度把真信号也吃掉） */
+        assert(sig19n("段正文 <<endevent>> 结束") === true,
+          "19.21 有效代码里的 <<endevent>> 仍判为信号（剔除不得误伤）");
+        /* 形态 D：widget 定义体只有注释信号 → 调用它的段不算含信号（与生成器同一口径） */
+        if (global.Story && global.Story.passages) {
+          const saved19h = global.Story.passages;
+          const arr19h = Array.isArray(saved19h) ? saved19h.slice() : [];
+          arr19h.push({
+            name: "mbCE_test_comment_widget",
+            text: '<<widget "wOnlyComment">><!-- <<endevent --><</widget>>'
+          });
+          global.Story.passages = arr19h;
+          api.resetWidgetEndSignalCache();
+          assert(sig19n("<<wOnlyComment>>") === false,
+            "19.21 定义体仅含注释信号的 widget 不进入命中表（生成器 end_signal_widgets 同口径）");
+          global.Story.passages = saved19h;
+          api.resetWidgetEndSignalCache();
+        }
+      }
+    } catch (e19c) {
+      failures++;
+      console.error("FAIL: 19.21 注释剔除判据异常：" + (e19c && e19c.message ? e19c.message : e19c));
+    }
+    /* 19.22 玩家路径级闭环（19.21 只测纯函数）：完整走 onPassageOverride 的直达态出口判定，
+       锁「当前段只剩注释里的结束信号 → 不清锁」（实测 Pirate Deck 即此形态，清锁会让剧情剩链接时被打断），
+       并用对照组证明剔除没有把「真信号清锁」的能力一起削掉。 */
+    try {
+      const savedP22 = global.State.passage;
+      const savedS22 = global.Story;
+      global.Story = global.Story || {};
+      V.replayScene = { mbCE_direct: true, passages: ["T19p"], exitpassage: "T19home", startPassage: "T19p" };
+      V.mbCE_replayOnce = { key: "k19p" };
+      global.State.passage = "T19p";
+      global.Story.get = function () { return { source: "正文 /* <<endevent>> */ 尾声 <<link [[Door|T19out]]>><</link>>" }; };
+      const pa22 = { name: "T19out" };
+      api.onPassageOverride(pa22);
+      assert(!!V.replayScene && pa22.name === "T19out",
+        "19.22 仅注释信号的段不清锁、不跳回（replayScene=" + !!V.replayScene + " / dest=" + pa22.name + "）");
+      /* 对照组：同一路径下真信号必须正常清锁，且 dest 保留（剧情自然回主循环） */
+      global.Story.get = function () { return { source: "正文 <<endevent>> 尾声" }; };
+      const pa22b = { name: "T19out2" };
+      api.onPassageOverride(pa22b);
+      assert(!V.replayScene && pa22b.name === "T19out2",
+        "19.22 真信号段仍正常清锁并保留 dest（replayScene=" + !!V.replayScene + " / dest=" + pa22b.name + "）");
+      global.State.passage = savedP22;
+      if (savedS22) { global.Story = savedS22; } else { delete global.Story; }
+      delete V.replayScene;
+      delete V.mbCE_replayOnce;
+    } catch (e22) {
+      failures++;
+      console.error("FAIL: 19.22 注释信号玩家路径异常：" + (e22 && e22.message ? e22.message : e22));
+    }
     delete V.scenes;
     delete window.Engine;
     delete window.wikifier;

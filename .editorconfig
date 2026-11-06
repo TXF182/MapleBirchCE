@@ -1,0 +1,25 @@
+# 统一编辑器行为，减少无意义 diff 噪音。
+# ⚠ 行尾口径（2026-11-06 实测校准）：本仓库同一扩展名内部的行尾并不统一——
+#   · *.js：11 个纯 LF（04a-* 系列 / 07f-lock / 07f-pins / 07h-render）、23 个纯 CRLF，无混合文件
+#   · *.md：README / CHANGELOG 为 CRLF，AGENTS.md / 内部备忘为 LF
+#   · *.ps1：dev.ps1 / real_smoke.ps1 / tools/run_all.ps1 为 LF，其余多为 CRLF
+# 因此这里**不再按扩展名强制 end_of_line**：强制只会把既有文件整片转换，制造全文件 diff。
+# 规则：新增/编辑文件时沿用该文件当前行尾；新建文件沿用同目录多数派。禁止整仓改行尾。
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+
+[*.py]
+end_of_line = lf
+indent_size = 4
+
+# 门禁脚本必须是 LF：sh 读到 CRLF 会报 `\r: command not found`，整条 pre-commit 验证链会被行尾废掉
+[githooks/*]
+end_of_line = lf
+
+[tools/run_all.ps1]
+end_of_line = lf

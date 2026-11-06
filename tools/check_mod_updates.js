@@ -8,7 +8,7 @@
  *   再兜底裸 .zip（Cattery 等仅发 .zip 资产的模组，排除 audio/fem/mysterious 子包）；
  *   替换动作为：删除 game 内匹配旧包 → 放入新包（文件名 = release 资产名）。
  * 说明：检测只改 --apply 模式才落盘；非 --apply 模式不改任何代码、不下载不替换。
- * 10 渠道：9 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery）+ 框架本体 maplebirch-framework。
+ * 12 渠道：11 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More-Farm-Upgrade/DolMod-）+ 框架本体 maplebirch-framework。
  * 框架渠道声明版本来自 declOverride（实测兼容版本），升版前须跑 check_framework_api.js 核对。
  */
 const https = require("https");

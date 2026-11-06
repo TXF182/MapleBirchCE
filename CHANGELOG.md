@@ -2,6 +2,115 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v1.9.30.005（2026-11-06 · 判据升级：94 条语义偏差归零 + 工程质量收口）
+
+**触发**：上一轮审计查出「`endevent` 是运行时 widget、两端判据都只看源码字面」这一同源盲区，其中 94 条 depth=1 case 被错判 R5(push) 而语义应为 clear。本轮把判据升级为「**段完成时能观测到 endevent 的运行时而不仅是段源码字面**」，并连带收口 P0 门禁、P1 工程文件、P2 四处硬编码。版本双源 1.9.30.003 → **1.9.30.005**（004 为判据升级、005 叠加注释剔除与 CI）。
+
+### 一、判据升级（模组本体改动，本轮唯一影响玩家行为的部分）
+
+- 取法取证：`endevent` 是 twee widget（`<<widget "endevent">>`），不在 `Story.widgets`、无对应 Macro；原版 HTML 里 twee 以实体转义存放，必须 `unesc()` 后才能解析。运行时唯一可靠入口是复用 `07e-scenes.js::listAllPassages()`（`Story.passages` → `lookupWith` → DOM `tw-passagedata` 三级兜底）。
+- `javascript/src/07f-pins.js`：新增 `mbCEWidgetEndTable()`（扫全段落、正则取 `<<widget "name">>…<</widget>>`、排除 `endevent` 自身、异常退化空表）+ `mbCESrcHasEndSignal(src)`（先字面后「段内直接调用的 widget 定义体内含结束信号」，**只做 1 层展开**）；出口判据行由 `curSrc.indexOf("<<endevent")` 改为 `mbCESrcHasEndSignal(curSrc)`。惰性缓存，游戏内段落固定。
+- `javascript/src/09-exports.js`：导出 `resetWidgetEndSignalCache()`（测试注入 mock 段落后必须显式重置，防缓存串味）。
+- `tools/gen_direct_exit_matrix.py`：`expect()` 判据同步升级；case 增 `curHasEndEff`（有效信号）；meta 增 `effEndSignalPassages`；`meta.txt` 判据说明改写为双层判据 + 两侧同源约束。
+- **矩阵口径变更（旧断言作废）**：2,080 → **2,158 条**；规则分布 R1 536→**781** · R2 126→**191** · R3 554→**481** · R4 618→**553** · R5 141→**47** · R6 105→不变。逐 id 核对：新增 78 / 消失 0 / 共有 2,076，迁移 **R5→R1 94**（即那 94 条）、R3→R1 73、R4→R2 65。守恒闭合 2,076+78=2,158。
+- **反向核对**：新 R5 共 47 条，其中「含结束信号（字面或间接）」= **0**（必须为 0，已达成）。
+- `tests/smoke_dom.js`：19.17 mock 按矩阵 `indirectVia` 动态生成 widget 定义段落（否则新判据退化字面 → 94 条假红）；每 case 三态源码（字面 / `<<via>>`+link / 纯 link）；`cases.length === 2080` 恒等断言改为「== meta.caseCount 自洽 + >= 2000 防退化下限」；19.19 由「偏差可见 ≥90」反转为「**非槽位 R5 残留 === 0**」+ 四条同源自洽断言。
+
+### 二、工程收口（P0→P2）
+
+- **P0-a 门禁 fail-closed**：`githooks/pre-commit` 原来只探测 `powershell.exe`——本机根本没这个 exe（只有 `pwsh`），导致历次提交都打印「跳过验证」并 `exit 0`，整条验证链**从未真正跑过**。改为 `powershell.exe` → `pwsh` → 两者皆无则打印说明并 `exit 1`（可用 `--no-verify` 显式绕过并自担风险）。实测无 PowerShell 分支 exit=1。
+- **P0-b 三流程文件入 git**：`AGENTS.md` / `dev.ps1` / `real_smoke.ps1` 入库；顺带最小可移植化（消费端路径 `$env:MCE_DOL_PROJECT` 可覆盖、默认值不变），并修正 AGENTS.md 两处过时/错误陈述（「git 命令不可用」→「git 不在 PATH，用绝对路径调用」）。
+- **P1**：新增 `LICENSE`（MIT）、`CONTRIBUTING.md`、`.github/ISSUE_TEMPLATE/bug_report.md` + `config.yml`；新增 `package.json` + `eslint.config.js`，**四规则** `no-dupe-keys` / `no-unreachable` / `no-func-assign` / `eqeqeq`（`== null` 放行，实测 11 处松散相等全属该惯用法），并入 `run_all.ps1` 第 3 步（全链 6 步 → **7 步**）。
+- **P2**：`conflicts` 去掉恒为 0 的 `EXIT_SLOT` 哨兵，改为按 case id 检测「同一 id 期望互相矛盾」；删除未使用的 `companionDest` 字段；生成器 `DEFAULT_HTML` 去机器绝对路径（环境变量 `MCE_DOL_HTML` → 相对路径 → 原路径三级回落）；19.17 规模硬编码改自洽口径。
+- `.editorconfig` 按实测重新校准：不再按扩展名强制行尾（JS 11 个 LF / 23 个 CRLF，md 与 ps1 同样不统一），只钉死必须为 LF 的两类（`githooks/*`、`tools/run_all.ps1`）——防止 CRLF 让 sh 门禁报 `\r: command not found`。
+
+### 三、验证
+
+- 变异测试（证明回归能拦住判据回退）：把 widget 表改成空表 → 19.17 报 **94** 条失配（R1 687/781），与历史偏差数完全吻合；还原后全绿。
+- `19.17` 逐 rule 全中（R1 781/781 · R2 191/191 · R3 481/481 · R4 553/553 · R5 47/47 · R6 105/105），失配 0；`19.18` SHA256 与 HTML 一致（64,576,232 B）；`19.20` 多跳序列三序列通过。
+- ESLint 基线 exit 0，四个探针全部按预期命中/放行。
+
+### 四、未做（留待下一轮）
+
+- ~~108 条 depth≥2 候选未定案~~ → 已定案，见第五节。
+- ~~CI（`.github/workflows`）未接~~ → 已接，见第六节。
+- ESLint 只查拼接产物（分片不完整，无法逐片 lint），`no-undef` 类跨文件规则不启用。
+- ~~版本号未升（仍 1.9.30.003）~~ → 已升 1.9.30.005，双源与源码注释口径统一。
+
+### 五、二次校准：注释信号剔除 + depth≥2 取证定案
+
+**触发**：做 depth≥2 取证时发现 `checkEventNPC` 被当成「内含结束信号」——其信号其实是 `<!-- <<endevent phaseless>> -->` 注释。顺着查下去，passage 侧也有同类形态。
+
+- **注释剔除（判据收口）**：`07f-pins.js` 新增 `mbCEStripComments()`，`mbCEWidgetEndTable()` 与 `mbCESrcHasEndSignal()` 都先剔除 `<!-- -->` 与 `/* */`；`gen_direct_exit_matrix.py` 同步新增 `strip_comments()`，接入 `end_signal_widgets()` / `indirect_end_via()` / `cur_has_end` 三处。两端口径逐条一致。
+- **实测影响面（HTML 64,576,232 B / 16,087 段 / 5,094 widget）**：仅因块注释而命中的 **4 段** —— `Bus Station Livestock`、`Elk Compound Station Badge`（整行 `<<link …>><<endevent>><</link>>` 被注释掉）、`Mines Intro`、`Pirate Deck`；widget 侧 366 → **365**，唯一差异就是 `checkEventNPC`。这 4 段在白名单场景内 case 数为 0，`Pirate Deck` 仅作为 dest 出现 1 次 → **矩阵与全部计数不变**（2,158 / R1 781 · R2 191 · R3 481 · R4 553 · R5 47 · R6 105 / 字面 355 / 间接 151·310 case / eff 506），属零噪声的正确性修复。
+- **玩家可见差异（修前）**：从触发点走进 `Pirate Deck` 等段时，源码里仍有被注释掉的 `<<endevent>>` → 判据认为「剧情已结束」→ 立即清锁，而实际页面还可能剩着可选链接，剧情被提前中断。
+- **depth≥2 定案（结论：不做）**：严格 2 层展开候选 **14 条 / 命中 widget 152 个**，分三类——① `loadNPC → checkEventNPC`（3 条）是伪信号（信号在注释里）；② `nightmareEnd → endcombat`（5 条）与 `schismEnd → endcombat`（2 条）的信号落在 `<<if !$replayScene>>` 分支内，而剧情直达态 `$replayScene` 恰好已置位 → 该分支根本不执行；③ 只有 `pinchEnd → endcombat`（4 条）是无条件末尾调用。同时 depth2 名单里 `npc` / `pregnancyPassout` / `adultShopClear` 这类通用工具 widget 占多数，无条件 2 层展开会把「段里调了 `<<npc>>`」一律判成结束。故维持 depth=1，理由写入代码注释与 `meta.txt`。
+- **测试**：`09-exports.js` 导出 `srcHasEndSignal(src)` 纯函数自检口；`smoke_dom.js` 新增 **19.21**（块注释 / HTML 注释 / 真信号 / 仅注释信号的 widget 四形态）+ **19.22**（玩家路径级：完整走 `onPassageOverride` 的直达态出口判定，断言「仅注释信号的段不清锁」与「真信号段仍正常清锁并保留 dest」）。变异验证：把 `mbCEStripComments` 临时改成恒等（即回到旧行为）→ 19.21 三条 + 19.22 首条同时转红，还原后全绿。
+
+### 六、CI 接入 + 干净克隆可跑（本轮工程收口）
+
+**前提障碍（逐条探明，非猜测）**：
+
+- 仓库根原本**没有 jsdom**：`require('jsdom')` 从根目录 `MODULE_NOT_FOUND`，历史唯一来源是 `tests/node_modules/jsdom`（30.1.3，被 `.gitignore` 的 `node_modules/` 覆盖、0 个 tracked 文件）。→ 本轮 `npm install --save-dev jsdom@^30.1.3` 正式进 `devDependencies`，`package-lock.json` 同步；`npm ci` 实测 `added 112 packages in 17s`，exit 0（lock 与 manifest 一致）。
+- 两处硬编码本机绝对路径：`tests/smoke_dom.js` 的 `GAME_HTML`、`tests/integration_gender.js` 的 `DOL_HTML`。→ 统一改为 `process.env.MCE_DOL_HTML || <原路径>`；smoke 文件头新增 `GAME_HTML_PATH` / `HAS_GAME_HTML` 两个常量，第 15 段改用 `const GAME_HTML = GAME_HTML_PATH;`。
+- **干净克隆下的真实红点**：原版 HTML 缺失时，smoke 的 19.5–19.8（剧情页 UI 四条）与 19.14b（学校检查行按钮恢复）必红——剧情页场景行来自原版 HTML 的 `<<widget "scenes">>` 场景元数据，缺 HTML 时 `V.scenes` 只有手动 mock 的 `KylarAbduction`，行不渲染 → `dtBtn19.click()` 抛 `Cannot read properties of null`。→ 两处各包一层 `if (!HAS_GAME_HTML) SKIP else {…}`；api 层（19.1–19.4、19.9–19.16、19.17–19.22、矩阵与判据）无 HTML 依赖，照常强制。
+
+**workflow**（`.github/workflows/ci.yml`，新建）：`push(main)` / `pull_request` / `workflow_dispatch`；`ubuntu-latest` + `actions/setup-node@v4`（node 20，`cache: npm`）；`npm ci` → `[1/6] node tools/build_js.js` → `[2/6] node --check javascript/maplebirchce.js` → `[3/6] npx eslint javascript/maplebirchce.js` → `[4/6] node tests/smoke_dom.js` → `[5/6] node tests/test_mce.js` → `[6/6] node tests/functional_e2e.js && node tests/integration_gender.js`。与本地 `tools/run_all.ps1` 同口径，去掉依赖本机资源的部分（moli 实机冒烟、打包 zip、codegraph、原版 64MB HTML）。
+
+**CI 等价实测**（`MCE_DOL_HTML=Z:\no-such\Degrees of Lewdity.html`，即模拟干净克隆）：
+
+| 步骤 | 结果 |
+| --- | --- |
+| `npm ci` | `added 112 packages`，exit 0 |
+| `[1/6]` build | 34 段 / 622,538 B / SHA256 `ebe9e5f8…c4188` |
+| `[2/6]` `node --check` | exit 0 |
+| `[3/6]` ESLint（四规则） | exit 0 |
+| `[4/6]` smoke | `SMOKE ALL PASSED`（2 条 SKIP：19.5-19.8 / 19.14b） |
+| `[5/6]` 回归 | `ALL TESTS PASSED` |
+| `[6/6]` E2E + 性别集成 | `FUNCTIONAL E2E ALL PASSED` / 性别集成 `SKIP`（原版 HTML 不存在） |
+
+**本机带真实 HTML 全链（7 步）**：`ALL CHECKS PASSED`；19.17 逐 rule 全中（R1 781 · R2 191 · R3 481 · R4 553 · R5 47 · R6 105，失配 0）；19.18 SHA256 `9ecc02d9…` / 64,576,232 B 一致；19.19 间接段 151 / case 310 / R5 残留 0；19.20 三序列；19.21 五条 + 19.22 两条全 PASS；性别集成 `passed=24 failed=0`。
+
+**打包**：251,228 B / SHA256 `80683C4B4C8FFD72E3C3A2D388F5155CACCAADE46DDDCD7F8B4B60032B1916F2`，verifier 4/4，4 条 zip 条目全正斜杠，已覆盖 `DoL-Project\game\MapleBirchCE.mod.zip`（双端 bytes/SHA 一致）。
+
+## v1.9.30.004（2026-11-06 · 测试方法论升级：间接结束信号审计 + 判据可追溯 + 多跳序列）
+
+**触发**：用户要求批判复盘「地点×出口穷举回归」这套新增测试方式，并从代码质量/文档/交付/生态等角度找提分点。本轮只改测试与工具，**模组本体（`javascript/src/*`）零改动、未升版本、未发布**（当时编号留空，1.9.30.005 回填为 004）。
+
+### 一、审计结论（实证，非推断）
+
+- **判据同源共同盲区**：Python 生成器与 `07f-pins.js` 都只判「段源码字面含 `<<endevent` / `<<badEndTrackingEnd`」，而 SugarCube 的 widget 是运行时展开 → 段内写 `<<endcombat>>` 等 widget（内部才含 `<<endevent>>`）时两端同时看不见。双实现能发现「实现分歧」，但对「同一个认知错误」结构性无效。
+- **量化**：全 HTML 5,094 个 widget 定义，其中 365 个定义体内部含结束信号；白名单段中「无字面信号但直接调用此类 widget」共 **151 段 / 232 条 case**，其中 **94 条 depth=1 当前被判 R5(push)**（语义应为 clear，事件已结束）——与 v1.9.30.003 修的「replayScene 残留 → 按钮永久禁用」同构。
+- **已排除误报**：白名单段内 `[[label->dest]]`/`[[dest]]`/`<<link>>`/`<<goto>>` 全为 0（零漏边）；含裸 `endevent` 无 `<<endevent` 的判据分歧 0 段；注释块内 endevent 0 次。
+- **其它缺口**：`conflicts` 计数条件含哨兵 `EXIT_SLOT`（恒为 0、无检出价值）；19.18 原只比字节数（等长替换漏检）；矩阵约 1MB 入 git 无体积策略；无 CI、无 lint、无 LICENSE/CONTRIBUTING。
+
+### 二、本轮落地（全部零期望值变更）
+
+- `tools/gen_direct_exit_matrix.py`：
+  - 新增 `parse_widgets()` / `end_signal_widgets()` / `indirect_end_via()`；`meta` 增 `srcHash`（原版 HTML SHA256）、`indirectEndPassages`、`indirectEndCaseCount`、`endSignalWidgetCount`、`endSignalWidgets`、`indirectAudit[]`；case 增 `curHasEndIndirect` / `indirectVia`（**仅审计标注，不参与 `expect()` 判定**）。
+  - `meta.txt` 增「判据说明」+ 间接结束信号审计段（前 20 条 + 指向 JSON 完整清单）。
+  - 结束信号判据统一为 `<<endevent`（与 JS 对齐），实测**规则分布零变化**：2,080 条 / R1 536 · R2 126 · R3 554 · R4 618 · R5 141 · R6 105。
+  - 写出改为显式 `newline="\r\n"`：原 `Path.write_text` 换行随平台变（Windows `\r\n`、Linux `\n`）→ 同矩阵跨平台字节不一致、git 整文件 diff。
+- `tests/smoke_dom.js`：
+  - 19.17：补「清理完整性」判据（`mbCE_replayOnce`/`mbCE_replayPending` 必须清空，否则按钮仍禁用）+ 新增「direct 路径清理不触发 `unfreezePlayerStats`」断言（避免误恢复冻结快照致数值跳变）。
+  - 19.18：字节数比对 → **SHA256 比对**（挡等长替换），无 `srcHash` 时回退旧口径。
+  - 19.19（新增）：间接结束信号审计一致性（矩阵条数 == meta）+ 段数不低于基线 151 + 已知语义偏差（≥90 条判 R5）可见；**只锁数据一致性，不改判语义**。
+  - 19.20（新增）：多跳序列回归（19.17 每条都是干净白名单+单跳，测不到运行时累积）——真实场景 `MoorFlower` 走「链外分支 push 入白名单 → 回触发点 clear → 重复调用幂等」。
+- `.editorconfig`（新增）：按实测现状钉死行尾（JS/MD/JSON/PS1 = CRLF，Python 与 `run_all.ps1` = LF），防无意义整仓 diff。
+- README：修正 `test_mce.js` 断言数（旧「570+」→ 实测 **1,204**）、补 19.19/19.20 与 `srcHash` 说明。
+
+### 三、验证
+
+`node --check` 通过；单跑 `tests/smoke_dom.js` 全绿，新增 6 条断言均 PASS（19.17 unfreeze 0 次 / 19.18 SHA `9ecc02d9…` / 19.19 232 条·151 段·94 条偏差 / 19.20 三序列）；全链结果见交付清单。
+
+### 四、未做（明确留待下一轮）
+
+- 94 条 depth=1 语义修正（需把判据从「段源码字面」升为「段完成时观测 endevent」的运行时信号，会改变矩阵规模/规则分布与 19.17 恒定断言）。
+- 108 条 depth≥2 候选人工定案（含 `loadNPC`/`checkEventNPC`/`generateNPC`/`forestRescue` 等可能非结束语义）。
+- CI（`.github/workflows`）、ESLint（存量 `var` 1,412 处需分批迁移）、LICENSE / CONTRIBUTING。
+
+> **1.9.30.005 回填（本条已全部闭环）**：94 条 depth=1 偏差已归零（判据改「段内直接调用定义体内含结束信号的 widget」，实测通过）；108 条 depth≥2 已取证定案**不做**（14 条候选中 3 条伪信号、7 条落在 `<<if $replayScene>>` 不执行分支、4 条已被其他路径覆盖，理由见第五节）；CI 见第六节；LICENSE / CONTRIBUTING / ESLint 已随 P1 入库。
+
 ## v1.9.30.003（2026-11-06 · 迭代优化：出口段/返回触发点统一清理，直达按钮防残留全路径闭环）
 
 **迭代方向**：v1.9.30.002 修复后按用户要求迭代优化（不跑浏览器路线）。全量实证后堵住 v1.9.30.002 遗留的「出口段/分支段 Next 回触发点（exitDest）→ replayScene 残留 → 直达按钮永久禁用」同类洞。

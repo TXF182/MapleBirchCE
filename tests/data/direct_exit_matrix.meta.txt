@@ -1,0 +1,41 @@
+# direct_exit_matrix 生成摘要（证据来源留档）
+
+- source: C:\Users\27352\Doubao\chats\2026-10-19\new-chat\DoL-Project\game\Degrees of Lewdity.html
+- htmlBytes: 64576232
+- srcHash: 9ecc02d91e481054bed564a4fe1975dd5c2e38edc051e9fac350ae5bebe282a5
+- generatedAt: 2026-11-06T09:57:46+08:00
+- sceneDefs: 110
+- twPassages: 16087
+- chainEndSignalPassages: 355
+- effEndSignalPassages: 506
+- caseCount: 2158
+- ruleCounts: {"R1": 781, "R2": 191, "R3": 481, "R4": 553, "R5": 47, "R6": 105}
+- conflicts(同 id 期望矛盾): 0
+- scenesWithMissingSource: 1
+- 判据说明（v1.9.30.004）：结束信号 = 段源码（**已剔除 <!-- --> 与 /* */ 注释**）字面含 <<endevent / <<badEndTrackingEnd>> OR 段内直接调用「定义体内含信号」的 widget（depth=1，运行时展开才可见，如 <<endcombat>>）。双实现（本生成器 / 07f-pins.js::mbCESrcHasEndSignal）判据必须逐条一致；规则组合与优先级仍各自独立实现（交叉验证的价值仅覆盖后者）
+- 注释排除（v1.9.30.004 二次校准）：原文 4 段（Bus Station Livestock / Elk Compound Station Badge / Mines Intro / Pirate Deck）的 <<endevent 只存在于 /* */ 注释内，1 个 widget（checkEventNPC）的信号只在 <!-- --> 注释内；不剔除会把「被注释掉的结束调用」当真信号 → 提前清锁。剔除后本矩阵 case / rule / 各计数全部不变（这 4 段不在白名单场景内）。
+- depth≥2 定案（v1.9.30.004 取证，结论：**不做**）：严格 2 层展开候选 14 条 / 命中 widget 152 个，其中 3 条为 loadNPC→checkEventNPC 伪信号（信号在注释里）；nightmareEnd→endcombat（5 条）与 schismEnd→endcombat（2 条）的信号位于 <<if !$replayScene>> 分支内（剧情直达态 $replayScene 已置位 → 该分支根本不执行）；只有 pinchEnd→endcombat（4 条）是无条件末尾调用。而 depth2 名单里 npc / pregnancyPassout / adultShopClear 等通用工具 widget 占多数，无条件 2 层展开会把「段内调了 <<npc>>」一律判结束 → 维持 depth=1。
+- 间接结束信号（已纳入判定，depth=1）：151 段 / 310 条 case；内部含结束信号的 widget 364 个（如 CafeExhibitionismLegsPartNormalTerminate, CaveHumanPregnancyDiscovered, SamOptions, WhitneyPantyCheck, WhitneyParasite, adultShopBackgroundEvent）
+  以下条目为间接结束信号的判定结果（不再按 R5 push 放行）：
+    [R2] AdultShopOpening | Adult Shop Opening -> Adult Shop Opening 2  via npc
+    [R2] AdultShopOpening | Adult Shop Opening Corrupt 2 -> Adult Shop Opening Corrupt Niki  via npc
+    [R2] AlexFarmIntro | Farm Intro -> Farm Intro 2  via npc
+    [R1] BlackWolfIntro | Forest Wolf Molestation Finish -> Forest  via endcombat,forestRescue
+    [R2] BlackWolfIntro | Forest Wolf Molestation Resist -> Forest Wolf Molestation Resist Finish  via npc
+    [R2] BlackWolfIntro | Forest Wolf Molestation Resist -> Forest Wolf Molestation Resist  via npc
+    [R1] BlackWolfIntro | Forest Wolf Molestation Resist Finish -> Forest  via endcombat,forestRescue
+    [R1] BlackWolfIntro | Forest Wolf Molestation Resist Finish -> Wolf Cave Returned  via endcombat,forestRescue
+    [R2] BlackWolfIntro | Forest Wolf Molestation Resist Finish -> Forest Wolf Cave Intro  via endcombat,forestRescue
+    [R2] ChefOpeningPhotograph | Photography Chef -> Photography Chef 2  via npc
+    [R1] EdenIntro | Forest Hunter Molestation Finish -> Forest  via endcombat,forestRescue
+    [R2] EdenIntro | Forest Hunter Intro -> Forest Hunter Punishment  via npc
+    [R1] EdenIntro | Forest Hunter Resist Molestation Finish -> Forest  via endcombat,forestRescue
+    [R2] EdenIntro | Forest Hunter Resist Molestation Finish -> Forest Hunter Intro  via endcombat,forestRescue
+    [R1] EdenIntro | Forest Hunter Punishment Finish -> Forest Cabin  via endcombat
+    [R2] EdenValentinesBath | Eden Valentines Sex Finish -> Eden Valentines Book 3  via endcombat,npc
+    [R1] FreeTheBlackDog | Pound Free Fight Finish -> Starfish Street  via endcombat
+    [R2] FreeTheBlackDog | Pound Free Fight Finish -> Pound Free Submit  via endcombat
+    [R2] FreeTheBlackDog | Pound Free Rape Finish -> Pound Free 7  via endcombat
+    [R2] HalloweenKylar | Kylar Halloween Mansion Sex Finish -> Kylar Halloween Exit  via endcombat,npc
+    …（共 159 条，完整清单见 JSON meta.indirectAudit）
+  - placeHolder missing 2: , 

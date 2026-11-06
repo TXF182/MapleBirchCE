@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v1.9.29**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v1.9.30.005**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -25,7 +25,7 @@
 - **原版变量一律拒绝**（提示走五大面板）；只暴露模组自建键
 - 每个写入**留痕可回退**；面板每项附「说明」折叠（写入路径 / 类型 / 参考范围 / 手写判定与副作用）
 - 模组升级 → 每日自动检测（21:15 定时任务）+ `--apply` 自动用官方最新包替换 `game` 旧包；新版先重跑「键核验」再同步适配器声明版本
-- 全部改动经 **tdd 红绿循环 + 全链验证**（build→syntax→smoke→regression→E2E→性别集成）全绿才打包交付
+- 全部改动经 **tdd 红绿循环 + 全链验证**（build→syntax→eslint→smoke→regression→E2E→性别集成）全绿才打包交付
 - **社区礼节**：发布说明公开致谢（列出适配模组 + 版本）；作者明示禁止适配则尊重撤除；发布文档注明「修改存档风险自负、与模组作者无关」
 
 ## 安装（快速开始）
@@ -619,21 +619,28 @@ MapleBirchCE/（git 源码真相源）
 │   ├── resolve_missing.js         # 缺失条目自动定案：对 audit 报告的每项自动判 KEEP/REVIEW/REMOVE（见下）
 │   ├── check_framework_api.js     # 框架兼容性核对：框架新版 inject_early.js 中 CE 依赖的 API 是否保留
 │   ├── check_mod_updates.js       # 模组更新检测+自动替换：GitHub Releases 最新版 vs 适配器声明；--apply 自动下载官方包替换 game 旧包（每日定时任务调用）
+│   ├── gen_direct_exit_matrix.py  # 剧情直达穷举矩阵：解析原版 HTML（110 场景/16000+ 段）→ 独立 R1-R6 规则判定 → tests/data/direct_exit_matrix.json（原版 HTML 更新后必须重跑，19.18 会校验 SHA256 同步）
 │   ├── run_all.ps1                # 一键验证链（见下）
 │   └── install-hooks.ps1          # 安装 pre-commit 钩子（core.hooksPath → githooks/）
 ├── githooks/
 │   └── pre-commit                 # 提交前自动跑一键验证链，失败阻止提交
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # 远端 CI（push main / PR / 手动）：npm ci + 同一键链的 6 步（无 moli/打包/codegraph/原版 HTML）
 ├── tests/
-│   ├── smoke_dom.js               # jsdom 浏览器级 DOM 冒烟（真实 DOM 语义）
-│   ├── test_mce.js                # 全量回归（570+ 断言，读 git 源构建产物，可用 MCE_PKG_JS 覆盖）
-│   └── package.json               # jsdom 依赖
+│   ├── smoke_dom.js               # jsdom 浏览器级 DOM 冒烟（19.17 地点×出口穷举 / 19.18 SHA256 同步 / 19.19 间接结束信号审计 / 19.20 多跳序列 / 19.21 注释信号剔除 / 19.22 直达态出口玩家路径）
+│   ├── data/
+│   │   ├── direct_exit_matrix.json # 地点×出口组合矩阵：2158 条 (场景,当前段,Next目标) + 110 场景白名单（gen_direct_exit_matrix.py 产物，勿手改）
+│   │   └── direct_exit_matrix.meta.txt # 生成摘要（路径/bytes/srcHash/规模/规则分布/冲突数/间接结束信号审计）
+│   ├── test_mce.js                # 全量回归（1,204 断言，读 git 源构建产物，可用 MCE_PKG_JS 覆盖）
+│   └── package.json               # 历史遗留的测试依赖声明（jsdom 已提升到根 package.json devDependencies，CI 走根 npm ci）
 └── README.md
 ```
 
 **一键验证**（日常改完代码只需一条命令）：
 
 ```powershell
-.\tools\run_all.ps1            # build → 语法 → DOM 冒烟 → 全量回归
+.\tools\run_all.ps1            # build → 语法 → ESLint → DOM 冒烟 → 全量回归 → E2E → 性别集成（7 步）
 .\tools\run_all.ps1 -Pkg <打包源目录>   # 额外把构建产物同步到打包源
 ```
 
@@ -643,9 +650,15 @@ MapleBirchCE/（git 源码真相源）
 .\tools\install-hooks.ps1      # 设置 core.hooksPath → githooks/（本地配置，新 clone 后需重跑一次）
 ```
 
-`githooks/pre-commit` 随仓库提交；紧急绕过可用 `git commit --no-verify`（不推荐）。非 Windows 环境无 `powershell.exe` 时钩子自动跳过，不阻塞提交。
+`githooks/pre-commit` 随仓库提交，且为 **fail-closed**：优先 `powershell.exe`，其次 `pwsh`，两者都没有则**阻止提交**（不再静默跳过整条验证链）。紧急绕过可用 `git commit --no-verify`（不推荐，自担风险）。
 
-**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（build → 语法 → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
+**远端 CI**：`.github/workflows/ci.yml` 在 push 到 `main` / PR / 手动触发时跑与 `run_all.ps1` 同口径的 6 步（`npm ci` → build → `node --check` → ESLint → DOM 冒烟 → 全量回归 → E2E + 性别集成），跑在 `ubuntu-latest` + node 20 上。原版 64MB HTML 不入库，因此依赖它的用例在 CI 上**按设计 SKIP**：smoke 的 19.5-19.8（剧情页 UI）与 19.14b、以及性别集成测试；矩阵（`tests/data/direct_exit_matrix.json`）随仓库走，19.17/19.19/19.20/19.21/19.22 等判据断言在 CI 上照常强制。
+
+**原版 HTML 路径可覆盖**：`tests/smoke_dom.js` 与 `tests/integration_gender.js` 都按 `MCE_DOL_HTML` 环境变量取原版游戏 HTML，未设时回退到本机默认路径；文件不存在则相关段落 SKIP（不误报）。CI / 他人机器无需修改源码即可指定，例：`$env:MCE_DOL_HTML="D:\games\Degrees of Lewdity.html"; node tests/smoke_dom.js`。
+
+**代码检查（ESLint 四规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是 34 段不完整片段，单文件解析必然失败）。四条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
+
+**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（build → 语法 → ESLint → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
 
 **第三方模组升级核对（audit_adapters.js）**：模组发布新版后，运行
 `node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `smartphone` / `cattery` / `more-farm-upgrade`。
