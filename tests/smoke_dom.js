@@ -7,10 +7,30 @@
  */
 const { JSDOM } = require("jsdom");
 const fs = require("fs"), path = require("path");
-/* 原版游戏 HTML（64MB，不入库）：路径可用 MCE_DOL_HTML 覆盖；缺失时依赖它的用例显式 SKIP，
-   其余矩阵/判据/direct 链路断言照常强制（否则干净克隆或 CI 上整份冒烟都跑不起来）。 */
+/* 原版游戏 HTML（64MB，不入库）：路径可用 MCE_DOL_HTML 覆盖。
+   缺原版时不再 SKIP：改用 tests/fixtures/scenes-widget.twee（由 tools/gen_test_fixture.js
+   从原版抽出的 $scenes 元数据，68 KB），CI / 干净克隆跑同一批断言。 */
 const GAME_HTML_PATH = process.env.MCE_DOL_HTML || "C:/Users/27352/Doubao/chats/2026-10-19/new-chat/DoL-Project/game/Degrees of Lewdity.html";
 const HAS_GAME_HTML = fs.existsSync(GAME_HTML_PATH);
+const SCENES_FIXTURE = path.join(__dirname, "fixtures", "scenes-widget.twee");
+
+/* 取 scenes widget 文本：优先真机原版 HTML，缺失回退入库 fixture；两者都没有才返回 null。
+   返回 { text, source } 便于断言里标明数据来源（原版 / fixture）。 */
+function loadScenesWidget() {
+  if (HAS_GAME_HTML) {
+    const html = fs.readFileSync(GAME_HTML_PATH, "utf8");
+    const re = /<tw-passagedata[^>]*name="([^"]*)"[^>]*>([\s\S]*?)<\/tw-passagedata>/g;
+    let pm;
+    while ((pm = re.exec(html)) !== null) {
+      const t = pm[2].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+      if (t.indexOf('<<widget "scenes">>') !== -1) { return { text: t, source: "原版 HTML" }; }
+    }
+  }
+  if (fs.existsSync(SCENES_FIXTURE)) {
+    return { text: fs.readFileSync(SCENES_FIXTURE, "utf8"), source: "fixture" };
+  }
+  return null;
+}
 
 let failures = 0;
 function assert(cond, msg) {
@@ -1340,17 +1360,16 @@ setTimeout(function () {
   api.mbCEUiSave({ filter: "" });
   /* ---------- 15. v1.9.2 玩家真实路径自查：本体 111 键全量渲染 + 剧情进度控件真实点击 + 救星三按钮真实点击 ---------- */
   try {
-    /* 原版 HTML 路径见文件头 GAME_HTML_PATH（可用 MCE_DOL_HTML 覆盖；缺失时本段自然跳过）。 */
-    const GAME_HTML = GAME_HTML_PATH;
-    if (fs.existsSync(GAME_HTML)) {
-      const html = fs.readFileSync(GAME_HTML, "utf8");
-      const rePD = /<tw-passagedata[^>]*name="([^"]*)"[^>]*>(.*?)<\/tw-passagedata>/gs;
-      let pm, widgetText = "";
-      while ((pm = rePD.exec(html)) !== null) {
-        const t = pm[2].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
-        if (t.indexOf('<<widget "scenes">>') !== -1) { widgetText = t; break; }
-      }
-      assert(!!widgetText && widgetText.length > 50000, "15 本体 scenes widget 已提取（长度 " + (widgetText || "").length + "）");
+    /* 原版 HTML 优先（MCE_DOL_HTML 可覆盖），缺失回退 tests/fixtures/scenes-widget.twee：
+       两者都没有才算失败（fixture 已入库，缺失=仓库坏了，不再 SKIP）。 */
+    const scenesSrc = loadScenesWidget();
+    if (!scenesSrc) {
+      failures++;
+      console.error("FAIL: 15 既无原版 HTML 也无 fixture（" + SCENES_FIXTURE + "）");
+    } else {
+      const widgetText = scenesSrc.text;
+      console.log("INFO: 15 scenes 元数据来源 = " + scenesSrc.source);
+      assert(!!widgetText && widgetText.length > 50000, "15 本体 scenes widget 已提取（长度 " + (widgetText || "").length + "，来源 " + scenesSrc.source + "）");
       /* 与运行时相同定位：把 MOD 键注入到 <<set $scenes to { ... } 对象体内（parseScenesFromText 只解析该对象体） */
       function injectIntoScenesObj(w) {
         var m = w.match(/<<set\s+\$scenes\s+to\s+\{/);
@@ -1500,8 +1519,6 @@ setTimeout(function () {
       /* 清理注入态 */
       delete V.avery_tower; delete V.avery_party; delete V.robindebtevent; delete V.robinmissing; delete V.robin; delete V.kylarSeen;
       global.Story.passages = [];
-    } else {
-      console.log("WARN: 15 本体 HTML 缺失，跳过玩家路径测试");
     }
   } catch (e15) {
     failures++;
@@ -1728,10 +1745,9 @@ setTimeout(function () {
     delete V.replayScene;
     delete V.scenes.NoEntry;
     /* 19.5–19.8 UI：剧情页渲染 → 场景行「直达触发」按钮存在且可用。
-       依赖原版 HTML 抽取的场景元数据（干净克隆 / CI 上无原版文件 → SKIP，不误报）。 */
-    if (!HAS_GAME_HTML) {
-      console.log("SKIP: 19.5-19.8 剧情页 UI 断言（原版 HTML 不在本机：" + GAME_HTML_PATH + "）");
-    } else {
+       场景数据由本段自己构造（19.1 的 V.scenes.KylarAbduction），与是否装原版 HTML 无关 ——
+       原先的 HAS_GAME_HTML 门是过保守的遗留守卫，CI 上白跳了 4 条断言，现无条件执行。 */
+    {
     /* 19.5 UI：剧情页渲染 → 场景行「直达触发」按钮存在且可用 */
     clickTabSafe("scenes");
     const pane19 = document.querySelector('[data-pane="scenes"]');
@@ -1822,10 +1838,8 @@ setTimeout(function () {
     global.State.passage = savedPassage19c;
     if (savedStory19c) { global.Story = savedStory19c; } else { delete global.Story; }
     /* 19.14b 清理后重渲染：剧情页该行「直达触发」按钮恢复可用（title 不再是「正在播放剧情」）。
-       同样依赖原版 HTML 的场景元数据 → 缺失时 SKIP。 */
-    if (!HAS_GAME_HTML) {
-      console.log("SKIP: 19.14b 学校检查行按钮恢复断言（原版 HTML 不在本机）");
-    } else {
+       场景行同样由本段构造（V.scenes.SchoolInspectionBreast）→ 无条件执行。 */
+    {
     clickTabSafe("scenes");
     const pane19d = document.querySelector('[data-pane="scenes"]');
     const schoolHead19 = pane19d ? Array.prototype.slice.call(pane19d.querySelectorAll(".mce-grp-t")).find(function (h) { return h.textContent.indexOf("学校") !== -1; }) : null;

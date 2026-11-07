@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.5";
+	var MCE_VERSION = "2.0.6";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -5795,17 +5795,21 @@ function traitEval(V, C, expr) {
 			.replace(/\bgte\b/g, ">=").replace(/\bgt\b/g, ">")
 			.replace(/\blte\b/g, "<=").replace(/\blt\b/g, "<")
 			.replace(/\band\b/g, "&&").replace(/\bor\b/g, "||");
-		/* $a.b.c → V.a.b.c（带可选链 ?. 的原样保留） */
+		/* $a.b.c → V.a.b.c（带可选链 ?. 的原样保留）。负向先行断言 (?!\() 防止把成员方法名吃掉：
+		   此前 `$backgroundTraits.includes("X")` 的 `.includes` 被当成路径尾段，翻成
+		   safeGet(V,"backgroundTraits.includes") → undefined 调用 → 表达式恒 false */
 		js = js.replace(/\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(\?\.)/g, 'safeGet(V,"$1")$2');
-		js = js.replace(/\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)/g, 'safeGet(V,"$1")');
+		js = js.replace(/\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(?![\w(])/g, 'safeGet(V,"$1")');
 		/* _pills 局部变量 = sexStats.pills.pills */
 		js = js.replace(/_pills/g, 'safeGet(V,"sexStats.pills.pills")');
 		/* C.npc.X.y */
 		js = js.replace(/\bC\.npc\.([A-Za-z_]\w*)\.([A-Za-z_]\w*)/g, 'safeGet(C,"npc.$1.$2")');
-		/* 函数调用（playerIsPregnant() 等全局函数）→ globalThis 兜底；排除已生成的 safeGet/globalThis */
-		js = js.replace(/([A-Za-z_]\w*)\s*\(/g, function (m0, name) {
+		/* 函数调用（playerIsPregnant() 等全局函数）→ globalThis 兜底；排除已生成的 safeGet/globalThis，
+		   以及「.includes(...) / .indexOf(...)」这类成员方法调用（v2.0.6：此前会把 .includes 也改成
+		   globalThis["includes"]( 使表达式语法错误 → 含 includes 的特质恒判未获得） */
+		js = js.replace(/(^|[^.\w$])([A-Za-z_]\w*)\s*\(/g, function (m0, pre, name) {
 			if (name === "safeGet" || name === "globalThis") { return m0; }
-			return 'globalThis["' + name + '"](';
+			return pre + 'globalThis["' + name + '"](';
 		});
 		var fn = TRAIT_EVAL_FN_CACHE[js];
 		if (!fn) {
@@ -5986,6 +5990,9 @@ function traitWriteUnsatisfy(V, path, op, valRaw) {
 		if (String(valRaw) === "true") { setPathVal(V, path, true); return path + "=true"; }
 		if (String(valRaw) === "false") { setPathVal(V, path, false); return path + "=false"; }
 		if (String(valRaw) === "undefined") { setPathVal(V, path, undefined); return path + "=undefined"; }
+		/* v2.0.6：isnot 非布尔/非数字字符串值（"banned"/"none"）→ 写回该字符串本身，
+		   使 `x !== "banned"` 为假；此前落 num-1 = NaN，会让面板显示的「已移除」失效 */
+		if (isNaN(num)) { setPathVal(V, path, String(valRaw).replace(/["']/g, "")); return path + "=" + String(valRaw).replace(/["']/g, ""); }
 		setPathVal(V, path, num); return path + "=" + num;
 	}
 	if (String(valRaw) === "true") { setPathVal(V, path, false); return path + "=false"; }

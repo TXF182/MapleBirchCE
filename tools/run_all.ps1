@@ -63,9 +63,9 @@ Write-Host "[9/12] 原版数字档位形态（07d-places PLACE_GROUPS 声明 vs 
 node tools/check_vanilla_types.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: check_vanilla_types（声明数字档位但原版是字符串枚举 → 面板写入会静默半失效，见工具输出）" -ForegroundColor Red; exit 1 }
 
-Write-Host "[10/12] 覆盖率门禁（c8：lines>=90 branches>=70 functions>=95，低于门槛即失败；序列含稳定性循环与键核单测）"
+Write-Host "[10/12] 覆盖率门禁（c8：lines>=90 branches>=80 functions>=95，低于门槛即失败；序列含稳定性循环与键核单测）"
 if (Test-Path -LiteralPath "node_modules\.bin\c8.cmd") {
-  & "node_modules\.bin\c8.cmd" --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 70 --functions 95 node tools/run_coverage.js
+  & "node_modules\.bin\c8.cmd" --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage.js
   if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: coverage gate（覆盖低于门槛，见上表）" -ForegroundColor Red; exit 1 }
 } else {
   Write-Host "    WARN: c8 未安装（npm install 后启用），覆盖门禁跳过" -ForegroundColor Yellow
