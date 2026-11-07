@@ -10,7 +10,6 @@
 		   悬浮球是面板唯一入口，不提供隐藏——隐藏即死锁） */
 		var fabLocked = !!(toggleBtn && toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1");
 		var fabWrap = el("div", "mce-row");
-		fabWrap.appendChild(el("span", "mce-row-lbl", "面板悬浮入口（右下角金色「解锁」球）"));
 		var fabBtn = el("button", "mce-btn", fabLocked ? "解锁悬浮球拖动" : "锁定悬浮球拖动");
 		fabBtn.type = "button";
 		fabBtn.title = fabLocked
@@ -31,10 +30,17 @@
 			renderGlobal();
 		});
 		fabWrap.appendChild(fabBtn);
-		pane.appendChild(fabWrap);
+		/* v2.0.2 按键重排：原先"悬浮球行 + 一句提示 + 6 个金色按钮裸堆"占了整屏第一屏、且按钮语义混杂；
+		   现在把面板设置收进不编号的分组，批量按钮按「速成 / 收集」拆两块并走 2 列网格。 */
+		var fabGroup = mceNewGroup(pane, "面板设置", "悬浮入口 · 不占区块编号");
+		fabGroup.appendChild(el("div", "mce-row-lbl", "面板悬浮入口（右下角金色「解锁」球）"));
+		fabGroup.appendChild(fabWrap);
 		var chars = listCharacters();
-		pane.appendChild(el("div", "mce-hint", "自动枚举角色 " + chars.length + " 个（本体 + 全部 MOD）。以下操作对全部角色生效。"));
-		var actions = el("div", "mce-actions");
+		fabGroup.appendChild(el("div", "mce-hint", "自动枚举角色 " + chars.length + " 个（本体 + 全部 MOD）。以下操作对全部角色生效。"));
+
+		/* ① 批量速成（全角色） */
+		var bsec = mceNewSec(pane, 1, "批量速成（全角色）", "对枚举到的全部角色（本体 + 全部 MOD）一次性补齐：数值 / 恋爱阶段 / 转化阶段 / 玩家扩展转化。扩展转化在 MOD 未加载时自动跳过并给出提示，不会报错。");
+		var bgrid = mceBtnGrid(bsec);
 		var b1 = el("button", "mce-btn mce-gold", "全部角色：一键补齐全部数值");
 		b1.type = "button";
 		b1.addEventListener("click", function () {
@@ -60,6 +66,14 @@
 			listExtTransforms().forEach(function (k) { if (completeExtTransform(k)) { n += 1; } });
 			setStatus(n > 0 ? "扩展转化已全部解锁（" + n + " 项）" : "未检测到扩展转化（MOD 未加载）", n > 0 ? "mce-ok" : "mce-err");
 		});
+		bgrid.appendChild(b1);
+		bgrid.appendChild(b2);
+		bgrid.appendChild(b3);
+		bgrid.appendChild(b4);
+
+		/* ② 收集解锁 */
+		var csec = mceNewSec(pane, 2, "收集解锁", "特殊服装（含对应故事）与食谱按原版解锁条件直写；未解锁项数量随 MOD 变化，点击后状态栏会报实际解锁件数。");
+		var cgrid = mceBtnGrid(csec);
 		var bc1 = el("button", "mce-btn mce-gold", "一键解锁所有特殊服装（含对应故事）");
 		bc1.type = "button";
 		bc1.addEventListener("click", function () {
@@ -72,22 +86,17 @@
 			var r = globalUnlockRecipes();
 			setStatus("食谱：" + r.unlocked + " 个已解锁", r.unlocked > 0 ? "mce-ok" : "mce-err");
 		});
-		actions.appendChild(bc1);
-		actions.appendChild(bc2);
-		actions.appendChild(b1);
-		actions.appendChild(b2);
-		actions.appendChild(b3);
-		actions.appendChild(b4);
-		pane.appendChild(actions);
+		cgrid.appendChild(bc1);
+		cgrid.appendChild(bc2);
+
 		/* v1.9.13 时间调节区：快进即时生效，跳时段把时分设到指定点（日期/星期由引擎联动） */
-		var tsec = el("div", "mce-section", "时间调节（直接改游戏时钟，即时生效）");
-		pane.appendChild(tsec);
+		var tsec = mceNewSec(pane, 3, "时间调节", "直接改游戏时钟、即时生效、不进留痕；快进按钮即时前进，跳时段按钮把时分设到指定点（日期 / 星期由引擎联动）。");
 		var tnow = mcTimeNow();
 		var tInfo = tnow
 			? ("当前 " + tnow.hour + ":" + (tnow.minute < 10 ? "0" : "") + tnow.minute + (tnow.weekDay ? " · 周" + tnow.weekDay : ""))
 			: "时间系统不可用（需在游戏内运行）";
-		tsec.appendChild(el("div", "mce-hint", tInfo + "；快进按钮即时前进，跳时段按钮把时分设到指定点。直接改全局时钟、不进留痕。"));
-		var tAdv = el("div", "mce-row");
+		tsec.appendChild(mceFoldHint(tInfo + "；快进按钮即时前进，跳时段按钮把时分设到指定点。直接改全局时钟、不进留痕。"));
+		var tAdv = mceBtnGrid(tsec);
 		[{ n: "+1 小时", v: 60 }, { n: "+3 小时", v: 180 }, { n: "+8 小时", v: 480 }, { n: "+1 天", v: 1440 }, { n: "+3 天", v: 4320 }].forEach(function (d) {
 			var b = el("button", "mce-btn mce-gold", d.n); b.type = "button";
 			b.addEventListener("click", function () {
@@ -98,7 +107,7 @@
 			tAdv.appendChild(b);
 		});
 		tsec.appendChild(tAdv);
-		var tJump = el("div", "mce-row");
+		var tJump = mceBtnGrid(tsec);
 		[{ n: "早 8:00", h: 8, m: 0 }, { n: "午 12:00", h: 12, m: 0 }, { n: "傍晚 18:00", h: 18, m: 0 }, { n: "夜 22:00", h: 22, m: 0 }, { n: "深 2:00", h: 2, m: 0 }].forEach(function (d) {
 			var b = el("button", "mce-btn", d.n); b.type = "button";
 			b.addEventListener("click", function () {
@@ -110,8 +119,7 @@
 		});
 		tsec.appendChild(tJump);
 		/* v1.5.0：誓言修复 + NPC 特质获取（游戏「特质」页对应分组） */
-		var vsec = el("div", "mce-section", "誓言修复 · NPC 特质（对应游戏「特质」页）");
-		pane.appendChild(vsec);
+		var vsec = mceNewSec(pane, 4, "誓言修复 · NPC 特质", "誓言修复把神殿誓言（Temple Vow）与相关承诺状态按原版语义还原；NPC 特质获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持两条线：原版线（高塔转烧毁）与庇护模式（不碰 avery_fate、保留大楼建造进度），且均可撤回。");
 		var vst = getVowStatus();
 		var vowTxt = "神殿誓言（Temple Vow）：" + (vst.temple === true ? "未破" : "已破（" + (vst.temple === false ? "未知" : String(vst.temple)) + "）");
 		if (vst.templePromised) { vowTxt += "；承诺对象：" + vst.templePromised; }
@@ -126,9 +134,9 @@
 			renderGlobal();
 		});
 		vrow.appendChild(vbtn);
-		pane.appendChild(vrow);
+		vsec.appendChild(vrow);
 		var traits = listNpcTraits();
-		pane.appendChild(el("div", "mce-hint", "NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持庇护模式与撤回。"));
+		vsec.appendChild(mceFoldHint("NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持庇护模式与撤回。"));
 		var tbox = el("div", "");
 		traits.forEach(function (t) {
 			if (t.key === "avery_saviour") {
@@ -189,14 +197,12 @@
 			row.appendChild(btn);
 			tbox.appendChild(row);
 		});
-		pane.appendChild(tbox);
+		vsec.appendChild(tbox);
 
 		/* v1.8.8：战斗终结（学 CombatTerminator 0.1：8 个战斗内一键按钮，直接写原版战斗值）。
 		   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。
-		   v1.8.9：动作定义下沉至 03-global.js（COMBAT_ACTIONS/mcCombatAction），UI 只负责渲染。 */
-		var btsec = el("div", "mce-section", "战斗终结（学 CombatTerminator 0.1：战斗中可用，直接写原版战斗值）");
-		pane.appendChild(btsec);
-		btsec.appendChild(el("div", "mce-hint", "以下按钮直接写原版战斗值，建议战斗中生效；「结束集群」在战斗外会把游戏时钟拨回当日 0 点，请勿误点。"));
+		    v1.8.9：动作定义下沉至 03-global.js（COMBAT_ACTIONS/mcCombatAction），UI 只负责渲染。 */
+		var btsec = mceNewSec(pane, 5, "战斗终结", "学 CombatTerminator 0.1：以下按钮直接写原版战斗值，建议战斗中生效；「结束集群」在战斗外会把游戏时钟拨回当日 0 点，请勿误点。");
 		COMBAT_ACTIONS.forEach(function (d) {
 			var row = el("div", "mce-row");
 			row.appendChild(el("span", "mce-row-lbl", d.desc));
@@ -214,8 +220,7 @@
 		   v1.9.x：一键按钮 → 自动开关。点击开关切换开启/关闭；开启即立即执行一次（即时生效），
 		   此后每日（Time.days 变化）由 mbCEOnPassageInit 自动执行。开关持久化 localStorage
 		   （mbCE_auto），不写 V → 不污染存档、新档不继承。 */
-		var acsec = el("div", "mce-section", "庄园自动维护（AutoClean 模式：开启后每天自动执行，无需手点）");
-		pane.appendChild(acsec);
+		var acsec = mceNewSec(pane, 6, "庄园自动维护", "学 AutoClean 0.1.5：每个开关独立，点击即切换开/关并立即执行一次（即时生效），此后每日（Time.days 变化）自动执行。开关状态持久化在 localStorage（mbCE_auto），不写存档、新档不继承。艾弗里未达喂食阶段（关系未确立）时投喂自动跳过。");
 		var acItems = [
 			{ key: "feed", name: "自动投喂艾弗里", desc: "按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱；未达喂食阶段（关系未确立）不操作" },
 			{ key: "farm", name: "自动农场维护", desc: "塔卫在岗且技能≥1000 锁四畜 30 / 清 agro；库存收获为食物并清零（cream 仅清理）" },
@@ -263,9 +268,7 @@
 		   语义（原版宏）：soft ≥30 增加怨灵聚合几率，≥70 触发校园衣物记忆；hard 负值走净化，净化量累计 world_corruption_reduced。
 		   CE 直写 V 不经过原版 clamp：上限不钳制（数值填多少就是多少，原版事件驱动由游戏自身负责）；
 		   下限按原版语义保留（hard ≥ -30，soft ≥ 0），防负值破坏。复用 placeStageWrite/placeStageUndo（原版顶层键直写 + 留痕回退）。 */
-		var wcsec = el("div", "mce-section", "世界腐化（原版 World Corruption）");
-		pane.appendChild(wcsec);
-		wcsec.appendChild(el("div", "mce-hint", "世界硬腐化 world_corruption_hard（罪孽/净化计数，原版 -30~30 初始 2）；世界软腐化 world_corruption_soft（世界异变程度，原版 0~100 初始 0，≥30 增加怨灵聚合几率、≥70 触发校园衣物记忆）。直接填数值：上限不钳制，下限按原版语义保留；净化总量记录于 world_corruption_reduced。"));
+		var wcsec = mceNewSec(pane, 7, "世界腐化", "世界硬腐化 world_corruption_hard（罪孽/净化计数，原版 -30~30 初始 2）；世界软腐化 world_corruption_soft（世界异变程度，原版 0~100 初始 0，≥30 增加怨灵聚合几率、≥70 触发校园衣物记忆）。直接填数值：上限不钳制，下限按原版语义保留；净化总量记录于 world_corruption_reduced。");
 		var Vg = getV();
 		var makeWcUndo = function (row, it, val, inp) {
 			var ub = el("button", "mce-btn mce-red", "回退");

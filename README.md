@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.0.1**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.0.2**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -92,8 +92,14 @@
 - **③ 负面名声清零**：显示学校 `crossdress` / `herm` 两键与城镇 `V.fame` 负面八项合计；「一键清零：学校异装名声」清学校两键并删 `$school_crossdress_message`；「一键清零：全部负面名声」连带 `V.fame` 八项负面（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp）与 `V.fameDecay` / `V.fameDecayTimer` 的衰减队列（避免清零后又被队列改回），**正面五项（scrap / good / business / social / model）保持不动**。
 - **生效范围**：开关状态存在存档 `$mbCE_yanling`（`{noCross, noTrait}`），**读档后不打开面板也生效** —— 1 秒守卫表由 `:passagedisplay` 与 init 按需起（两个开关都关时自动停表，不占事件循环）。
 - **留痕**：所有净化动作按 `V.mbCE_wrote["yanling:<op>"]`（含 before/after/t）记录，可在全局页留痕区核对。
+- **④ 身体与衣物**（v2.0.0.008）：一键烘干 `$upperwet` / `$lowerwet` / `$underupperwet` / `$underlowerwet` 四项湿度；衣物加固按各槽 `integrity_max` 写满（不照抄 CE 的 +1000，避免超上限破表）。
+- **⑤ 精神与体液**（v2.0.2 从 ④ 拆出）：精液补满（`$semen_amount` 补到当前 `$semen_volume` 再 +1000）、精神恢复（`$control` 拉满 1000 + `$hallucinogen` 归零）。
+- **⑥ 数值快补**：施虐/受虐 1000、奶量 5000/上限 10000、解除成就限制（`$feats.locked=false`）、罗宾存款清零、今晚艾弗里来约、校长办公室密码、集齐种子（调原版 `unlockAllSeeds()`）、清理农田 + 补 5 袋堆肥。
+- **⑦ 天气**：直调原版 `window.setWeather(type, true)`，给晴 / 阴 / 大雨 / 雷雨 4 档（**不写已废弃的 `$weather`**，0.5 起迁 `$weatherObj`）。
+- **⑧ 角色放逐**：格威岚走原版 scorned 线（state=scorned + 当日进度锁 + 9 天倒计时）/ 立即召回；凯拉尔 state=prison↔active；惠特尼 state=dungeon↔active。**不提供枷锁示众**（pillory 需 `$pillory_tenant` 联动，硬写会错位）。
+- **版面（v2.0.2 重排）**：原先 8 个区块平铺且编号错位（s1→s2→s3→s5→s6→s7→s8→s4、「说明与边界」错排在第 4 位却排在最后）→ 现按语义分 3 组（**A 着装与名声** ①②③ / **B 身体与数值** ④⑤⑥⑦ / **C 角色状态** ⑧），按钮统一进 2 列网格，说明收进页尾可折叠块（默认 2 行摘要，点开看 6 条边界）。
 
-## Mod作弊 适配器一览（当前版本 2.0.1）
+## Mod作弊 适配器一览（当前版本 2.0.2）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|

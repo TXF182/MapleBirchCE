@@ -156,11 +156,11 @@
 		mbCEAttitudeEnsureTimer();
 		var st = mbCEAttitudeState();
 		var curTier = st.lock ? mbCEAttitudeTier(st.value) : null;
-		pane.appendChild(el("div", "mce-section", "说话态度（原版三档 · 选定后永久维持）"));
+		var sec = mceNewSec(pane, 10, "说话态度", "原版三档（顺从 / 中立 / 反抗），选定后开启「维持」即每秒复位 $speech_attitude 并把顺从度拉回该档门槛内侧，永久维持；「解除维持」清除锁定但保留当前值，「解除并还原」恢复锁定前的态度与顺从度。");
 		var hint = el("div", "mce-hint", mbCEAttitudeStatusLine(st));
 		hint.setAttribute("data-mce-att", "1");
-		pane.appendChild(hint);
-		var row = el("div", "mce-row");
+		sec.appendChild(hint);
+		var g = mceBtnGrid(sec);
 		MB_CE_ATTITUDE_TIERS.forEach(function (t) {
 			var on = !!(curTier && curTier.key === t.key);
 			var b = el("button", on ? "mce-btn mce-gold" : "mce-btn", (on ? "✓ " : "") + t.label);
@@ -171,10 +171,9 @@
 				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
 				if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
 			});
-			row.appendChild(b);
+			g.appendChild(b);
 		});
-		pane.appendChild(row);
-		var ctl = el("div", "mce-row");
+		var ctl = mceBtnGrid(sec);
 		var hold = el("button", st.hold ? "mce-btn mce-gold" : "mce-btn", st.hold ? "维持：开" : "维持：关");
 		hold.type = "button";
 		hold.title = "开启后每秒复位 $speech_attitude 到所选档，并把顺从度拉回该档门槛内侧";
@@ -198,5 +197,4 @@
 			if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
 		});
 		ctl.appendChild(hold); ctl.appendChild(rel); ctl.appendChild(back);
-		pane.appendChild(ctl);
 	}

@@ -4848,5 +4848,112 @@ try {
 }
 
 
+// ===== 56 言灵扩容（v2.0.2）：衣物烘干/加固 · 数值快补 · 天气 · 角色放逐 =====
+try {
+  const origWin56 = global.window;
+  const y56 = setup.mbStageCE;
+  let hitWeather = {};
+  const mockWin56 = {
+    setWeather: function (t, inst) { hitWeather = { t: t, inst: inst, seeds: hitWeather.seeds === true }; },
+    unlockAllSeeds: function () { hitWeather.seeds = true; }
+  };
+  global.window = mockWin56;
+  const origTime56 = global.Time;
+  global.Time = { date: { timeStamp: 1000 } };
+  mockWin56.DateTime = function (ts) {
+    const base = (ts && typeof ts === "object" && typeof ts.timeStamp === "number") ? ts.timeStamp : (Number(ts) || 0);
+    this.timeStamp = base;
+    this.addDays = function (n) { return { timeStamp: base + n * 86400 }; };
+  };
+
+  // 56.1~56.2 衣物烘干
+  V.upperwet = 30; V.lowerwet = 12; V.underupperwet = 0; V.underlowerwet = 44;
+  const d56 = y56.yanlingDryClothes();
+  assert(d56.ok === true && V.upperwet === 0 && V.lowerwet === 0 && V.underlowerwet === 0, "56.1 一键烘干 4 项湿度归零");
+  assert(!!(V.mbCE_wrote && V.mbCE_wrote["yanling:dry_clothes"] && V.mbCE_wrote["yanling:dry_clothes"].before.upperwet === 30), "56.2 烘干按 yanling:op 留痕且 before 含原值");
+
+  // 56.3~56.5 衣物加固（按 integrity_max / 回落 +1000 / naked 跳过）
+  V.worn = {
+    upper: { name: "shirt", integrity: 40, integrity_max: 1000 },
+    lower: { name: "skirt", integrity: 500 },
+    under_upper: { name: "naked" },
+    under_lower: { name: "panties", integrity: 10, integrity_max: 300 }
+  };
+  const rp56 = y56.yanlingRepairClothes();
+  assert(rp56.ok === true && V.worn.upper.integrity === 1000, "56.3 加固把带 integrity_max 的衣物写满（不超上限）");
+  assert(V.worn.lower.integrity === 1500 && V.worn.under_lower.integrity === 300, "56.4 无上限的回落「当前 +1000」，有上限的写满");
+  assert(V.worn.under_upper.name === "naked" && V.worn.under_upper.integrity === undefined, "56.5 穿着的 naked 槽跳过不写");
+
+  // 56.6 精液补满（amount=原 volume，volume+=1000）
+  V.semen_volume = 90; V.semen_amount = 20;
+  const sm56 = y56.yanlingSemen();
+  assert(sm56.ok === true && V.semen_amount === 90 && V.semen_volume === 1090, "56.6 精液补满：amount 补到原 volume，volume +1000");
+
+  // 56.7 精神恢复
+  V.control = 0; V.hallucinogen = 40;
+  const md56 = y56.yanlingMind();
+  assert(md56.ok === true && V.control === 1000 && V.hallucinogen === 0, "56.7 精神恢复：control=1000、hallucinogen=0");
+
+  // 56.8 施虐 / 受虐
+  V.sadism = 0; V.masochism = 12;
+  y56.yanlingSadism();
+  assert(V.sadism === 1000 && V.masochism === 1000, "56.8 施虐 / 受虐拉满 1000");
+
+  // 56.9 种子走原版函数
+  const sd56 = y56.yanlingSeeds();
+  assert(sd56.ok === true && hitWeather !== null && hitWeather.seeds === true, "56.9 集齐种子调原版 unlockAllSeeds()（不自造种子表）");
+
+  // 56.10~56.12 杂项数值
+  V.robinmoney = 300; V.averydate = 0; V.headpasswordknown = undefined;
+  y56.yanlingRobinMoney(); y56.yanlingAveryDate(); y56.yanlingHeadPassword();
+  assert(V.robinmoney === 0 && V.averydate === 1 && V.headpasswordknown === 1, "56.10 罗宾存款 0 / 艾弗里约会 1 / 校长密码 1");
+  V.feats = { locked: true };
+  y56.yanlingFeats();
+  assert(V.feats.locked === false, "56.11 成就限制解除写布尔 false（原版以 isnot true 判已解锁）");
+  V.farm = { clearing: 60 }; V.fertiliser = { current: 2 };
+  y56.yanlingFarm();
+  assert(V.farm.clearing === 0 && V.fertiliser.current === 7, "56.12 农田清场 + 堆肥 +5");
+
+  // 56.13 奶量：先抬上限再写当前值
+  V.milk_volume = 30; V.milk_max = 3000;
+  y56.yanlingMilk();
+  assert(V.milk_max === 10000 && V.milk_volume === 5000, "56.13 奶量 5000 且上限先抬到 10000（不被每日钳制卡回）");
+
+  // 56.14~56.15 天气走 setWeather，拒绝旧式 rain
+  const w156 = y56.yanlingWeather("thunderstorm");
+  assert(w156.ok === true && hitWeather.t === "thunderstorm" && hitWeather.inst === true, "56.14 天气走 window.setWeather(type, true)");
+  const w256 = y56.yanlingWeather("rain");
+  assert(w256.ok === false, "56.15 旧式 weather=\"rain\" 被拒（0.5 类型表无 rain，只有 heavyPrecipitation）");
+
+  // 56.16~56.19 格威岚放逐 / 召回（scorned 线：state + 当日锁 + 9 天倒计时；召回清双倒计时）
+  V.NPCNameList = ["Gwylan", "Kylar", "Whitney"];
+  V.NPCName = [{ init: 1, state: "active" }, { init: 1, state: "active" }, { init: 1, state: "active" }];
+  V.gwylan = { timer: {} }; V.daily = { gwylan: {} };
+  const gb56 = y56.yanlingGwylanBanish();
+  assert(gb56.ok === true && V.NPCName[0].state === "scorned", "56.16 格威岚放逐写 state=scorned");
+  assert(V.gwylan.timer.scorned === 1000 + 9 * 86400, "56.17 放逐倒计时 = 今天 + 9 天（DateTime.addDays 路径）");
+  assert(V.daily.gwylan.preventProgress === true, "56.18 放逐同时锁当日进度 preventProgress=true（对齐 402967-402970）");
+  const gr56 = y56.yanlingGwylanRecall();
+  assert(gr56.ok === true && V.NPCName[0].state === "active" && V.gwylan.timer.scorned === undefined && V.gwylan.timer.nobody === undefined, "56.19 召回 state=active 并清 scorned / nobody 双倒计时");
+
+  // 56.20~56.21 凯拉尔 / 惠特尼 state 切换
+  y56.yanlingKylar(true); y56.yanlingWhitney(true);
+  assert(V.NPCName[1].state === "prison" && V.NPCName[2].state === "dungeon", "56.20 凯拉尔送监狱（prison）/ 惠特尼关地牢（dungeon）");
+  y56.yanlingKylar(false); y56.yanlingWhitney(false);
+  assert(V.NPCName[1].state === "active" && V.NPCName[2].state === "active", "56.21 两者均召回为 active");
+
+  // 56.22 未相遇守卫
+  V.NPCName[0].init = 0;
+  const gz56 = y56.yanlingGwylanBanish();
+  assert(gz56.ok === false && V.NPCName[0].state === "active", "56.22 init=0（未相遇）拒绝放逐且不改 state");
+
+  global.window = origWin56;
+  global.Time = origTime56;
+} catch (e56) {
+  failures++;
+  console.error("FAIL: 56 言灵扩容测试异常: " + (e56 && e56.message ? e56.message : e56));
+}
+
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

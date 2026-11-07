@@ -91,13 +91,8 @@ function mbCERenderLurker(pane) {
 	if (!pane) { return; }
 	mbCELurkerEnsureTimer();
 	var st = mbCELurkerState();
-	pane.appendChild(el("div", "mce-section", "潜伏者（捕捉上限 / 水烟馆冰箱 · 无上限）"));
-	pane.appendChild(el("div", "mce-hint",
-		"原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、"
-		+ "存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。"
-		+ "CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。"
-		+ "未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。"));
-	if (!st.ok) { pane.appendChild(el("div", "mce-err", st.message)); return; }
+	var sec = mceNewSec(pane, 9, "潜伏者", "原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。");
+	if (!st.ok) { sec.appendChild(el("div", "mce-err", st.message)); return; }
 	var rows = [
 		{ path: "lurkers_held", name: "手持潜伏者（无上限）", cur: st.held, note: "原版 ≥1 即不再出网；解限后不再受限" },
 		{ path: "hookah.lurkers", name: "水烟馆冰箱（无上限）", cur: st.fridge, note: "≥1 可消耗换 50 juice；解限后显示真实数量" },
@@ -124,7 +119,7 @@ function mbCERenderLurker(pane) {
 			renderGlobal();
 		});
 		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
-		pane.appendChild(row);
+		sec.appendChild(row);
 	});
 	var actRow = el("div", "mce-row");
 	var rep = el("button", "mce-btn mce-gold", "重新应用解限补丁"); rep.type = "button";
@@ -143,8 +138,8 @@ function mbCERenderLurker(pane) {
 		renderGlobal();
 	});
 	actRow.appendChild(rep); actRow.appendChild(sw);
-	pane.appendChild(actRow);
-	pane.appendChild(el("div", "mce-hint",
+	sec.appendChild(actRow);
+	sec.appendChild(el("div", "mce-hint",
 		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只"));
 }
 /* v2.0.0.005 清理：原 mbCELurkerAutoLabel() 删除（拆分期遗留死代码）——上方「自动搬运：开/关」

@@ -14,6 +14,55 @@
 		return node;
 	}
 
+	/* ============ v2.0.2 按键排版helper：区块编号 / 二级分组 / 按钮网格 / 说明折叠 ============
+	   设计口径（解决"功能越加越多、面板越堆越乱"）：
+	     ① 同页区块统一编号（mceNewSec），玩家一眼知道一页有几块、当前在第几块；
+	     ② 语义相近的区块收进二级分组（mceNewGroup），组名一句话说明"这一组在干什么"；
+	     ③ 同构按钮走 2 列网格（mceBtnGrid），不再每行一个把纵向拉长；
+	     ④ 长说明默认折叠成 2 行（mceFoldHint），点击展开，避免每块 2~3 行密文占屏。
+	   全部返回普通 DOM 节点，调用方后续 appendChild 逻辑不变（替换点最小）。 */
+	var mceSecNo = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫", "⑬", "⑭", "⑮", "⑯"];
+	function mceSecMark(idx) { return mceSecNo[idx - 1] || String(idx); }
+	/* 说明折叠：默认 2 行截断，点击整块切换展开/收起（data-open=1/0 供测试断言） */
+	function mceFoldHint(text) {
+		var h = el("div", "mce-hint mce-fold", text);
+		h.setAttribute("data-open", "0");
+		h.title = "点击展开 / 收起完整说明";
+		h.addEventListener("click", function () {
+			h.setAttribute("data-open", h.getAttribute("data-open") === "0" ? "1" : "0");
+		});
+		return h;
+	}
+	/* 带编号区块：返回区块容器，后续照旧 sec.appendChild(...) */
+	function mceNewSec(parent, idx, title, hint) {
+		var sec = el("div", "mce-block");
+		var head = el("div", "mce-sec-title");
+		head.appendChild(el("span", "mce-sec-n", mceSecMark(idx)));
+		head.appendChild(el("span", "", title));
+		sec.appendChild(head);
+		if (hint) { sec.appendChild(mceFoldHint(hint)); }
+		if (parent) { parent.appendChild(sec); }
+		return sec;
+	}
+	/* 二级分组：返回组内 body 容器（组名 + 右侧副标） */
+	function mceNewGroup(parent, title, sub) {
+		var g = el("div", "mce-group");
+		var head = el("div", "mce-group-h");
+		head.appendChild(el("span", "", title));
+		if (sub) { head.appendChild(el("span", "mce-group-n", sub)); }
+		g.appendChild(head);
+		var body = el("div", "mce-group-b");
+		g.appendChild(body);
+		if (parent) { parent.appendChild(g); }
+		return body;
+	}
+	/* 2 列按钮网格容器 */
+	function mceBtnGrid(parent) {
+		var g = el("div", "mce-btn-grid");
+		if (parent) { parent.appendChild(g); }
+		return g;
+	}
+
 	/* v1.9.14 效果2：写入成功闪烁——目标行/按钮加 .mce-flash（金底 0.6s→透明），
 	   同一 timer 统一清理全部 flash 节点（连点不堆积；强制 reflow 保证同一节点动画重放） */
 	var mbCEFlashTimer = null;
@@ -127,6 +176,22 @@
 		".mce-btn.mce-red:hover{background:var(--mce-red-bg-h)}" +
 		".mce-btn:disabled{opacity:.45;cursor:not-allowed}" +
 		".mce-actions{display:flex;flex-wrap:wrap;gap:var(--mce-space-md);margin:var(--mce-space) 0}" +
+		/* v2.0.2 按键排版：编号区块 / 二级分组 / 按钮网格 / 说明折叠 */
+		".mce-block{margin:4px 0 10px}" +
+		".mce-sec-title{display:flex;align-items:center;gap:6px;color:var(--mce-txt-strong);font-weight:700;font-size:var(--mce-fs-base);border-bottom:1px solid var(--mce-border-quiet);padding:2px 0 5px;margin:8px 0 6px}" +
+		".mce-sec-n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;border-radius:4px;background:var(--mce-accent);color:var(--mce-txt-on-accent);font-size:var(--mce-fs-sm);font-weight:700;padding:0 4px;flex:none}" +
+		".mce-group{margin:8px 0 4px;padding:6px 8px 8px;background:var(--mce-bg-block);border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);contain:content}" +
+		".mce-group-h{display:flex;align-items:baseline;gap:6px;color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-btn);margin-bottom:2px}" +
+		".mce-group-n{color:var(--mce-gold-soft);font-size:var(--mce-fs-sm);font-weight:400;opacity:.85}" +
+		".mce-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--mce-space-sm);margin:var(--mce-space-sm) 0 2px}" +
+		".mce-btn-grid .mce-btn{width:100%;text-align:center;white-space:normal;line-height:1.35;padding:6px 8px}" +
+		".mce-btn-grid .mce-btn:only-child{grid-column:1 / -1}" +
+		".mce-hint.mce-fold{cursor:pointer;line-height:1.5}" +
+		".mce-hint.mce-fold[data-open=\"0\"]{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
+		".mce-hint.mce-fold:hover{color:var(--mce-txt-hi)}" +
+		/* 折叠说明盒：收起时只留摘要行，展开后补出全部条目 */
+		".mce-foldbox[data-open=\"0\"] .mce-hint:not(.mce-fold){display:none}" +
+		".mce-foldbox[data-open=\"1\"] .mce-hint:not(.mce-fold){display:block;animation:mce-fade-in .2s ease-out}" +
 		/* 内层标签 */
 		".mce-inner{display:flex;gap:var(--mce-space-sm);margin:var(--mce-space) 0;border-bottom:1px solid var(--mce-border-quiet);padding-bottom:6px}" +
 		".mce-inner button{background:var(--mce-bg-ctl);color:var(--mce-txt-faint);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-sm);padding:3px 10px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +

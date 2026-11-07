@@ -141,9 +141,7 @@ function mbCELockEnsureTimer() {
 function mbCERenderLock(pane) {
 	if (!pane) { return; }
 	mbCELockEnsureTimer(); /* 开面板兜底：读档后已有锁定向时恢复写回 */
-	var sec = el("div", "mce-section", "数值固定（防游戏机制改动）");
-	pane.appendChild(sec);
-	sec.appendChild(el("div", "mce-hint", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。"));
+	var sec = mceNewSec(pane, 8, "数值固定", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。");
 	var Vg = getV();
 	var presetPaths = {};
 	MB_CE_LOCK_PRESETS.forEach(function (p) { presetPaths[p.path] = true; });

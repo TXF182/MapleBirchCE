@@ -342,6 +342,23 @@ ptxt = clickTabSafe("yanling");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "言灵页渲染不崩，实际 " + ptxt.slice(0, 50));
 let ylPane = document.querySelector('[data-pane="yanling"]');
 assert(ylPane.textContent.indexOf("无视着装性别") !== -1 && ylPane.textContent.indexOf("负面名声清零") !== -1, "言灵页含「无视着装性别 / 负面名声清零」两区，实际 " + ylPane.textContent.slice(0, 120));
+/* v2.0.2 言灵扩容：4 新增区块渲染 + 玩家路径真实点击读回 */
+assert(ylPane.textContent.indexOf("身体与衣物") !== -1 && ylPane.textContent.indexOf("数值快补") !== -1 && ylPane.textContent.indexOf("天气") !== -1 && ylPane.textContent.indexOf("角色放逐") !== -1,
+  "言灵页含扩容 4 区块（身体与衣物 / 数值快补 / 天气 / 角色放逐）");
+V.upperwet = 12; V.lowerwet = 8; V.underupperwet = 5; V.underlowerwet = 3;
+const ylDry = [].slice.call(ylPane.querySelectorAll("button")).filter(function (b) { return b.textContent === "一键烘干衣服"; });
+assert(ylDry.length === 1, "「一键烘干衣服」按钮存在");
+if (ylDry[0]) { ylDry[0].click(); }
+assert(V.upperwet === 0 && V.lowerwet === 0 && V.underupperwet === 0 && V.underlowerwet === 0, "点击烘干 → 4 项湿度归零，实际 " + [V.upperwet, V.lowerwet, V.underupperwet, V.underlowerwet].join("/"));
+V.sadism = 0; V.masochism = 0;
+const ylSad = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("施虐 / 受虐拉满") !== -1; });
+assert(ylSad.length === 1, "「施虐 / 受虐拉满」按钮存在");
+if (ylSad[0]) { ylSad[0].click(); }
+assert(V.sadism === 1000 && V.masochism === 1000, "点击后 $sadism / $masochism = 1000，实际 " + V.sadism + "/" + V.masochism);
+const ylWx = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("切到「") !== -1; });
+assert(ylWx.length === 4, "天气 4 档按钮齐备（晴 / 阴云 / 大雨大雪 / 雷暴），实际 " + ylWx.length);
+const ylBanish = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("格威岚 · 放逐 9 天") !== -1; });
+assert(ylBanish.length === 1, "「格威岚 · 放逐 9 天」按钮存在（原版 scorned 线语义）");
 const ylOnBtn = [].slice.call(ylPane.querySelectorAll("button")).filter(function (b) { return b.textContent === "开启"; });
 assert(ylOnBtn.length === 1, "言灵页「开启」按钮存在");
 if (ylOnBtn[0]) { ylOnBtn[0].click(); }

@@ -358,7 +358,7 @@ if (gBox5) {
 /* ---------- E. 全局页：战斗终结（8 按钮）+ 庄园自动维护（6 按钮）全部真实点击 ---------- */
 clickTabSafe("global");
 const globalPane = document.querySelector('[data-pane="global"]');
-const sections = [].slice.call(globalPane.querySelectorAll(".mce-section"));
+const sections = [].slice.call(globalPane.querySelectorAll(".mce-section, .mce-block"));
 const combatGrp = sections.filter(function (g) { return g.textContent.indexOf("战斗终结") !== -1; })[0];
 assert(!!combatGrp, "E. 全局页含「战斗终结」区");
 if (combatGrp) {
@@ -499,7 +499,7 @@ assert(rowsBackN === 3, "N. 清空搜索后重新展开恢复 3 行, 实际 " + 
 delete V.mock_tension; delete V.mock_love; delete V.mock_tension_max; setup.mbCE_modCheats = [];
 
 /* ---------- W. 全局页世界腐化数值调整（v1.9.12）：直填不钳上限 + 下限保留 + 留痕回退 ---------- */
-const wcSecW = [].slice.call(globalPane.querySelectorAll(".mce-section")).filter(function (s) { return s.textContent.indexOf("世界腐化") !== -1; })[0];
+const wcSecW = [].slice.call(globalPane.querySelectorAll(".mce-section, .mce-block")).filter(function (s) { return s.textContent.indexOf("世界腐化") !== -1; })[0];
 assert(!!wcSecW, "W. 全局页含「世界腐化（原版 World Corruption）」区块");
 const wcRowsW = [].slice.call(globalPane.querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-wckey"); });
 assert(wcRowsW.length === 2, "W. 世界硬/软腐化两行渲染（data-wckey）, 实际 " + wcRowsW.length + " 行");
@@ -535,7 +535,7 @@ if (softInpW && softApplyW) {
 }
 
 /* ---------- L. 数值固定（v1.9.15）：预设行 + 锁定写回 + 取消（防渡鸦/天使/转化值被游戏机制改动） ---------- */
-const lockSecL = [].slice.call(globalPane.querySelectorAll(".mce-section")).filter(function (s) { return s.textContent.indexOf("数值固定") !== -1; })[0];
+const lockSecL = [].slice.call(globalPane.querySelectorAll(".mce-section, .mce-block")).filter(function (s) { return s.textContent.indexOf("数值固定") !== -1; })[0];
 assert(!!lockSecL, "L. 全局页含「数值固定（防游戏机制改动）」区块");
 const lockRowsL = [].slice.call(lockSecL.querySelectorAll(".mce-row")).filter(function (r) { return r.getAttribute("data-lockpath"); });
 assert(lockRowsL.length === api.MB_CE_LOCK_PRESETS.length, "L. 预设推荐行渲染（" + api.MB_CE_LOCK_PRESETS.length + " 项）, 实际 " + lockRowsL.length + " 项");

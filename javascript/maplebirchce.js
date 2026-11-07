@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.1";
+	var MCE_VERSION = "2.0.2";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -5384,11 +5384,11 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 		mbCEAttitudeEnsureTimer();
 		var st = mbCEAttitudeState();
 		var curTier = st.lock ? mbCEAttitudeTier(st.value) : null;
-		pane.appendChild(el("div", "mce-section", "说话态度（原版三档 · 选定后永久维持）"));
+		var sec = mceNewSec(pane, 10, "说话态度", "原版三档（顺从 / 中立 / 反抗），选定后开启「维持」即每秒复位 $speech_attitude 并把顺从度拉回该档门槛内侧，永久维持；「解除维持」清除锁定但保留当前值，「解除并还原」恢复锁定前的态度与顺从度。");
 		var hint = el("div", "mce-hint", mbCEAttitudeStatusLine(st));
 		hint.setAttribute("data-mce-att", "1");
-		pane.appendChild(hint);
-		var row = el("div", "mce-row");
+		sec.appendChild(hint);
+		var g = mceBtnGrid(sec);
 		MB_CE_ATTITUDE_TIERS.forEach(function (t) {
 			var on = !!(curTier && curTier.key === t.key);
 			var b = el("button", on ? "mce-btn mce-gold" : "mce-btn", (on ? "✓ " : "") + t.label);
@@ -5399,10 +5399,9 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
 				if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
 			});
-			row.appendChild(b);
+			g.appendChild(b);
 		});
-		pane.appendChild(row);
-		var ctl = el("div", "mce-row");
+		var ctl = mceBtnGrid(sec);
 		var hold = el("button", st.hold ? "mce-btn mce-gold" : "mce-btn", st.hold ? "维持：开" : "维持：关");
 		hold.type = "button";
 		hold.title = "开启后每秒复位 $speech_attitude 到所选档，并把顺从度拉回该档门槛内侧";
@@ -5426,7 +5425,6 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 			if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
 		});
 		ctl.appendChild(hold); ctl.appendChild(rel); ctl.appendChild(back);
-		pane.appendChild(ctl);
 	}
 	/* 原版特质静态表（v1.8.0 自本体 traits widget 提取） */
 var VANILLA_TRAITS_RAW = [
@@ -6453,6 +6451,55 @@ function renderPlayerEdit() {
 		return node;
 	}
 
+	/* ============ v2.0.2 按键排版helper：区块编号 / 二级分组 / 按钮网格 / 说明折叠 ============
+	   设计口径（解决"功能越加越多、面板越堆越乱"）：
+	     ① 同页区块统一编号（mceNewSec），玩家一眼知道一页有几块、当前在第几块；
+	     ② 语义相近的区块收进二级分组（mceNewGroup），组名一句话说明"这一组在干什么"；
+	     ③ 同构按钮走 2 列网格（mceBtnGrid），不再每行一个把纵向拉长；
+	     ④ 长说明默认折叠成 2 行（mceFoldHint），点击展开，避免每块 2~3 行密文占屏。
+	   全部返回普通 DOM 节点，调用方后续 appendChild 逻辑不变（替换点最小）。 */
+	var mceSecNo = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫", "⑬", "⑭", "⑮", "⑯"];
+	function mceSecMark(idx) { return mceSecNo[idx - 1] || String(idx); }
+	/* 说明折叠：默认 2 行截断，点击整块切换展开/收起（data-open=1/0 供测试断言） */
+	function mceFoldHint(text) {
+		var h = el("div", "mce-hint mce-fold", text);
+		h.setAttribute("data-open", "0");
+		h.title = "点击展开 / 收起完整说明";
+		h.addEventListener("click", function () {
+			h.setAttribute("data-open", h.getAttribute("data-open") === "0" ? "1" : "0");
+		});
+		return h;
+	}
+	/* 带编号区块：返回区块容器，后续照旧 sec.appendChild(...) */
+	function mceNewSec(parent, idx, title, hint) {
+		var sec = el("div", "mce-block");
+		var head = el("div", "mce-sec-title");
+		head.appendChild(el("span", "mce-sec-n", mceSecMark(idx)));
+		head.appendChild(el("span", "", title));
+		sec.appendChild(head);
+		if (hint) { sec.appendChild(mceFoldHint(hint)); }
+		if (parent) { parent.appendChild(sec); }
+		return sec;
+	}
+	/* 二级分组：返回组内 body 容器（组名 + 右侧副标） */
+	function mceNewGroup(parent, title, sub) {
+		var g = el("div", "mce-group");
+		var head = el("div", "mce-group-h");
+		head.appendChild(el("span", "", title));
+		if (sub) { head.appendChild(el("span", "mce-group-n", sub)); }
+		g.appendChild(head);
+		var body = el("div", "mce-group-b");
+		g.appendChild(body);
+		if (parent) { parent.appendChild(g); }
+		return body;
+	}
+	/* 2 列按钮网格容器 */
+	function mceBtnGrid(parent) {
+		var g = el("div", "mce-btn-grid");
+		if (parent) { parent.appendChild(g); }
+		return g;
+	}
+
 	/* v1.9.14 效果2：写入成功闪烁——目标行/按钮加 .mce-flash（金底 0.6s→透明），
 	   同一 timer 统一清理全部 flash 节点（连点不堆积；强制 reflow 保证同一节点动画重放） */
 	var mbCEFlashTimer = null;
@@ -6566,6 +6613,22 @@ function renderPlayerEdit() {
 		".mce-btn.mce-red:hover{background:var(--mce-red-bg-h)}" +
 		".mce-btn:disabled{opacity:.45;cursor:not-allowed}" +
 		".mce-actions{display:flex;flex-wrap:wrap;gap:var(--mce-space-md);margin:var(--mce-space) 0}" +
+		/* v2.0.2 按键排版：编号区块 / 二级分组 / 按钮网格 / 说明折叠 */
+		".mce-block{margin:4px 0 10px}" +
+		".mce-sec-title{display:flex;align-items:center;gap:6px;color:var(--mce-txt-strong);font-weight:700;font-size:var(--mce-fs-base);border-bottom:1px solid var(--mce-border-quiet);padding:2px 0 5px;margin:8px 0 6px}" +
+		".mce-sec-n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;border-radius:4px;background:var(--mce-accent);color:var(--mce-txt-on-accent);font-size:var(--mce-fs-sm);font-weight:700;padding:0 4px;flex:none}" +
+		".mce-group{margin:8px 0 4px;padding:6px 8px 8px;background:var(--mce-bg-block);border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);contain:content}" +
+		".mce-group-h{display:flex;align-items:baseline;gap:6px;color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-btn);margin-bottom:2px}" +
+		".mce-group-n{color:var(--mce-gold-soft);font-size:var(--mce-fs-sm);font-weight:400;opacity:.85}" +
+		".mce-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--mce-space-sm);margin:var(--mce-space-sm) 0 2px}" +
+		".mce-btn-grid .mce-btn{width:100%;text-align:center;white-space:normal;line-height:1.35;padding:6px 8px}" +
+		".mce-btn-grid .mce-btn:only-child{grid-column:1 / -1}" +
+		".mce-hint.mce-fold{cursor:pointer;line-height:1.5}" +
+		".mce-hint.mce-fold[data-open=\"0\"]{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
+		".mce-hint.mce-fold:hover{color:var(--mce-txt-hi)}" +
+		/* 折叠说明盒：收起时只留摘要行，展开后补出全部条目 */
+		".mce-foldbox[data-open=\"0\"] .mce-hint:not(.mce-fold){display:none}" +
+		".mce-foldbox[data-open=\"1\"] .mce-hint:not(.mce-fold){display:block;animation:mce-fade-in .2s ease-out}" +
 		/* 内层标签 */
 		".mce-inner{display:flex;gap:var(--mce-space-sm);margin:var(--mce-space) 0;border-bottom:1px solid var(--mce-border-quiet);padding-bottom:6px}" +
 		".mce-inner button{background:var(--mce-bg-ctl);color:var(--mce-txt-faint);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-sm);padding:3px 10px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
@@ -8290,9 +8353,7 @@ function mbCELockEnsureTimer() {
 function mbCERenderLock(pane) {
 	if (!pane) { return; }
 	mbCELockEnsureTimer(); /* 开面板兜底：读档后已有锁定向时恢复写回 */
-	var sec = el("div", "mce-section", "数值固定（防游戏机制改动）");
-	pane.appendChild(sec);
-	sec.appendChild(el("div", "mce-hint", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。"));
+	var sec = mceNewSec(pane, 8, "数值固定", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。");
 	var Vg = getV();
 	var presetPaths = {};
 	MB_CE_LOCK_PRESETS.forEach(function (p) { presetPaths[p.path] = true; });
@@ -8467,13 +8528,8 @@ function mbCERenderLurker(pane) {
 	if (!pane) { return; }
 	mbCELurkerEnsureTimer();
 	var st = mbCELurkerState();
-	pane.appendChild(el("div", "mce-section", "潜伏者（捕捉上限 / 水烟馆冰箱 · 无上限）"));
-	pane.appendChild(el("div", "mce-hint",
-		"原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、"
-		+ "存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。"
-		+ "CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。"
-		+ "未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。"));
-	if (!st.ok) { pane.appendChild(el("div", "mce-err", st.message)); return; }
+	var sec = mceNewSec(pane, 9, "潜伏者", "原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。");
+	if (!st.ok) { sec.appendChild(el("div", "mce-err", st.message)); return; }
 	var rows = [
 		{ path: "lurkers_held", name: "手持潜伏者（无上限）", cur: st.held, note: "原版 ≥1 即不再出网；解限后不再受限" },
 		{ path: "hookah.lurkers", name: "水烟馆冰箱（无上限）", cur: st.fridge, note: "≥1 可消耗换 50 juice；解限后显示真实数量" },
@@ -8500,7 +8556,7 @@ function mbCERenderLurker(pane) {
 			renderGlobal();
 		});
 		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
-		pane.appendChild(row);
+		sec.appendChild(row);
 	});
 	var actRow = el("div", "mce-row");
 	var rep = el("button", "mce-btn mce-gold", "重新应用解限补丁"); rep.type = "button";
@@ -8519,8 +8575,8 @@ function mbCERenderLurker(pane) {
 		renderGlobal();
 	});
 	actRow.appendChild(rep); actRow.appendChild(sw);
-	pane.appendChild(actRow);
-	pane.appendChild(el("div", "mce-hint",
+	sec.appendChild(actRow);
+	sec.appendChild(el("div", "mce-hint",
 		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只"));
 }
 /* v2.0.0.005 清理：原 mbCELurkerAutoLabel() 删除（拆分期遗留死代码）——上方「自动搬运：开/关」
@@ -10836,6 +10892,346 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "切换异常：" + (e && e.message ? e.message : e) }; }
 	}
 
+	/* ==================== 扩容轮：一次性写入动作（对照 CheatExtend 1.1.3「快捷言灵」逐条取证后补入） ====================
+	   取证口径（DoL 0.5.12.13 原版 HTML，行号可复跑）：
+	     · 衣物湿度 $upperwet/$lowerwet/$underupperwet/$underlowerwet 初始化 182261-182267、debug 写 60670-60682
+	     · 衣物耐久 $worn.{upper,lower,under_upper,under_lower}.integrity（debug 60670-60698；上限由 clothingData(slot,item,"integrity_max") 给出，163772）
+	     · 精液 $semen_volume/$semen_amount 初始化 183097-183101（默认 90）
+	     · 控制 $control（0=被夺舍，满 1000）、幻觉 $hallucinogen 初始化 182681
+	     · 施虐/受虐 $sadism/$masochism 初始化 182086-182088，钳制 0-1000（290866）
+	     · 奶量 $milk_volume/$milk_max 初始化 182101-182102（30/3000），每日钳制 [24, milk_max]（290800）
+	     · 成就 $feats.locked 原版为布尔 true=锁定（182929 / 191755 判定 isnot true）
+	     · 天气 0.5 起迁到 $weatherObj：旧 $weather 是兼容旧档的一次性变量（190009-190032 读完即 unset），
+	       本页改写 window.setWeather(type, true)（定义 87136-87167，类型表 85185-85407 共 7 档）
+	     · 农场 $farm.clearing（0=已清完，305858；清场写 0 见 305874）、堆肥 $fertiliser.current（105354 ++）
+	     · 种子 window.unlockAllSeeds()（定义 76431）、罗宾存款 $robinmoney（初始 300）、
+	       艾弗里约会 $averydate（59740 约会日置 1）、校长办公室密码 $headpasswordknown（674077）
+	     · 角色状态 C.npc.X.state 实为 V.NPCName[V.NPCNameList.indexOf("X")] 的别名（initCNPC 55579-55595），
+	       故本页统一走 V.NPCName[index]，不依赖全局 C。
+	   键存活结论（原版实测）：上述键全部命中；另有两个 CheatExtend 条目在本版是死键，**不实现**——
+	     $NPCName[28].lust（全库 0 命中，CE 原文写 += 0 等于空转）、世扩转化 6 条（$ghost/$slime/$transformationParts.* 全库 0 命中，属第三方世扩模组键）。 */
+
+	function mbCEYanlingErr(e) { return (e && e.message) ? e.message : String(e); }
+
+	/* 数字写：键不存在（undefined）时按"该档无此键"跳过，绝不硬建存档垃圾键 */
+	function mbCEYanlingSetNum(obj, key, val) {
+		if (!obj || typeof obj !== "object") { return false; }
+		if (obj[key] === undefined) { return false; }
+		if (typeof obj[key] !== "number") { return false; }
+		if (obj[key] === val) { return false; }
+		obj[key] = val;
+		return true;
+	}
+
+	/* 一键烘干：4 项湿度归零 */
+	function mbCEYanlingDryClothes() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var keys = ["upperwet", "lowerwet", "underupperwet", "underlowerwet"], before = {}, n = 0, i, k;
+			for (i = 0; i < keys.length; i++) {
+				k = keys[i];
+				before[k] = V[k];
+				if (V[k] === undefined) { V[k] = 0; n++; }
+				else if (typeof V[k] === "number" && V[k] !== 0) { V[k] = 0; n++; }
+			}
+			mbCEYanlingTrace("dry_clothes", before, { wet: 0 });
+			return { ok: true, msg: "已烘干（" + n + " 项湿度归零）" };
+		} catch (e) { return { ok: false, msg: "烘干异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 单件衣物耐久上限：优先衣着对象自带 integrity_max，其次 clothingData，再退回"当前 +1000" */
+	function mbCEYanlingWornMax(slot, w) {
+		if (w && typeof w.integrity_max === "number" && w.integrity_max > 0) { return w.integrity_max; }
+		try {
+			if (typeof window !== "undefined" && typeof window.clothingData === "function") {
+				var m = window.clothingData(slot, w, "integrity_max");
+				if (typeof m === "number" && m > 0) { return m; }
+			}
+		} catch (e) {}
+		return null;
+	}
+	function mbCEYanlingRepairClothes() {
+		try {
+			var V = getV();
+			if (!V || !V.worn || typeof V.worn !== "object") { return { ok: false, msg: "存档变量不可用" }; }
+			var slots = ["upper", "lower", "under_upper", "under_lower"], before = {}, n = 0, i, slot, w, cur, max, target;
+			for (i = 0; i < slots.length; i++) {
+				slot = slots[i];
+				w = V.worn[slot];
+				if (!w || typeof w !== "object" || !w.name || w.name === "naked") { continue; }
+				cur = Number(w.integrity);
+				if (!isFinite(cur)) { cur = 0; }
+				max = mbCEYanlingWornMax(slot, w);
+				target = (max !== null) ? max : (cur + 1000);
+				before[slot] = { name: w.name, integrity: cur, max: max };
+				if (target !== cur) { w.integrity = target; n++; }
+			}
+			mbCEYanlingTrace("repair_clothes", before, { repaired: n });
+			return { ok: true, msg: "衣物加固完成（" + n + " 件耐久回满；穿着的 naked 槽跳过）" };
+		} catch (e) { return { ok: false, msg: "加固异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 精液量：与原版 CheatExtend 同序（先补满 amount，再抬 volume） */
+	function mbCEYanlingSemen() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var vol = (typeof V.semen_volume === "number") ? V.semen_volume : null;
+			var amt = (typeof V.semen_amount === "number") ? V.semen_amount : null;
+			if (vol === null || amt === null) { return { ok: false, msg: "本存档无 $semen_volume / $semen_amount 键（不是男性生理档）" }; }
+			var before = { volume: vol, amount: amt };
+			V.semen_amount = vol;
+			V.semen_volume = vol + 1000;
+			mbCEYanlingTrace("semen", before, { volume: V.semen_volume, amount: V.semen_amount });
+			return { ok: true, msg: "精液量已补满（volume " + before.volume + " → " + V.semen_volume + "，amount → " + V.semen_amount + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 精神：控制拉满 + 幻觉清零 */
+	function mbCEYanlingMind() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var before = { control: V.control, hallucinogen: V.hallucinogen }, n = 0;
+			if (mbCEYanlingSetNum(V, "control", 1000)) { n++; }
+			if (mbCEYanlingSetNum(V, "hallucinogen", 0)) { n++; }
+			mbCEYanlingTrace("mind", before, { control: V.control, hallucinogen: V.hallucinogen });
+			return { ok: true, msg: "精神状态已恢复（control " + String(before.control) + " → 1000，hallucinogen → 0；改动 " + n + " 项）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 施虐 / 受虐：0-1000（原版 290866 钳制同上限） */
+	function mbCEYanlingSadism() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var before = { sadism: V.sadism, masochism: V.masochism }, n = 0;
+			if (mbCEYanlingSetNum(V, "sadism", 1000)) { n++; }
+			if (mbCEYanlingSetNum(V, "masochism", 1000)) { n++; }
+			mbCEYanlingTrace("sadomasochism", before, { sadism: V.sadism, masochism: V.masochism });
+			return { ok: true, msg: "施虐 / 受虐已拉满至 1000（改动 " + n + " 项）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 集齐所有种子：走原版 window.unlockAllSeeds()（76431 定义），不自造数据表 */
+	function mbCEYanlingSeeds() {
+		try {
+			if (typeof window === "undefined" || typeof window.unlockAllSeeds !== "function") {
+				return { ok: false, msg: "本局未提供 unlockAllSeeds()（游戏脚本未就绪或版本已移除）" };
+			}
+			window.unlockAllSeeds();
+			mbCEYanlingTrace("seeds", null, { called: "unlockAllSeeds" });
+			return { ok: true, msg: "已集齐所有种子" };
+		} catch (e) { return { ok: false, msg: "调用异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 罗宾存款清零 */
+	function mbCEYanlingRobinMoney() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			if (typeof V.robinmoney !== "number") { return { ok: false, msg: "本存档无 $robinmoney 键" }; }
+			var before = V.robinmoney;
+			V.robinmoney = 0;
+			mbCEYanlingTrace("robin_money", before, 0);
+			return { ok: true, msg: "罗宾存款已清零（原 " + before + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 今晚被艾弗里约：$averydate = 1（原版 308105 判定 is 1 且 hour lte 21） */
+	function mbCEYanlingAveryDate() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var before = V.averydate;
+			V.averydate = 1;
+			mbCEYanlingTrace("avery_date", before, 1);
+			return { ok: true, msg: "已设为今晚艾弗里来约（21 点前到宅邸触发；原 " + String(before) + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 校长办公室密码 */
+	function mbCEYanlingHeadPassword() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var before = V.headpasswordknown;
+			V.headpasswordknown = 1;
+			mbCEYanlingTrace("head_password", before, 1);
+			return { ok: true, msg: "已获知校长办公室密码（原 " + String(before) + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 成就限制解除：原版 $feats.locked 布尔，true=锁定（191755 以 isnot true 判"已解锁"） */
+	function mbCEYanlingFeats() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var feats = V.feats;
+			if (!feats || typeof feats !== "object") { return { ok: false, msg: "本存档无 $feats 对象" }; }
+			var before = feats.locked;
+			feats.locked = false;
+			mbCEYanlingTrace("feats_locked", before, false);
+			return { ok: true, msg: "成就限制已解除（feats.locked " + String(before) + " → false）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 农场：清场 + 堆肥 +5 */
+	function mbCEYanlingFarm() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var farm = V.farm, before = { clearing: farm ? farm.clearing : undefined, fertiliser: (V.fertiliser ? V.fertiliser.current : undefined) }, n = 0;
+			if (farm && typeof farm === "object" && typeof farm.clearing === "number") {
+				if (farm.clearing !== 0) { farm.clearing = 0; n++; }
+			}
+			if (V.fertiliser && typeof V.fertiliser === "object" && typeof V.fertiliser.current === "number") {
+				V.fertiliser.current = V.fertiliser.current + 5; n++;
+			}
+			mbCEYanlingTrace("farm", before, { clearing: farm ? farm.clearing : null, fertiliser: V.fertiliser ? V.fertiliser.current : null });
+			return { ok: true, msg: "农田已清理并补 5 袋堆肥（改动 " + n + " 项；无农场进度时为空转）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 奶量：先抬上限再写当前值（原版 290800 每日钳制到 [24, milk_max]） */
+	function mbCEYanlingMilk() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			if (typeof V.milk_max !== "number" || typeof V.milk_volume !== "number") { return { ok: false, msg: "本存档无 $milk_volume / $milk_max 键" }; }
+			var before = { volume: V.milk_volume, max: V.milk_max };
+			V.milk_max = 10000;
+			V.milk_volume = 5000;
+			mbCEYanlingTrace("milk", before, { volume: V.milk_volume, max: V.milk_max });
+			return { ok: true, msg: "奶量 5000 / 上限 10000（原 " + before.volume + " / " + before.max + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 天气：0.5 起走 window.setWeather（旧 $weather 已被 190032 unset，写它无效） */
+	var mbCEYanlingWeatherMap = {
+		clear: "晴",
+		heavyClouds: "阴云",
+		heavyPrecipitation: "大雨 / 大雪",
+		thunderstorm: "雷暴"
+	};
+	function mbCEYanlingWeather(type) {
+		try {
+			if (typeof window === "undefined" || typeof window.setWeather !== "function") {
+				return { ok: false, msg: "本局未提供 setWeather()（0.5 以下旧版或脚本未就绪）" };
+			}
+			if (!mbCEYanlingWeatherMap[type]) { return { ok: false, msg: "未知天气类型：" + String(type) }; }
+			window.setWeather(type, true);
+			mbCEYanlingTrace("weather", null, type);
+			return { ok: true, msg: "天气已切换为「" + mbCEYanlingWeatherMap[type] + "」" };
+		} catch (e) { return { ok: false, msg: "切换异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 角色对象：V.NPCName[V.NPCNameList.indexOf(name)]（与 C.npc.X 同一对象，见 initCNPC 55579-55595） */
+	function mbCEYanlingNpc(name) {
+		try {
+			var V = getV();
+			if (!V || !V.NPCName || !V.NPCNameList || typeof V.NPCNameList.indexOf !== "function") { return null; }
+			var i = V.NPCNameList.indexOf(name);
+			if (i === -1) { return null; }
+			return V.NPCName[i] || null;
+		} catch (e) { return null; }
+	}
+	/* 游戏内"今天 + N 天"的时间戳：优先 SugarCube DateTime（与原版 new DateTime(Time.date).addDays(n).timeStamp 等价） */
+	function mbCEYanlingDaysLater(days) {
+		try {
+			var TD = null;
+			if (typeof window !== "undefined") {
+				if (typeof window.DateTime === "function") { TD = window.DateTime; }
+				else if (window.SugarCube && typeof window.SugarCube.DateTime === "function") { TD = window.SugarCube.DateTime; }
+			}
+			if (TD && typeof Time !== "undefined" && Time && Time.date) {
+				return new TD(Time.date).addDays(days).timeStamp;
+			}
+			if (typeof Time !== "undefined" && Time && Time.date && typeof Time.date.timeStamp === "number") {
+				return Time.date.timeStamp + days * 86400;
+			}
+		} catch (e) {}
+		return null;
+	}
+
+	/* 格威岚 · 放逐：原版 Gwylan Ritual Sex Scorned 402967-402970 逐句对齐
+	   <<npcset Gwylan state "scorned">> + $daily.gwylan.preventProgress=true + $gwylan.timer.scorned = +9 天
+	   后果（原版实证）：森林/森林商店/咖啡馆/学校接送/酒馆全线事件跳过（338148/406843/548612/663254 等），
+	   状态栏显示「has scorned your affections」（300687）；到期日 78390-78393 自动 delete timer 恢复。 */
+	function mbCEYanlingGwylanBanish() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var npc = mbCEYanlingNpc("Gwylan");
+			if (!npc || typeof npc !== "object") { return { ok: false, msg: "本存档无格威岚槽位" }; }
+			if (npc.init === 0) { return { ok: false, msg: "格威岚尚未初始化（未相遇），无从放逐" }; }
+			var ts = mbCEYanlingDaysLater(9);
+			if (ts === null) { return { ok: false, msg: "无法计算游戏内时间戳（DateTime / Time.date 不可用）" }; }
+			var before = { state: npc.state, scorned: (V.gwylan && V.gwylan.timer) ? V.gwylan.timer.scorned : undefined };
+			npc.state = "scorned";
+			if (!V.gwylan || typeof V.gwylan !== "object") { V.gwylan = {}; }
+			if (!V.gwylan.timer || typeof V.gwylan.timer !== "object") { V.gwylan.timer = {}; }
+			V.gwylan.timer.scorned = ts;
+			if (!V.daily || typeof V.daily !== "object") { V.daily = {}; }
+			if (!V.daily.gwylan || typeof V.daily.gwylan !== "object") { V.daily.gwylan = {}; }
+			V.daily.gwylan.preventProgress = true;
+			mbCEYanlingTrace("gwylan_banish", before, { state: "scorned", scorned: ts });
+			return { ok: true, msg: "格威岚已被放逐（9 天内森林商店 / 咖啡馆 / 接送全线不触发；到期自动解除）" };
+		} catch (e) { return { ok: false, msg: "放逐异常：" + mbCEYanlingErr(e) }; }
+	}
+	/* 格威岚 · 召回：原版无「直接清 state」的正规入口（正常线靠道歉 +3/-3 天缩短 timer，385338/385392），
+	   这里做等价收敛：state 回 active + 清 timer.scorned / timer.nobody + 解除当日进度锁。
+	   timer.nobody 是通用「人不在场」倒计时（gwylanNobody widget 416528-416537，默认 9 天），一并清掉才真正召回。 */
+	function mbCEYanlingGwylanRecall() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var npc = mbCEYanlingNpc("Gwylan");
+			if (!npc || typeof npc !== "object") { return { ok: false, msg: "本存档无格威岚槽位" }; }
+			var before = { state: npc.state, scorned: (V.gwylan && V.gwylan.timer) ? V.gwylan.timer.scorned : undefined, nobody: (V.gwylan && V.gwylan.timer) ? V.gwylan.timer.nobody : undefined };
+			npc.state = "active";
+			if (V.gwylan && V.gwylan.timer && typeof V.gwylan.timer === "object") {
+				delete V.gwylan.timer.scorned;
+				delete V.gwylan.timer.nobody;
+			}
+			if (V.daily && V.daily.gwylan && typeof V.daily.gwylan === "object") { V.daily.gwylan.preventProgress = false; }
+			mbCEYanlingTrace("gwylan_recall", before, { state: "active" });
+			return { ok: true, msg: "格威岚已召回（state=active，放逐 / 缺席倒计时均已清除）" };
+		} catch (e) { return { ok: false, msg: "召回异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 凯拉尔 · 送监狱：原版合法值 "active" / "" / "prison" / 0（654113 起监狱专属线按 state is "prison" 触发） */
+	function mbCEYanlingKylar(prison) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var npc = mbCEYanlingNpc("Kylar");
+			if (!npc || typeof npc !== "object") { return { ok: false, msg: "本存档无凯拉尔槽位" }; }
+			if (npc.init === 0) { return { ok: false, msg: "凯拉尔尚未初始化（未相遇）" }; }
+			var before = npc.state, target = prison ? "prison" : "active";
+			npc.state = target;
+			mbCEYanlingTrace("kylar_state", before, target);
+			return { ok: true, msg: "凯拉尔已" + (prison ? "送进监狱（state=prison）" : "捞回（state=active）") + "（原 " + String(before) + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 惠特尼 · 送地牢：原版合法值 "active" / "dungeon" / "pillory" / "rescued"（188671-188677）
+	   只做 dungeon ↔ active：pillory 由 $pillory_tenant 联动（188675 判定承租人姓名为 Whitney），单写 state 会出现"人不在枷锁却在示众"的错位，故不提供。 */
+	function mbCEYanlingWhitney(dungeon) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var npc = mbCEYanlingNpc("Whitney");
+			if (!npc || typeof npc !== "object") { return { ok: false, msg: "本存档无惠特尼槽位" }; }
+			if (npc.init === 0) { return { ok: false, msg: "惠特尼尚未初始化（未相遇）" }; }
+			var before = npc.state, target = dungeon ? "dungeon" : "active";
+			npc.state = target;
+			mbCEYanlingTrace("whitney_state", before, target);
+			return { ok: true, msg: "惠特尼已" + (dungeon ? "关进地牢（state=dungeon）" : "放回（state=active）") + "（原 " + String(before) + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
 	/* 渲染：言灵页（7 号外层页签） */
 	function renderYanling() {
 		try {
@@ -10850,7 +11246,6 @@ var SCENE_LOCATIONS = {
 			var st = mbCEYanlingState();
 			var hooked = !!(mbCEYanlingHookFn && typeof window !== "undefined" && window.isCrossdressing === mbCEYanlingHookFn);
 
-			var mkSec = function (title) { var s = el("div", "mce-section", title); pane.appendChild(s); return s; };
 			var mkStatus = function (sec, on, onText, offText) {
 				var row = el("div", "mce-row");
 				row.appendChild(el("span", "mce-row-lbl", "当前状态："));
@@ -10858,7 +11253,7 @@ var SCENE_LOCATIONS = {
 				sec.appendChild(row);
 			};
 			var mkBtn = function (sec, text, cls, fn, tip) {
-				var row = el("div", "mce-row");
+				var isGrid = !!(sec && sec.classList && sec.classList.contains("mce-btn-grid"));
 				var b = el("button", "mce-btn " + (cls || ""), text);
 				b.type = "button";
 				if (tip) { b.title = tip; }
@@ -10868,14 +11263,27 @@ var SCENE_LOCATIONS = {
 					mbCEFlashRow(b);
 					renderYanling();
 				});
-				row.appendChild(b);
-				sec.appendChild(row);
+				if (isGrid) {
+					/* v2.0.2 按键排版：网格容器内不再套一层 mce-row（每格直接一个按钮） */
+					sec.appendChild(b);
+				} else {
+					var row = el("div", "mce-row");
+					row.appendChild(b);
+					sec.appendChild(row);
+				}
 				return b;
 			};
 
+			/* ==== v2.0.2 按键重排：8 个平铺区块 → 3 个语义分组 + 统一编号（①~⑧）+ 2 列按钮网格 ====
+			   旧版把"说明与边界"塞在第 4 位却排在最后、区块顺序 s1→s2→s3→s5→s6→s7→s8→s4，编号与文案里的 ①②③ 完全脱节；
+			   现在按「玩家要解决什么问题」分组：着装与名声（想穿什么就穿什么）/ 身体与数值（把状态拉回舒服）/
+			   角色状态（把碍事的 NPC 挪开），说明统一收进最底折叠块。 */
+			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声");
+			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气");
+			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 囚禁（原版 state 层）");
+
 			/* ① 核心：无性别着装 */
-			var s1 = mkSec("言灵 · 无视着装性别");
-			s1.appendChild(el("div", "mce-hint", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。"));
+			var s1 = mceNewSec(gA, 1, "无视着装性别", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。");
 			mkStatus(s1, st && st.noCross, "已开启", "未开启");
 			var row1 = el("div", "mce-row");
 			var b1 = el("button", "mce-btn " + (st && st.noCross ? "mce-red" : "mce-gold"), st && st.noCross ? "关闭（恢复原版判定）" : "开启");
@@ -10895,13 +11303,12 @@ var SCENE_LOCATIONS = {
 			s1.appendChild(diag);
 
 			/* ② 异装癖（crossdresser 特质） */
-			var s2 = mkSec("言灵 · 异装癖压制");
+			var s2 = mceNewSec(gA, 2, "异装癖压制", "异装癖累积点在异装分支内（243201-243208：$crossdressingTrait 满 100 → 背景特质 crossdresser）。开启「无视着装性别」后不再累积；本组额外把存量进度与已获得的特质清掉，并可按秒压制（读档后同样生效）。");
 			var hasTrait = false;
 			try {
 				var bt = V && V.backgroundTraits;
 				hasTrait = !!(bt && typeof bt.indexOf === "function" && bt.indexOf("crossdresser") !== -1);
 			} catch (e0) {}
-			s2.appendChild(el("div", "mce-hint", "异装癖累积点在异装分支内（243201-243208：$crossdressingTrait 满 100 → 背景特质 crossdresser）。开启「无视着装性别」后不再累积；本组额外把存量进度与已获得的特质清掉，并可按秒压制（读档后同样生效）。"));
 			var tRow = el("div", "mce-row");
 			tRow.appendChild(el("span", "mce-row-lbl", "当前：进度 " + (V && typeof V.crossdressingTrait === "number" ? String(V.crossdressingTrait) : "0") + "/100，特质 "));
 			tRow.appendChild(el("span", "mce-value", hasTrait ? "已获得（可按下方按钮移除）" : "未获得"));
@@ -10921,8 +11328,7 @@ var SCENE_LOCATIONS = {
 			s2.appendChild(rowT);
 
 			/* ③ 负面名声清零 */
-			var s3 = mkSec("言灵 · 负面名声清零");
-			s3.appendChild(el("div", "mce-hint", "学校名声仅 crossdress / herm 两键（schoolrep 346656-346682）；城镇名声取 V.fame 负面 8 项（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp），并同步删除 V.fameDecay / V.fameDecayTimer 的衰减队列项，避免清零后又被队列改回。正面项（scrap / good / business / social / model）保持不动。"));
+			var s3 = mceNewSec(gA, 3, "负面名声清零", "学校名声仅 crossdress / herm 两键（schoolrep 346656-346682）；城镇名声取 V.fame 负面 8 项（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp），并同步删除 V.fameDecay / V.fameDecayTimer 的衰减队列项，避免清零后又被队列改回。正面项（scrap / good / business / social / model）保持不动。");
 			var schTxt = "—";
 			try {
 				if (V && V.schoolrep && typeof V.schoolrep === "object") {
@@ -10941,17 +11347,102 @@ var SCENE_LOCATIONS = {
 				} catch (e2) { return "—"; }
 			})() + " 点"));
 			s3.appendChild(fRow);
-			mkBtn(s3, "一键清零：学校异装名声", "mce-gold", mbCEYanlingPurgeCross, "清 $schoolrep.crossdress 并删 $school_crossdress_message");
-			mkBtn(s3, "一键清零：全部负面名声", "mce-gold", mbCEYanlingPurgeFame, "学校 crossdress/herm + 城镇 fame 负面 8 项 + 衰减队列");
+			var s3g = mceBtnGrid(s3);
+			mkBtn(s3g, "一键清零：学校异装名声", "mce-gold", mbCEYanlingPurgeCross, "清 $schoolrep.crossdress 并删 $school_crossdress_message");
+			mkBtn(s3g, "一键清零：全部负面名声", "mce-gold", mbCEYanlingPurgeFame, "学校 crossdress/herm + 城镇 fame 负面 8 项 + 衰减队列");
 
-			/* ④ 边界说明 */
-			var s4 = mkSec("说明与边界");
-			s4.appendChild(el("div", "mce-hint", "① 只拦「服装性别」链，不改玩家性别、生殖器、外观性别（isGenitalMismatch 与原版 herm 链保持原样；双生殖器仍会按原版进 herm 分支，如需一并消掉请用上面的名声清零）。"));
-			s4.appendChild(el("div", "mce-hint", "② 压力循环不受影响：77866-77870 用本地 const 判定（源码注释明确不复用函数），本页只覆盖函数不改语义。"));
-			s4.appendChild(el("div", "mce-hint", "③ 不依赖任何原版文案：老式「言灵」模组靠文本替换原版 Cheats 面板，原版一更新即整块失效；本页全部为运行期钩子与变量直写，仅依赖 6 个变量键（$crossdressing / $schoolrep / $school_crossdress_message / $crossdressingTrait / $backgroundTraits / $fame）。"));
-			s4.appendChild(el("div", "mce-hint", "④ 所有净化动作按 mbCE_wrote[\"yanling:op\"] 留痕（含 before/after/t），可在全局页留痕区核对。"));
-			s4.appendChild(el("div", "mce-hint", "⑤ 关闭开关会立即卸载钩子（window.isCrossdressing 还原为原版函数），不留空包装层；钩子被第三方模组重包时，开关开启期间每秒自动以新函数为上游重新包裹。"));
-			s4.appendChild(el("div", "mce-hint", "⑥ 性别认知残留属正常：学校异装名声升到 5 时原版会把 9 名 NPC 写进 $genderknown（schoolrep widget 的 pushUnique）。本页清零名声不撤销这些认知——它们只代表「NPC 已知道你的性别」，不是负面名声，撤销反而让 NPC 忘记已有认知。"));
+			/* ④ 身体与衣物（对照 CheatExtend 1.1.3「快捷言灵」补入；v2.0.2 拆出 ⑤ 精神与体液） */
+			var s4 = mceNewSec(gB, 4, "身体与衣物", "一键烘干：$upperwet / $lowerwet / $underupperwet / $underlowerwet（原版初始化 182261-182267，debug 直写 60670-60682）。衣物加固：$worn.{upper,lower,under_upper,under_lower}.integrity 按该件 integrity_max 写满（上限取自 clothingData(slot,item,\"integrity_max\")，163772；不照抄 CE 的 +1000，避免超上限导致耐久显示破表）。");
+			var wetTxt = "—", durTxt = "—";
+			try {
+				var Vw = getV();
+				if (Vw) {
+					wetTxt = ["upperwet", "lowerwet", "underupperwet", "underlowerwet"].map(function (k) { return (typeof Vw[k] === "number") ? String(Vw[k]) : "—"; }).join(" / ");
+					durTxt = ["upper", "lower", "under_upper", "under_lower"].map(function (sl) {
+						var w = Vw.worn ? Vw.worn[sl] : null;
+						if (!w || !w.name || w.name === "naked") { return sl + "：空"; }
+						return sl + "：" + String(w.integrity);
+					}).join(" ｜ ");
+				}
+			} catch (eW) {}
+			var wRow = el("div", "mce-row");
+			wRow.appendChild(el("span", "mce-row-lbl", "湿度（上 / 下 / 内上 / 内下）："));
+			wRow.appendChild(el("span", "mce-value", wetTxt));
+			s4.appendChild(wRow);
+			s4.appendChild(el("div", "mce-hint", "耐久 " + durTxt));
+			var s4g = mceBtnGrid(s4);
+			mkBtn(s4g, "一键烘干衣服", "mce-gold", mbCEYanlingDryClothes, "4 项衣物湿度归零");
+			mkBtn(s4g, "衣物加固（耐久回满）", "mce-gold", mbCEYanlingRepairClothes, "4 主槽按各自 integrity_max 写满；穿着的 naked 槽自动跳过");
+
+			/* ⑤ 精神与体液（v2.0.2 从「身体与衣物」拆出：这两项不碰衣物，混在一起让玩家以为都是衣服相关） */
+			var s5 = mceNewSec(gB, 5, "精神与体液", "精液补满：$semen_volume / $semen_amount（183097-183101 默认 90，同序写：先 amount 补到当前 volume，再把 volume +1000）。精神恢复：$control 拉满 1000（59989 的原版初值 0，不是上限）、$hallucinogen 归零（182681）。");
+			var s5g = mceBtnGrid(s5);
+			mkBtn(s5g, "精液补满", "mce-gold", mbCEYanlingSemen, "$semen_amount 补到当前 volume，并把 volume +1000（与原版 CheatExtend 同序）");
+			mkBtn(s5g, "精神恢复（控制拉满 + 幻觉清零）", "mce-gold", mbCEYanlingMind, "$control=1000、$hallucinogen=0");
+
+			/* ⑥ 数值快补 */
+			var s6 = mceNewSec(gB, 6, "数值快补", "补 CE 快速面板没有入口的原版数值：施虐 / 受虐（$sadism / $masochism，钳制 0-1000，290866）、奶量（$milk_volume / $milk_max，每日钳到 [24, milk_max]，290800）、成就限制（$feats.locked 原版是布尔 true=锁定）、罗宾存款（$robinmoney）、艾弗里约会（$averydate is 1 且 21 点前，308105）、校长办公室密码（$headpasswordknown）、种子（window.unlockAllSeeds，76431）、农田（$farm.clearing=0 见 305874 / $fertiliser.current ++ 见 105354）。");
+			var s6g = mceBtnGrid(s6);
+			mkBtn(s6g, "施虐 / 受虐拉满（1000）", "mce-gold", mbCEYanlingSadism, "$sadism / $masochism = 1000");
+			mkBtn(s6g, "奶量 5000 / 上限 10000", "mce-gold", mbCEYanlingMilk, "先抬 milk_max 再写 milk_volume，避免被每日钳制卡回");
+			mkBtn(s6g, "解除成就限制", "mce-gold", mbCEYanlingFeats, "$feats.locked = false（原版以 isnot true 判已解锁）");
+			mkBtn(s6g, "罗宾存款清零", "mce-gold", mbCEYanlingRobinMoney, "$robinmoney = 0");
+			mkBtn(s6g, "今晚艾弗里来约", "mce-gold", mbCEYanlingAveryDate, "$averydate = 1（21 点前到宅邸触发）");
+			mkBtn(s6g, "获知校长办公室密码", "mce-gold", mbCEYanlingHeadPassword, "$headpasswordknown = 1");
+			mkBtn(s6g, "集齐所有种子", "mce-gold", mbCEYanlingSeeds, "调原版 window.unlockAllSeeds()，不自造种子表");
+			mkBtn(s6g, "清理农田 + 补 5 袋堆肥", "mce-gold", mbCEYanlingFarm, "$farm.clearing = 0、$fertiliser.current += 5");
+
+			/* ⑦ 天气 */
+			var s7 = mceNewSec(gB, 7, "天气", "0.5 起天气迁到 $weatherObj，旧 $weather 只在旧档迁移分支读一次随即 unset（190009-190032）——老式写 $weather=\"rain\" 在本版完全无效（CE 的「祈雨术」即此条）。本页直调原版 window.setWeather(type, true)（定义 87136-87167），合法类型表 85185-85407 共 7 档，此处给常用 4 档（雨 / 雪由气温决定，不单列）。");
+			var s7g = mceBtnGrid(s7);
+			["clear", "heavyClouds", "heavyPrecipitation", "thunderstorm"].forEach(function (wt) {
+				mkBtn(s7g, "切到「" + mbCEYanlingWeatherMap[wt] + "」", "", function () { return mbCEYanlingWeather(wt); }, "setWeather(\"" + wt + "\", true)");
+			});
+
+			/* ⑧ 角色放逐 */
+			var s8 = mceNewSec(gC, 8, "角色放逐", "原版「放逐」不是通用机制：跨角色只有格威岚走 scorned 线（Gwylan Ritual Sex Scorned 402967-402970 = state=scorned + 当日进度锁 + 9 天倒计时；到期由 78390-78393 自动 delete timer 恢复），凯拉尔 / 惠特尼 的「离场」在原版是 state 切换（prison / dungeon）。顺手核实：CheatExtend 1.1.3 全目录 grep「放逐 / banish / exile / 驱逐」零命中——本组口径来自原版，不是照抄 CE。");
+			var npcTxt = "—";
+			try {
+				var statList = [];
+				["Gwylan", "Kylar", "Whitney"].forEach(function (nm) {
+					var p = mbCEYanlingNpc(nm);
+					statList.push(nm + "=" + (p ? String(p.state) : "无槽位"));
+				});
+				npcTxt = statList.join(" ｜ ");
+			} catch (eN) {}
+			s8.appendChild(el("div", "mce-hint", "当前 NPC 状态：" + npcTxt));
+			var s8g = mceBtnGrid(s8);
+			mkBtn(s8g, "格威岚 · 放逐 9 天", "mce-red", mbCEYanlingGwylanBanish, "state=scorned + $daily.gwylan.preventProgress=true + $gwylan.timer.scorned=+9 天");
+			mkBtn(s8g, "格威岚 · 立即召回", "mce-gold", mbCEYanlingGwylanRecall, "state=active + 清 timer.scorned / timer.nobody（等价于道歉线 addDays(-3) 提前解禁）");
+			mkBtn(s8g, "凯拉尔 · 送进监狱", "mce-red", function () { return mbCEYanlingKylar(true); }, "state=prison（原版监狱专属线按此值触发）");
+			mkBtn(s8g, "凯拉尔 · 捞回", "mce-gold", function () { return mbCEYanlingKylar(false); }, "state=active");
+			mkBtn(s8g, "惠特尼 · 关进地牢", "mce-red", function () { return mbCEYanlingWhitney(true); }, "state=dungeon（188677 四处地牢事件按此值触发）");
+			mkBtn(s8g, "惠特尼 · 放回", "mce-gold", function () { return mbCEYanlingWhitney(false); }, "state=active");
+			s8.appendChild(el("div", "mce-hint", "惠特尼不提供「枷锁示众」：pillory 由 $pillory_tenant 联动（188675 按承租人姓名判定），只写 state 会出现「人不在枷锁却显示示众」的错位。凯拉尔亦同：其 prison 线除 state 还要 $prison.kylar 等配套键，本组只做 state 层（与原版 npcset 等价），不伪造监狱进度。"));
+
+			/* v2.0.2 按键重排：说明与边界不再伪装成"第 4 个区块"，改为页尾折叠块（不占编号，默认 2 行） */
+			var sInfo = el("div", "mce-block");
+			var sInfoh = el("div", "mce-sec-title");
+			sInfoh.appendChild(el("span", "", "说明与边界（点开查看）"));
+			sInfo.appendChild(sInfoh);
+			var sInfobody = el("div", "mce-foldbox");
+			sInfobody.setAttribute("data-open", "0");
+			var sInfotoggle = el("div", "mce-hint mce-fold", "① 只拦「服装性别」链；② 压力循环不受影响；③ 不依赖原版文案，仅依赖 6 个变量键；④ 全部动作按 mbCE_wrote 留痕可回退；⑤ 关闭开关立即卸载钩子；⑥ 性别认知残留属正常。");
+			sInfotoggle.setAttribute("data-open", "0");
+			sInfotoggle.addEventListener("click", function () {
+				var now = sInfobody.getAttribute("data-open") === "0" ? "1" : "0";
+				sInfobody.setAttribute("data-open", now);
+				sInfotoggle.setAttribute("data-open", "0"); /* body 收起时摘要保持 2 行 */
+			});
+			sInfobody.appendChild(sInfotoggle);
+			sInfobody.appendChild(el("div", "mce-hint", "① 只拦「服装性别」链，不改玩家性别、生殖器、外观性别（isGenitalMismatch 与原版 herm 链保持原样；双生殖器仍会按原版进 herm 分支，如需一并消掉请用上面的名声清零）。"));
+			sInfobody.appendChild(el("div", "mce-hint", "② 压力循环不受影响：77866-77870 用本地 const 判定（源码注释明确不复用函数），本页只覆盖函数不改语义。"));
+			sInfobody.appendChild(el("div", "mce-hint", "③ 不依赖任何原版文案：老式「言灵」模组靠文本替换原版 Cheats 面板，原版一更新即整块失效；本页全部为运行期钩子与变量直写，仅依赖 6 个变量键（$crossdressing / $schoolrep / $school_crossdress_message / $crossdressingTrait / $backgroundTraits / $fame）。"));
+			sInfobody.appendChild(el("div", "mce-hint", "④ 所有净化动作按 mbCE_wrote[\"yanling:op\"] 留痕（含 before/after/t），可在全局页留痕区核对。"));
+			sInfobody.appendChild(el("div", "mce-hint", "⑤ 关闭开关会立即卸载钩子（window.isCrossdressing 还原为原版函数），不留空包装层；钩子被第三方模组重包时，开关开启期间每秒自动以新函数为上游重新包裹。"));
+			sInfobody.appendChild(el("div", "mce-hint", "⑥ 性别认知残留属正常：学校异装名声升到 5 时原版会把 9 名 NPC 写进 $genderknown（schoolrep widget 的 pushUnique）。本页清零名声不撤销这些认知——它们只代表「NPC 已知道你的性别」，不是负面名声，撤销反而让 NPC 忘记已有认知。"));
+			sInfo.appendChild(sInfobody);
+			pane.appendChild(sInfo);
 			/* 恢复滚动位置（见上方 keepTop） */
 			if (scroller && keepTop) { try { scroller.scrollTop = keepTop; } catch (eR) {} }
 		} catch (e) { /* 渲染失败不抛到 UI 主链 */ }
@@ -11127,7 +11618,6 @@ var SCENE_LOCATIONS = {
 		   悬浮球是面板唯一入口，不提供隐藏——隐藏即死锁） */
 		var fabLocked = !!(toggleBtn && toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1");
 		var fabWrap = el("div", "mce-row");
-		fabWrap.appendChild(el("span", "mce-row-lbl", "面板悬浮入口（右下角金色「解锁」球）"));
 		var fabBtn = el("button", "mce-btn", fabLocked ? "解锁悬浮球拖动" : "锁定悬浮球拖动");
 		fabBtn.type = "button";
 		fabBtn.title = fabLocked
@@ -11148,10 +11638,17 @@ var SCENE_LOCATIONS = {
 			renderGlobal();
 		});
 		fabWrap.appendChild(fabBtn);
-		pane.appendChild(fabWrap);
+		/* v2.0.2 按键重排：原先"悬浮球行 + 一句提示 + 6 个金色按钮裸堆"占了整屏第一屏、且按钮语义混杂；
+		   现在把面板设置收进不编号的分组，批量按钮按「速成 / 收集」拆两块并走 2 列网格。 */
+		var fabGroup = mceNewGroup(pane, "面板设置", "悬浮入口 · 不占区块编号");
+		fabGroup.appendChild(el("div", "mce-row-lbl", "面板悬浮入口（右下角金色「解锁」球）"));
+		fabGroup.appendChild(fabWrap);
 		var chars = listCharacters();
-		pane.appendChild(el("div", "mce-hint", "自动枚举角色 " + chars.length + " 个（本体 + 全部 MOD）。以下操作对全部角色生效。"));
-		var actions = el("div", "mce-actions");
+		fabGroup.appendChild(el("div", "mce-hint", "自动枚举角色 " + chars.length + " 个（本体 + 全部 MOD）。以下操作对全部角色生效。"));
+
+		/* ① 批量速成（全角色） */
+		var bsec = mceNewSec(pane, 1, "批量速成（全角色）", "对枚举到的全部角色（本体 + 全部 MOD）一次性补齐：数值 / 恋爱阶段 / 转化阶段 / 玩家扩展转化。扩展转化在 MOD 未加载时自动跳过并给出提示，不会报错。");
+		var bgrid = mceBtnGrid(bsec);
 		var b1 = el("button", "mce-btn mce-gold", "全部角色：一键补齐全部数值");
 		b1.type = "button";
 		b1.addEventListener("click", function () {
@@ -11177,6 +11674,14 @@ var SCENE_LOCATIONS = {
 			listExtTransforms().forEach(function (k) { if (completeExtTransform(k)) { n += 1; } });
 			setStatus(n > 0 ? "扩展转化已全部解锁（" + n + " 项）" : "未检测到扩展转化（MOD 未加载）", n > 0 ? "mce-ok" : "mce-err");
 		});
+		bgrid.appendChild(b1);
+		bgrid.appendChild(b2);
+		bgrid.appendChild(b3);
+		bgrid.appendChild(b4);
+
+		/* ② 收集解锁 */
+		var csec = mceNewSec(pane, 2, "收集解锁", "特殊服装（含对应故事）与食谱按原版解锁条件直写；未解锁项数量随 MOD 变化，点击后状态栏会报实际解锁件数。");
+		var cgrid = mceBtnGrid(csec);
 		var bc1 = el("button", "mce-btn mce-gold", "一键解锁所有特殊服装（含对应故事）");
 		bc1.type = "button";
 		bc1.addEventListener("click", function () {
@@ -11189,22 +11694,17 @@ var SCENE_LOCATIONS = {
 			var r = globalUnlockRecipes();
 			setStatus("食谱：" + r.unlocked + " 个已解锁", r.unlocked > 0 ? "mce-ok" : "mce-err");
 		});
-		actions.appendChild(bc1);
-		actions.appendChild(bc2);
-		actions.appendChild(b1);
-		actions.appendChild(b2);
-		actions.appendChild(b3);
-		actions.appendChild(b4);
-		pane.appendChild(actions);
+		cgrid.appendChild(bc1);
+		cgrid.appendChild(bc2);
+
 		/* v1.9.13 时间调节区：快进即时生效，跳时段把时分设到指定点（日期/星期由引擎联动） */
-		var tsec = el("div", "mce-section", "时间调节（直接改游戏时钟，即时生效）");
-		pane.appendChild(tsec);
+		var tsec = mceNewSec(pane, 3, "时间调节", "直接改游戏时钟、即时生效、不进留痕；快进按钮即时前进，跳时段按钮把时分设到指定点（日期 / 星期由引擎联动）。");
 		var tnow = mcTimeNow();
 		var tInfo = tnow
 			? ("当前 " + tnow.hour + ":" + (tnow.minute < 10 ? "0" : "") + tnow.minute + (tnow.weekDay ? " · 周" + tnow.weekDay : ""))
 			: "时间系统不可用（需在游戏内运行）";
-		tsec.appendChild(el("div", "mce-hint", tInfo + "；快进按钮即时前进，跳时段按钮把时分设到指定点。直接改全局时钟、不进留痕。"));
-		var tAdv = el("div", "mce-row");
+		tsec.appendChild(mceFoldHint(tInfo + "；快进按钮即时前进，跳时段按钮把时分设到指定点。直接改全局时钟、不进留痕。"));
+		var tAdv = mceBtnGrid(tsec);
 		[{ n: "+1 小时", v: 60 }, { n: "+3 小时", v: 180 }, { n: "+8 小时", v: 480 }, { n: "+1 天", v: 1440 }, { n: "+3 天", v: 4320 }].forEach(function (d) {
 			var b = el("button", "mce-btn mce-gold", d.n); b.type = "button";
 			b.addEventListener("click", function () {
@@ -11215,7 +11715,7 @@ var SCENE_LOCATIONS = {
 			tAdv.appendChild(b);
 		});
 		tsec.appendChild(tAdv);
-		var tJump = el("div", "mce-row");
+		var tJump = mceBtnGrid(tsec);
 		[{ n: "早 8:00", h: 8, m: 0 }, { n: "午 12:00", h: 12, m: 0 }, { n: "傍晚 18:00", h: 18, m: 0 }, { n: "夜 22:00", h: 22, m: 0 }, { n: "深 2:00", h: 2, m: 0 }].forEach(function (d) {
 			var b = el("button", "mce-btn", d.n); b.type = "button";
 			b.addEventListener("click", function () {
@@ -11227,8 +11727,7 @@ var SCENE_LOCATIONS = {
 		});
 		tsec.appendChild(tJump);
 		/* v1.5.0：誓言修复 + NPC 特质获取（游戏「特质」页对应分组） */
-		var vsec = el("div", "mce-section", "誓言修复 · NPC 特质（对应游戏「特质」页）");
-		pane.appendChild(vsec);
+		var vsec = mceNewSec(pane, 4, "誓言修复 · NPC 特质", "誓言修复把神殿誓言（Temple Vow）与相关承诺状态按原版语义还原；NPC 特质获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持两条线：原版线（高塔转烧毁）与庇护模式（不碰 avery_fate、保留大楼建造进度），且均可撤回。");
 		var vst = getVowStatus();
 		var vowTxt = "神殿誓言（Temple Vow）：" + (vst.temple === true ? "未破" : "已破（" + (vst.temple === false ? "未知" : String(vst.temple)) + "）");
 		if (vst.templePromised) { vowTxt += "；承诺对象：" + vst.templePromised; }
@@ -11243,9 +11742,9 @@ var SCENE_LOCATIONS = {
 			renderGlobal();
 		});
 		vrow.appendChild(vbtn);
-		pane.appendChild(vrow);
+		vsec.appendChild(vrow);
 		var traits = listNpcTraits();
-		pane.appendChild(el("div", "mce-hint", "NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持庇护模式与撤回。"));
+		vsec.appendChild(mceFoldHint("NPC 特质 " + traits.length + " 项：获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持庇护模式与撤回。"));
 		var tbox = el("div", "");
 		traits.forEach(function (t) {
 			if (t.key === "avery_saviour") {
@@ -11306,14 +11805,12 @@ var SCENE_LOCATIONS = {
 			row.appendChild(btn);
 			tbox.appendChild(row);
 		});
-		pane.appendChild(tbox);
+		vsec.appendChild(tbox);
 
 		/* v1.8.8：战斗终结（学 CombatTerminator 0.1：8 个战斗内一键按钮，直接写原版战斗值）。
 		   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。
-		   v1.8.9：动作定义下沉至 03-global.js（COMBAT_ACTIONS/mcCombatAction），UI 只负责渲染。 */
-		var btsec = el("div", "mce-section", "战斗终结（学 CombatTerminator 0.1：战斗中可用，直接写原版战斗值）");
-		pane.appendChild(btsec);
-		btsec.appendChild(el("div", "mce-hint", "以下按钮直接写原版战斗值，建议战斗中生效；「结束集群」在战斗外会把游戏时钟拨回当日 0 点，请勿误点。"));
+		    v1.8.9：动作定义下沉至 03-global.js（COMBAT_ACTIONS/mcCombatAction），UI 只负责渲染。 */
+		var btsec = mceNewSec(pane, 5, "战斗终结", "学 CombatTerminator 0.1：以下按钮直接写原版战斗值，建议战斗中生效；「结束集群」在战斗外会把游戏时钟拨回当日 0 点，请勿误点。");
 		COMBAT_ACTIONS.forEach(function (d) {
 			var row = el("div", "mce-row");
 			row.appendChild(el("span", "mce-row-lbl", d.desc));
@@ -11331,8 +11828,7 @@ var SCENE_LOCATIONS = {
 		   v1.9.x：一键按钮 → 自动开关。点击开关切换开启/关闭；开启即立即执行一次（即时生效），
 		   此后每日（Time.days 变化）由 mbCEOnPassageInit 自动执行。开关持久化 localStorage
 		   （mbCE_auto），不写 V → 不污染存档、新档不继承。 */
-		var acsec = el("div", "mce-section", "庄园自动维护（AutoClean 模式：开启后每天自动执行，无需手点）");
-		pane.appendChild(acsec);
+		var acsec = mceNewSec(pane, 6, "庄园自动维护", "学 AutoClean 0.1.5：每个开关独立，点击即切换开/关并立即执行一次（即时生效），此后每日（Time.days 变化）自动执行。开关状态持久化在 localStorage（mbCE_auto），不写存档、新档不继承。艾弗里未达喂食阶段（关系未确立）时投喂自动跳过。");
 		var acItems = [
 			{ key: "feed", name: "自动投喂艾弗里", desc: "按喜好 → 牛排/舒芙蕾/扁意面 → 最高难度菜谱；未达喂食阶段（关系未确立）不操作" },
 			{ key: "farm", name: "自动农场维护", desc: "塔卫在岗且技能≥1000 锁四畜 30 / 清 agro；库存收获为食物并清零（cream 仅清理）" },
@@ -11380,9 +11876,7 @@ var SCENE_LOCATIONS = {
 		   语义（原版宏）：soft ≥30 增加怨灵聚合几率，≥70 触发校园衣物记忆；hard 负值走净化，净化量累计 world_corruption_reduced。
 		   CE 直写 V 不经过原版 clamp：上限不钳制（数值填多少就是多少，原版事件驱动由游戏自身负责）；
 		   下限按原版语义保留（hard ≥ -30，soft ≥ 0），防负值破坏。复用 placeStageWrite/placeStageUndo（原版顶层键直写 + 留痕回退）。 */
-		var wcsec = el("div", "mce-section", "世界腐化（原版 World Corruption）");
-		pane.appendChild(wcsec);
-		wcsec.appendChild(el("div", "mce-hint", "世界硬腐化 world_corruption_hard（罪孽/净化计数，原版 -30~30 初始 2）；世界软腐化 world_corruption_soft（世界异变程度，原版 0~100 初始 0，≥30 增加怨灵聚合几率、≥70 触发校园衣物记忆）。直接填数值：上限不钳制，下限按原版语义保留；净化总量记录于 world_corruption_reduced。"));
+		var wcsec = mceNewSec(pane, 7, "世界腐化", "世界硬腐化 world_corruption_hard（罪孽/净化计数，原版 -30~30 初始 2）；世界软腐化 world_corruption_soft（世界异变程度，原版 0~100 初始 0，≥30 增加怨灵聚合几率、≥70 触发校园衣物记忆）。直接填数值：上限不钳制，下限按原版语义保留；净化总量记录于 world_corruption_reduced。");
 		var Vg = getV();
 		var makeWcUndo = function (row, it, val, inp) {
 			var ub = el("button", "mce-btn mce-red", "回退");
@@ -11972,6 +12466,25 @@ function renderAttitudesGroup(pane) {
 				yanlingPurgeTrait: mbCEYanlingPurgeTrait,
 				yanlingPurgeFame: mbCEYanlingPurgeFame,
 				YANLING_FAME_NEG: mbCEYanlingFameNeg,
+				/* v2.0.2 言灵扩容：一次性写入动作（衣物 / 数值 / 天气 / 角色放逐） */
+				yanlingDryClothes: mbCEYanlingDryClothes,
+				yanlingRepairClothes: mbCEYanlingRepairClothes,
+				yanlingSemen: mbCEYanlingSemen,
+				yanlingMind: mbCEYanlingMind,
+				yanlingSadism: mbCEYanlingSadism,
+				yanlingSeeds: mbCEYanlingSeeds,
+				yanlingRobinMoney: mbCEYanlingRobinMoney,
+				yanlingAveryDate: mbCEYanlingAveryDate,
+				yanlingHeadPassword: mbCEYanlingHeadPassword,
+				yanlingFeats: mbCEYanlingFeats,
+				yanlingFarm: mbCEYanlingFarm,
+				yanlingMilk: mbCEYanlingMilk,
+				yanlingWeather: mbCEYanlingWeather,
+				yanlingGwylanBanish: mbCEYanlingGwylanBanish,
+				yanlingGwylanRecall: mbCEYanlingGwylanRecall,
+				yanlingKylar: mbCEYanlingKylar,
+				yanlingWhitney: mbCEYanlingWhitney,
+				YANLING_WEATHER: mbCEYanlingWeatherMap,
 				sceneStatus: sceneStatus,
 				completeScene: completeScene,
 				listSceneLines: listSceneLines,
