@@ -18,6 +18,7 @@
 	   注册键与 entry.modId 一致、分类项 key/name/varPath 完整、探测函数存在、无空适配器）。
 	   返回 { total, healthy, warnings[], errors[] }；healthy>0 时可用面板正常渲染全部适配器。 */
 	function auditAdapters() {
+		/** @type {{total: number, healthy: number, warnings: string[], errors: string[]}} */
 		var out = { total: 0, healthy: 0, warnings: [], errors: [] };
 		try {
 			Object.keys(CHEAT_ADAPTERS).forEach(function (id) {
@@ -54,6 +55,6 @@
 				if (errs.length) { out.errors.push(id + "（" + name + "）：" + errs.slice(0, 6).join("；") + (errs.length > 6 ? " 等" + errs.length + " 项" : "")); return; }
 				out.healthy++;
 			});
-		} catch (e) { out.errors.push("审计异常：" + (e && e.message ? e.message : e)); }
+		} catch (e) { out.errors.push("审计异常：" + mbCEErr(e)); }
 		return out;
 	}

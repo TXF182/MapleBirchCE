@@ -48,7 +48,7 @@
 			else { cur[leaf] = rec.before; }
 			try { delete V.mbCE_wrote[key]; } catch (e) { V.mbCE_wrote[key] = undefined; }
 			return { ok: true, msg: "已回退 " + path + " 到维护写入前状态" };
-		} catch (e) { return { ok: false, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "回退异常：" + mbCEErr(e) }; }
 	}
 	function mbCEMaintUndoAll() {
 		try {
@@ -60,13 +60,14 @@
 				if (r.ok) { n += 1; }
 			});
 			return { ok: n > 0, n: n, msg: n > 0 ? "已回退 " + n + " 项维护写入" : "无维护写入留痕" };
-		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + mbCEErr(e) }; }
 	}
 	/* ============ v1.8.8：庄园自动维护（学 AutoClean 0.1.5 原功能，即时一键执行）
 	     AutoClean 原实现：每日 0 点调 AutoCleanFeedAvery()（艾弗里优先吃想吃的菜）+ AutoCleanFarm()
 	     （农场动物锁满/agro 清零/库存收获）。MCE 全局页提供同逻辑的即时按钮，数据逻辑与此处一致。 ============ */
 	function mcFeedAvery() {
 		var V = getV();
+		/** @type {{fed: string, missed: boolean, skipped?: boolean, error?: string}} */
 		var r = { fed: "", missed: false };
 		var man = V.avery_mansion;
 		try {
@@ -108,7 +109,7 @@
 						new window.SugarCube.Wikifier(null, "<<avery_food_select>>");
 					}
 				} catch (e3) {}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 	function mcMaintainFarm() {
@@ -150,7 +151,7 @@
 					r.harvested += 1;
 				});
 			}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 
@@ -172,7 +173,7 @@
 			if (V.tending >= 1000) {
 				if (typeof V.temple_garden === "number") { mbCEMaintWrite("temple_garden", 100); r.garden = true; }
 			}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 	function mcMaintainEden() {
@@ -183,7 +184,7 @@
 			["edengarden", "edenshrooms", "edenspring"].forEach(function (k) {
 				if (typeof V[k] === "number") { mbCEMaintWrite(k, 4); r.locked += 1; }
 			});
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 	function mcRestockSupplies() {
@@ -201,11 +202,12 @@
 				V.bird.materials && typeof V.bird.materials.wood === "number" && V.bird.materials.wood < 10) {
 				mbCEMaintWrite("bird.materials.wood", 10); r.wood = true;
 			}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 	function mcCleanMansion() {
 		var V = getV();
+		/** @type {{rooms: number, days: boolean, error: string, skipped?: boolean}} */
 		var r = { rooms: 0, days: false, error: "" };
 		try {
 			/* 对齐 AutoClean 0.1.5 boot.json 补丁：
@@ -225,7 +227,7 @@
 				});
 				if (typeof man.days_absent === "number") { mbCEMaintWrite("avery_mansion.days_absent", 0); r.days = true; }
 			}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 
@@ -304,6 +306,6 @@
 			st.lastDay = days;
 			mcAutoSave(st);
 			return { day: days, ran: ran };
-		} catch (e) { return { error: String(e.message || e) }; }
+		} catch (e) { return { error: String(mbCEErr(e)) }; }
 	}
 

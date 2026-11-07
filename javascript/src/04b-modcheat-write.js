@@ -36,6 +36,7 @@
 		return !!(path && mbCEAdapterPaths[path]);
 	}
 	/* varPath 解析：父级对象链必须存在（禁止写入 undefined 对象）；叶子允许缺失（正常初始化）。 */
+	/** @returns {{ok: false, reason: string, root?: string, path?: string} | {ok: true, parent: any, leaf: string, exists: boolean}} */
 	function cheatResolvePath(path) {
 		var V = getV();
 		if (!V) { return { ok: false, reason: "存档变量不可用" }; }
@@ -96,7 +97,7 @@
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
 			var r = cheatResolvePath(path);
-			if (!r.ok) {
+			if (r.ok !== true) {
 				if (r.reason === "vanilla") {
 					return { ok: false, message: "目标「" + r.root + "」为 DoL 原版变量，拒绝操作（原版内容请使用对应五大面板）" };
 				}
@@ -143,7 +144,7 @@
 			applyCheatSync(V, syncData, val); /* 联动修正（主写入成功后） */
 			return { ok: true, message: "已写入 " + path + " = " + JSON.stringify(val), before: before, after: val };
 		} catch (e) {
-			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "操作异常：" + mbCEErr(e) };
 		}
 	}
 	/* 列表型写入（v1.4.0 扩展）：varPath 指向字符串数组，on=true 追加 / on=false 移除；
@@ -153,7 +154,7 @@
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
 			var r = cheatResolvePath(path);
-			if (!r.ok) {
+			if (r.ok !== true) {
 				if (r.reason === "vanilla") {
 					return { ok: false, message: "目标「" + r.root + "」为 DoL 原版变量，拒绝操作（原版内容请使用对应五大面板）" };
 				}
@@ -176,7 +177,7 @@
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
 			return { ok: true, message: "已更新 " + path + (on ? " ＋ " : " － ") + value, after: arr.slice() };
 		} catch (e) {
-			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "操作异常：" + mbCEErr(e) };
 		}
 	}
 	/* 回退：还原 before（首次面板写入前状态）；无痕迹 / 结构已变化 → 拒绝。 */
@@ -189,7 +190,7 @@
 			var rec = V.mbCE_wrote[key];
 			if (!rec || rec.type !== "cheat") { return { ok: false, message: "该操作非面板写入（或已回退），无可撤销痕迹" }; }
 			var r = cheatResolvePath(rec.path);
-			if (!r.ok) { return { ok: false, message: "目标变量结构已变化，拒绝回退（" + rec.path + "）" }; }
+			if (r.ok !== true) { return { ok: false, message: "目标变量结构已变化，拒绝回退（" + rec.path + "）" }; }
 			if (rec.before === undefined) {
 				try { delete r.parent[r.leaf]; } catch (e) { r.parent[r.leaf] = undefined; }
 			} else {
@@ -198,6 +199,6 @@
 			try { delete V.mbCE_wrote[key]; } catch (e) { V.mbCE_wrote[key] = undefined; }
 			return { ok: true, message: "已回退（还原为面板写入前状态）" };
 		} catch (e) {
-			return { ok: false, message: "回退异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "回退异常：" + mbCEErr(e) };
 		}
 	}

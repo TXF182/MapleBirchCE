@@ -14,7 +14,7 @@ function mbCEActionRow(m, a) {
 		var res;
 		try {
 			res = (typeof a.run === "function") ? a.run({}) : { ok: false, message: "该动作未实现" };
-		} catch (e) { res = { ok: false, message: "动作抛出异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { res = { ok: false, message: "动作抛出异常：" + mbCEErr(e) }; }
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
 	});
 	row.appendChild(b);
@@ -29,7 +29,7 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 		/* 适配器自带完整面板：面板里已有全部动作入口，不再重复铺一行一个按钮 */
 		g.pending.push(function () {
 			var box = el("div", "mce-col");
-			try { m.actionPanel(box, m); } catch (e) { box.appendChild(el("div", "mce-err", "动作面板渲染失败：" + (e && e.message ? e.message : e))); }
+			try { m.actionPanel(box, m); } catch (e) { box.appendChild(el("div", "mce-err", "动作面板渲染失败：" + mbCEErr(e))); }
 			return box;
 		});
 		g.count += 1;

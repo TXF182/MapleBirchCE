@@ -96,7 +96,7 @@
 				return { ok: false, message: "未知阶段：" + key };
 			}
 		} catch (e) {
-			return { ok: false, message: "执行异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "执行异常：" + mbCEErr(e) };
 		}
 		recordVanillaWrite(key);
 		var data = readVanillaStageData();
@@ -140,7 +140,7 @@
 				if (changedN) { try { delete v.mbCE_wrote[nk]; } catch (e) {} }
 				return changedN;
 			}
-			var parsed = parseCondition(stage.text, name);
+			var parsed = /** @type {any} */ (parseCondition(stage.text, name));
 			if (!parsed) { return false; }
 			var key = parsed.type + ":" + (parsed.path || name) + ":" + (parsed.value || "");
 			if (!v.mbCE_wrote[key]) { return false; } /* 非面板写入 → 拒绝 */
@@ -204,7 +204,7 @@
 			if (ok) { return { ok: false, message: "回退未生效：该阶段仍由原版数值/事件驱动，已达成状态无法仅靠撤销标记回落" }; }
 			return { ok: true, message: "已回退「" + key + "」阶段（撤销面板写入的经历标记，真实属性未改动）" };
 		} catch (e) {
-			return { ok: false, message: "回退异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "回退异常：" + mbCEErr(e) };
 		}
 	}
 

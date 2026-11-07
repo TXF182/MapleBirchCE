@@ -1,6 +1,10 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
 	var MCE_VERSION = "2.0.4";
+	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
+	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
+	/** @param {any} e @returns {any} */
+	function mbCEErr(e) { return (e && e.message) ? e.message : e; }
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -45,6 +49,7 @@
 	}
 
 	/* ============ 数值定义（通用标准，非角色硬编码） ============ */
+	/** @type {Array<{key: string, label: string, fill: number, max: number, min?: number, custom?: boolean}>} */
 	var STAT_DEFS = [
 		{ key: "love",      label: "爱意", fill: 100, max: 100 },
 		{ key: "lust",      label: "情欲", fill: 100, max: 100 },
@@ -211,6 +216,7 @@
 			var mb = resolveMB();
 			if (mb && mb.npc && mb.npc.data instanceof Map) {
 				var k2 = String(name).toLowerCase();
+				/** @type {any} */
 				var hit = null;
 				mb.npc.data.forEach(function (v, key) {
 					if (!hit && String(key).toLowerCase() === k2) { hit = v; }

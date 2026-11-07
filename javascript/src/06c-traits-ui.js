@@ -314,7 +314,7 @@ function toggleFavTrait(t, V) {
 		if (idx !== -1) { v.mbCE_favTraits.splice(idx, 1); return { ok: true, fav: false, message: "已取消收藏" }; }
 		v.mbCE_favTraits.push(k);
 		return { ok: true, fav: true, message: "已收藏（置顶显示）" };
-	} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+	} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 }
 
 function traitWriteValue(t, V, path, raw) {

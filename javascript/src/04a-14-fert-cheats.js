@@ -107,7 +107,7 @@ function mbCEFertRun(key, id, patch) {
 				return { ok: true, message: ar ? ("不可成年结算：" + ar) : "可以成年结算（无阻塞前置）" };
 			}
 			return { ok: false, message: "未知动作：" + key };
-		} catch (e) { return { ok: false, message: "模组 API 抛出异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "模组 API 抛出异常：" + mbCEErr(e) }; }
 	});
 }
 /* 面板：孩子下拉 + 10 项动作（先天/养成需要填表，其余一键） */

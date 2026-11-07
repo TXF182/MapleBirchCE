@@ -91,6 +91,7 @@ function mbCELurkerPatchNames() {
 }
 /* ① 启动前改 DOM（唯一能改到 widget 定义的通道） */
 function mbCELurkerPatchDom() {
+	/** @type {any} */
 	var report = { ok: false, hits: 0, kept: 0, skipped: 0, nodes: 0, missed: mbCELurkerPatchNames(), channel: "dom" };
 	try {
 		if (typeof document === "undefined" || !document.getElementsByTagName) { return report; }
@@ -113,7 +114,7 @@ function mbCELurkerPatchDom() {
 		}
 		report.missed = names.filter(function (x) { return !done[x]; });
 		report.ok = report.hits > 0;
-	} catch (e) { report.error = String(e && e.message ? e.message : e); }
+	} catch (e) { report.error = String(mbCEErr(e)); }
 	window.mbCELurkerPatchReport = report;
 	return report;
 }
@@ -135,6 +136,7 @@ function mbCELurkerPassageAccess() {
 }
 /* ② 运行期兜底：改 passage 文本（普通 passage 每次渲染重新 wikify 有效；已注册的 widget 定义无效） */
 function mbCELurkerPatchStory() {
+	/** @type {any} */
 	var report = { ok: false, hits: 0, kept: 0, skipped: 0, missed: mbCELurkerPatchNames(), channel: "story", access: null };
 	try {
 		var access = mbCELurkerPassageAccess();
@@ -155,7 +157,7 @@ function mbCELurkerPatchStory() {
 		}
 		report.missed = names.filter(function (x) { return !done[x]; });
 		report.ok = report.hits > 0;
-	} catch (e) { report.error = String(e && e.message ? e.message : e); }
+	} catch (e) { report.error = String(mbCEErr(e)); }
 	var prev = window.mbCELurkerPatchReport;
 	window.mbCELurkerPatchReport = {
 		ok: report.ok || !!(prev && prev.ok),

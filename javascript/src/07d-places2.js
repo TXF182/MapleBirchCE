@@ -43,7 +43,7 @@
 			Vp.mbCE_wrote["place:" + path] = { type: "place", path: path, before: before, after: final, t: Date.now() };
 			mbCEWroteTrim(Vp);
 			return { ok: true, message: "已写入 " + path + " = " + final, before: before, after: final };
-		} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 	}
 	/* 地点阶段回退：还原首次写入前状态（before 为 undefined → 删除字段） */
 	function placeStageUndo(path) {
@@ -62,7 +62,7 @@
 			else { cur[leaf] = rec.before; }
 			delete Vp.mbCE_wrote["place:" + path];
 			return { ok: true, message: "已回退 " + path + " 到写入前状态" };
-		} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 	}
 	function renderPlacesStage(pane) {
 		pane.appendChild(el("div", "mce-hint", "地点阶段任务（原版 $变量 直改，全部留痕可回退）："));

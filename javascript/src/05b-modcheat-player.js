@@ -387,6 +387,6 @@
 			});
 			return { ok: fails === 0, message: "预设「" + (kind === "max" ? "全属性拉满" : "经典开局") + "」已写入 " + done + " 项" + (fails ? "，失败 " + fails + " 项" : "") };
 		} catch (e) {
-			return { ok: false, message: "预设执行异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "预设执行异常：" + mbCEErr(e) };
 		}
 	}

@@ -139,7 +139,7 @@
 			Time.set(ts + delta * 60);
 			return { ok: true, message: "时间已前进 " + delta + " 分钟" };
 		} catch (e) {
-			return { ok: false, message: "时间前进失败：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "时间前进失败：" + mbCEErr(e) };
 		}
 	}
 	function mcTimeJump(hour, minute) {
@@ -151,6 +151,6 @@
 			Time.setTime(h, m);
 			return { ok: true, message: "时间已设为 " + h + ":" + (m < 10 ? "0" : "") + m };
 		} catch (e) {
-			return { ok: false, message: "时间调整失败：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "时间调整失败：" + mbCEErr(e) };
 		}
 	}

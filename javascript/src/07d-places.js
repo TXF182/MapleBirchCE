@@ -168,7 +168,7 @@ function teleportTo(name) {
 			setStatus("已传送至「" + name + "」", "mce-ok");
 			var gidT = placeIdForPassage(name, name);
 			if (gidT) { applyWorldUnlock(gidT); setStatus("已传送至「" + name + "」并已解锁世界入口", "mce-ok"); }
-		} catch (e) { setStatus("传送失败：" + (e && e.message ? e.message : e), "mce-err"); }
+		} catch (e) { setStatus("传送失败：" + mbCEErr(e), "mce-err"); }
 	}
 	function listPlaceGroups() {
 		var ps = listAllPassages();

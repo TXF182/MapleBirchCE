@@ -16,7 +16,7 @@
 		for (i = 0; i < COMBAT_ACTIONS.length; i++) { if (COMBAT_ACTIONS[i].key === key) { act = COMBAT_ACTIONS[i]; break; } }
 		if (!act) { return { ok: false, message: "未知战斗操作：" + key }; }
 		try { act.run(getV()); return { ok: true, name: act.name }; }
-		catch (e) { return { ok: false, message: "执行失败：" + (e.message || e) }; }
+		catch (e) { return { ok: false, message: "执行失败：" + mbCEErr(e) }; }
 	}
 
 	/* ============ 扩展转化系统（MOD 独立系统，如 v0.1.880 的兔子/人鱼：

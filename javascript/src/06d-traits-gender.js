@@ -61,7 +61,7 @@ function applyPlayerGender(V, g) {
 			if (typeof window !== "undefined" && typeof window.exposedcheck === "function") { window.exposedcheck(true); }
 		} catch (e) {}
 		return out.join(",");
-	} catch (e) { return "FAIL: " + (e && e.message ? e.message : e); }
+	} catch (e) { return "FAIL: " + mbCEErr(e); }
 }
 function renderGenderBox(pane, V) {
 	var g = getPlayerGender(V);

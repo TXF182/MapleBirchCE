@@ -45,6 +45,7 @@ function traitEval(V, C, expr) {
 }
 /* 解析 has 表达式：找出所有 "$var op value" 比较段与 includes 段 */
 function parseTraitHas(expr) {
+	/** @type {{vars: Array<{path: string, op: string, val: string}>, includes: string|null, complex: boolean}} */
 	var out = { vars: [], includes: null, complex: false };
 	if (!expr) { return out; }
 	var re = /\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s+(gte|gt|lte|lt|is|isnot)\s+(true|false|undefined|"[^"]*"|'[^']*'|\d+)/g;
@@ -152,7 +153,7 @@ function grantTrait(t, V, C) {
 			} else {
 				wrote.push("mbCE_forcedTraits+" + (t.name || fk) + "(已有)");
 			}
-		} catch (e) { wrote.push("(强制获得失败) " + (e && e.message ? e.message : e)); }
+		} catch (e) { wrote.push("(强制获得失败) " + mbCEErr(e)); }
 	}
 	return wrote;
 }
@@ -182,7 +183,7 @@ function revokeTrait(t, V, C) {
 	return wrote;
 }
 function traitWriteSatisfy(V, path, op, valRaw) {
-	var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
+	/** @type {any} */ var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
 	/* 十二巡修复：isnot 语义是「不等于」——满足 isnot true → 写 false；isnot false → 写 true；
 	   isnot undefined → 写 1；isnot N → 写 N-1。此前与 is 共用分支导致布尔写反 */
 	if (op === "isnot") {
@@ -204,7 +205,7 @@ function traitWriteSatisfy(V, path, op, valRaw) {
 	setPathVal(V, path, num); return path + "=" + num;
 }
 function traitWriteUnsatisfy(V, path, op, valRaw) {
-	var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
+	/** @type {any} */ var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
 	/* 十二巡修复：移除时让 isnot 条件变 false——isnot true → 写 true；isnot false → 写 false；
 	   isnot undefined → 写 undefined（属性值为 undefined 时 undefined !== undefined 为 false）；isnot N → 写 N */
 	if (op === "isnot") {

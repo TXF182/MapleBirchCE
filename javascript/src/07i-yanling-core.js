@@ -81,11 +81,12 @@
 			if (cur === mbCEYanlingHookFn) { return true; }
 			var upstream = cur;
 			mbCEYanlingUpstream = upstream;
+			/** @this {any} */
 			mbCEYanlingHookFn = function () {
 				try {
 					if (mbCEYanlingNoCross()) { return false; }
 				} catch (e) {}
-				return upstream.apply(this, arguments);
+				return upstream.apply(/** @type {any} */ (this), /** @type {any} */ (arguments));
 			};
 			window.isCrossdressing = mbCEYanlingHookFn;
 			return true;
@@ -129,7 +130,7 @@
 			if (V.school_crossdress_message !== undefined) { delete V.school_crossdress_message; }
 			mbCEYanlingTrace("purge_cross", before, { crossdressing: 0, schoolrep: 0, message: null });
 			return { ok: true, msg: "已清空异装判定与学校异装名声" };
-		} catch (e) { return { ok: false, msg: "净化异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "净化异常：" + mbCEErr(e) }; }
 	}
 	/* 存量净化：异装癖进度 + crossdresser 背景特质 */
 	function mbCEYanlingPurgeTrait() {
@@ -148,7 +149,7 @@
 			}
 			mbCEYanlingTrace("purge_trait", before, { trait: 0, has: false });
 			return { ok: true, msg: "已清空异装癖进度并移除 Crossdresser 特质" };
-		} catch (e) { return { ok: false, msg: "净化异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "净化异常：" + mbCEErr(e) }; }
 	}
 	/* 负面名声清零：学校 crossdress / herm 双键 + 学校文案 + 城镇 fame 负面项与衰减队列 */
 	function mbCEYanlingPurgeFame() {
@@ -175,7 +176,7 @@
 			}
 			mbCEYanlingTrace("purge_fame", before, { cleared: n });
 			return { ok: true, msg: "负面名声已清零（学校 " + ns + " 项 + 城镇 " + n + " 项）" };
-		} catch (e) { return { ok: false, msg: "净化异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "净化异常：" + mbCEErr(e) }; }
 	}
 
 	/* 正面名声拉满（v2.0.3）：V.fame 的正面 5 项各写 2000。
@@ -258,6 +259,6 @@
 			mbCEYanlingTrace("toggle_" + field, !on, on);
 			var label = field === "noCross" ? "无视着装性别" : "压制异装癖";
 			return { ok: true, msg: label + (on ? " 已开启" : " 已关闭") };
-		} catch (e) { return { ok: false, msg: "切换异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "切换异常：" + mbCEErr(e) }; }
 	}
 
