@@ -6,6 +6,17 @@ name: CI
 # 矩阵（tests/data/direct_exit_matrix.json）随仓库走，19.17/19.19/19.20 与
 # 19.21/19.22 判据断言在 CI 上照常强制。
 #
+# 覆盖率门禁（第 11 步）与本地同阈值 90/70/95：缺原版 HTML 时实测
+# Statements 94.32% / Branches 72.89%(3630/4980) / Functions 96.99%
+# （2026-11-07 本机把 MCE_DOL_HTML 指向不存在路径复现），比本地
+# 94.65% / 73.31%(3692/5036) 低约 0.3-0.4 点，仍高于门槛。
+# 覆盖率序列（tools/run_coverage.js）含稳定性循环、键核单测与声明矩阵回读。
+#
+# 段序真源是 javascript/src/manifest.json（不再靠文件名字典序）：构建步骤会校验
+# manifest 与目录集合一致、层序不回退，再跑 check_structure 的段长预算 / 续号命名。
+# 适配器声明有 schemas/adapter.schema.json 白名单，矩阵（tests/data/adapter_matrix.json）
+# 由 node tools/gen_adapter_matrix.js 生成，--check 模式在 CI 上做漂移检测。
+#
 # Node 版本必须是 22.22.2+：jsdom@30 声明 ^22.22.2 || ^24.15.0 || >=26，
 # 其依赖 undici@8（engines >=22.19.0）在 Node 20 上没有 zlib zstd 导出，
 # node_modules/undici/lib/interceptor/decompress.js 加载即
@@ -35,22 +46,45 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
-      - name: "[1/6] 构建拼接产物"
-        run: node tools/build_js.js
+      - name: "[1/11] 构建拼接产物 + 段序/结构门禁"
+        run: |
+          node tools/build_js.js
+          node tools/check_structure.js
 
-      - name: "[2/6] 产物语法检查"
+      - name: "[2/11] 产物语法检查"
         run: node --check javascript/maplebirchce.js
 
-      - name: "[3/6] ESLint 四规则"
+      - name: "[3/11] ESLint 八规则"
         run: npx eslint javascript/maplebirchce.js
 
-      - name: "[4/6] DOM 冒烟（jsdom）"
+      - name: "[4/11] 适配器声明门禁（schema + 矩阵幂等）"
+        run: |
+          node tools/validate_adapters.js
+          node tools/gen_adapter_matrix.js --check
+
+      - name: "[5/11] DOM 冒烟（jsdom）"
         run: node tests/smoke_dom.js
 
-      - name: "[5/6] 全量回归"
-        run: node tests/test_mce.js
+      - name: "[6/11] 全量回归 + 声明矩阵回读"
+        run: |
+          node tests/test_mce.js
+          node tests/test_adapter_matrix.js
 
-      - name: "[6/6] 功能级 E2E + 性别集成"
+      - name: "[7/11] 功能级 E2E + 性别集成"
         run: |
           node tests/functional_e2e.js
           node tests/integration_gender.js
+
+      - name: "[8/11] 面板开关稳定性循环"
+        run: node tests/stability_loop.js
+
+      - name: "[9/11] 类型检查（产物侧 tsc 0 错误 + src 侧 strict 债务棘轮）"
+        run: |
+          npx tsc -p tsconfig.json
+          node tools/check_src_types.js
+
+      - name: "[10/11] 键注册表一致性"
+        run: node tools/gen_key_registry.js
+
+      - name: "[11/11] 覆盖率门禁（lines 90 / branches 70 / functions 95）"
+        run: npm run coverage:gate

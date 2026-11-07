@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.3";
+	var MCE_VERSION = "2.0.4";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1852,7 +1852,7 @@
 	function zhKey(k) { return ZH_KEYS[k] || String(k); }
 	function zhPath(p) { return String(p).split(".").map(zhKey).join("."); }
 	function zhType(t) { return ZH_TYPES[t] || t; }
-	var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
+	/** @type {Record<string, any>} */ var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
 	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
 	var curCheatModId = "";
 
@@ -1869,6 +1869,7 @@
    构建 tools/build_js.js 按文件名 sort() 拼接：04a-00-core.js 排最前，先执行 var CHEAT_ADAPTERS = {}，
    各块文件随后执行 CHEAT_ADAPTERS["modId"] = {...} 赋值。
    工具脚本（check_mod_updates / audit_adapters / resolve_missing）已改读目录下全部 04a-*.js 拼接解析。 */
+/** @type {Record<string, any>} 注册表容器：modId -> { detect, entry }；各 04a-XX-*.js 块随后赋值 */
 var CHEAT_ADAPTERS = {};
 /* 职责：归途之书（revelation-the-book-of-return）适配器声明：阶段 / 能力 / 剧情 / 数值键 */
 	CHEAT_ADAPTERS["revelation-the-book-of-return"] = {
@@ -2915,7 +2916,8 @@ CHEAT_ADAPTERS["dolmod"] = {
 			   分手 passage 置 friend + romance=0 + 清 loveInterest 槽 + rage+20（adian-romance.twee:59-75）——CE 只写状态键，
 			   完整分手联动由模组 passage 负责；恋人态建议配「恋爱中」能力一起写） */
 			{ key: "dm_conf_state", name: "阿电 · 表白状态", varPath: "adian_confession_state",
-			  levels: ["", "rejected", "friend", "lovers"] }
+			  levels: ["", "rejected", "friend", "lovers"],
+			  labels: ["未触发", "拒绝", "朋友", "恋人"] }
 		],
 		abilities: [
 			/* 阿电状态线：全部严格比较（is/isnot 1）→ numeric 通道 1/0 */
@@ -4339,7 +4341,10 @@ function mbCEFertRenderChildren(container) {
 			var v = raw && typeof raw === "object" ? raw : { value: String(raw), on: true };
 			return cheatWriteListValue(modId, "value_set:" + key + ":" + v.value, "value_set", it.varPath, v.value, !!v.on);
 		}
-		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, it.type === "boolean" ? "boolean" : "number", it.min, it.max, it.sync);
+		/* v2.0.4 治理：string 型也曾被 fallback 成 number 通道（Number("abc")=NaN → 静默拒绝写），
+		   现按声明类型分流；当前声明无 string 项，此分支由声明矩阵的假适配器负控覆盖 */
+		var wt = it.type === "boolean" ? "boolean" : (it.type === "string" ? "string" : "number");
+		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, wt, it.min, it.max, it.sync);
 	}
 	function cheatReadSafe(modId, path) {
 		try {
@@ -4401,6 +4406,7 @@ function mbCEFertRenderChildren(container) {
 	function renderModCheatDetail(modId) {
 		var pane = root.querySelector('[data-pane="mods"]');
 		if (!pane) { return; }
+		/** @type {any} 适配器 entry 形态有两类（含 actionPanel 与不含），统一按 any 访问可选字段 */
 		var m = findCheatMod(modId);
 		var st = pane.scrollTop; /* 五巡：重建后保持滚动位置（翻到长列表底部操作不再跳回顶部） */
 		/* v1.9.5-自检：重建时清残留分片任务——切 tab/重进子页后旧渲染的分片不再往已脱离 DOM 的 body 补行（省帧），
@@ -6614,7 +6620,7 @@ function renderPlayerEdit() {
 		} catch (e) {}
 	}
 
-	var CSS = "" +
+	var MB_CSS = "" +
 		/* ===== v1.9.18 排版 token 化：改主题/字号只动 :root 变量 ===== */
 		":root{" +
 		"--mce-accent:#d4a73c;--mce-accent-hover:#e0b44a;--mce-accent-dark:#b38a2a;--mce-accent-55:rgba(212,167,60,.55);" +
@@ -6830,7 +6836,7 @@ function renderPlayerEdit() {
 		if (document.getElementById("mce-style")) { return; }
 		var style = el("style", "");
 		style.id = "mce-style";
-		style.textContent = CSS;
+		style.textContent = MB_CSS;
 		(document.head || document.documentElement).appendChild(style);
 	}
 
@@ -8392,8 +8398,8 @@ function mbCELockLabel(path) {
 		if (typeof zhKey === "function") {
 			var z = zhKey(path);
 			if (z && z !== path) { return z; }
-			var leaf = String(path).split(".");
-			leaf = leaf[leaf.length - 1];
+			var leafParts = String(path).split(".");
+			var leaf = leafParts[leafParts.length - 1];
 			var z2 = zhKey(leaf);
 			if (z2 && z2 !== leaf) { return z2; }
 		}
@@ -10835,6 +10841,7 @@ var SCENE_LOCATIONS = {
 			}
 		});
 	}
+	/* 职责：言灵页（07i）核心 —— 存档状态读写 / window.isCrossdressing 钩子装卸 / 三项存量净化 / 开关与 1s 守卫定时器。渲染见 07i-yanling-page.js，一键动作见 07i-yanling-actions.js。 */
 	/* ============ 言灵页（v2.0.0.006）：NPC 无视着装性别 / 异装残留净化 / 负面名声清零 ============
 	   诉求（好友走全正面线）：给 PC 穿好看的异性服装，不触发异装判定、不涨异装癖、不产生学校异装负面名声。
 
@@ -11061,6 +11068,7 @@ var SCENE_LOCATIONS = {
 			}
 		} catch (e) {}
 	}
+	/** @type {any} 浏览器里是 number，Node/jsdom 里是 Timeout（带 unref） */
 	var mbCEYanlingTimer = null;
 	function mbCEYanlingEnsureTimer() {
 		try {
@@ -11096,6 +11104,7 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "切换异常：" + (e && e.message ? e.message : e) }; }
 	}
 
+	/* 职责：言灵页（07i）一键动作 —— 衣物湿度与耐久 / 体液与精神 / 数值快补 / 天气 / NPC state 层（按原版语义直写）。 */
 	/* ==================== 扩容轮：一次性写入动作（对照 CheatExtend 1.1.3「快捷言灵」逐条取证后补入） ====================
 	   取证口径（DoL 0.5.12.13 原版 HTML，行号可复跑）：
 	     · 衣物湿度 $upperwet/$lowerwet/$underupperwet/$underlowerwet 初始化 182261-182267、debug 写 60670-60682
@@ -11457,6 +11466,7 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 职责：言灵页（07i）渲染 —— A/B/C 三组九个区块 + 页尾说明折叠块 + 加载即起守卫。 */
 	/* 渲染：言灵页（7 号外层页签） */
 	function renderYanling() {
 		try {
@@ -12244,6 +12254,7 @@ var MB_CE_ATTITUDE_ITEMS = [
 function mbCEAttitudeGate(gateKey) {
 	var V = null;
 	try { V = getV(); } catch (e) { V = null; }
+	/** @type {any} forEach 内赋值，TS 无法收窄，显式声明避免 "never" 误判 */
 	var item = null;
 	MB_CE_ATTITUDE_ITEMS.forEach(function (it) { if (it.gate === gateKey) { item = it; } });
 	if (!item) { return null; }
@@ -13137,6 +13148,8 @@ function renderAttitudesGroup(pane) {
 				toggleCheatAbility: toggleCheatAbility,
 				cheatSceneAction: cheatSceneAction,
 				cheatWriteValue: cheatWriteValue,
+				/* v2.0.4 治理：列表型写入导出，供声明矩阵测试走真实数组通道（内部实现未改） */
+				cheatWriteListValue: cheatWriteListValue,
 				/* v2.0.0.002 快速面板：数值锁定（复用 07f-lock）+ 武器直接获得 */
 				quickTargetValue: quickTargetValue,
 				grantWeapon: grantWeapon,

@@ -102,7 +102,7 @@
 		} catch (e) {}
 	}
 
-	var CSS = "" +
+	var MB_CSS = "" +
 		/* ===== v1.9.18 排版 token 化：改主题/字号只动 :root 变量 ===== */
 		":root{" +
 		"--mce-accent:#d4a73c;--mce-accent-hover:#e0b44a;--mce-accent-dark:#b38a2a;--mce-accent-55:rgba(212,167,60,.55);" +
@@ -318,7 +318,7 @@
 		if (document.getElementById("mce-style")) { return; }
 		var style = el("style", "");
 		style.id = "mce-style";
-		style.textContent = CSS;
+		style.textContent = MB_CSS;
 		(document.head || document.documentElement).appendChild(style);
 	}
 

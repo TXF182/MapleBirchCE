@@ -2,6 +2,93 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.4（2026-11-07 质量门禁加固 + 架构审计 P0-P2 落地：构建顺序显式化 / 声明 schema 化 / 声明驱动断言矩阵）
+
+**触发**：用户指令「我这个还有哪些缺陷？1~5」（按上一轮五层诊断给出的修复顺序，全部五项）。
+
+### 一、键核单测入链（原先没有任何门禁跑它）
+
+- 缺陷：`tests/test_keycheck.js`（**281 断言**，实测 `node tests/test_keycheck.js` → 通过 281 失败 0）只以独立脚本 `npm run test:keycheck` 存在，`tools/run_all.ps1` 12 步、`tools/run_coverage.js` 序列、`.github/workflows/ci.yml` 三处 `grep keycheck` 全为 0 命中；而它是 `check_claims` / `check_key_types` / `check_coverage` 三个核查工具共用的 `tools/lib/keycheck.js` 内核。
+- 修复：加入 `tools/run_coverage.js` 的 `TESTS` 序列（不新增全链步号，避免 12 步编号全量重排），本地第 10 步与 CI 第 10 步同时覆盖到它。
+
+### 二、覆盖率门禁收紧（75/60/80 → 90/70/95）
+
+- 原阈值下实测量 94.65% / 73.31% / 96.99%，**可掉 13 个点仍绿**，等于没有回归保护。
+- 三处同步：`package.json` 的 `coverage:gate`、`tools/run_all.ps1` 第 10 步命令行与提示文案、README 台账指标表。
+- 双口径实测确认新阈值两端都过：本地满料 94.65% / 73.31%（3692/5036）/ 96.99%；CI 口径（`MCE_DOL_HTML` 指向不存在路径）**94.32% / 72.89%（3630/4980）/ 96.99%**，`CI_COV_EXIT=0`。
+
+### 三、CI 补齐两步（8 → 10）
+
+- 新增 **[7/10] 面板开关稳定性循环**（`node tests/stability_loop.js`）与 **[10/10] 覆盖率门禁**（`npm run coverage:gate`，阈值与本地同）；原 7/8 步顺延为 8/9 步。
+- `c8 ^12.0.0` 已在 devDependencies，CI `npm ci` 即可用，无需额外安装。
+
+### 四、`tools/snap.ps1` 两处缺陷修复
+
+- `:33` 原用 `git status --porcelain` 逐行正则 `^(M|A|\?\?) (.+)$`，**漏掉已跟踪修改**（porcelain 首列为空格的 ` M path`）→ 改为 `git status --porcelain -z` NUL 分隔逐块解析，并处理重命名/复制条目（`R`/`C` 后随的原路径块跳过），同时加 `-c core.quotepath=false` 避免中文路径被转义。
+- `:43` 原对未跟踪目录（如 `types\`）直接 `Get-FileHash` 抛 `Could not find a part of the path` → 改为先判 `-PathType Leaf` / `Container`：文件单行哈希，目录递归列出每个文件单独哈希。
+- 实测：修后快照纳入 **22 项**（含 16 个已跟踪修改 + 5 个未跟踪项，`types/` 展开为 1 个文件行），`SNAP_EXIT=0`。
+
+### 五、README 三处过期数字订正 + 升版消除「同号两内容」
+
+- `:655` 文件树「按功能域拆 60 段」→ **64 段**（`build_js.js` 实输出 64 段）。
+- `:715` tests 说明「1,204 断言」→ **1,548 个 `assert(` 调用**（并注明运行输出 PASS 计数为 1,658，两者口径不同勿混用）。
+- `:198` 兼容矩阵实测版本「5.6.0」→ **5.6.2**（`tools/_modcache/fw562/unpacked/boot.json` 实证）。
+- 版本双源升 **2.0.4**（`boot.json` + `javascript/src/01-core.js`）：此前工作区产物已含 v2.0.3 之后的全部改动，却仍挂 2.0.3 版本号，与已发布的 v2.0.3 内容不同（同号两内容），玩家与 Release 无法区分。
+
+### 六、P0：构建顺序显式化 + 结构守门（外部评估「依赖靠文件名字典序隐式表达」的落地）
+
+- **`javascript/src/manifest.json`（新增）**：**64 段**有序清单 + 层标签（`layers: ["preamble","core","adapter","write","ui","export"]`，`version: 1`），段序就是依赖序。初始内容由 `node tools/build_js.js --write-manifest` 按原 `readdirSync().sort()` 生成，生成后回读校验，**产物 SHA 字节级不变**（改名 `07d-places2.js`→`07d-places-b.js` 后产物逐字节相同：`8B11FD10…372C58` / 829,324 B，`orderSig` 由 `b91a5bb460ee` 变 `244d07810a8d`，说明段序真源已与文件名解耦）。
+- **`tools/build_js.js` 整文件重写**（59 → 约 200 行）：段序唯一来源改为 manifest；新增 `--check`（只校验不写产物）、`--write-manifest`（按目录名序登记新段，层标签由 `layerOf()` 规则内建：`00-preamble.js`→preamble、`04a-*`→adapter、`04[b-c]-*`→write、`0[5-8]*`→ui、`09-*`→export、其余 core）；支持 `MCE_SRC_DIR` / `MCE_OUT`。**fail-closed 四组**：manifest 缺失 / JSON 非法 / `segments` 非数组或空 / 目录与 manifest 集合不一致（缺段、多段、重复登记、指向不存在、未知层、**层序回退**）。原有两条守卫（含 U+FFFD 拒建、段末缺换行补齐后 exit 1）保留。
+- **`tools/check_structure.js` + `tools/structure-baseline.json`（新增）**：S1 段长棘轮（`maxLines: 400`，`lineAllowlist` 放**预算值**——`07i-yanling.js: 856` 是当前值，超过预算同样 fail）；S2 续号命名（`^(.*?)(\d+)\.js$`，仅当"剥掉末位数字等于另一个真实存在的段"才算续号，白名单 9 项）；S3 注册表容器重复声明（**WARN**，只扫 `CHEAT_ADAPTERS` / `CHEAT_VANILLA_ROOTS` / `CHEAT_PASSIVE_PROBES`）。
+- **四组负控全部命中预期**（`%TEMP%` 沙箱副本 + `MCE_SRC_DIR`/`MCE_OUT`）：改名续号段后产物逐字节相同；manifest 删末段 → `exit 1`；新增 501 行段 → `exit 1`；新增 `07d-places3.js` → `exit 1`。真实仓库复跑 `S_EXIT=0`，1 条 WARN（`CHEAT_ADAPTERS` 在 `03d-global-modzh.js` 与 `04a-00-core.js` 各声明一次）。
+- **接入**：`tools\run_all.ps1` 第 1 步（build 之后紧接 `node tools/check_structure.js`，失败文案指明豁免须写进 baseline），**步数仍 12**（不重排编号）。
+
+### 七、P1：适配器声明 schema 化 + 校验器入门禁（「声明无 schema」的落地）
+
+- **`tools/lib/adapter_ir.js`（新增）**：在 vm 沙箱按 manifest 段序拼接 `04a-*.js` 后 `vm.runInContext`，返回 `{ids, adapters, entryOf, items, counts, errors, files, SECTIONS}`；每段 try/catch 收集 `errors` 供调用方 fail-closed；段尾补 `\n;0;\n` 防"文件以 `//` 注释结尾吞掉整段"。**为什么不用文本扫描**：大括号配对、`levels: CONST`、注释里的 `key:` 都会让正则失真，vm 真跑一遍最可靠。
+- **`schemas/adapter.schema.json`（新增）**：`entry` 字段白名单 / `itemFields` / `types` / `sync` / `actions` / `varPathPattern`。**关键语义**：`cheatResolvePath` 只按 `.` 切段，段名可含中文、连字符、纯数字（数字段索引数组），**方括号 `a[0]` 会被当字面键名、写入落空** → `varPathPattern = ^[^.\[\]\s]+(\.[^.\[\]\s]+)*$`（JSON 内每个 `\` 写成 `\\`）。
+- **`tools/validate_adapters.js`（新增）**：ERROR → `exit 1`，支持 `--json` / `--src`；规则 = 字段白名单 / 必填 / 类型枚举 / 数值域 / `levels`-`labels` 等长 / `sync` 结构 / `varPath` 形状 / `modId` 与注册表键一致 / 缺 `detect()`。
+- **首轮 30 FAIL = 29 误报 + 1 真缺陷**：误报全因 `varPathPattern` 按"JS 标识符"直觉写成 `^[A-Za-z_$][\w$]*(…)$`，被误杀的 29 条是 deadwood `featsBoosts.upgrades.deadwood-{6 属性}`（连字符）、dol-optimization `daily.conveniencestoregoods.避孕套…橙子`（13 条中文）、cattery `catArr.0.love/play`（数字段）、more-farm-upgrade `plots.farm.0…8.greenhouse`（9 条数字段）。**唯一真缺陷**：`dolmod / stages:dm_conf_state` 缺 `labels`——面板 `05a2-modcheat-rows-build.js:100` 有 `levels.map(String)` 兜底，不缺功能但中文面板显示裸英文（`rejected/friend/lovers`）；已在 `javascript/src/04a-11-dolmod.js:44-45` 补 `labels: ["未触发","拒绝","朋友","恋人"]`（`4BE8A819…AC31` → `94DCB0CF…F94FF`）。
+- **现输出**：适配器 **12** / 条目 **424**（stages 51 / abilities 167 / values 205 / scenes 1 / tasks 0），`V_EXIT=0`，剩 3 条 WARN（`revelation:nkl_retaken` / `wraiths:wr_admit` / `wraiths:wr_conch_ask` 均 `boolean+numeric` 未给 `min`）。
+- **接入**：`tools\run_all.ps1` 第 8 步（`validate_adapters` 之后紧接矩阵 `--check`，再跑原有 `check_claims` / `check_key_types`），CI 新增第 4 步。
+
+### 八、P2：声明驱动断言矩阵（「每适配器手写测试、3 个适配器零命中」的落地）
+
+- **`tools/gen_adapter_matrix.js`（新增）**：三模式（默认写盘 / `--check` 漂移 `exit 1` / `--stdout`），输出确定性（无时间戳、按 IR 顺序），支持 `MCE_SRC_DIR` / `MCE_MATRIX_OUT`。`probesOf()`：`stages` 按 `levels` 每档一个（numeric/string 分 kind）；`abilities` 走 `numeric === true` → `min`/`max` 两端、否则 `true`/`false`；`values` 按 `type`：number → `min`/`max`、boolean → `true`/`false`、list → `options[0]` push、其余 → `"mce-probe"`；`serSync()` 把 `sync.set[].value` 的函数降级为 `{fn: true}`。
+- **`tests/data/adapter_matrix.json`（新增）**：**423 条 / 965 探针 / 12 适配器**（423 = 51 stages + 167 abilities + 205 values；`scenes` 1 条不进矩阵），`--check` 幂等（`CHECK_EXIT=0`）。
+- **`tests/test_adapter_matrix.js`（新增）**：`eval` 产物取 `setup.mbStageCE`，按矩阵逐条逐探针**真写**再回读。每探针 4~5 条断言：写入 `ok` / 回读 `=== expect`（number 走数字通道、list 走数组通道）/ `V.mbCE_wrote["cheat:modId:key"].path === varPath` / `sync.set` 每条按 `if` 判定是否落地 / `undoCheatModValue` 还原到**写入前初值**（初值刻意与待写值不同，防"回到上一次值"假绿）。每探针新建 `{}` 宿主，按 varPath 逐段建对象/数组（数字段索引数组）；`sync` 目标父链预先 seed 以便联动可达；真实 `sync` 对象（含函数 `value`）从 `adapter_ir` 侧取，矩阵只存元信息。环境变量 `MCE_PKG_JS` / `MCE_MATRIX` / `MCE_SRC_DIR`。
+- **实测**：`ASSERT_TOTAL=5806 / PASS=5806 / FAIL=0`（`M_EXIT=0`）。首轮 9 FAIL 全在 `dolmod / abilities:dm_pc_apps [min(0)]`，根因是**测试侧断言写错**而非产品缺陷：该条 `sync.clear` 会把 9 个 `computerApps.*` 置 `null`，原断言写 `after === undefined`；改为「条件不满足时不得置真值（`after !== true`）」后全绿——产品侧 `applyCheatSync` 的 `if.min` 判定（`04b-modcheat-write.js:59-90`）实测正确。
+- **假适配器负控（验收目标）**：`%TEMP%` 沙箱加 `04a-98-probe.js`（1 阶段 + 1 数值能力 + 2 数值项，其中 1 个 `type: "string"`），**不写任何手写测试** → manifest 登记后可构建（65 段 / 830,449 B / `ce34077d…083c`），`validate_adapters` 13 适配器 / 428 条目全过，矩阵自动生成 427 条 / 972 探针，回读断言 **+45 条全绿**（含 string 型走 `applyCheatModValue` 的玩家路径补检）。
+- **顺带修掉一个写入通道缺陷**：`05a-modcheat-rows.js` 的 `applyCheatModValue` 原 fallback 把 `type: "string"` 当 number 通道（`Number("abc")` = NaN → 静默拒绝写），改为 `boolean` / `string` / `number` 三分流；当前真声明无 string 项，该分支由上述假适配器负控覆盖。同时 `09-exports2.js` 导出 `cheatWriteListValue` 供矩阵走真实数组通道（内部实现未改）。
+- **接入**：`tools\run_all.ps1` 第 5 步（`test_mce` 之后跑矩阵测试）、`tools/run_coverage.js` 的 `TESTS` 追加矩阵测试（覆盖率序列覆盖）、CI 第 6 步、`package.json` 新增 `test:matrix` / `check:adapters` / `matrix:gen` / `matrix:check`。
+
+### 九、P3：src 侧类型分账（strict 债务按文件棘轮）
+
+- **原方案被实测否决**：新建 `tsconfig.src.json` 逐文件 `include: javascript/src/**/*.js` 后 `tsc -p` 直接 exit 2，只有 4 行错误（`00-preamble.js(115,1) TS1005 '}' expected` / `09-exports2.js(370,*) TS1128·TS1109`）。根因是 src 段本就**不是独立文件**——`00-preamble.js` 开 IIFE 左括号、`09-exports2.js` 收尾右括号，单段编译只能得到跨段结构噪声。
+- **改用「联合文件 + 行区间映射」**：`tools/check_src_types.js`（新增，约 190 行）按 manifest 段序拼出**与产物字节完全相同**的 `tools/_srctypes/src-united.js`（段末缺 `\n` fail-closed 列出文件名），先硬校验拼接 SHA === `javascript/maplebirchce.js` SHA（不等即「源码改了没重建产物」，直接 exit 1），再跑 `tsc -p tsconfig.src.json --pretty false`，把 `file(line,col): error TSxxxx` 按行区间映射回具体 src 文件。
+- **噪声与真债务分账**：未加注解的 JS 在 strict 下的隐式 any 家族（`TS7006` 参数 / `TS7005` 变量 / `TS7034` 隐式 `any[]` / `TS7053` 隐式下标 / `TS7023` 返回）**不计账**（实测 1019 条，计入会把真债务全部淹没）；棘轮只对真债务（`TS2339` 属性不存在 / `TS2538` 可能 undefined 的索引 / `TS18047` 可能 null / `TS18046` / `TS18048` / `TS2345` / `TS2322` / `TS2531` / `TS2683` / `TS2353`）记账。
+- **`tsconfig.src.json`（重写）**：`strict:true`、`include: ["tools/_srctypes/src-united.js","types/**/*.d.ts"]`、`lib ES2020+DOM+DOM.Iterable`、`noEmit`、`skipLibCheck`、`types: []`。
+- **`tools/src-types-baseline.json`（新增）**：**26 文件 / 169 条真债务**。Top：`06b-traits-eval.js` 32（`TS18047×8` `TS2339×21` `TS2345×3`）/ `04b-modcheat-write.js` 19（`TS2339×6` `TS2538×13`）/ `03b-global-maint.js` 14 / `08-npc-traits2.js` 14 / `03c-global-combat2.js` 9 / `07i-yanling-core.js` 9（拆分后按新段名登记）。
+- **棘轮**：任何文件错误数上升 / 总数上升 → `exit 1`；债务下降时提示可用 `--write-baseline` 收窄（评审可见）。实测 `CHK_EXIT=0`：`26 个 src 段 / 169 条 strict 真债务（基线 169，棘轮未上升；隐式 any 噪声 1019 条不计账）`。
+- **两条负控**：① 沙箱 src 追加一行 `undefinedFn();` 后重建 → `exit 1`（`总数上升：169 → 170`）；② 改 src 不重建 → `exit 1`（`src 拼接 SHA 与产物不一致（src=a7fd304f763b vs pkg=17ebf973d79f）`）。
+- **接入**：`tools/run_all.ps1` 第 11 步改为「产物侧 `tsc -p tsconfig.json` 0 错误 + `node tools/check_src_types.js` 棘轮」，**步数仍 12**；CI `[9/11]` 改为两行 `run: |`；`package.json` 新增 `check:srctypes` / `srctypes:baseline`；`.gitignore` 加 `tools/_srctypes/`（生成物不入库）。
+
+### 十、P4：拆 `07i-yanling.js`（856 行三合一 → core / actions / page 三段）
+
+- **切片按行边界，禁全文正则替换**：`07i-yanling.js` → `07i-yanling-core.js`（原 1-262 行，状态/钩子/净化/开关）/ `07i-yanling-actions.js`（263-623 行，12 组一键动作 + NPC/放逐/角色）/ `07i-yanling-page.js`（624-856 行，`renderYanling` + 页尾折叠块 + `mbCEYanlingEnsureTimer()`）。边界都落在函数之间的空行，切片脚本自校验 `core+actions+page === orig`。
+- **manifest 原位换段**：`07i-yanling.js`（index 56，`layer:"ui"`）替换为三条同层段，**64 → 66 段**；原文件删除。
+- **零字节等价的两次反证**：① 首次重建即 `built … (66 段, 829826 B)`，SHA 仍 `A8E40BF5…D0CC6`（`order b91a5bb460ee → d0dbe4e40136` 属段名变化预期）；② 三段各加一行职责注释后，剥离这 3 行重新拼接 → `MATCH_BASELINE=true`（`a8e40bf5…d0cc6` / 829,826 B），与当前产物差 **518 B** 正是 3 行中文注释。
+- **当前产物**：**830,344 B / `50D537B868CCBF709292B7D5E46BB23A668836725BF6E50F607D789D25EF0C88`** / order `d0dbe4e40136` / 66 段 / 13,341 行。
+- **结构门禁**：`lineAllowlist` 清空（`{}`，不再有 856 行预算豁免），`S_EXIT=0`「检查 66 段（上限 400 行，基线豁免 0 项，续号白名单 9 项）」+ 1 条已知 WARN（`CHEAT_ADAPTERS` 在 `03d-global-modzh.js` / `04a-00-core.js` 重复声明）。
+- **新增回归断言（`tests/smoke_dom.js`）**：① 渲染幂等——连续 4 次 `renderYanling()` 后快照恒为 `{groups:3, blocks:10, btns:…}`（3 分组 + 9 区块 + 1 说明块）；② 钩子装卸幂等——`yanlingInstall()` 两次仍是**同一函数引用**（不叠包装层）、`yanlingUninstall()` 两次仍回到原版函数、安装期间 `window.isCrossdressing()` 恒 false。**负控实测变红**：临时删掉 `Install` 的「已挂就早退」守卫后重建，4 条断言（含「重复 install 不叠包装层」）全部 FAIL；还原后全绿。
+
+### 十一、本轮迭代优化与收敛
+
+- **覆盖率复核（拆分后）**：Statements/Lines **94.66%**（12628/13340）/ Branches **73.29%**（3691/5036）/ Functions **96.99%**（516/532），门禁 90/70/95 全部通过；分支分母较拆分前 +1、命中 -2，来自 `07i` 三段各自的防御分支，非回归。
+- **全链**：拆分 + P3 接线后 `run_all.ps1` 12 步一次跑通（`ALL CHECKS PASSED`，回归 `ASSERT_TOTAL=5806 / PASS=5806 / FAIL=0`，性别集成 `passed=24 failed=0`，第 8 步 3 WARN 为既有 `boolean+numeric` 未给 `min`）。
+- **新增负控两条（P3）** 与 **一条（P4 幂等守卫）** 均实测命中，见上两节。
+- **未做（明确边界）**：不升版本（双源仍 2.0.4）、不发布、不改 169 条真债务（策略是棘轮只减不增，清债另轮）。
+
 ## v2.0.3（2026-11-07 P0~P4 迭代：覆盖率归因修复 + 统一回退中心 + 写入前 diff 预览 + 补盲断言）
 
 **触发**：用户指令「p0~p4，做完之后在升版」——按 P0（惰性渲染页签覆盖率）→ P1（言灵页分支）→ P2（适配器门控分支）→ P3（导出面与 lurker）→ P4（产品侧三项）五档推进，完成后升版。

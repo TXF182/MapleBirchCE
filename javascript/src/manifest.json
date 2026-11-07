@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "note": "构建顺序的唯一真源：段序即依赖序。新增/调整段必须改这里（node tools/build_js.js --write-manifest 可登记新段），不再靠文件名字典序。",
+  "layers": [
+    "preamble",
+    "core",
+    "adapter",
+    "write",
+    "ui",
+    "export"
+  ],
+  "segments": [
+    {
+      "file": "00-preamble.js",
+      "layer": "preamble"
+    },
+    {
+      "file": "01-core.js",
+      "layer": "core"
+    },
+    {
+      "file": "02-romance.js",
+      "layer": "core"
+    },
+    {
+      "file": "03a-global-batch.js",
+      "layer": "core"
+    },
+    {
+      "file": "03b-global-maint.js",
+      "layer": "core"
+    },
+    {
+      "file": "03c-global-combat.js",
+      "layer": "core"
+    },
+    {
+      "file": "03c-global-combat2.js",
+      "layer": "core"
+    },
+    {
+      "file": "03d-global-modzh.js",
+      "layer": "core"
+    },
+    {
+      "file": "04a-00-core.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-01-revelation.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-02-mli.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-03-domrobin.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-04-deadwood.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-05-smartphone.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-06-dolopt.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-07-wraiths.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-08-dolsims.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-09-cattery.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-10-morefarm.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-11-dolmod.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-13-fert.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-14-fert-cheats.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-15-fert-children.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-15b-fert-kid-stats.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04a-16-fert-children-ui.js",
+      "layer": "adapter"
+    },
+    {
+      "file": "04b-modcheat-write.js",
+      "layer": "write"
+    },
+    {
+      "file": "04c-modcheat-util.js",
+      "layer": "write"
+    },
+    {
+      "file": "05a-modcheat-rows.js",
+      "layer": "ui"
+    },
+    {
+      "file": "05a2-modcheat-rows-build.js",
+      "layer": "ui"
+    },
+    {
+      "file": "05a3-modcheat-actions.js",
+      "layer": "ui"
+    },
+    {
+      "file": "05b-modcheat-player.js",
+      "layer": "ui"
+    },
+    {
+      "file": "05b2-modcheat-attitude.js",
+      "layer": "ui"
+    },
+    {
+      "file": "06a-traits-data.js",
+      "layer": "ui"
+    },
+    {
+      "file": "06b-traits-eval.js",
+      "layer": "ui"
+    },
+    {
+      "file": "06c-traits-ui.js",
+      "layer": "ui"
+    },
+    {
+      "file": "06d-traits-gender.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07a-shell.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07a-shell2.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07b-char.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07c-stage.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07d-places.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07d-places2.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07e-scenes.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07e-scenes2.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07f-lock.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07f-lurker.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07f-lurker0-patch.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07f-pins1-data.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07f-pins2-anchor.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07f-pins3-queue.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07f-pins3-queue2.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07f-pins4-hook.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07g-romance.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07h-render.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07h-render2.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07h-render3.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07i-yanling-core.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07i-yanling-actions.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07i-yanling-page.js",
+      "layer": "ui"
+    },
+    {
+      "file": "08-npc-traits.js",
+      "layer": "ui"
+    },
+    {
+      "file": "08-npc-traits2.js",
+      "layer": "ui"
+    },
+    {
+      "file": "08b-attitude.js",
+      "layer": "ui"
+    },
+    {
+      "file": "08c-undo-center.js",
+      "layer": "ui"
+    },
+    {
+      "file": "08d-diff-preview.js",
+      "layer": "ui"
+    },
+    {
+      "file": "09-exports.js",
+      "layer": "export"
+    },
+    {
+      "file": "09-exports2.js",
+      "layer": "export"
+    }
+  ]
+}

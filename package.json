@@ -14,16 +14,27 @@
     "test:gender": "node tests/integration_gender.js",
     "test:keycheck": "node tests/test_keycheck.js",
     "test:stability": "node tests/stability_loop.js",
+    "test:matrix": "node tests/test_adapter_matrix.js",
+    "check:adapters": "node tools/validate_adapters.js",
+    "matrix:gen": "node tools/gen_adapter_matrix.js",
+    "matrix:check": "node tools/gen_adapter_matrix.js --check",
     "check:claims": "node tools/check_claims.js",
     "check:types": "node tools/check_key_types.js",
     "check:coverage": "node tools/check_coverage.js",
     "check:state": "node tools/modcache_state.js --check",
-    "coverage": "c8 --include=javascript/maplebirchce.js --reporter=text --reporter=text-summary node tools/run_coverage.js",
-    "coverage:gate": "c8 --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 75 --branches 60 --functions 80 node tools/run_coverage.js"
+    "check:tsc": "tsc -p tsconfig.json",
+    "check:srctypes": "node tools/check_src_types.js",
+    "srctypes:baseline": "node tools/check_src_types.js --write-baseline",
+    "check:keys": "node tools/gen_key_registry.js",
+    "keys:write": "node tools/gen_key_registry.js --write",
+    "report:branches": "node tools/report_branch_gaps.js --md",
+    "coverage": "c8 --include=javascript/maplebirchce.js --reporter=text --reporter=text-summary --reporter=json node tools/run_coverage.js",
+    "coverage:gate": "c8 --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 70 --functions 95 node tools/run_coverage.js"
   },
   "devDependencies": {
     "c8": "^12.0.0",
     "eslint": "^10.14.0",
-    "jsdom": "^30.1.3"
+    "jsdom": "^30.1.3",
+    "typescript": "^5.9.3"
   }
 }

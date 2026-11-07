@@ -1,0 +1,1732 @@
+{
+  "generatedBy": "tools/gen_key_registry.js",
+  "source": "javascript/src/04a-*.js",
+  "note": "单一键常量表：条目按 key 配对，varPath 为上游真实变量路径。改适配器后跑 node tools/gen_key_registry.js --write 再提交。",
+  "adapters": {
+    "cattery": [
+      {
+        "key": "cat_rent",
+        "varPath": "rentingahouse"
+      },
+      {
+        "key": "cat_owncat",
+        "varPath": "pchaveCat"
+      },
+      {
+        "key": "cat_garden",
+        "varPath": "pcGardenupgrade"
+      },
+      {
+        "key": "cat_fly",
+        "varPath": "birdFly"
+      },
+      {
+        "key": "cat_book1",
+        "varPath": "pcHouseBook1"
+      },
+      {
+        "key": "cat_book2",
+        "varPath": "pcHouseBook2"
+      },
+      {
+        "key": "cat_book3",
+        "varPath": "pcHouseBook3"
+      },
+      {
+        "key": "cat_book4",
+        "varPath": "pcHouseBook4"
+      },
+      {
+        "key": "cat_book5",
+        "varPath": "pcHouseBook5"
+      },
+      {
+        "key": "cat_trait_gold",
+        "varPath": "firstCat_loveMax"
+      },
+      {
+        "key": "cat_trait_book1",
+        "varPath": "pcHouseBook1_speciality"
+      },
+      {
+        "key": "cat_trait_book2",
+        "varPath": "pcHouseBook2_speciality"
+      },
+      {
+        "key": "cat_love",
+        "varPath": "catArr.0.love"
+      },
+      {
+        "key": "cat_play",
+        "varPath": "catArr.0.play"
+      },
+      {
+        "key": "cat_stray",
+        "varPath": "stray_happiness"
+      },
+      {
+        "key": "cat_food_store",
+        "varPath": "pc_food"
+      },
+      {
+        "key": "cat_food_cake",
+        "varPath": "pcfood_cake"
+      },
+      {
+        "key": "cat_food_cabbage",
+        "varPath": "pc_cabbages"
+      },
+      {
+        "key": "cat_food_eggplant",
+        "varPath": "pc_aubergine"
+      },
+      {
+        "key": "cat_food_potato",
+        "varPath": "pc_potato"
+      },
+      {
+        "key": "cat_food_pepper",
+        "varPath": "pc_green_pepper"
+      },
+      {
+        "key": "cat_food_fillet",
+        "varPath": "pc_fillet"
+      },
+      {
+        "key": "cat_food_chicken",
+        "varPath": "pc_chicken_breast"
+      },
+      {
+        "key": "cat_food_sichuan",
+        "varPath": "pc_Sichuan_pepper"
+      },
+      {
+        "key": "cat_food_cream",
+        "varPath": "pc_cream"
+      },
+      {
+        "key": "cat_food_flour",
+        "varPath": "pc_cake_flour"
+      },
+      {
+        "key": "cat_food_cocoa",
+        "varPath": "pc_cocoa_powder"
+      },
+      {
+        "key": "cat_food_milk",
+        "varPath": "pc_milk"
+      },
+      {
+        "key": "cat_boxed_meal",
+        "varPath": "boxed_meal"
+      },
+      {
+        "key": "cat_cook_dsx",
+        "varPath": "cookok_dsx"
+      },
+      {
+        "key": "cat_cook_sltds",
+        "varPath": "cookok_sltds"
+      },
+      {
+        "key": "cat_cook_qxjl",
+        "varPath": "cookok_qxjl"
+      },
+      {
+        "key": "cat_cook_qjrs",
+        "varPath": "cookok_qjrs"
+      },
+      {
+        "key": "cat_cook_nxqzb",
+        "varPath": "cookok_nxqzb"
+      },
+      {
+        "key": "cat_cook_jytd",
+        "varPath": "cookok_jytd"
+      },
+      {
+        "key": "cat_cook_bcdjp",
+        "varPath": "cookok_bcdjp"
+      },
+      {
+        "key": "cat_cook_tdcrp",
+        "varPath": "cookok_tdcrp"
+      },
+      {
+        "key": "cat_cook_gbjd",
+        "varPath": "cookok_gbjd"
+      },
+      {
+        "key": "cat_cook_qcbc",
+        "varPath": "cookok_qcbc"
+      },
+      {
+        "key": "cat_cook_zccp",
+        "varPath": "cookok_zccp"
+      },
+      {
+        "key": "cat_clean_home",
+        "varPath": "pcHome_clean"
+      },
+      {
+        "key": "cat_clean_front",
+        "varPath": "pcEntranceFront_clean"
+      },
+      {
+        "key": "cat_clean_after",
+        "varPath": "pcEntranceAfter_clean"
+      },
+      {
+        "key": "cat_drawing",
+        "varPath": "pchouse_drawing"
+      },
+      {
+        "key": "cat_toubi",
+        "varPath": "pctoubi"
+      },
+      {
+        "key": "cat_time",
+        "varPath": "cattery_time"
+      },
+      {
+        "key": "cat_cook_time",
+        "varPath": "cattery_cook_time"
+      }
+    ],
+    "deadwood-reblooms": [
+      {
+        "key": "r_shop_stage",
+        "varPath": "RobinExpansion.shop_stage"
+      },
+      {
+        "key": "r_balloon",
+        "varPath": "RobinExpansion.balloon"
+      },
+      {
+        "key": "r_asylum",
+        "varPath": "RobinExpansion.asylum.status"
+      },
+      {
+        "key": "r_doctor",
+        "varPath": "RobinExpansion.doctor.stage"
+      },
+      {
+        "key": "ls_role",
+        "varPath": "LifeSimulation.school.role"
+      },
+      {
+        "key": "ls_history",
+        "varPath": "LifeSimulation.historyProject.status"
+      },
+      {
+        "key": "dress_active",
+        "varPath": "LifeSimulation.school.dress.active"
+      },
+      {
+        "key": "dress_highest",
+        "varPath": "LifeSimulation.school.dress.highest"
+      },
+      {
+        "key": "cm_zephyr",
+        "varPath": "MoreTransformations.harbour.zephyr.stage"
+      },
+      {
+        "key": "gym_membership",
+        "varPath": "LifeSimulation.gym.membership"
+      },
+      {
+        "key": "fin_bank_tier",
+        "varPath": "Finance.bank.account_tier"
+      },
+      {
+        "key": "sl_heist_stage",
+        "varPath": "StreetLife.heist.stage"
+      },
+      {
+        "key": "shrine_stage",
+        "varPath": "MoreTransformations.shrine.stage"
+      },
+      {
+        "key": "r_rebellion",
+        "varPath": "RobinExpansion.rebellion"
+      },
+      {
+        "key": "r_allies",
+        "varPath": "RobinExpansion.allies"
+      },
+      {
+        "key": "r_solidarity",
+        "varPath": "RobinExpansion.solidarity"
+      },
+      {
+        "key": "r_bailey",
+        "varPath": "RobinExpansion.bailey_defeated"
+      },
+      {
+        "key": "r_shop",
+        "varPath": "RobinExpansion.shop"
+      },
+      {
+        "key": "r_tutor",
+        "varPath": "RobinExpansion.tutor"
+      },
+      {
+        "key": "r_fish_cooked",
+        "varPath": "RobinExpansion.fish_cooked"
+      },
+      {
+        "key": "r_fish_grill",
+        "varPath": "RobinExpansion.fish_grill"
+      },
+      {
+        "key": "ls_exempt",
+        "varPath": "LifeSimulation.school.attendanceExempt"
+      },
+      {
+        "key": "ls_bailey",
+        "varPath": "LifeSimulation.school.baileySigned"
+      },
+      {
+        "key": "bt_milk",
+        "varPath": "BirdTower.seen.milk"
+      },
+      {
+        "key": "clothes_stored",
+        "varPath": "LifeSimulation.school.clothesStored"
+      },
+      {
+        "key": "vp_ironwill",
+        "varPath": "VanillaPlus.attitudes.ironWill"
+      },
+      {
+        "key": "vp_sadomaso",
+        "varPath": "VanillaPlus.attitudes.sadomasochist"
+      },
+      {
+        "key": "vp_trait_willpower",
+        "varPath": "VanillaPlus.traits.willpower"
+      },
+      {
+        "key": "vp_trait_physique",
+        "varPath": "VanillaPlus.traits.physique"
+      },
+      {
+        "key": "vp_trait_beauty",
+        "varPath": "VanillaPlus.traits.beauty"
+      },
+      {
+        "key": "vp_trait_exhibitionism",
+        "varPath": "VanillaPlus.traits.exhibitionism"
+      },
+      {
+        "key": "vp_trait_deviancy",
+        "varPath": "VanillaPlus.traits.deviancy"
+      },
+      {
+        "key": "vp_trait_promiscuity",
+        "varPath": "VanillaPlus.traits.promiscuity"
+      },
+      {
+        "key": "vp_trait_incorrigible",
+        "varPath": "VanillaPlus.traits.incorrigible"
+      },
+      {
+        "key": "vp_prayer_holy",
+        "varPath": "VanillaPlus.divineTransformations.prayer.holy"
+      },
+      {
+        "key": "vp_prayer_stone",
+        "varPath": "VanillaPlus.divineTransformations.prayer.stone"
+      },
+      {
+        "key": "vp_prayer_dark",
+        "varPath": "VanillaPlus.divineTransformations.prayer.dark"
+      },
+      {
+        "key": "vp_trinity",
+        "varPath": "VanillaPlus.divineTransformations.trinity"
+      },
+      {
+        "key": "f_avery_refused",
+        "varPath": "Finance.orphanage.avery_adoption_refused"
+      },
+      {
+        "key": "cc_found",
+        "varPath": "MoreTransformations.treasure.found"
+      },
+      {
+        "key": "cc_appraised",
+        "varPath": "MoreTransformations.treasure.appraised"
+      },
+      {
+        "key": "vp_mirror_home",
+        "varPath": "VanillaPlus.deviancy.mirrors.home"
+      },
+      {
+        "key": "vp_mirror_farm",
+        "varPath": "VanillaPlus.deviancy.mirrors.farm"
+      },
+      {
+        "key": "vp_mirror_tower",
+        "varPath": "VanillaPlus.deviancy.mirrors.tower"
+      },
+      {
+        "key": "vp_mirror_temple",
+        "varPath": "VanillaPlus.deviancy.mirrors.temple"
+      },
+      {
+        "key": "vp_mirror_sirris",
+        "varPath": "VanillaPlus.deviancy.mirrors.sirris"
+      },
+      {
+        "key": "vp_mirror_kylar",
+        "varPath": "VanillaPlus.deviancy.mirrors.kylar"
+      },
+      {
+        "key": "ls_medicine_pending",
+        "varPath": "LifeSimulation.medicine.review.pending"
+      },
+      {
+        "key": "vp_lock_willpower",
+        "varPath": "VanillaPlus.lock.willpower"
+      },
+      {
+        "key": "vp_lock_physique",
+        "varPath": "VanillaPlus.lock.physique"
+      },
+      {
+        "key": "vp_lock_beauty",
+        "varPath": "VanillaPlus.lock.beauty"
+      },
+      {
+        "key": "vp_lock_promiscuity",
+        "varPath": "VanillaPlus.lock.promiscuity"
+      },
+      {
+        "key": "vp_lock_exhibitionism",
+        "varPath": "VanillaPlus.lock.exhibitionism"
+      },
+      {
+        "key": "vp_lock_deviancy",
+        "varPath": "VanillaPlus.lock.deviancy"
+      },
+      {
+        "key": "vp_expunge_used",
+        "varPath": "VanillaPlus.divineTransformations.expungeUsed"
+      },
+      {
+        "key": "r_invest_agreed",
+        "varPath": "RobinExpansion.investment.agreed"
+      },
+      {
+        "key": "r_shop_bank",
+        "varPath": "RobinExpansion.shop_bank_supported"
+      },
+      {
+        "key": "r_shop_flowers",
+        "varPath": "RobinExpansion.shop_flowers"
+      },
+      {
+        "key": "r_shop_popcorn",
+        "varPath": "RobinExpansion.shop_popcorn"
+      },
+      {
+        "key": "r_shop_balloons",
+        "varPath": "RobinExpansion.shop_balloons"
+      },
+      {
+        "key": "r_rent_self",
+        "varPath": "RobinExpansion.self_rent"
+      },
+      {
+        "key": "r_rent_both",
+        "varPath": "RobinExpansion.both_rent"
+      },
+      {
+        "key": "r_rent_separated",
+        "varPath": "RobinExpansion.rent_separated"
+      },
+      {
+        "key": "fin_bank_opened",
+        "varPath": "Finance.bank.opened"
+      },
+      {
+        "key": "fin_debit",
+        "varPath": "Finance.bank.debit_card"
+      },
+      {
+        "key": "fin_credit",
+        "varPath": "Finance.bank.credit_card"
+      },
+      {
+        "key": "fin_broker_opened",
+        "varPath": "Finance.brokerage.opened"
+      },
+      {
+        "key": "fin_co_office",
+        "varPath": "Finance.company.office"
+      },
+      {
+        "key": "fin_co_agreement",
+        "varPath": "Finance.company.agreement"
+      },
+      {
+        "key": "fin_board",
+        "varPath": "Finance.company.shareholders.board"
+      },
+      {
+        "key": "fin_controller",
+        "varPath": "Finance.company.shareholders.controller"
+      },
+      {
+        "key": "fin_ascension_recognized",
+        "varPath": "Finance.company.ascension.recognized"
+      },
+      {
+        "key": "fin_orc_pc_free",
+        "varPath": "Finance.orphanage.pc_bought_out"
+      },
+      {
+        "key": "fin_orc_robin_free",
+        "varPath": "Finance.orphanage.robin_bought_out"
+      },
+      {
+        "key": "tr_helmet",
+        "varPath": "Transport.helmet"
+      },
+      {
+        "key": "tr_tool_bike",
+        "varPath": "Transport.repair_tools.bicycle"
+      },
+      {
+        "key": "tr_tool_motor",
+        "varPath": "Transport.repair_tools.motor"
+      },
+      {
+        "key": "raven_flock_met",
+        "varPath": "MoreTransformations.raven.met"
+      },
+      {
+        "key": "r_lemonade",
+        "varPath": "RobinExpansion.lemonade"
+      },
+      {
+        "key": "r_chocolate",
+        "varPath": "RobinExpansion.chocolate"
+      },
+      {
+        "key": "r_victories",
+        "varPath": "RobinExpansion.victories"
+      },
+      {
+        "key": "r_reserve",
+        "varPath": "RobinExpansion.reserve"
+      },
+      {
+        "key": "r_care",
+        "varPath": "RobinExpansion.care_fund"
+      },
+      {
+        "key": "r_balloon_wins",
+        "varPath": "RobinExpansion.balloon_wins"
+      },
+      {
+        "key": "r_tutor_lessons",
+        "varPath": "RobinExpansion.tutor_lessons"
+      },
+      {
+        "key": "r_doctor_count",
+        "varPath": "RobinExpansion.doctor.count"
+      },
+      {
+        "key": "r_shop_stock",
+        "varPath": "RobinExpansion.shop_stock"
+      },
+      {
+        "key": "r_shop_staff",
+        "varPath": "RobinExpansion.shop_staff"
+      },
+      {
+        "key": "sl_reputation",
+        "varPath": "StreetLife.reputation"
+      },
+      {
+        "key": "sl_race_wins",
+        "varPath": "StreetLife.races.wins"
+      },
+      {
+        "key": "sl_race_done",
+        "varPath": "StreetLife.races.completed"
+      },
+      {
+        "key": "bt_ring",
+        "varPath": "BirdTower.ring.kept"
+      },
+      {
+        "key": "ls_student",
+        "varPath": "LifeSimulation.school.studentSupport"
+      },
+      {
+        "key": "ls_staff",
+        "varPath": "LifeSimulation.school.staffSupport"
+      },
+      {
+        "key": "ls_corruption",
+        "varPath": "LifeSimulation.school.corruption"
+      },
+      {
+        "key": "duties_completed",
+        "varPath": "LifeSimulation.school.duties.completed"
+      },
+      {
+        "key": "pc_loan",
+        "varPath": "RobinExpansion.pc_loan"
+      },
+      {
+        "key": "weekly_income",
+        "varPath": "RobinExpansion.weekly_income"
+      },
+      {
+        "key": "cc_torch",
+        "varPath": "MoreTransformations.treasure.torch"
+      },
+      {
+        "key": "cc_coins",
+        "varPath": "MoreTransformations.treasure.coins"
+      },
+      {
+        "key": "cc_museum_coins",
+        "varPath": "MoreTransformations.treasure.museumCoins"
+      },
+      {
+        "key": "cc_crew_coins",
+        "varPath": "MoreTransformations.treasure.crewCoins"
+      },
+      {
+        "key": "cc_zephyr_coins",
+        "varPath": "MoreTransformations.treasure.zephyrCoins"
+      },
+      {
+        "key": "sy_angel_build",
+        "varPath": "maplebirch.npc.sydney.transformation.angel.build"
+      },
+      {
+        "key": "sy_fallen_build",
+        "varPath": "maplebirch.npc.sydney.transformation.fallen.build"
+      },
+      {
+        "key": "sy_demon_build",
+        "varPath": "maplebirch.npc.sydney.transformation.demon.build"
+      },
+      {
+        "key": "ls_casino_suspicion",
+        "varPath": "LifeSimulation.casino.suspicion"
+      },
+      {
+        "key": "vp_beauty_bonus",
+        "varPath": "VanillaPlus.divineTransformations.beautyBonus"
+      },
+      {
+        "key": "r_invest_total",
+        "varPath": "RobinExpansion.investment.contributed"
+      },
+      {
+        "key": "r_invest_returned",
+        "varPath": "RobinExpansion.investment.returned"
+      },
+      {
+        "key": "r_invest_dividends",
+        "varPath": "RobinExpansion.investment.dividends"
+      },
+      {
+        "key": "r_invest_treasury",
+        "varPath": "RobinExpansion.investment.treasury"
+      },
+      {
+        "key": "fin_bank_balance",
+        "varPath": "Finance.bank.balance"
+      },
+      {
+        "key": "fin_broker_cash",
+        "varPath": "Finance.brokerage.cash"
+      },
+      {
+        "key": "fin_co_completed",
+        "varPath": "Finance.company.completed"
+      },
+      {
+        "key": "tr_parts_bike",
+        "varPath": "Transport.repair_parts.bicycle"
+      },
+      {
+        "key": "tr_parts_motor",
+        "varPath": "Transport.repair_parts.motor"
+      },
+      {
+        "key": "sl_bounty_completed",
+        "varPath": "StreetLife.bounties.completed"
+      },
+      {
+        "key": "ps_sanity",
+        "varPath": "Psyche.sanity"
+      },
+      {
+        "key": "pc_horse_build",
+        "varPath": "maplebirch.transformation.horse.build"
+      },
+      {
+        "key": "pc_whale_build",
+        "varPath": "maplebirch.transformation.whale.build"
+      },
+      {
+        "key": "pc_raven_build",
+        "varPath": "maplebirch.transformation.raven.build"
+      },
+      {
+        "key": "shrine_feeds",
+        "varPath": "MoreTransformations.shrine.feeds"
+      },
+      {
+        "key": "tsuki_love",
+        "varPath": "maplebirch.npc.Tsukihan.love"
+      },
+      {
+        "key": "tsuki_dom",
+        "varPath": "maplebirch.npc.Tsukihan.dom"
+      },
+      {
+        "key": "tsuki_lust",
+        "varPath": "maplebirch.npc.Tsukihan.lust"
+      },
+      {
+        "key": "tsuki_init",
+        "varPath": "maplebirch.npc.Tsukihan.init"
+      },
+      {
+        "key": "tsuki_lover",
+        "varPath": "loveInterestList"
+      },
+      {
+        "key": "or_orders_completed",
+        "varPath": "Orchard.orders_completed"
+      },
+      {
+        "key": "or_contracts_completed",
+        "varPath": "Orchard.contracts_completed"
+      },
+      {
+        "key": "or_sales_income",
+        "varPath": "Orchard.sales_income"
+      },
+      {
+        "key": "or_regular_visits",
+        "varPath": "Orchard.regular_visits"
+      },
+      {
+        "key": "dw_science_progression",
+        "varPath": "scienceprogression"
+      },
+      {
+        "key": "psy_mood",
+        "varPath": "Psyche.mood"
+      },
+      {
+        "key": "fb_willpower",
+        "varPath": "featsBoosts.upgrades.deadwood-willpower"
+      },
+      {
+        "key": "fb_physique",
+        "varPath": "featsBoosts.upgrades.deadwood-physique"
+      },
+      {
+        "key": "fb_beauty",
+        "varPath": "featsBoosts.upgrades.deadwood-beauty"
+      },
+      {
+        "key": "fb_exhibitionism",
+        "varPath": "featsBoosts.upgrades.deadwood-exhibitionism"
+      },
+      {
+        "key": "fb_deviancy",
+        "varPath": "featsBoosts.upgrades.deadwood-deviancy"
+      },
+      {
+        "key": "fb_promiscuity",
+        "varPath": "featsBoosts.upgrades.deadwood-promiscuity"
+      }
+    ],
+    "dol-optimization": [
+      {
+        "key": "opt_ui_bar",
+        "varPath": "options.opt.UiBarToggle"
+      },
+      {
+        "key": "opt_worn",
+        "varPath": "options.opt.WornStacking"
+      },
+      {
+        "key": "opt_worn_traits",
+        "varPath": "options.opt.WornStackingTraits"
+      },
+      {
+        "key": "opt_worn_warmth",
+        "varPath": "options.opt.WornStackingWarmth"
+      },
+      {
+        "key": "opt_quicksave",
+        "varPath": "options.opt.QuickSaveEnabled"
+      },
+      {
+        "key": "opt_needmeet",
+        "varPath": "needmeet_romance"
+      },
+      {
+        "key": "opt_hymen",
+        "varPath": "hymenreconstructioncount"
+      },
+      {
+        "key": "opt_hair",
+        "varPath": "hairtexture"
+      },
+      {
+        "key": "opt_nicotine",
+        "varPath": "nicotine"
+      },
+      {
+        "key": "opt_wardrobe",
+        "varPath": "options.DolOptimization.LargerWardrobeValue"
+      },
+      {
+        "key": "opt_cs_condom",
+        "varPath": "daily.conveniencestoregoods.避孕套"
+      },
+      {
+        "key": "opt_cs_pregtest",
+        "varPath": "daily.conveniencestoregoods.验孕棒"
+      },
+      {
+        "key": "opt_cs_cig",
+        "varPath": "daily.conveniencestoregoods.香烟"
+      },
+      {
+        "key": "opt_cs_sober",
+        "varPath": "daily.conveniencestoregoods.醒酒药"
+      },
+      {
+        "key": "opt_cs_frigid",
+        "varPath": "daily.conveniencestoregoods.降火药"
+      },
+      {
+        "key": "opt_cs_energy",
+        "varPath": "daily.conveniencestoregoods.能量饮料"
+      },
+      {
+        "key": "opt_cs_wash",
+        "varPath": "daily.conveniencestoregoods.洗面奶"
+      },
+      {
+        "key": "opt_cs_shampoo",
+        "varPath": "daily.conveniencestoregoods.洗发水"
+      },
+      {
+        "key": "opt_cs_egg",
+        "varPath": "daily.conveniencestoregoods.鸡蛋"
+      },
+      {
+        "key": "opt_cs_tomato",
+        "varPath": "daily.conveniencestoregoods.番茄"
+      },
+      {
+        "key": "opt_cs_apple",
+        "varPath": "daily.conveniencestoregoods.苹果"
+      },
+      {
+        "key": "opt_cs_orange",
+        "varPath": "daily.conveniencestoregoods.橙子"
+      }
+    ],
+    "dolmod": [
+      {
+        "key": "dm_conf_state",
+        "varPath": "adian_confession_state"
+      },
+      {
+        "key": "dm_met",
+        "varPath": "adian_met"
+      },
+      {
+        "key": "dm_romance",
+        "varPath": "adian_romance"
+      },
+      {
+        "key": "dm_inhospital",
+        "varPath": "adian._inHospital"
+      },
+      {
+        "key": "dm_imprisoned",
+        "varPath": "adian._imprisoned"
+      },
+      {
+        "key": "dm_reported",
+        "varPath": "adian._reported"
+      },
+      {
+        "key": "dm_jealous",
+        "varPath": "adian._jealousReady"
+      },
+      {
+        "key": "dm_pc_full",
+        "varPath": "computer.assembled"
+      },
+      {
+        "key": "dm_pc_apps",
+        "varPath": "computerApps.game_indie"
+      },
+      {
+        "key": "dm_indian",
+        "varPath": "indianStall_found"
+      },
+      {
+        "key": "dm_platform",
+        "varPath": "seaPlatform_found"
+      },
+      {
+        "key": "dm_loft_parts",
+        "varPath": "adian._loftRadioParts"
+      },
+      {
+        "key": "dm_loft_set",
+        "varPath": "adian._loftRadioSet"
+      },
+      {
+        "key": "dm_stockholm",
+        "varPath": "adian._stockholm"
+      },
+      {
+        "key": "dm_captive_trust",
+        "varPath": "adian._captiveTrust"
+      },
+      {
+        "key": "dm_reject_day",
+        "varPath": "adian_reject_day"
+      },
+      {
+        "key": "dm_bank_savings",
+        "varPath": "bank.savings"
+      },
+      {
+        "key": "dm_learn_sci",
+        "varPath": "sciencetrait"
+      },
+      {
+        "key": "dm_learn_mat",
+        "varPath": "mathstrait"
+      },
+      {
+        "key": "dm_learn_eng",
+        "varPath": "englishtrait"
+      },
+      {
+        "key": "dm_learn_his",
+        "varPath": "historytrait"
+      },
+      {
+        "key": "dm_learn_sci_exam",
+        "varPath": "science_exam"
+      },
+      {
+        "key": "dm_learn_mat_exam",
+        "varPath": "maths_exam"
+      },
+      {
+        "key": "dm_learn_eng_exam",
+        "varPath": "english_exam"
+      },
+      {
+        "key": "dm_learn_his_exam",
+        "varPath": "history_exam"
+      },
+      {
+        "key": "dm_rabbit",
+        "varPath": "rabbit"
+      },
+      {
+        "key": "dm_rabbit_build",
+        "varPath": "rabbitbuild"
+      },
+      {
+        "key": "dm_mermaid",
+        "varPath": "mermaid"
+      },
+      {
+        "key": "dm_mermaid_build",
+        "varPath": "mermaidbuild"
+      },
+      {
+        "key": "dm_ngplus",
+        "varPath": "ngplusCycle"
+      },
+      {
+        "key": "dm_yiluo_holy",
+        "varPath": "yiluo_holy"
+      }
+    ],
+    "dolsims": [
+      {
+        "key": "ds_lib_trouble",
+        "varPath": "Library_Trouble"
+      },
+      {
+        "key": "ds_clear_phase",
+        "varPath": "clearModSimsFuncDec_phase"
+      },
+      {
+        "key": "ds_hypno_0",
+        "varPath": "MirrorHypnoSims_0"
+      },
+      {
+        "key": "ds_hypno_1",
+        "varPath": "MirrorHypnoSims_1"
+      },
+      {
+        "key": "ds_hypno_2",
+        "varPath": "MirrorHypnoSims_2"
+      },
+      {
+        "key": "ds_hypno_3",
+        "varPath": "MirrorHypnoSims_3"
+      },
+      {
+        "key": "ds_hypno_4",
+        "varPath": "MirrorHypnoSims_4"
+      },
+      {
+        "key": "ds_hypno_5",
+        "varPath": "MirrorHypnoSims_5"
+      },
+      {
+        "key": "ds_spray",
+        "varPath": "weaponSprayGunSims"
+      },
+      {
+        "key": "ds_bike",
+        "varPath": "BicycleSims"
+      },
+      {
+        "key": "ds_listen",
+        "varPath": "FreeListenPermissionSims"
+      },
+      {
+        "key": "ds_temple_dream",
+        "varPath": "TempleDreamKnewSims"
+      },
+      {
+        "key": "ds_pass_anytime",
+        "varPath": "Seath_Allowed_Pass_Anytime"
+      },
+      {
+        "key": "ds_trait_1",
+        "varPath": "citylibrarybook_14_1_trait"
+      },
+      {
+        "key": "ds_trait_2",
+        "varPath": "citylibrarybook_14_2_trait"
+      },
+      {
+        "key": "ds_trait_3",
+        "varPath": "citylibrarybook_14_3_trait"
+      },
+      {
+        "key": "ds_trait_4",
+        "varPath": "citylibrarybook_14_4_trait"
+      },
+      {
+        "key": "ds_trait_5",
+        "varPath": "citylibrarybook_14_5_trait"
+      },
+      {
+        "key": "ds_pray_used",
+        "varPath": "usedpraySims"
+      },
+      {
+        "key": "ds_pray_not",
+        "varPath": "usedNotPraySims"
+      },
+      {
+        "key": "ds_sin",
+        "varPath": "sinSims"
+      },
+      {
+        "key": "ds_hypno",
+        "varPath": "hypnoSims"
+      },
+      {
+        "key": "ds_discipline",
+        "varPath": "DisciplineSims.value"
+      },
+      {
+        "key": "ds_popularity",
+        "varPath": "PopularitySims.value"
+      },
+      {
+        "key": "ds_horniness",
+        "varPath": "HorninessSims.value"
+      },
+      {
+        "key": "ds_influence",
+        "varPath": "InfluenceSims.value"
+      },
+      {
+        "key": "ds_gym",
+        "varPath": "Gym_Card"
+      },
+      {
+        "key": "ds_skill_game",
+        "varPath": "gameskillSims"
+      },
+      {
+        "key": "ds_skill_hypno",
+        "varPath": "hypnosisskillSims"
+      },
+      {
+        "key": "ds_book_11",
+        "varPath": "citylibrarybook_11"
+      },
+      {
+        "key": "ds_book_12",
+        "varPath": "citylibrarybook_12"
+      },
+      {
+        "key": "ds_book_13",
+        "varPath": "citylibrarybook_13"
+      },
+      {
+        "key": "ds_book_14",
+        "varPath": "citylibrarybook_14"
+      },
+      {
+        "key": "ds_book_16",
+        "varPath": "citylibrarybook_16"
+      },
+      {
+        "key": "ds_book_17",
+        "varPath": "citylibrarybook_17"
+      },
+      {
+        "key": "ds_demon",
+        "varPath": "demon"
+      },
+      {
+        "key": "ds_angel",
+        "varPath": "angel"
+      },
+      {
+        "key": "ds_fallen",
+        "varPath": "fallenangel"
+      },
+      {
+        "key": "ds_corruption",
+        "varPath": "world_corruption_soft"
+      },
+      {
+        "key": "ds_spray_skill",
+        "varPath": "weaponSprayGunSkillSims"
+      },
+      {
+        "key": "ds_head_blackmail",
+        "varPath": "headblackmailed"
+      }
+    ],
+    "dom_robin": [
+      {
+        "key": "ls_stage",
+        "varPath": "liveStreamStage"
+      },
+      {
+        "key": "rf_talked",
+        "varPath": "robinFightTalked"
+      },
+      {
+        "key": "rf_together",
+        "varPath": "robinFightTogether"
+      },
+      {
+        "key": "rp_both",
+        "varPath": "robinPayBothTalked"
+      },
+      {
+        "key": "rp_self",
+        "varPath": "robinPaySelfTalked"
+      },
+      {
+        "key": "fc_talked",
+        "varPath": "flowerCrownTalked"
+      },
+      {
+        "key": "ls_agree",
+        "varPath": "liveStreamAgreePrepare"
+      },
+      {
+        "key": "ls_together",
+        "varPath": "liveStreamTogether"
+      },
+      {
+        "key": "pb_lemon",
+        "varPath": "lemonadeShouldPayBack"
+      },
+      {
+        "key": "pb_live",
+        "varPath": "liveStreamShouldPayBack"
+      },
+      {
+        "key": "pb_choc",
+        "varPath": "chocolateUpgradeShouldPayBack"
+      },
+      {
+        "key": "pb_choc2",
+        "varPath": "chocolateReformShouldPayBack"
+      },
+      {
+        "key": "rf_chain",
+        "varPath": "robinFightChain"
+      },
+      {
+        "key": "goods_list",
+        "varPath": "lemonadeNewGoodsList"
+      }
+    ],
+    "fertility-expansion": [
+      {
+        "key": "fert_schema",
+        "varPath": "eden.schemaVersion"
+      },
+      {
+        "key": "fert_owned",
+        "varPath": "eden.facility.owned"
+      },
+      {
+        "key": "fert_expanded",
+        "varPath": "eden.facility.expanded"
+      },
+      {
+        "key": "fert_bailey",
+        "varPath": "eden.facility.baileyIntroduced"
+      },
+      {
+        "key": "fert_transfer",
+        "varPath": "eden.facility.transferIntroduced"
+      },
+      {
+        "key": "fert_neveradult",
+        "varPath": "eden.settings.neverAutoAdult"
+      },
+      {
+        "key": "fert_sterile",
+        "varPath": "eden.settings.allowSterilePregnancy"
+      },
+      {
+        "key": "fert_hotspot",
+        "varPath": "eden.settings.showHallHotspots"
+      },
+      {
+        "key": "fert_human",
+        "varPath": "eden.settings.allowHumanDescendants"
+      },
+      {
+        "key": "fert_resetage",
+        "varPath": "eden.settings.resetAgeOnTransfer"
+      },
+      {
+        "key": "fert_immstory",
+        "varPath": "eden.settings.immediateLifeStory"
+      },
+      {
+        "key": "fert_nightvisit",
+        "varPath": "eden.settings.enableNightVisits"
+      },
+      {
+        "key": "fert_capacity",
+        "varPath": "eden.facility.capacity"
+      },
+      {
+        "key": "fert_maturity",
+        "varPath": "eden.settings.maturityDays"
+      }
+    ],
+    "modId": [],
+    "more-farm-upgrade": [
+      {
+        "key": "mf_gh1",
+        "varPath": "plots.farm.0.greenhouse"
+      },
+      {
+        "key": "mf_gh2",
+        "varPath": "plots.farm.1.greenhouse"
+      },
+      {
+        "key": "mf_gh3",
+        "varPath": "plots.farm.2.greenhouse"
+      },
+      {
+        "key": "mf_gh4",
+        "varPath": "plots.farm.3.greenhouse"
+      },
+      {
+        "key": "mf_gh5",
+        "varPath": "plots.farm.4.greenhouse"
+      },
+      {
+        "key": "mf_gh6",
+        "varPath": "plots.farm.5.greenhouse"
+      },
+      {
+        "key": "mf_gh7",
+        "varPath": "plots.farm.6.greenhouse"
+      },
+      {
+        "key": "mf_gh8",
+        "varPath": "plots.farm.7.greenhouse"
+      },
+      {
+        "key": "mf_gh9",
+        "varPath": "plots.farm.8.greenhouse"
+      },
+      {
+        "key": "mf_farmer_active",
+        "varPath": "farm.farmer"
+      },
+      {
+        "key": "mf_hire_ok",
+        "varPath": "farm.farmer_can_hire"
+      },
+      {
+        "key": "mf_can_water",
+        "varPath": "farmerCanWater"
+      },
+      {
+        "key": "mf_can_till",
+        "varPath": "farmerCanTill"
+      },
+      {
+        "key": "mf_can_plant",
+        "varPath": "farmerCanPlant"
+      },
+      {
+        "key": "mf_can_harvest",
+        "varPath": "farmerCanHarvest"
+      },
+      {
+        "key": "mf_can_sell",
+        "varPath": "farmerCanSell"
+      },
+      {
+        "key": "mf_cultivator",
+        "varPath": "farm.cultivator"
+      },
+      {
+        "key": "mf_seeder",
+        "varPath": "farm.seeder"
+      },
+      {
+        "key": "mf_harvester",
+        "varPath": "farm.harvester"
+      },
+      {
+        "key": "mf_machinery",
+        "varPath": "farm.construction_machinery"
+      },
+      {
+        "key": "mf_greenhouse",
+        "varPath": "farm.field_greenhouse"
+      },
+      {
+        "key": "mf_laboratory",
+        "varPath": "farm.laboratory"
+      },
+      {
+        "key": "mf_coldstore",
+        "varPath": "farm.cold_store"
+      },
+      {
+        "key": "mf_compost",
+        "varPath": "farm.compost"
+      },
+      {
+        "key": "mf_farmhouse",
+        "varPath": "farm.farmhouse"
+      },
+      {
+        "key": "mf_tank",
+        "varPath": "farm.tank"
+      },
+      {
+        "key": "mf_basement",
+        "varPath": "farm.basement"
+      },
+      {
+        "key": "mf_flowers",
+        "varPath": "flowers_stored"
+      },
+      {
+        "key": "mf_phials",
+        "varPath": "phials_stored"
+      },
+      {
+        "key": "mf_fertiliser",
+        "varPath": "fertiliser_stored"
+      },
+      {
+        "key": "mf_compost_timer",
+        "varPath": "compost_timer"
+      },
+      {
+        "key": "mf_still_timer",
+        "varPath": "farm.still_timer"
+      },
+      {
+        "key": "mf_farmer_unpaid",
+        "varPath": "farm.farmer_unpaid"
+      },
+      {
+        "key": "mf_farmer_patience",
+        "varPath": "farm.farmer_patience"
+      },
+      {
+        "key": "mf_farmer_wage",
+        "varPath": "farm.farmer_wage"
+      },
+      {
+        "key": "mf_farmer_skill",
+        "varPath": "farm.farmer_skill"
+      },
+      {
+        "key": "mf_sell_timer",
+        "varPath": "farmerSellTimer"
+      }
+    ],
+    "more_love_interests": [
+      {
+        "key": "loveInterestList",
+        "varPath": "loveInterestList"
+      }
+    ],
+    "revelation-the-book-of-return": [
+      {
+        "key": "rt_stage",
+        "varPath": "RobinTemple.stage"
+      },
+      {
+        "key": "rt_secret_stage",
+        "varPath": "RobinTemple.secret.stage"
+      },
+      {
+        "key": "rt_rite_stage",
+        "varPath": "RobinTemple.secret.rite_stage"
+      },
+      {
+        "key": "rt_vigil",
+        "varPath": "RobinTemple.vigil_result"
+      },
+      {
+        "key": "rt_faith_band",
+        "varPath": "RobinTemple.faith_band"
+      },
+      {
+        "key": "rt_hospital",
+        "varPath": "RobinTemple.hospital_stage"
+      },
+      {
+        "key": "rt_secret_followup",
+        "varPath": "RobinTemple.secret.followup"
+      },
+      {
+        "key": "rt_night_scene",
+        "varPath": "RobinTemple.night_scene"
+      },
+      {
+        "key": "rt_transformation",
+        "varPath": "RobinTemple.transformation_kind"
+      },
+      {
+        "key": "ll_vow",
+        "varPath": "LostLamb.talkVow"
+      },
+      {
+        "key": "ll_ending",
+        "varPath": "LostLamb.ending"
+      },
+      {
+        "key": "td_oath",
+        "varPath": "TempleDuties.oath"
+      },
+      {
+        "key": "td_bishop",
+        "varPath": "TempleDuties.bishop"
+      },
+      {
+        "key": "td_manor",
+        "varPath": "TempleDuties.manor"
+      },
+      {
+        "key": "td_declaration",
+        "varPath": "TempleDuties.declaration"
+      },
+      {
+        "key": "td_case",
+        "varPath": "TempleDuties.case.stage"
+      },
+      {
+        "key": "td_ordination_stage",
+        "varPath": "TempleDuties.ordination.stage"
+      },
+      {
+        "key": "nkl_stage",
+        "varPath": "RBR.necklace.stage"
+      },
+      {
+        "key": "tc_joined",
+        "varPath": "TempleChoir.joined"
+      },
+      {
+        "key": "tc_lead",
+        "varPath": "TempleChoir.lead"
+      },
+      {
+        "key": "rt_pendant",
+        "varPath": "RobinTemple.pendant"
+      },
+      {
+        "key": "rt_dual",
+        "varPath": "RobinTemple.dual_promise"
+      },
+      {
+        "key": "rt_assess",
+        "varPath": "RobinTemple.assessment_passed"
+      },
+      {
+        "key": "rt_clasp",
+        "varPath": "RobinTemple.clasp_equipped"
+      },
+      {
+        "key": "rt_hospital_support",
+        "varPath": "RobinTemple.hospital_support"
+      },
+      {
+        "key": "rt_assess_fire",
+        "varPath": "RobinTemple.assessment_fire"
+      },
+      {
+        "key": "rt_vigil_attending",
+        "varPath": "RobinTemple.vigil_attending"
+      },
+      {
+        "key": "rt_vigil_with_robin",
+        "varPath": "RobinTemple.vigil_with_robin"
+      },
+      {
+        "key": "rt_abandoned",
+        "varPath": "RobinTemple.abandoned"
+      },
+      {
+        "key": "rt_rite_done",
+        "varPath": "RobinTemple.secret.rite_done"
+      },
+      {
+        "key": "ll_recalled",
+        "varPath": "LostLamb.recalled"
+      },
+      {
+        "key": "ll_active",
+        "varPath": "LostLamb.active"
+      },
+      {
+        "key": "ll_known_bishop",
+        "varPath": "LostLamb.known.bishop"
+      },
+      {
+        "key": "ll_known_gwylan",
+        "varPath": "LostLamb.known.gwylan"
+      },
+      {
+        "key": "ll_known_auriga",
+        "varPath": "LostLamb.known.auriga"
+      },
+      {
+        "key": "td_enrolled",
+        "varPath": "TempleDuties.enrolled"
+      },
+      {
+        "key": "td_review",
+        "varPath": "TempleDuties.review"
+      },
+      {
+        "key": "td_robin_agree",
+        "varPath": "TempleDuties.candidates.Robin.agreed"
+      },
+      {
+        "key": "td_sydney_agree",
+        "varPath": "TempleDuties.candidates.Sydney.agreed"
+      },
+      {
+        "key": "nkl_returned",
+        "varPath": "RBR.necklace.returnedOnce"
+      },
+      {
+        "key": "nkl_retaken",
+        "varPath": "RBR.necklace.retaken"
+      },
+      {
+        "key": "nkl_reclaimed",
+        "varPath": "RBR.necklace.reclaimed"
+      },
+      {
+        "key": "tc_singing",
+        "varPath": "TempleChoir.singing"
+      },
+      {
+        "key": "tc_services",
+        "varPath": "TempleChoir.services"
+      },
+      {
+        "key": "tc_practices",
+        "varPath": "TempleChoir.practices"
+      },
+      {
+        "key": "tc_bonus",
+        "varPath": "TempleChoir.bonus"
+      },
+      {
+        "key": "rt_service",
+        "varPath": "RobinTemple.service"
+      },
+      {
+        "key": "rt_grace",
+        "varPath": "RobinTemple.grace"
+      },
+      {
+        "key": "rt_chastity",
+        "varPath": "RobinTemple.chastity_timer"
+      },
+      {
+        "key": "rt_assess_bonus",
+        "varPath": "RobinTemple.assessment_bonus"
+      },
+      {
+        "key": "rt_rite_round",
+        "varPath": "RobinTemple.secret.rite_round"
+      },
+      {
+        "key": "rt_intimacy_count",
+        "varPath": "RobinTemple.intimacy_count"
+      },
+      {
+        "key": "rt_evaluation_marks",
+        "varPath": "RobinTemple.evaluation_marks"
+      },
+      {
+        "key": "ll_doubt",
+        "varPath": "LostLamb.doubt"
+      },
+      {
+        "key": "ll_fear",
+        "varPath": "LostLamb.fear"
+      },
+      {
+        "key": "ll_notice",
+        "varPath": "LostLamb.notice"
+      },
+      {
+        "key": "td_duties",
+        "varPath": "TempleDuties.duties"
+      },
+      {
+        "key": "td_roof",
+        "varPath": "TempleDuties.archive.roof"
+      },
+      {
+        "key": "td_shelves",
+        "varPath": "TempleDuties.archive.shelves"
+      },
+      {
+        "key": "td_sorted",
+        "varPath": "TempleDuties.archive.sorted"
+      }
+    ],
+    "smartphone": [
+      {
+        "key": "sp_feng_line",
+        "varPath": "Phone.FengLine"
+      },
+      {
+        "key": "sp_photography",
+        "varPath": "Phone.photography"
+      },
+      {
+        "key": "sp_task_danger",
+        "varPath": "Phone.TaskDanger"
+      },
+      {
+        "key": "sp_feng_meet",
+        "varPath": "Phone.FengMeeet"
+      },
+      {
+        "key": "sp_feng_giveup",
+        "varPath": "Phone.MetFengGiveup"
+      },
+      {
+        "key": "sp_second_known",
+        "varPath": "Phone.SecondShopKnown"
+      },
+      {
+        "key": "sp_feng_exposed",
+        "varPath": "Phone.FengAcceptExposed"
+      },
+      {
+        "key": "sp_sydney_live",
+        "varPath": "Phone.SydneySexLiveCompanion"
+      }
+    ],
+    "wraiths-reflection": [
+      {
+        "key": "wr_gate",
+        "varPath": "WraithsReflection"
+      },
+      {
+        "key": "wr_help",
+        "varPath": "HelpAsk"
+      },
+      {
+        "key": "wr_necklace",
+        "varPath": "necklaceWR"
+      },
+      {
+        "key": "wr_thief",
+        "varPath": "necklaceThief"
+      },
+      {
+        "key": "wr_admit",
+        "varPath": "AdmitMR"
+      },
+      {
+        "key": "wr_refuse",
+        "varPath": "RefuseWR"
+      },
+      {
+        "key": "wr_conch_ask",
+        "varPath": "SilverConchAsk"
+      },
+      {
+        "key": "wr_steal",
+        "varPath": "stealdailyMR"
+      }
+    ]
+  },
+  "keysWithoutVarPath": {
+    "revelation-the-book-of-return": 1
+  },
+  "totals": {
+    "adapters": 12,
+    "entries": 423,
+    "keysWithoutVarPath": 1
+  }
+}

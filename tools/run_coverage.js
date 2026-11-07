@@ -17,7 +17,16 @@ const TESTS = [
   "tests/integration_gender.js",
   /* 2026-11-06 新增：面板开关循环回归（单例 / 节点不增长 / 淡出收敛 / 事件不重复绑定），
      挂在覆盖率序列而不是加全链步号，避免步号全量重排 */
-  "tests/stability_loop.js"
+  "tests/stability_loop.js",
+  /* 2026-11-07 新增：键名核对启发式单测（lib/keycheck.js 的纯函数层）。
+     原先是孤儿测试——run_all 12 步、覆盖率序列、CI 三处都不跑它，而 check_claims /
+     check_key_types / check_coverage 三个工具共用这层内核，坏了没人发现。
+     放在覆盖率序列里只会多跑几百毫秒，且不加载产物，不影响覆盖率数字。 */
+  "tests/test_keycheck.js",
+  /* 2026-11-07 新增：声明驱动矩阵回读（423 条 / 965 探针自动派生断言）。
+     这一步是唯一真跑"写入→回读→undo"的执行器：morefarm / dolopt / domrobin 三个
+     适配器在 tests/ 里零命中，靠它才有覆盖。 */
+  "tests/test_adapter_matrix.js"
 ];
 
 let failed = 0;

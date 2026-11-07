@@ -45,8 +45,8 @@ function mbCELockLabel(path) {
 		if (typeof zhKey === "function") {
 			var z = zhKey(path);
 			if (z && z !== path) { return z; }
-			var leaf = String(path).split(".");
-			leaf = leaf[leaf.length - 1];
+			var leafParts = String(path).split(".");
+			var leaf = leafParts[leafParts.length - 1];
 			var z2 = zhKey(leaf);
 			if (z2 && z2 !== leaf) { return z2; }
 		}
