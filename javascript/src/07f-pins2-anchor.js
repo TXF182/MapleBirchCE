@@ -1,3 +1,4 @@
+/* 职责：锚定触发元数据 —— 地点标签（locLabel）、场景锚定信息、前置达成判定、确认条状态（anchorPromptActive） */
 	function locLabel(loc) { return LOCATION_LABELS[loc] || loc || "（未标注）"; }
 	/* 场景 key → 锚定元数据（表内命中；旧队列项无元数据 → null，保持旧段落跳转语义） */
 	function sceneAnchorMeta(key, def) {
@@ -123,6 +124,10 @@
 			}
 			ensureAveryMansion();
 			ensureFarmState();
+			/* v2.0.1：剧情触发（SV 预览链已解析为真实入口）同样兜底监狱/农场原版状态，
+			   避免新档触达 Prison* / Farm* 剧情段时深链读 $prison.* / $farm.* 抛 TypeError */
+			ensureSceneStateFor(String(entry));
+			if (Array.isArray(P.passages)) { for (var pz = 0; pz < P.passages.length; pz++) { ensureSceneStateFor(String(P.passages[pz])); } }
 			var ep = getEnginePlayFn();
 			if (!ep) { return { ok: false, message: "游戏引擎不可用，无法触发（请刷新页面重试）" }; }
 			if (P.manualVariableChanges) { execTweeMacros(P.manualVariableChanges); }

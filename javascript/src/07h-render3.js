@@ -1,3 +1,4 @@
+/* 职责：剧情页分区渲染（renderSceneRegion） */
 	function renderSceneRegion(pane2, title, keys, defs, byRole) {
 		if (!keys.length) { return; }
 		pane2.appendChild(el("div", "mce-section", title));

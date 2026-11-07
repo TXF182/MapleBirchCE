@@ -1,10 +1,10 @@
 /* ============ v2.0.0.002 需求⑥：潜伏者捕捉狂（无上限）+ 水烟馆冰箱（无上限） ============
-   原版取证见同批次 07f-lurker-patch.js 头部（逐字取自 DoL 0.5.12.13）：
+   原版取证见同批次 07f-lurker0-patch.js 头部（逐字取自 DoL 0.5.12.13）：
      捕捉门控 5 处 `$farm_stage gte 10 and $lurkers_held lt 1`；
      冰箱门控 `$lurkers_held gte 1 and $hookah.lurkers lt 5` + `<<switch $hookah.lurkers>>` 只映射 1–5；
      成功结算 `$lurkers_held += 1` 本身无上界。
    本文件的两条语义：
-     ① 无上限 —— 由 07f-lurker-patch 在 SugarCube 启动前改 passage 文本解除门控，手持/冰箱都能累积到任意只；
+     ① 无上限 —— 由 07f-lurker0-patch 在 SugarCube 启动前改 passage 文本解除门控，手持/冰箱都能累积到任意只；
      ② 保底 —— 补丁未命中时（版本差异/加载顺序），可开"自动搬运"把抓到的转入冰箱与蒸馏笼，
         手上常空使 `lt 1` 恒成立，等价"可以无限次捕捉"（但手持不累积，UI 会如实标注）。
    旧口径（`hookah.lurkers` 一律钳 0–5）已作废：那是把显示缺陷当成上限。 */
@@ -147,7 +147,8 @@ function mbCERenderLurker(pane) {
 	pane.appendChild(el("div", "mce-hint",
 		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只"));
 }
-function mbCELurkerAutoLabel() { var st = mbCELurkerState(); return st && st.auto ? "自动搬运：开" : "自动搬运：关"; }
+/* v2.0.0.005 清理：原 mbCELurkerAutoLabel() 删除（拆分期遗留死代码）——上方「自动搬运：开/关」
+   按钮渲染一直用内联三元，该函数全仓零引用。 */
 function mbCELurkerMovedText() {
 	var V = mbCELurkerV();
 	return (V && typeof V.mbCE_lurkerMoved === "number") ? V.mbCE_lurkerMoved : 0;

@@ -108,7 +108,7 @@ const api = setup.mbStageCE;
 assert(!!api && typeof api.renderPlayerEdit === "function", "setup.mbStageCE 挂载且渲染函数可用");
 assert(!!document.querySelector("#mce-root"), "init→ensureDom 创建面板 #mce-root");
 
-/* ---------- A. 六面板全部渲染不崩 ---------- */
+/* ---------- A. 七面板全部渲染不崩 ---------- */
 function clickTabSafe(name) {
   try {
     const btn = document.querySelector('.mce-tabs button[data-tab="' + name + '"]');
@@ -117,7 +117,7 @@ function clickTabSafe(name) {
     return p ? p.textContent : "(pane 缺失)";
   } catch (e) { return "THREW: " + e.message; }
 }
-[["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"]].forEach(function (pair) {
+[["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"], ["yanling", "言灵"]].forEach(function (pair) {
   const t = clickTabSafe(pair[0]);
   assert(t.indexOf("THREW") === -1 && t.length > 0, "A. " + pair[1] + "页渲染不崩，实际 " + t.slice(0, 40));
 });

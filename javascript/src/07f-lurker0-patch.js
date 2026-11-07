@@ -14,7 +14,15 @@
       之前改 DOM 里的 <tw-passagedata>。CE 走 scriptFileList_inject_early（脚本在 <head> 执行），
       body 尚未解析，因此注册捕获阶段的 DOMContentLoaded 先于正文末尾 SugarCube 的启动回调。
    兜底：DOM 未命中时改 Story.get(name).text（普通 passage 每次渲染重新 wikify，有效；widget 无效，
-      此时 UI 会明示"仅普通剧情入口生效"，并由自动搬运保底"可以无限抓"）。 */
+      此时 UI 会明示"仅普通剧情入口生效"，并由自动搬运保底"可以无限抓"）。
+
+   【拼接顺序（v2.0.0.006 更名）】本片原名为 07f-lurker-patch.js：build_js.js 按文件名 sort 拼接，
+   "-" 的排序码 0x2D 小于 "." 的 0x2E，旧名会让"补丁片"排在 07f-lurker.js（本体片）之前 —— 反直觉。
+   现更名 07f-lurker0-patch.js（"0" = 0x30 大于 "." = 0x2E），实际顺序变为 07f-lurker.js → 本片，
+   即"本体在前、补丁在后"。原先「本片不得在模块顶层读写 07f-lurker.js 的模块级 var」这条约束
+   （MB_CE_LURKER_MAX / MB_CE_LURKER_FRIDGE_MAX / mbCELurkerTimer 等）随顺序调整自然解除：
+   本片执行时本体片的模块级 var 已赋值。双向依赖（本体调本片的 mbCELurkerPatchReport /
+   mbCELurkerRepatch）仍靠函数声明提升到整个产物顶部，且调用点带 typeof 守卫，安全。 */
 var MB_CE_LURKER_PATCHES = [
 	{ name: "Farm Yard", find: "$farm_stage gte 10 and $lurkers_held lt 1", repl: "$farm_stage gte 10" },
 	{ name: "Farm Tending Lurker Work", find: "$farm_stage gte 10 and $lurkers_held lt 1", repl: "$farm_stage gte 10" },

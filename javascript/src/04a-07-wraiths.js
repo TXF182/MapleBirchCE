@@ -1,3 +1,4 @@
+/* 职责：Wraith'sReflection 适配器声明 */
 	CHEAT_ADAPTERS["wraiths-reflection"] = {
 		detect: function () {
 			try {

@@ -2,6 +2,182 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.1（2026-11-07 收敛轮：锁定文案中文化 + 监狱/农场直达状态兜底）
+
+**触发**：v2.0.0.007 落地后的收敛自查——逐条回读原版 widget 定义与面板刷新路径。007 修掉了「行标签」但仍有两类问题：状态栏文案仍在吐英文裸 path；三处新直达目标在原版状态对象缺失时会崩或读到空。
+
+### 一、锁定状态栏仍吐英文裸 key（007 只修了行标签）
+- 现象：点「锁定」后底部状态栏为 `已锁定 skulduggery = 500`，取消为 `已取消锁定 skulduggery`；行标签已是中文，但状态栏文案由 `mbCELockSet/Remove` 的 `message` 直接拼 `path`。
+- 修法：新增 `mbCELockLabel(path)`（三级回落：快速面板索引 label → `zhKey(path)` 全路径 → `zhKey` 叶子段 → 原 path），`mbCELockSet` 两处与 `mbCELockRemove` 一处文案改用它；全局页「自定义」锁定行名从写死的「自定义」改为该中文名。
+
+### 二、锁定/「获得」按钮写 class 会抹掉其它类
+- 修法：`mbCESyncQuickRow` 两处 `className = …` 改 `classList.toggle("mce-gold", …)`（保留基类），`classList` 不可用时回落原写法。
+
+### 三、监狱直达在 `$prison` 缺失时必崩（P0）
+- 取证：`Prison Cell` 段只调 `<<destination_prison>>` + `<<effects_prison>>`，而 `effects_prison`（658002）首行即 `<<if $prison.work_check isnot 1 …>>`——`$prison` 整体缺失时深链读抛 TypeError；新档直达监狱必崩。
+- 原版 `prison_init`（657865）自带 `<<if !$prison>>` 守卫，可幂等建壳；但其末尾 657931 有**无条件** `<<set $prison.morning to 1>>`，已有进度时调会污染当日流程。
+- 修法：`07d-places.js` 新增 `ensureSceneStateFor(name)`，在 `teleportTo` 内调用——`Prison*` 前缀且 `$prison` 非对象时经 `SugarCube.Wikifier`（回落全局 `Wikifier`）执行 `<<prison_init>>` 建壳；已有 `$prison` 直接返回，绝不调 init。
+
+### 四、农场直达 `$farm` 缺失时子段落读空
+- 取证：`The Farm` 段自身只读 `$molestationstart`（不崩），但进入后农场子段读 `$farm.*`；`farm_init`（487465）无守卫且 `<<set $farm to {}>>` 会抹掉已有进度，故不复用。
+- 修法：`ensureFarmState(force)` 增参数（`07f-pins3-queue.js`），`The Farm` / `The Farm *` / `Farmland *` 前缀且 `$farm` 非对象时 `ensureFarmState(!(farm_stage >= 1))`——未推进也补壳，只补不覆盖。
+
+### 五、另两处取证后确认无需兜底
+- `Brothel Basement`：段内仅 `<<set $outside/$location>>` + `<<effects>>`；原版无 `$brothel` 对象（用扁平 `$brothel_*` 键）。
+- `Asylum`：`<<asylumeffects>>` 只读 `Time.hour` 写 `$asylumstate`，不读 `$asylum`（后者是 0/1 标量，镜像计数是扁平键 `$asylum_mirror`）。
+- `Livestock Intro`：只读 `$location/$outside/$phase`；`$livestock` 由本体变量初始化 widget（183372 整对象）随新档建立。
+
+### 六、收敛第二轮：剧情触发（不止直达按钮）同样兜底
+- `07f-pins2-anchor.js` 在触发前对解析后的真实入口段 `entry` 与 `P.passages` 逐段调 `ensureSceneStateFor`——剧情清单里确有 `PrisonScarredInmate` / `PrisonSpirePrecipice` / `PrisonYardLocket` 等段（`07e-scenes2.js` 的 `/^Prison/` 角色分类实证），新档触达同样会深链读 `$prison.*`；直达按钮那条路只是玩家最容易踩到的一条。
+- 前缀判定放宽：`/^Prison\b/` → `/^Prison/`（`\b` 在 `PrisonScarredInmate` 这类无空格段名上不成立，会漏判）；农场侧 `The Farm` / `Farmland` 同理去掉「必须带尾随空格」的要求。
+
+### 验证
+- 全链 `tools\run_all.ps1` 9 步 `ALL CHECKS PASSED`（含新增断言 test_mce 44.10 共 12 条 + smoke_dom 9.6 共 6 条）。
+- JS 产物 62 段 / 759875 B / SHA256 `D4A4A4DCA4BCB8E45204885477E76AE178DA275662C460A5607D3DA3BEDBDC64`。
+- 打包 `MapleBirchCE.mod.zip` / SHA256 `1E38D12AFBDF9E00DA74B70A8A80E0D19E1764D6BF96E1BA90EF03840927806C`（300,788 B、pack.ps1 verifier 4/4、4 条目正斜杠、双端字节与 SHA 一致）。
+
+## v2.0.0.007（2026-11-07 好友实机反馈修复 + 原版四地点直达）
+
+**触发**：好友（患者猫猫…SVIP1）在已发布的 v2.0.0.002 上实机试用，报三处 UI 问题 + 一个原版地点需求（「能不能一键到达地下妓院 / 雷米牧场可以作弊吗 / 还有监狱 / 精神病院」，问「模组吗还是原版」，答「原版」「数值」）。
+
+### 一、快速面板点「锁定」不即时变「已锁定」（得切页签再回来）
+- 根因：`actPlayer` 的局部刷新分支只回填 `input.mce-inp` 与 `.mce-row-lbl`，**完全不碰锁定按钮的题字与 class**，只有整页 `renderPlayerEdit()` 才重建按钮。
+- 修法：新增 `mbCESyncQuickRow(row, path)` 作**行内状态唯一真值路径**——输入框值 / 中文 label / 锁定按钮（`[data-mce-role="lock"]`：题字「已锁定」↔「锁定」、金色、title）/ 武器「获得」按钮（`[data-mce-role="grant"]`：持有态）一处同步；`actPlayer` 局部分支与 `renderQuickRow` 末尾都调它（渲染与刷新共用同一条路径）。
+
+### 二、锁定后该行技能名变英文裸 key（切页恢复中文）
+- 根因：行标签重写依赖 `PANEL_QUICK_PATH_INDEX`，而该索引只在 `quickWrite()` 内部惰性建表；「锁定」走 `mbCELockSet` 不经 `quickWrite` → 索引为 null → label 回落成 `path` 原文（`skulduggery / danceskill / swimmingskill / athletics / tending / housekeeping`）。
+- 修法：索引构建抽成 `ensureQuickIndex()`（已建即返回，否则遍历 `PANEL_QUICK_GROUPS` 建 `path → item`），`quickWrite` 与本轮同步函数共用。
+
+### 三、武器已获得、但「获得」按钮标签没改成「已获得」
+- 修法：按钮文案不再写死，改由 `mbCESyncQuickRow` 按持有态判定（`prof.<武器>` 为 number 且 ≥1，与原版 `isnot undefined` 持有判定一致）→ 已持有显示「已获得」+ 金色 + title 带当前熟练度；未持有显示「获得」。
+
+### 四、场景直达补原版四地点（好友要的是「原版」「数值」手段）
+原版 0.5.12.13 passage 实证（16,087 段按 `name` 属性枚举）：
+- **地下妓院**：`Brothel` 前缀 139 段，`Brothel Basement` 实证存在 → 新增「妓院 · 含地下层」组，主场景落 `Brothel Basement`。
+- **雷米牧场**：`Livestock` 前缀 310 段（`Livestock Intro` 为入场段）→ 新增「雷米牧场 · 牲口线」组，主场景 `Livestock Intro`。
+- **雷米农场**：`The Farm` / `Farmland` 前缀 124 段 → 新增「雷米农场 · The Farm」组，主场景 `The Farm`。
+- **监狱**：既有组已覆盖 `Prison ` 前缀 363 段（与 `Police ` 同组）；新增「监狱（原版 Prison）」档位组补数值：`prison.attention_level`(0-3) / `prison.protection`(0-10) / `prison.hours_worked`(0-12)，赋值形态实证为 number。
+- **精神病院**：既有 `Asylum` 组（189 段，`main: Asylum`）本身可用；补 `asylum_mirror`（0-5，原版 `gte 5` 判定触发深层镜像）。
+- 另补牲口线档位：`livestock.obey`(0-100) / `livestock.milk` / `livestock.semen` / `livestock.pride`(0-1)，均实证 number；`livestock.escape` 为字符串（`night`/`river`）**未纳入**。
+- `PLACE_CN` 补 `brothel / basement / gloryhole / livestock / barn / farm / farmland / plough / tie stall / milking` 中文括注。
+
+### 验证
+- 单测：`test_mce.js` 场景分组断言 14 → **17**，并补 `brV7 / lvV7 / fmV7` 三条组定义断言（主场景 Brothel Basement / Livestock Intro / The Farm）→ `ALL TESTS PASSED`。
+- DOM 冒烟（新增两段）：
+  - 场景页：三新组标题渲染（`妓院 · 含地下层 Brothel` / `雷米牧场 · 牲口线 Livestock` / `雷米农场 · The Farm`）+ 切「地点」子页断言「监狱（原版 Prison）」「雷米牧场（原版 Livestock）」两组标题与「监狱关注度」「服从度」档位行 → `SMOKE ALL PASSED`。
+  - 9.5 段：`skulduggery` 行初始按钮=「锁定」且不高亮 → **点一下同一次渲染内**变「已锁定」+ 金色 + 锁定表命中 → 锁定后行 label 不含英文裸 key（回归断言）→ 再点取消并立刻恢复「锁定」；`prof.baton=500` → 按钮「已获得」+ 金色，归 0 → 「获得」。
+- 全链 `run_all.ps1` 9 步 `ALL CHECKS PASSED`（性别集成 `passed=24 failed=0`）；产物 **62 段 / 756,042 B / order `6b823c680f42` / SHA256 `f90c9a18be15db618459b92eff020bf4cdac2dc3c20575ff85827ab3b4a43436`**；`pack.ps1` 4 条目正斜杠 + verifier 4/4（`VERIFIER-FALLBACK` 等价核对）+ zip **299,220 B / SHA256 `E64C46E87299C08D82FB1924A7503537F0E622971168047EA1260FF63F7312B3`**（README 同步更新后重打包）。
+
+## v2.0.0.006（2026-11-07 新增「言灵」页，功能新增）
+
+**触发**：用户要求把 GitHub `Nk-Be/DOL-CheatExtend` v1.1.3（俗称「言灵作弊」，2024-08 发布、2024-11 最后推送）里仍有用的思路学过来，在 MCE 里开一个同名新页签；并满足好友的诉求——**让 NPC 无视 PC 所穿衣服的性别**：穿异性服装不触发异装判定、不涨异装癖、**一点负面名声都没有**（好友走全正面线，理由是「有很多好看的衣服，这些放现实明明是不分男女的」）。
+
+### 新增「言灵」页（第 7 个外层页签）
+- **核心手段是运行期覆盖 `window.isCrossdressing`**，不是文本替换。本体 `isCrossdressing()` 定义在 72520-72536，末行 `window.isCrossdressing = isCrossdressing;` 直接挂到 window —— 覆盖后 NPC 的 `man` widget、换衣间、`crossdressing_check` 全部走新实现，开启时恒返回 `false`，`$crossdressing` 因此恒 0。
+- 三段治理：
+  1. **无视着装性别**：开关 + 状态行 + 运行时诊断（钩子是否挂载 / `$crossdressing` 当前值）。关闭时**语义完全透传原判定**（不改 sex / genital / gender_appearance，`isGenitalMismatch` 与原版 herm 链保持原样）。
+  2. **异装癖压制**：显示 `$crossdressingTrait` 进度与 `crossdresser` 特质状态；「立即清空进度 + 移除特质」清存量（含 `$backgroundTraits` 里的 `crossdresser`），「持续压制」每秒压回 0。
+  3. **负面名声清零**：「一键清零：学校异装名声」清 `$schoolrep.crossdress` / `.herm` + 删 `$school_crossdress_message`；「一键清零：全部负面名声」连带 `V.fame` 负面八项（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp）与 `V.fameDecay` / `V.fameDecayTimer` 衰减队列（否则次日被队列改回），**正面五项 scrap / good / business / social / model 保持不动**。
+- 开关状态存 `$mbCE_yanling = {noCross, noTrait}`，**读档后不打开面板也生效**：1 秒守卫表由 `:passagedisplay` 与 init 按需起（两个开关都关时自动停表）。全部净化动作按 `V.mbCE_wrote["yanling:<op>"]` 留痕。
+- 接线：`09-exports.js` 的 `names` / `panes` / `paneRenders` 第 7 项、`07a-shell2.js` 的 `switchOuterTab` 分派、`07a-shell.js` 的 `.mce-tabs` 溢出滚动（7 个页签挤一行时 `overflow-x:auto` + `flex:1 0 auto` + `nowrap`）、`09-exports2.js` 的 passagedisplay / init 起表。
+
+### 为什么只学思路、不搬 CheatExtend 的代码
+- CheatExtend **零 JS**，全靠 `TweeReplacer` 的 `findString` 做**原版 passage 文本字符串替换**（`boot.json.addonPlugin[0].params` 19 条规则）。原版文本一变迁，整块规则**静默失效**——这正是「时间太久已经不适用」的根因。它自己的二代言灵输入框（`<<textbox "$yanling">>` + 保存时 `<<set ('$name','$name',{name:...})>>` 劫持名字显示）在本体里**已被 `<!-- 二代言灵 -->` 整块注释掉**，即作者自己也放弃了这条路径。
+- 它的「快捷言灵」是一长串 `[[标题|$passage][赋值语句]]` 单行链接（`cheats_4.txt` 25,376 B），写法上还带着裸语法 `to`（`$schoolrep.herm to 0`）、拼写笔误 `$milk_releasedFIX_MAN`、无意义自增 `$spraymax +=-1`、硬下标 `$NPCName[28]`。
+- 所以本页继承的是**能力清单**（无视着装性别 / 异装癖压制 / 负面名声清零 / 学校异装名声双键），实现方式全部换成 MCE 自己的：直接写 V、调原版函数、覆盖 window 函数。**不做文本替换，不依赖原版文案。**
+
+### 自查修掉的两个真问题（都在测试层暴露）
+- **模块级 1 秒 `setInterval` 让测试进程永不退出**：`smoke_dom.js` 末尾只设 `process.exitCode` 不 `process.exit`，常驻 interval 会让事件循环不空 → 冒烟挂死（后台任务 4 分钟零输出）。修法：`mbCEYanlingTick` 开头「两个开关都关 → `clearInterval` + return」，`mbCEYanlingEnsureTimer` 先读状态判「有开关开启」才起表，起表后 `try { timer.unref() }`（浏览器 interval 是数字无 unref，已 `try` 包裹）。
+- **测试里裸调 `mbCEYanlingXxx()` 取不到函数**：产物在 eval 严格模式/局部作用域执行，`var` / `function` 声明不泄漏到全局。54 组断言全部改为走 `setup.mbStageCE` 导出的 `yanlingXxx`（`const y54 = setup.mbStageCE`），剩余裸调用数 0。
+
+### 验证
+- 单测：54.1–54.28 全 PASS（含 54.2 关闭时透传原判定 `true`、54.3 开启时恒 `false` 且上游零调用、54.6 第三方重包后仍拦截、54.14 只删负面衰减队列项、54.16 tick 未启用不建 `$mbCE_yanling`、54.20 tick 每秒压回 0；54.23–54.28 为收敛轮新增，见下）→ `ALL TESTS PASSED`。
+- DOM 冒烟：外层页签 >=7（实际 7）/ 言灵页渲染不崩 / 含「无视着装性别 / 负面名声清零」两区 / 「开启」按钮存在的断言，并补**真实点击链**：mock 原版 `window.isCrossdressing = () => true` → 开启后 `$mbCE_yanling.noCross === true` 且 `window.isCrossdressing() === false` → 按钮翻转「关闭」→ 写脏 `$crossdressingTrait=66` 点「立即清空」归 0 且特质移除 → 写脏 `$schoolrep` / `$fame` 点「全部负面名声」负面归零、正面 `scrap` 保持 1000、学校双键归 0、文案已删 → 点「关闭（恢复原版判定）」后 `window.isCrossdressing === 原版函数` 且判定恢复 `true`（即钩子已彻底卸载）。`SMOKE ALL PASSED`（修 interval 前此步挂死）。
+- 全链 `run_all.ps1` 9 步 `ALL CHECKS PASSED`（性别集成 `passed=24 failed=0`）；产物 **62 段 / 750,728 B / order `6b823c680f42` / SHA256 `b8a749e8603e7dc0f9be813141367349e44af35664ac0299fa6aff2ed8c500a9`**；`pack.ps1` 4 条目正斜杠 + verifier 4/4（走 `VERIFIER-FALLBACK` 等价核对）+ zip **296,886 B / SHA256 `70AFB93B210F2BBE77A25A91F003F1D30A2654EEEAAF90FB4D3CE77AFCE7CA57`**。
+
+### 收敛轮：迭代优化至收敛（同日第二轮）
+首版交付后按「迭代优化，直至收敛」继续自查：每项先写断言（54.23–54.28）跑红、再改实现跑绿。共修 6 个真问题：
+
+1. **状态归一用 `!!` 过宽**：`!!"false" === true` —— 手改存档或异常序列化写进字符串时，会把「关」当「开」。改严格 `=== true`（`mbCEYanlingState` 归一 + `mbCEYanlingNoCross` + tick / 定时器判定）。
+2. **「关闭」不卸载钩子**：关闭态只是在 wrapper 里透传，`window.isCrossdressing` 上仍留一层本页函数。若第三方模组把「我方钩子」当上游链式包进自己的实现，关闭后即形成「我方 → 第三方 → 我方」无限递归。新增 `mbCEYanlingUninstall()`：仅当 `window.isCrossdressing === 本页钩子` 时还原上游原函数，第三方已替换则**绝不动**，幂等。新增 `mbCEYanlingSync()`：开 → 装、关 → 卸；tick / 定时器 / toggle 全部改走它（此前 tick 与定时器无条件 `Install`，等于「没启用也挂着钩子」）。
+3. **对外 API 无字段白名单**：`yanlingToggle(field)` 挂在 `mountApi` 上，控制台误传字段会往 `$mbCE_yanling` 写垃圾键。加白名单，非法字段返回 `{ok:false, msg}` 且不写入。
+4. **面板诊断口径误导**：关闭态本就不该挂钩子，原来与「脚本未就绪」共用一句「钩子未挂载」。改三态：`钩子已挂载` / `钩子未挂载（游戏脚本未就绪或已被重载）` / `未启用（开关关闭时不挂钩子）`。
+5. **点开关后滚动回顶**：重渲染前记 `.mce-body.scrollTop`，渲染尾部还原。
+6. **出口文案失真**：`mbCEYanlingPurgeFame` 的返回文案原来写死「学校 2 键」，`$schoolrep` 缺失时实际清 0 项；改为按实际清掉的项计数。
+
+**新增断言**：54.23 字符串 `"false"`/`"0"` 不得被判为开启、54.24 显式 install 后 window 上是 wrapper、54.25 关闭 `noCross` 立即还原上游原函数、54.26 `noCross` 关而 `noTrait` 开时 tick 不重挂钩子、54.27 `uninstall` 连调两次幂等且不误改第三方函数、54.28 `toggle` 拒绝白名单外字段。
+**新增导出**：`mountApi` 增 `yanlingUninstall` / `yanlingSync`（原 9 项 → 11 项）。
+
+**边界（有意不动的地方）**：
+- `isHermOrCrossdresser`（72548）在 JS 内裸调用 `isCrossdressing()`，不受 window 覆盖影响。它判的是「sex 与外观性别不符 / 双生殖器」，属 herm 语义而非服装性别，保持原版；双生殖器场景要一并消掉名声，用面板的「全部负面名声」清零。
+- 学校异装名声升到 5 时原版把 9 名 NPC 写进 `$genderknown`（`schoolrep` widget 的 `pushUnique`）。清零名声不撤销这些认知 —— 它们只代表「NPC 已知道你的性别」，不是负面名声，撤销反而让 NPC 忘记已有认知。面板第 ⑥ 条已写明。
+- 压力增减（77866-77870）用独立本地 `const` 判定，源码注释明确不复用该函数，本页不触碰，故与面板「说明与边界 ②」一致。
+
+**收敛判据**：按「取证 → 断言 → 修复 → 全链」多轮扫描，已无可复现的新问题；余项均属「不属本页语义」的保持性决策，已在面板与本文档显式写明，不再改动。
+
+### 顺带收尾的上一轮遗留项
+- **`07f-lurker-patch.js` 更名 `07f-lurker0-patch.js`**。原因：`build_js.js` 按文件名 sort 拼接，`-`（0x2D）< `.`（0x2E），旧名让「补丁片」排在 `07f-lurker.js`（本体片）**之前**，与语义直觉相反、也让「本片不得读本体片模块级 var」成为必须写明的隐性约束。新名用 `0`（0x30 > 0x2E），实际顺序变为 `07f-lock → 07f-lurker → 07f-lurker0-patch → 07f-pins1-data`（本体在前、补丁在后），该隐性约束自然解除。同步改了本片头注释里的顺序说明，以及 `07f-lurker.js` 头注释 2 处文件名引用；CHANGELOG 历史条目里的旧名**保留不改写**（记录当时事实）。
+- **23 段补 `/* 职责：… */` 文件级表头注释**（只加注释、不动任何代码）：`03c-global-combat2`、`04a-01`～`04a-09`（9 个适配器声明段）、`04b-modcheat-write`、`04c-modcheat-util`、`05a2-modcheat-rows-build`、`07a-shell2`、`07d-places2`、`07e-scenes2`、`07f-pins2-anchor`、`07f-pins3-queue2`、`07g-romance`、`07h-render3`、`08-npc-traits2`、`09-exports`、`09-exports2`。原有的 `/* ============ … */` 大块头注释保持不动；`00-preamble.js` 已有完整文件头（首行为空行，此前误计为缺注释）。
+
+## v2.0.0.005（2026-11-07 分片结构体检轮，功能不变）
+
+**触发**：用户要求对「把单文件 JS 拆成 `javascript/src` 多段」这件事本身做迭代优化，检查拆分后有无遗留问题，能精进的地方直接改。
+
+- **构建层加固**（`tools/build_js.js`）：拼接一直是 `out += 读文件` 的**纯字符串相加、不插任何分隔符**。因此任一段末行缺 `\n`，下一段首行就会被接到本段末行 —— 末行若是 `//` 行注释，下一段代码被整行注释掉（**静默丢功能，ESLint/`node --check` 都看不出来**，只有跑起来少一块 UI 才发现）；末行若是未闭合块注释，则下一段整体被吞。新增三道守卫：
+  1. 片段缺末尾换行 → 自动补齐 + 打印 `FAIL:` 并 `exit 1`（产物已修好，提交补齐后的源再跑即绿，构成 fail-closed 门禁）；
+  2. 片段含 U+FFFD（编码损坏，产物"看着有内容"实为乱码）→ `FATAL` 直接拒绝构建；
+  3. 打印 `order <12 位指纹>`（文件名序列的短 SHA256）—— 改名/新增片段会改变拼接顺序，指纹随之变，事后可对账。
+- **修 1 段真实缺换行的源**：`05a2-modcheat-rows-build.js` 尾部 `\t}` 后无 LF（13,993 B，末 3 字节 `10,9,125`）。当时没出事纯属运气 —— 紧随其后的 `05a3-modcheat-actions.js` 首行恰好是块注释开头，`}` 直接拼 `/*` 仍合法；换任何一段以语句开头的文件排在它后面就会出事。已补 LF（13,994 B）。
+- **删拆分期遗留死代码**：`07f-lurker.js` 的 `mbCELurkerAutoLabel()` 全仓零引用（渲染处的「自动搬运：开/关」按钮一直用内联三元表达式），仅定义处出现 1 次，属拆分合并后没清掉的旧实现。
+- **补拼接顺序约束注释**（`07f-lurker-patch.js` 头注释）：`-` 的排序码 `0x2D` 小于 `.` 的 `0x2E`，所以 `07f-lurker-patch.js` 实际排在 `07f-lurker.js` **之前**（补丁片在前、本体片在后）。据此写明两条硬约束：① 本片不得在模块顶层读 `07f-lurker.js` 的模块级 `var`（那些赋值要等本片整段执行完才发生，读到的是 `undefined`）；② 反向依赖（lurker 调本片的 `mbCELurkerPatchReport` / `mbCELurkerRepatch`）安全，因为函数声明提升到整个产物顶部、且调用点还带 `typeof` 守卫。经实测：两片交叉引用零重名、patch 侧不引用 lurker 侧任何模块级 var。
+- **文档口径校正**（`README.md`）：`src` 段数不再写死「57 段」（现盘 61 段，以 `build_js.js` 输出的 `(N 段, …)` + `order <指纹>` 为准）；「日常开发流程」里 `run_all.ps1` 由 7 项补成实际 **9 步**（补第 8 步适配器声明一致性、第 9 步覆盖率门禁 + 末尾 `codegraph sync`）；远端 CI 运行时由 node 20 更正为 **node 22**（node 20 会让 jsdom@30 的传递依赖 `undici@8` 在 `require` 阶段崩）。
+
+**结构体检结论（61 段全量扫描，非抽样）**：99 个顶层函数、25 个顶层大写变量跨 61 段**零重名**（不存在"后拼接的同名定义静默覆盖前者"这类拆分典型事故）；块注释不配对告警 2 处经逐行核实均为正则误判（`game/*.twee` 的 `/*`、正则字面量 `\s*/` 的 `*/`，块注释本身闭合正确）；产物中不存在 `// … function` 形式的粘连行。
+
+**验证**：build `order 95e0ce6f0425`（61 段）/ 产物 **725,489 B** / SHA256 `5a70287128fb3a0dca51f7157154ae90d5ab761d4afa9223d46e819e20f25ebd`；`node --check` exit 0；`run_all.ps1` 9 步 ALL CHECKS PASSED（性别集成 passed=24 failed=0）；`pack.ps1` 4 条目正斜杠 + verifier 4/4 + SHA256；产物已装 `game\`。
+
+## v2.0.0.004（2026-11-07 自查优化轮，功能不变）
+
+> 对 v2.0.0.003 三项改动做逐行自查后的修复轮：不新增功能，只修 bug、纠错文案、消除口径漂移。
+
+### 修复
+
+- **fert 面板文案自相矛盾**：`mbCEFertRender` 原先先输出「你已经开着原版作弊页」再接 `if (!ready.ok)` 输出「未检测到 window.EdenCheats」并 return —— API 缺失时会同时说两句反话。已把早退判断提到 hint 之前。
+- **态度组点击整页重建**：5 个逐条按钮 / 回退 / 全解除 / 全恢复 原先共 6 处调 `renderGlobal()`，全局页分组多，会丢滚动位置且卡帧。改为 `paintAttitudeRow()` 只重画本行的 label / 按钮文案 / `mce-gold` 类，回退按钮按需增删；批量操作用 `painters` 数组逐行刷新，不再整页重建。同时现值一律用 `mbCEAttitudeGet(key)` 现读，不再用可能过期的闭包变量。
+- **`cheatsEnabled` 还原兜底**：原写法在 `delete` 被拒时退化为 `= false` —— 会在存档里留下一个与「从未设置」语义不同的假值。改为退化写 `undefined`（`JSON.stringify` 会丢弃该属性，存档不留痕）。
+- **边界注释口径漂移**：`03d-global-modzh.js` 头注释仍写「完全不处理 DoL 原版变量」，与本轮放行 `$uncomfortable` 矛盾，已补唯一例外说明（modId=`vanilla-attitudes`，键白名单限定 5 项）。
+
+### 纠正文案（回归本体逐行实证后）
+
+- `prostituting`：原写「可在低 promiscuity 下卖身；代价是卖身会掉 control」——前半偏笼统、后半无证据。实证为本体 41 处 `$uncomfortable.prostituting is false` 分支（339170-339177、474147-474152 等）置 `_desperateaction`，即在 promiscuity 不够时也给出「勉强顺从 / 开价接活」这类走投无路选项。
+- `lewd`：删掉「control 会越管越难」这句推断，按本体 77312 写实 —— `gamemode !== hard` 且 `lewd` 为真时每日 exhibitionism / promiscuity / deviancy 各 -1。
+- `hypnosis`：收窄为「催眠遮蔽效果直接判为 accepted」（本体 202829 在 `effectsCoverVagina` 里跳过 willpower 判定），不是「所有催眠事件」。
+- `underwear` / `nude`：按本体 110132-110133 的 `exposedUpper/Lower` 档位（1 档走光 / 2 档全裸）精确化。
+
+### 新增断言（`tests\test_mce.js`）
+
+`54.6w8`（API 缺失时文案不矛盾）、`54.6w9` / `w9b`（模组抛错时 `mbCEFertRun` 返回失败且 `cheatsEnabled` 仍还原）、`54.6y8`（`$uncomfortable` 叶子键原本不存在也能新建写入）。
+
+## v2.0.0.003（2026-11-07 需求①②③）
+
+> 双源同步 `2.0.0.003`（`01-core.js` `MCE_VERSION` + `boot.json` `version`）。产物/包 SHA 见发布说明。
+
+### ① FertilityExpansion 命令式动作不再要求先开原版作弊页
+
+- 模组侧两道闸（`tools\_modcache\fert_tmp\...\modules\eden-cheats.js:37-51` 逐字实证）：`available()` = `vars().cheatsEnabled === true` 或原版 Cheats 面板 DOM 判据；`guard()` 在每次 `perform()` 里都查它，不满足直接 throw「请先打开原版作弊页。」。只改 CE 侧自检绕不过去。
+- 做法：新增 `mbCEFertWithCheats(fn)`，调用期间临时置 `V.cheatsEnabled = true`，返回后还原原值（原本没有该键就删掉）；不污染存档、不触发原版作弊页 UI。`mbCEFertRun` / `mbCEFertChildren` 全部包进这一层，模组其余安全闸（statFreeze / 战斗中 / NPCList / 生产流程中）照旧生效。
+- 面板红字原文保留不动，后面接一句「—— 我不同意」；`available()` 为 false 时面板不再早退，孩子下拉与全部表单/按钮照常渲染。
+
+### ② 原版「你对什么感到不安?」直接解锁
+
+- 写 `$attitudesControl.unlock*` 无效：原版 `<<widget "attitudesControlCheck">>`（本体 284869-284895）每次刷新按真实数值重算覆盖。真正生效的是 `$uncomfortable.*`（本体 110132-110133 遮体判据、77312 衰减、202829+ 催眠判据）。
+- 新增全局页分组「原版态度：你对什么感到不安?」：5 项逐条开关（underwear / nude / prostituting / lewd / hypnosis）+ 一键全解除 / 全恢复 + 逐条回退。写入走通用写入器（`vanilla-attitudes` 留痕，可回退）。
+- 门槛只作说明展示：`exhibitionism>=55` / `>=95`、`soldCount>=1 或 docksrobinintro===1`、`exhibitionism|promiscuity|deviancy>=35`、`hypnosis_traits` 非空；`lewd` 在 hard 模式原版不显示该项。
+
+### ③ 发布说明精简
+
+后续 Release 正文只写重点（改动要点 + 产物 SHA），不再罗列过程细节。
+
 ## v2.0.0.002（2026-11-07 用户指令升版 · 功能轮 2026-11-06 起）
 
 > **双源已升为 `2.0.0.002`**（`01-core.js` `MCE_VERSION` + `boot.json` `version`，用户 2026-11-07 明确指令 `+0.0.1`）。产物与包 SHA 见下（升版后重建，数值以本条为准）。 `javascript\maplebirchce.js` = **60 段 / 711,173 B / SHA256 `EAED57F105892DE745D6D32C3C95D487D8433EFB1B4B5D10898B896903E9551A`**；打包 `MapleBirchCE.mod.zip` = **281,963 B / SHA256 `E207F82B4A0B6EAB9F0B165BF83A9EDB1B4DBBD85FD58F259358ED5FEB332E89`**（4 条目正斜杠；verifier 4/4，本轮本机无 verifier-hub skill，走内置等价核对：条目集合精确匹配 + CRC 全量，`zipfile.testzip()` 返回 None；zip 内 `javascript/maplebirchce.js` 解出 711,173 B / SHA256 与源产物逐字节一致，`README.md` 与仓库磁盘文件逐字节一致，`boot.json` version 与 `01-core.js` `MCE_VERSION` 双源一致）。**装机实证（2026-11-07）**：`dev.ps1` 只做文件层复制，实机加载走 Edge `file://` 的 IndexedDB——用 `game\mce-mod-import.html` 写入包键 `modDataIndexDBZip:MapleBirchCE.mod.zip`（导入后列表 27 项，第 27 项 `MapleBirchCE` 为旧 2.0.0.001 残留、与新包同名冲突）；再用 `game\mce-idb-clean-dup.html` 在**同一事务**内移除该旧列表条目并删除旧包键 `modDataIndexDBZip:MapleBirchCE`——清理后 `store 61 键 / 包键 26 / 列表 26`，列表与包键一一对应（回读断言 5/5 通过，幂等复跑同结果）。刷新后加载日志 `警告 0`（无 `duplicate mod name` 警告）、`ModZipReader init() modInfo: [MapleBirchCE] [2.0.0.002]`；模组管理 `已安装模组 26 个 / 已启用 26`，列表末尾唯一 CE 条目为 `MapleBirchCE.mod.zip`（外部模组）；CE 面板标题 `剧情条件解锁面板 v2.0.0.002`（页签 11、就绪 41 个角色）与 `MCE_VERSION` 一致。**只删列表项不持久**：包键仍在时旧名会被重新追加到队尾并最后生效（实测曾致面板回退到 v2.0.0.001、页签 6），故列表项与包键必须一起清。

@@ -1,3 +1,4 @@
+/* 职责：Dol-Optimization 适配器声明 */
 	CHEAT_ADAPTERS["dol-optimization"] = {
 		detect: function () {
 			try {

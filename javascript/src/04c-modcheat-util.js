@@ -1,3 +1,4 @@
+/* 职责：写入工具 —— 模组对象归一化（normalizeCheatMod）与适配器声明审计（auditAdapters） */
 	function normalizeCheatMod(m) {
 		return {
 			modId: m.modId, modName: m.modName, declared: true,

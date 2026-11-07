@@ -1,3 +1,4 @@
+/* 职责：MLI（more_love_interests）适配器声明 */
 	CHEAT_ADAPTERS["more_love_interests"] = {
 		detect: function () {
 			return !!(setup && setup.foodPreference && typeof setup.foodPreference === "object");

@@ -1,3 +1,4 @@
+/* 职责：恋爱 / 转化阶段页渲染（renderRomanceStages / renderTransformStages） */
 	function renderRomanceStages(pane) {
 		/* v1.4.5：非恋爱候选角色不显示恋爱阶段（角色本身保留在角色一览）——
 		   只有能进恋人卡槽的角色才展示恋爱阶段与"恋人卡槽"条件 */

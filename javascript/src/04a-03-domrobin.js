@@ -1,3 +1,4 @@
+/* 职责：DomRobin 适配器声明 */
 	CHEAT_ADAPTERS["dom_robin"] = {
 		detect: function () {
 			try {

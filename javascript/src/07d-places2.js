@@ -1,3 +1,4 @@
+/* 职责：地点页阶段读写 —— placeStageRead / placeStageWrite / placeStageUndo，阶段区与直达区渲染 */
 	function placeStageRead(path) {
 		try {
 			var Vp = getV();

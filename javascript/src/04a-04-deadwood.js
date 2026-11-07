@@ -1,3 +1,4 @@
+/* 职责：枯木逢春（deadwood-reblooms）适配器声明：大量 varPath（阶段 / 能力 / 剧情 / 财务 / Robin 清算线等） */
 	CHEAT_ADAPTERS["deadwood-reblooms"] = {
 		detect: function () {
 			try {

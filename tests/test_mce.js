@@ -501,7 +501,13 @@ global.Story = { has: (n) => PLACE_NAMES.indexOf(n) !== -1, lookupWith: (fn) => 
 let lap10 = api.listAllPassages();
 assert(lap10.length === PLACE_NAMES.length, "listPlaceGroups 经 lookupWith 枚举全部段落, 实际 " + lap10.length);
 let pGroups = api.listPlaceGroups();
-assert(pGroups.length === 14, "场景分组 14 组（v1.9.13 新增 6 地点：精神病院/警局监狱/码头/湖畔/狼群领地/医院）, 实际 " + pGroups.length);
+assert(pGroups.length === 17, "场景分组 17 组（14 + v2.0.0.007 新增 妓院含地下层/雷米牧场牲口线/雷米农场）, 实际 " + pGroups.length);
+let brV7 = pGroups.find(x => x.group.id === "brothel");
+assert(!!brV7 && brV7.group.main === "Brothel Basement" && brV7.items.length === 0 && brV7.group.name.indexOf("妓院") === 0, "v2.0.0.007 妓院组存在（主场景 Brothel Basement=地下妓院；模拟段落表无 Brothel 段 → items 空）, 实际 " + JSON.stringify(brV7 && brV7.group.main));
+let lvV7 = pGroups.find(x => x.group.id === "remy_livestock");
+assert(!!lvV7 && lvV7.group.main === "Livestock Intro" && lvV7.group.name.indexOf("雷米牧场") === 0, "v2.0.0.007 雷米牧场牲口线组存在（主场景 Livestock Intro）, 实际 " + JSON.stringify(lvV7 && lvV7.group.main));
+let fmV7 = pGroups.find(x => x.group.id === "remy_farm");
+assert(!!fmV7 && fmV7.group.main === "The Farm" && fmV7.group.name.indexOf("雷米农场") === 0, "v2.0.0.007 雷米农场组存在（主场景 The Farm）, 实际 " + JSON.stringify(fmV7 && fmV7.group.main));
 let asy = pGroups.find(x => x.group.id === "asylum");
 assert(asy.group.name.indexOf("精神病院") === 0 && asy.items.length === 2 && asy.items[0] === "Asylum", "精神病院组 2 段主置顶, 实际 " + JSON.stringify(asy.items));
 let dp = pGroups.find(x => x.group.id === "police_prison");
@@ -3595,6 +3601,45 @@ api44.mbCELockRemove("maplebirch.transformation.raven.build");
 let rDot49 = api44.mbCELockSet("a..b", 1);
 assert(rDot49 && !rDot49.ok, "44.9 空段路径（a..b）拒绝");
 delete V.mbCE_lock; delete V.maplebirch.transformation;
+/* 44.10 v2.0.1 收敛：锁定文案中文化 + 三处新直达目标的状态兜底 */
+assert(api44.mbCELockLabel("skulduggery") === "诡术", "44.10 锁定文案中文映射 skulduggery→诡术，实际 " + api44.mbCELockLabel("skulduggery"));
+assert(api44.mbCELockLabel("prof.baton") === "短棍", "44.10 prof.baton→短棍，实际 " + api44.mbCELockLabel("prof.baton"));
+assert(api44.mbCELockLabel("no_such_key_xyz") === "no_such_key_xyz", "44.10 未映射键回落原 path（不显示空串）");
+let rMsg410 = api44.mbCELockSet("skulduggery", 500);
+assert(rMsg410.ok && rMsg410.message.indexOf("skulduggery") === -1 && rMsg410.message.indexOf("诡术") !== -1,
+  "44.10 锁定成功文案用中文名（不含英文裸 path），实际 " + rMsg410.message);
+assert(api44.mbCELockRemove("skulduggery").message.indexOf("skulduggery") === -1, "44.10 取消锁定文案也用中文名");
+/* 直达兜底：$prison 缺失才调 <<prison_init>>（原版 widget 自带 <<if !$prison>> 守卫；末尾无条件 set morning，故已有进度绝不调） */
+const wikCalls410 = [];
+const winOrig410 = global.window;
+global.window = { SugarCube: { Wikifier: function (elm, txt) { wikCalls410.push(String(txt)); } } };
+delete V.prison;
+api44.ensureSceneStateFor("Prison Cell");
+assert(wikCalls410.length === 1 && wikCalls410[0].indexOf("prison_init") !== -1,
+  "44.10 $prison 缺失 → 调 prison_init，实际 " + JSON.stringify(wikCalls410));
+V.prison = { guards: 50 };
+api44.ensureSceneStateFor("Prison Walkway");
+assert(wikCalls410.length === 1, "44.10 已有 $prison → 不再调 init（避免 morning 被重置），实际 " + wikCalls410.length);
+api44.ensureSceneStateFor("Police Cell");
+assert(wikCalls410.length === 1, "44.10 非 Prison 前缀（警局 Police Cell）不触发监狱 init");
+delete V.prison;
+api44.ensureSceneStateFor("PrisonScarredInmate");
+assert(wikCalls410.length === 2, "44.10 无空格段名 PrisonScarredInmate 也命中监狱兜底（原 /^Prison\\b/ 会漏），实际 " + wikCalls410.length);
+V.prison = { guards: 50 };
+/* 农场：farm_stage 未推进（0）也建壳；已有 $farm 只补不覆盖 */
+delete V.farm; delete V.farm_stage;
+api44.ensureSceneStateFor("The Farm");
+assert(V.farm && typeof V.farm === "object" && V.farm.beasts && V.farm.beasts.pigs === 0,
+  "44.10 The Farm 直达 → $farm 兜底建壳（farm_stage=0 也建）");
+V.farm.clearing = 42;
+api44.ensureSceneStateFor("Farmland Field");
+assert(V.farm.clearing === 42, "44.10 已有 $farm → 不覆盖进度（clearing 保持 42），实际 " + V.farm.clearing);
+delete V.farm; V.farm_stage = 0;
+api44.ensureSceneStateFor("Brothel Basement");
+assert(!V.farm, "44.10 非农场段（妓院）不建 $farm");
+delete V.farm; delete V.farm_stage; delete V.prison;
+global.window = winOrig410;
+
 
 /* 45.x）v1.9.1（DoL-Game-UI 冲突排查）：Mod作弊 子页四分组默认收起 + 懒渲染——
    用户实测「滑动卡住截断 / 展开过多卡住闪退」：子页一次全量建数百行 + DGU 每帧 rAF 扫描抢主线程。
@@ -4348,6 +4393,91 @@ try {
   assert(fr.ok === true && fr.message.indexOf("空位") >= 0, "54.6m 只读前置查询透传模组文案, " + fr.message);
   const fc = api54.mbCEFertChildren();
   assert(fc.length === 1 && String(fc[0][0]) === "7", "54.6n 孩子列表透传");
+  // 54.6w 需求①（2026-11-07）：命令式动作不再要求先开原版作弊页；红字保留原文 + 「我不同意」
+  const hadCheatFlag54 = Object.prototype.hasOwnProperty.call(global.V, "cheatsEnabled");
+  const prevCheatFlag54 = global.V.cheatsEnabled;
+  const savedAvail54 = global.window.EdenCheats.available;
+  global.window.EdenCheats.available = function () { return false; };
+  const readyOff = api54.mbCEFertReady();
+  assert(readyOff.ok === true, "54.6w available() 为 false 时 CE 仍可用（不必先开原版作弊页）, " + readyOff.message);
+  const seen54 = [];
+  global.window.EdenCheats.labour = function () {
+    seen54.push("cheatsEnabled=" + String(global.V && global.V.cheatsEnabled));
+    return { ok: true, message: "已执行 labour" };
+  };
+  const runOff = api54.mbCEFertRun("fert_labour", "", null);
+  assert(runOff.ok === true && seen54.length === 1 && seen54[0] === "cheatsEnabled=true",
+    "54.6w2 调用期间临时置 cheatsEnabled=true 满足模组 guard, " + seen54.join(""));
+  assert(hadCheatFlag54 ? global.V.cheatsEnabled === prevCheatFlag54 : global.V.cheatsEnabled === undefined,
+    "54.6w3 调用后 cheatsEnabled 还原原值（不污染存档）");
+  const paneRed54 = document.createElement("div");
+  fert54.actionPanel(paneRed54, fert54);
+  assert(paneRed54.textContent.indexOf("模组要求先开启原版作弊页") >= 0 && paneRed54.textContent.indexOf("我不同意") >= 0,
+    "54.6w4 红字保留原文并追加「我不同意」");
+  const paneRedOff54 = document.createElement("div");
+  fert54.actionPanel(paneRedOff54, fert54);
+  assert(paneRedOff54.textContent.indexOf("共 3 条记录") >= 0 || paneRedOff54.textContent.indexOf("目标孩子") >= 0,
+    "54.6w5 available()=false 时面板仍完整渲染（不再只剩红字）");
+  /* 54.6w6 最硬一条：mock 的 available() 照模组 eden-cheats.js:37-43 写法直接读 vars().cheatsEnabled，
+     labour 里照 guard() 写法（:44-51）先检查再抛。临时置位若真生效，这条链路才通。 */
+  global.window.EdenCheats.available = function () { return global.V.cheatsEnabled === true; };
+  const guard54 = [];
+  global.window.EdenCheats.labour = function () {
+    if (!global.window.EdenCheats.available()) { throw new Error("请先打开原版作弊页。"); }
+    guard54.push("guard-passed");
+    return { ok: true, message: "ok" };
+  };
+  const runGuard54 = api54.mbCEFertRun("fert_labour", "", null);
+  assert(runGuard54.ok === true && guard54.length === 1,
+    "54.6w6 模组 guard 判据（读 V.cheatsEnabled）在临时置位后通过, " + runGuard54.message);
+  assert(global.V.cheatsEnabled === prevCheatFlag54 || (!hadCheatFlag54 && global.V.cheatsEnabled === undefined),
+    "54.6w7 guard 链路跑完后 cheatsEnabled 仍还原");
+  /* 54.6w8 二轮修复：API 缺失时不能把「缺 API」说成「你已经开着原版作弊页」（原实现文案自相矛盾） */
+  const savedApi54 = global.window.EdenCheats;
+  global.window.EdenCheats = null;
+  const paneNoApi54 = document.createElement("div");
+  fert54.actionPanel(paneNoApi54, fert54);
+  const txtNoApi54 = paneNoApi54.textContent;
+  assert(txtNoApi54.indexOf("你已经开着原版作弊页") < 0 && txtNoApi54.indexOf("未检测到 window.EdenCheats") >= 0,
+    "54.6w8 API 缺失时文案不矛盾（不谎称已开启原版作弊页）");
+  global.window.EdenCheats = savedApi54;
+  /* 54.6w9 异常路径：模组 action 抛错时 cheatsEnabled 也必须还原（finally 覆盖 throw） */
+  global.window.EdenCheats.available = function () { return global.V.cheatsEnabled === true; };
+  global.window.EdenCheats.labour = function () { throw new Error("模拟模组内部失败"); };
+  const runThrow54 = api54.mbCEFertRun("fert_labour", "", null);
+  assert(runThrow54.ok === false, "54.6w9 模组抛错时 mbCEFertRun 返回失败, " + runThrow54.message);
+  assert(global.V.cheatsEnabled === prevCheatFlag54 || (!hadCheatFlag54 && global.V.cheatsEnabled === undefined),
+    "54.6w9b 抛错路径 cheatsEnabled 仍还原");
+  global.window.EdenCheats.available = savedAvail54;
+  // 54.6y 需求②：原版「你对什么感到不安?」直写（绕开 attitudesControl 重算门控）
+  const attKeys54 = api54.MB_CE_ATTITUDE_ITEMS.map(function (it) { return it.key; }).join(",");
+  assert(attKeys54 === "underwear,nude,prostituting,lewd,hypnosis",
+    "54.6y 5 项不安键与本体 $uncomfortable 一一对应, " + attKeys54);
+  if (!global.V.uncomfortable || typeof global.V.uncomfortable !== "object") {
+    global.V.uncomfortable = { underwear: true, nude: true, prostituting: true, lewd: true, hypnosis: true };
+  }
+  const prevUnder54 = global.V.uncomfortable.underwear;
+  delete global.V.mbCE_wrote["cheat:vanilla-attitudes:underwear"];
+  const attSet54 = api54.mbCEAttitudeSet("underwear", false);
+  assert(attSet54.ok === true && global.V.uncomfortable.underwear === false,
+    "54.6y2 直写 underwear=false 生效（不依赖 unlockExhibitionismUnderwear）, " + attSet54.message);
+  assert(!!(global.V.mbCE_wrote && global.V.mbCE_wrote["cheat:vanilla-attitudes:underwear"]),
+    "54.6y3 走留痕通道（可回退）");
+  const attUndo54 = api54.mbCEAttitudeUndo("underwear");
+  assert(attUndo54.ok === true && global.V.uncomfortable.underwear === prevUnder54,
+    "54.6y4 回退还原面板写入前状态, " + attUndo54.message);
+  assert(api54.mbCEAttitudeSet("underwear", "x").ok === false, "54.6y5 非法值类型拒绝写入");
+  const attAll54 = api54.mbCEAttitudeSetAll(false);
+  assert(attAll54.ok === true && global.V.uncomfortable.nude === false && global.V.uncomfortable.hypnosis === false,
+    "54.6y6 一键全部解除不安（门控外直写）");
+  const gate54 = api54.mbCEAttitudeGate("unlockExhibitionismNude");
+  assert(gate54 && gate54.need === "exhibitionism>=95" && typeof gate54.ok === "boolean",
+    "54.6y7 门槛只作说明（exhibitionism>=95）, " + JSON.stringify(gate54));
+  /* 54.6y8 叶子键原本不存在也能直写（cheatResolvePath 只要求父级是对象，叶子允许缺失） */
+  delete global.V.uncomfortable.lewd;
+  const attAdd54 = api54.mbCEAttitudeSet("lewd", false);
+  assert(attAdd54.ok === true && global.V.uncomfortable.lewd === false,
+    "54.6y8 缺键时新建并写入（不因 undefined 拒绝）, " + attAdd54.message);
   // 54.6o/v2.0.0.002 补声明：eden-age.js normalizeSettings 里三个布尔设置
   assert(fert54.abilities.filter(function (a) { return a.varPath === "eden.settings.resetAgeOnTransfer"; }).length === 1,
     "54.6o 新增 resetAgeOnTransfer 声明");
@@ -4608,6 +4738,113 @@ try {
 } catch (e55) {
   failures++;
   console.error("FAIL: 55 边界矩阵测试异常: " + (e55 && e55.message ? e55.message : e55));
+}
+
+
+// ===== 54 言灵页（v2.0.0.006）：isCrossdressing 运行期拦截 / 异装残留净化 / 负面名声清零 =====
+try {
+  const origWin54 = global.window;
+  const y54 = setup.mbStageCE; /* 产物内部函数走对外 API（严格模式 eval 的 var/function 不泄漏到外层） */
+  let hit54 = 0;
+  global.window = { isCrossdressing: function () { hit54++; return true; } };
+
+  // 54.1~54.5 钩子挂载 / 语义透传 / 开关拦截 / 幂等 / 关闭恢复
+  V.mbCE_yanling = { noCross: false, noTrait: false };
+  const ok54a = y54.yanlingInstall();
+  assert(ok54a === true && typeof global.window.isCrossdressing === "function", "54.1 钩子挂载成功（window.isCrossdressing 为函数）");
+  hit54 = 0;
+  assert(global.window.isCrossdressing() === true && hit54 === 1, "54.2 开关关闭 → 透传原判定 true 且上游被调用 1 次");
+  V.mbCE_yanling.noCross = true;
+  hit54 = 0;
+  assert(global.window.isCrossdressing() === false && hit54 === 0, "54.3 开关开启 → 恒 false 且上游零调用（不穿帮）");
+  const w54 = global.window.isCrossdressing;
+  y54.yanlingInstall(); y54.yanlingInstall();
+  assert(global.window.isCrossdressing === w54, "54.4 重复安装幂等（wrapper 不被二次包裹）");
+  V.mbCE_yanling.noCross = false;
+  hit54 = 0;
+  assert(global.window.isCrossdressing() === true && hit54 === 1, "54.5 关闭后恢复原版判定（可逆）");
+  // 54.6 第三方在我们之后重包：以新函数为上游重新包裹，拦截仍生效
+  const mine54 = global.window.isCrossdressing;
+  global.window.isCrossdressing = function () { return mine54(); };
+  y54.yanlingInstall();
+  V.mbCE_yanling.noCross = true;
+  hit54 = 0;
+  assert(global.window.isCrossdressing() === false && hit54 === 0, "54.6 第三方重包后重新包裹，拦截仍生效");
+  V.mbCE_yanling.noCross = false; /* 复位，避免后续净化用例被守卫干扰 */
+
+  // 54.7~54.9 异装残留净化（$crossdressing / 学校名声 / 文案）
+  V.crossdressing = 2;
+  V.schoolrep = { crossdress: 4, herm: 1 };
+  V.school_crossdress_message = 3;
+  const r54a = y54.yanlingPurgeCross();
+  assert(r54a.ok === true && V.crossdressing === 0 && V.schoolrep.crossdress === 0, "54.7 purge_cross 清 $crossdressing 与 $schoolrep.crossdress");
+  assert(V.school_crossdress_message === undefined, "54.8 purge_cross 删除 $school_crossdress_message（清文案，否则左侧仍提示）");
+  assert(!!(V.mbCE_wrote && V.mbCE_wrote["yanling:purge_cross"] && V.mbCE_wrote["yanling:purge_cross"].before && V.mbCE_wrote["yanling:purge_cross"].before.schoolrep === 4), "54.9 purge_cross 按 yanling:op 留痕且含 before 真值");
+
+  // 54.10~54.11 异装癖进度 + 背景特质
+  V.crossdressingTrait = 87;
+  V.backgroundTraits = ["crossdresser", "lustful"];
+  const r54b = y54.yanlingPurgeTrait();
+  assert(r54b.ok === true && V.crossdressingTrait === 0, "54.10 purge_trait 清空 $crossdressingTrait 进度");
+  assert(V.backgroundTraits.indexOf("crossdresser") === -1 && V.backgroundTraits.indexOf("lustful") !== -1, "54.11 purge_trait 只移除 crossdresser，其他背景特质保留");
+
+  // 54.12~54.15 负面名声清零（学校 2 键 + fame 负面 8 项 + 衰减队列，正面项不动）
+  V.fame = { sex: 120, prostitution: 40, rape: 5, bestiality: 0, pregnancy: 0, impreg: 0, exhibitionism: 300, pimp: 8, scrap: 1000, good: 1000, business: 500, social: 700, model: 300 };
+  V.fameDecay = { sex: 2, scrap: 1 };
+  V.fameDecayTimer = { sex: 3, scrap: 5 };
+  V.schoolrep = { crossdress: 0, herm: 1 };
+  V.school_herm_message = 2;
+  const r54c = y54.yanlingPurgeFame();
+  assert(r54c.ok === true && V.fame.sex === 0 && V.fame.prostitution === 0 && V.fame.rape === 0 && V.fame.exhibitionism === 0 && V.fame.pimp === 0, "54.12 purge_fame 清零 fame 负面 8 项");
+  assert(V.fame.scrap === 1000 && V.fame.good === 1000 && V.fame.business === 500 && V.fame.social === 700 && V.fame.model === 300, "54.13 purge_fame 不动正面 5 项（scrap/good/business/social/model）");
+  assert(V.fameDecay.sex === undefined && V.fameDecayTimer.sex === undefined && V.fameDecay.scrap === 1 && V.fameDecayTimer.scrap === 5, "54.14 purge_fame 同步删负面衰减队列项、保留正面项（不删整个对象，避免 77558 遍历崩）");
+  assert(V.schoolrep.herm === 0 && V.school_herm_message === undefined, "54.15 purge_fame 清学校 herm 名声与文案");
+
+  // 54.16~54.17 未启用时不污染存档
+  delete V.mbCE_yanling;
+  y54.yanlingTick();
+  assert(V.mbCE_yanling === undefined, "54.16 tick 在未启用时不创建 $mbCE_yanling（不污染每个存档）");
+  assert(global.window.isCrossdressing() === true, "54.17 无状态时不误拦（window.isCrossdressing 透传原判定）");
+
+  // 54.18~54.20 开关 + 每秒守卫压制
+  const s54 = y54.yanlingState();
+  assert(!!s54 && s54.noCross === false && s54.noTrait === false, "54.18 mbCE_yanlingState 建默认态（noCross/noTrait 均 false）");
+  const t54a = y54.yanlingToggle("noCross");
+  assert(t54a.ok === true && V.mbCE_yanling.noCross === true, "54.19 toggle 开启 noCross 并写状态");
+  V.crossdressing = 1; V.schoolrep = { crossdress: 5 }; V.school_crossdress_message = 2;
+  y54.yanlingTick();
+  assert(V.crossdressing === 0 && V.schoolrep.crossdress === 0 && V.school_crossdress_message === undefined, "54.20 tick 每秒把 $crossdressing / schoolrep.crossdress / 文案压回 0（读档后同样生效）");
+  V.crossdressingTrait = 55;
+  y54.yanlingToggle("noTrait");
+  y54.yanlingTick();
+  assert(V.crossdressingTrait === 0, "54.21 noTrait 开启后 tick 把异装癖进度压回 0");
+  const t54b = y54.yanlingToggle("noCross");
+  assert(t54b.ok === true && V.mbCE_yanling.noCross === false, "54.22 再次 toggle 关闭 noCross（可随时恢复原版）");
+
+  // 54.23~54.27 收敛轮：状态归一严格化 / 「关闭即卸载」/ 未启用不重挂（防第三方链式重包成环）
+  V.mbCE_yanling = { noCross: "false", noTrait: "0" };
+  const s54c = y54.yanlingState();
+  assert(s54c.noCross === false && s54c.noTrait === false, "54.23 状态归一严格（字符串 \"false\"/\"0\" 不得被判为开启）");
+
+  const origCD54 = function () { return true; };
+  global.window.isCrossdressing = origCD54;
+  V.mbCE_yanling = { noCross: true, noTrait: false };
+  y54.yanlingInstall();
+  assert(global.window.isCrossdressing !== origCD54, "54.24 显式 install 后 window 上是 wrapper（上游被保存）");
+  y54.yanlingToggle("noCross");
+  assert(global.window.isCrossdressing === origCD54, "54.25 关闭 noCross 立即卸载，window.isCrossdressing 还原为上游原函数");
+  V.mbCE_yanling.noTrait = true;
+  y54.yanlingTick();
+  assert(global.window.isCrossdressing === origCD54 && y54.yanlingState().noTrait === true, "54.26 noCross 关闭而 noTrait 开启时 tick 不重挂钩子（只压异装癖）");
+  y54.yanlingUninstall(); y54.yanlingUninstall();
+  assert(global.window.isCrossdressing === origCD54, "54.27 uninstall 幂等且不误改已被第三方替换的函数");
+  const t54c = y54.yanlingToggle("evilField");
+  assert(t54c.ok === false && V.mbCE_yanling.evilField === undefined, "54.28 toggle 拒绝白名单外字段（不往存档写垃圾键）");
+
+  global.window = origWin54;
+} catch (e54) {
+  failures++;
+  console.error("FAIL: 54 言灵页测试异常: " + (e54 && e54.message ? e54.message : e54));
 }
 
 

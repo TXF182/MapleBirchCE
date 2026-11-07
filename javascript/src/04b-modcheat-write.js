@@ -1,3 +1,4 @@
+/* 职责：作弊写入执行器 —— 原版根拦截、适配器路径解析、按类型写入与回退（applyCheatSync） */
 
 	function cheatIsVanillaRoot(root) {
 		var i;

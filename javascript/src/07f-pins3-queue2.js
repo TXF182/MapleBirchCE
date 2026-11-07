@@ -1,3 +1,4 @@
+/* 职责：锚定队列与解锁 —— 取消锚定（unpinScene）、passage→地点映射、场景世界入口解锁（applyWorldUnlock） */
 	function unpinScene(key) {
 		var V = getV();
 		var back = "";

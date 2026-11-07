@@ -1,10 +1,10 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**六大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**13 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**13 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.0.0.002**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.0.1**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -40,9 +40,9 @@
 
 **自检（验证是否加载成功）**：游戏内 `F12` 打开控制台输入 `typeof setup.mbStageCE`，返回 `"object"` 即成功；返回 `"undefined"` 则打开 ModLoader 加载日志查看报错。
 
-## 使用手册（六大面板）
+## 使用手册（七大面板）
 
-面板顶部六个标签页，从上到下依次使用：
+面板顶部七个标签页，从上到下依次使用：
 
 ### 1. 角色页（人物一览）
 - 自动枚举 Maplebirch 注册池的全部角色：游戏本体 + 全部已加载 MOD 角色（实测 45 个，零硬编码）。
@@ -68,7 +68,7 @@
 - **防崩兜底**：直达/固定触发进入艾弗里庄园、农场线、格威岚剧情前自动补缺失状态对象（`$daily.avery.talk`、`$farm`、`T.gwylanStatus/TF`），**已有进度绝不覆盖**——新存档直接传送不炸档。
 
 ### 4b. 地点页（原版地点阶段任务作弊区，双层页签「场景直达 / 地点」）
-- **14 组地点**全部「−1/+1/拉满/回退」逐步推进、全留痕可回退：市政改造（道路/潜水/灌木/桥梁/绿地）、农场（阶段/进程）、公寓区/成人用品店/阁楼升级/妓院维修、修道院回廊/街机线/精神病院评估/谜题/学校科学项目，以及 v1.9.13 追加 6 组**传送直达**——**精神病院 Asylum / 警局牢房 Police Cell / 码头 Docks / 湖畔 Lake Stroll / 狼群领地 Wolf Pack / 医院前门 Hospital front**（入口段落 `main` 名均已对照本体 HTML 实证：`Wolf Pack` pid=208 等）。
+- **17 组地点**全部「−1/+1/拉满/回退」逐步推进、全留痕可回退：市政改造（道路/潜水/灌木/桥梁/绿地）、农场（阶段/进程）、公寓区/成人用品店/阁楼升级/妓院维修、修道院回廊/街机线/精神病院评估/谜题/学校科学项目，以及 v1.9.13 追加 6 组**传送直达**——**精神病院 Asylum / 警局牢房 Police Cell / 码头 Docks / 湖畔 Lake Stroll / 狼群领地 Wolf Pack / 医院前门 Hospital front**（入口段落 `main` 名均已对照本体 HTML 实证：`Wolf Pack` pid=208 等）；v2.0.0.007 再追加 3 组**传送直达**（好友要「原版·数值」手段）：**妓院 · 含地下层 Brothel**（主场景 `Brothel Basement`＝地下妓院）/ **雷米牧场 · 牲口线 Livestock**（主场景 `Livestock Intro`）/ **雷米农场 · The Farm**（主场景 `The Farm`）；并补两组原版数值档位——「监狱（原版 Prison）」`prison.attention_level`（0-3）/ `prison.protection`（0-10）/ `prison.hours_worked`（0-12）、「雷米牧场（原版 Livestock）」`livestock.obey`（0-100）/ `livestock.milk` / `livestock.semen` / `livestock.pride`（0-1），精神病院补 `asylum_mirror`（0-5）；键名与赋值形态均按本体 0.5.12.13 HTML（16,087 段）逐条实证，`livestock.escape` 为字符串故未纳入。
 
 ### 5. 全局页（批量操作）
 - **一键补齐数值**：全部角色一键补齐（实测 120 项数值写入）。
@@ -85,7 +85,15 @@
 - **玩家自己入口**：游戏属性面板（颜色分级）快捷编辑（核心属性/基础技能/性技能/学校成绩/武器，直接改游戏面板量纲）+ 全部特质管理（原版 170 条 / 9 分类折叠、系列行合并、无可写条件特质直接获得、模组注入特质自动发现）。
 - **安全边界**：只处理第三方模组新增内容，**原版变量一律拒绝**（提示使用五大面板）；父级对象缺失拒绝写入（绝不写 undefined）；所有修改留痕可回退。
 
-## Mod作弊 适配器一览（当前版本 2.0.0.002）
+### 7. 言灵页（无视着装性别 · 异装链治理，v2.0.0.006 新增）
+- **定位**：对应原版「穿异性服装 → 判为异装 → 涨异装癖 → 学校异装名声」整条链，一次开关全断。核心手段是**运行期覆盖 `window.isCrossdressing`**（本体 72520-72536 定义并在 72536 挂到 window），包装原函数、开启时直接返回 `false` —— NPC 与换衣间再也判不出异装，`$crossdressing` 恒 0，且**不依赖任何原版文案/文本匹配**（老式「言灵」模组用 `TweeReplacer` 做字符串替换，原版 passage 一改就整块静默失效，这正是它过时的根因）。
+- **① 无视着装性别**：开关 + 状态行 + 运行时诊断（钩子是否挂载 / `$crossdressing` 当前值）。**开关关闭时语义完全透传原判定**，不改玩家性别 / 生殖器 / 外观性别，`isGenitalMismatch` 与原版 herm 链保持原样。**关闭开关会立即卸载钩子**（`window.isCrossdressing` 还原为原版/上游函数），不留空包装层。生效面已实证：本体 45 处 `<<if isCrossdressing()>>`（twee）全部走 window 求值，JS 内只有 `isHermOrCrossdresser`（72548）一处裸调用——覆盖窗口函数即可断掉服装性别链，后者保持原版 herm / 外观语义。
+- **② 异装癖压制**：显示 `$crossdressingTrait` 进度（x/100）与 `crossdresser` 特质状态；「立即清空进度 + 移除特质」清存量，「持续压制」每秒把进度压回 0。
+- **③ 负面名声清零**：显示学校 `crossdress` / `herm` 两键与城镇 `V.fame` 负面八项合计；「一键清零：学校异装名声」清学校两键并删 `$school_crossdress_message`；「一键清零：全部负面名声」连带 `V.fame` 八项负面（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp）与 `V.fameDecay` / `V.fameDecayTimer` 的衰减队列（避免清零后又被队列改回），**正面五项（scrap / good / business / social / model）保持不动**。
+- **生效范围**：开关状态存在存档 `$mbCE_yanling`（`{noCross, noTrait}`），**读档后不打开面板也生效** —— 1 秒守卫表由 `:passagedisplay` 与 init 按需起（两个开关都关时自动停表，不占事件循环）。
+- **留痕**：所有净化动作按 `V.mbCE_wrote["yanling:<op>"]`（含 before/after/t）记录，可在全局页留痕区核对。
+
+## Mod作弊 适配器一览（当前版本 2.0.1）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -321,7 +329,7 @@
 - **v1.7.2（2026-10-18 · 游戏属性面板（颜色分级）快捷编辑）**：
   - **玩家自己 · 全属性编辑页顶部新增「游戏属性面板（颜色分级）快捷编辑」区**：直接改游戏面板显示的核心属性/基础技能/性技能/学校成绩/武器技能（变量实证自本体 0.5.12.13：核心属性 purity/beauty/physique/willpower/awareness/promiscuity/exhibitionism/deviancy 顶层键；基础技能走 currentSkillValue 体系 skulduggery/danceskill/swimmingskill/athletics/tending/housekeeping；性技能 seductionskill/oralskill/chestskill/handskill/bottomskill/penileskill/vaginalskill/analskill/thighskill/feetskill；成绩 science/maths/english/history；武器技能 $prof 对象 spray/baton/whip/net/pickaxe）；
   - 每项显示**当前原始值** + 数字输入 + 应用 + 回退（留痕独立还原首次）；$prof 缺失自动补空壳（只建不覆盖，防崩）；全中文键名；
-  - **不收录**：歌唱/驾驶（原版无对应变量，GameUI 自定义/未解锁）、不安感（面板无数值显示）；
+  - **不收录**：歌唱/驾驶（原版无对应变量，GameUI 自定义/未解锁）、不安感（面板无数值显示；v2.0.0.003 起改为在全局页「原版态度」分组里逐项开关，见 CHANGELOG）；
   - **验证**：580 项断言全过（新增第 38 节 49 条：5 组清单覆盖 29 项中文名、顶层/武器写入、补壳、回退、当前值读取、DOM 渲染无英文残留、与玩家区共存）。
 - **v1.7.1（2026-10-18 · 玩家编辑页全中文显示）**：
   - **玩家自己 · 全属性编辑页全面中文化**：玩家属性键名（金钱/姓名/童贞/神殿/有无阴茎 等 150+ 键）、类型（数值/布尔/文本/对象）、路径（玩家.童贞.神殿）全部中文显示；模组键（罗宾神殿/智能手机/枯木逢春 等）同步中文；未收录键兜底显示原名；**显示层翻译不影响数据层**——写入/回退/留痕始终用原键名，存档键名零污染；
@@ -673,13 +681,13 @@ MapleBirchCE/（git 源码真相源）
 
 `githooks/pre-commit` 随仓库提交，且为 **fail-closed**：优先 `powershell.exe`，其次 `pwsh`，两者都没有则**阻止提交**（不再静默跳过整条验证链）。紧急绕过可用 `git commit --no-verify`（不推荐，自担风险）。
 
-**远端 CI**：`.github/workflows/ci.yml` 在 push 到 `main` / PR / 手动触发时跑与 `run_all.ps1` 同口径的 6 步（`npm ci` → build → `node --check` → ESLint → DOM 冒烟 → 全量回归 → E2E + 性别集成），跑在 `ubuntu-latest` + node 20 上。原版 64MB HTML 不入库，因此依赖它的用例在 CI 上**按设计 SKIP**：smoke 的 19.5-19.8（剧情页 UI）与 19.14b、以及性别集成测试；矩阵（`tests/data/direct_exit_matrix.json`）随仓库走，19.17/19.19/19.20/19.21/19.22 等判据断言在 CI 上照常强制。
+**远端 CI**：`.github/workflows/ci.yml` 在 push 到 `main` / PR / 手动触发时跑与 `run_all.ps1` 同口径的 6 步（`npm ci` → build → `node --check` → ESLint → DOM 冒烟 → 全量回归 → E2E + 性别集成），跑在 `ubuntu-latest` + **node 22** 上（node 20 会让 jsdom@30 的传递依赖 `undici@8` 在 `require` 阶段报 `Cannot read properties of undefined (reading 'bind')`，见 `.learnings/ERRORS.md#ERR-20261106-011`）。原版 64MB HTML 不入库，因此依赖它的用例在 CI 上**按设计 SKIP**：smoke 的 19.5-19.8（剧情页 UI）与 19.14b、以及性别集成测试；矩阵（`tests/data/direct_exit_matrix.json`）随仓库走，19.17/19.19/19.20/19.21/19.22 等判据断言在 CI 上照常强制。
 
 **原版 HTML 路径可覆盖**：`tests/smoke_dom.js` 与 `tests/integration_gender.js` 都按 `MCE_DOL_HTML` 环境变量取原版游戏 HTML，未设时回退到本机默认路径；文件不存在则相关段落 SKIP（不误报）。CI / 他人机器无需修改源码即可指定，例：`$env:MCE_DOL_HTML="D:\games\Degrees of Lewdity.html"; node tests/smoke_dom.js`。
 
-**代码检查（ESLint 八规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是 57 段不完整片段，单文件解析必然失败）。八条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）/ 自赋值 / 恒定条件（`while(true)` 放行）/ 不安全取反 / switch 贯穿。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
+**代码检查（ESLint 八规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是不完整片段（段数随拆分变化，以 `build_js.js` 输出的 `(N 段, …)` 与 `order <指纹>` 为准），单文件解析必然失败）。八条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）/ 自赋值 / 恒定条件（`while(true)` 放行）/ 不安全取反 / switch 贯穿。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
 
-**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（build → 语法 → ESLint → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
+**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（9 步：build → 语法 → ESLint → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成 → 适配器声明一致性 → 覆盖率门禁，末尾自动 `codegraph sync`）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
 
 **第三方模组升级核对（audit_adapters.js）**：模组发布新版后，运行
 `node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `smartphone` / `cattery` / `more-farm-upgrade`。

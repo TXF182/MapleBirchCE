@@ -1,3 +1,4 @@
+/* 职责：剧情页状态层 —— sceneStatus 判定、场景解锁值、完成动作与清单渲染 */
 	function sceneStatus(def) {
 		var raw;
 		try {

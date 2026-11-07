@@ -1,3 +1,4 @@
+/* 职责：战斗终结续 —— 原版阶段数据读取（VANILLA_STAGES）、Gwylan 花园场景状态兜底、原版阶段完成 */
 	function ensureGwylanSceneState() {
 		try {
 			var t = (typeof State !== "undefined" && State && State.temporary) ? State.temporary : null;

@@ -32,6 +32,27 @@ function mbCELockData() {
 	if (!Array.isArray(Vp.mbCE_lock)) { Vp.mbCE_lock = []; }
 	return Vp.mbCE_lock;
 }
+/* v2.0.1：锁定相关文案一律走中文名（原先直接拼 path，状态栏出现「已锁定 history = 1000」这种英文裸 key）。
+   取值顺序：快速面板索引的中文 label → 全局键名映射 zhKey → 原 path（三级回落，任何一级缺失都不会显示空串） */
+function mbCELockLabel(path) {
+	try {
+		if (typeof ensureQuickIndex === "function") {
+			var it = ensureQuickIndex()[path];
+			if (it && it.label) { return it.label; }
+		}
+	} catch (e) {}
+	try {
+		if (typeof zhKey === "function") {
+			var z = zhKey(path);
+			if (z && z !== path) { return z; }
+			var leaf = String(path).split(".");
+			leaf = leaf[leaf.length - 1];
+			var z2 = zhKey(leaf);
+			if (z2 && z2 !== leaf) { return z2; }
+		}
+	} catch (e2) {}
+	return String(path);
+}
 function mbCELockHas(path) {
 	var list = mbCELockData();
 	if (!list) { return false; }
@@ -55,19 +76,19 @@ function mbCELockSet(path, target) {
 	var list = mbCELockData();
 	if (!list) { return { ok: false, message: "存档变量不可用" }; }
 	for (var i = 0; i < list.length; i++) {
-		if (list[i] && list[i].path === path) { list[i].target = num; mbCELockEnsureTimer(); mbCELockTick(); return { ok: true, message: "已更新锁定 " + path + " = " + num }; }
+		if (list[i] && list[i].path === path) { list[i].target = num; mbCELockEnsureTimer(); mbCELockTick(); return { ok: true, message: "已更新锁定 " + mbCELockLabel(path) + " = " + num }; }
 	}
 	list.push({ path: path, target: num });
 	mbCELockEnsureTimer();
 	mbCELockTick(); /* 立即生效：点击即改值，不等下个 1s tick（不存在的键仍跳过，不凭空创建） */
-	return { ok: true, message: "已锁定 " + path + " = " + num };
+	return { ok: true, message: "已锁定 " + mbCELockLabel(path) + " = " + num };
 }
 function mbCELockRemove(path) {
 	var Vp = getV();
 	var list = Vp && Vp.mbCE_lock;
 	if (!list) { return { ok: false, message: "无锁定记录" }; }
 	for (var i = 0; i < list.length; i++) {
-		if (list[i] && list[i].path === path) { list.splice(i, 1); mbCELockEnsureTimer(); return { ok: true, message: "已取消锁定 " + path }; }
+		if (list[i] && list[i].path === path) { list.splice(i, 1); mbCELockEnsureTimer(); return { ok: true, message: "已取消锁定 " + mbCELockLabel(path) }; }
 	}
 	return { ok: false, message: "该路径未锁定" };
 }
@@ -169,7 +190,7 @@ function mbCERenderLock(pane) {
 		for (var i = 0; i < list.length; i++) {
 			var li = list[i];
 			if (!li || !li.path || presetPaths[li.path]) { continue; }
-			makeRow({ path: li.path, name: "自定义", note: "" }, true);
+			makeRow({ path: li.path, name: mbCELockLabel(li.path), note: "" }, true);
 		}
 	}
 	/* 自由添加 */

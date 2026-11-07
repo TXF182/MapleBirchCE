@@ -1,3 +1,4 @@
+/* 职责：Mod作弊页行构建 —— 模组/条目查询（getCheatMods 等）、任务跳过与完成 */
 	function getCheatMods() {
 		try {
 			var out = [], seen = {}, i;

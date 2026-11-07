@@ -1,3 +1,4 @@
+/* 职责：全局页渲染（renderGlobal）—— 批量操作 / 世界数值 / 原版态度 / 庄园维护等分组 */
 	function renderGlobal() {
 		var pane = root.querySelector('[data-pane="global"]');
 		pane.textContent = "";
@@ -327,4 +328,6 @@
 		mbCERenderLock(pane);
 		/* v2.0.0.002 潜伏者（07f-lurker.js）：捕捉上限等价解除 + 水烟馆冰箱（0–5）+ 农场蒸馏笼 */
 		mbCERenderLurker(pane);
+		/* v2.0.0.003 需求②：原版「你对什么感到不安?」直写（$uncomfortable，绕开 attitudesControl 重算门控） */
+		renderAttitudesGroup(pane);
 	}

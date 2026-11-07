@@ -1,3 +1,4 @@
+/* 职责：Cattery 适配器声明 */
 	CHEAT_ADAPTERS["cattery"] = {
 		detect: function () {
 			try {

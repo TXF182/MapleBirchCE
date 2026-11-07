@@ -1,6 +1,8 @@
 	/* ============ v1.4.0 Mod作弊：第三方模组扩展内容操控（第 6 主页面）
-	       边界：完全不处理 DoL 原版变量（过滤清单 CHEAT_VANILLA_ROOTS）；
+	       边界：默认不处理 DoL 原版变量（过滤清单 CHEAT_VANILLA_ROOTS）；
 	       只操作注册表 / 内置适配器 / 被动探测声明出的模组专属变量。
+	       唯一例外（v2.0.0.003，用户明确要求）：原版 cheat 页「你对什么感到不安?」的 $uncomfortable.*，
+	       由 08b-attitude.js 直写（modId="vanilla-attitudes"，键白名单限定 5 项，不留其他原版变量入口）。
 	       机制：① setup.mbCE_modCheats 注册制（外部模组按约定声明，动态识别）
 	             ② CHEAT_ADAPTERS 内置适配器数据（已装内容模组，探测命中即合并）
 	             ③ CHEAT_PASSIVE_PROBES 被动识别占位（识别到模组但未声明可操控项）

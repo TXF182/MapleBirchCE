@@ -1,3 +1,4 @@
+/* 职责：归途之书（revelation-the-book-of-return）适配器声明：阶段 / 能力 / 剧情 / 数值键 */
 	CHEAT_ADAPTERS["revelation-the-book-of-return"] = {
 		detect: function () {
 			try {

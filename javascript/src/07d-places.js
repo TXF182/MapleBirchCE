@@ -38,7 +38,19 @@
 		}, main: "Wolf Pack", note: "森林深处的狼群领地（Wolf Pack 遭遇/狼穴/狼孩线）" },
 		{ id: "hospital", name: "医院 · Hospital", match: function (n) {
 			return n.indexOf("Hospital ") === 0;
-		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" }
+		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" },
+		/* v2.0.0.007 好友实测补录（原版 0.5.12.13 段落名实证，非模组）：
+		   Brothel 前缀 139 段（地下层 Brothel Basement 在内）；Livestock 前缀 310 段（雷米牧场牲口线）；
+		   The Farm / Farmland 前缀 124 段（雷米农场本体与农场事件）。 */
+		{ id: "brothel", name: "妓院 · 含地下层 Brothel", match: function (n) {
+			return n.indexOf("Brothel") === 0;
+		}, main: "Brothel Basement", note: "妓院（楼梯/后门/更衣室/舞台/私人房）与地下层（地下室/荣耀洞/机械维修）；主场景直接落到「地下妓院」" },
+		{ id: "remy_livestock", name: "雷米牧场 · 牲口线 Livestock", match: function (n) {
+			return n.indexOf("Livestock") === 0;
+		}, main: "Livestock Intro", note: "雷米的牧场（被当作牲口的整条线：牛棚/牧场/劳动/挤奶/逃脱/冬歇）" },
+		{ id: "remy_farm", name: "雷米农场 · The Farm", match: function (n) {
+			return n === "The Farm" || n.indexOf("The Farm ") === 0 || n.indexOf("Farmland ") === 0;
+		}, main: "The Farm", note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）" }
 	];
 	var PLACE_CN = {
 		/* v1.9.23-实机修复：新 6 组主场景名中文化（主场景行 placeNameCN 子串映射） */
@@ -58,7 +70,10 @@
 		"wraith": "怨灵", "possessed": "附身", "machine": "机械", "experiment": "实验", "tentacles": "触手",
 		"crystal": "水晶", "sell": "出售", "bluff": "虚张声势", "fight": "战斗", "explore": "探索",
 		"camera": "摄像头", "pipes": "管道", "smoke": "烟雾", "climb": "攀爬", "tower": "塔楼",
-		"shower": "淋浴", "cry": "哭泣", "talk": "交谈", "hot chocolate": "热巧克力", "volleyball": "排球"
+		"shower": "淋浴", "cry": "哭泣", "talk": "交谈", "hot chocolate": "热巧克力", "volleyball": "排球",
+		/* v2.0.0.007：妓院/雷米牧场/农场主场景与子场景中文化 */
+		"brothel": "妓院", "basement": "地下层", "gloryhole": "荣耀洞", "livestock": "牲口", "barn": "牛棚",
+		"farm": "农场", "farmland": "农田", "plough": "犁地", "tie stall": "拴栏", "milking": "挤奶"
 	};
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
@@ -92,7 +107,36 @@
 		} catch (e) {}
 		return null;
 	}
-	function teleportTo(name) {
+	/* v2.0.1 收敛：直达前的原版状态兜底（好友点「一键到达」时通常是新档，目标场景的状态对象可能从未建立）。
+   取证（本体 0.5.12.13 HTML 按行切片）：
+   - prison_init（657865 起）首行 <<if !$prison>> 守卫，缺则建完整壳；但我方只在缺失时调用——
+     该 widget 末尾（657931）有无条件 <<set $prison.morning to 1>>，已有进度时调会污染当日监狱流程。
+   - effects_prison（658002）首行即 <<if $prison.work_check isnot 1 ...>> —— $prison 整体缺失时深链读抛 TypeError；
+     而 Prison Cell 段只调 <<destination_prison>> + <<effects_prison>>，不调 prison_init → 新档直达监狱必然崩。
+   - The Farm / Farmland 段自身只读 $molestationstart（不崩），但进入后的农场子段读 $farm.*；
+     farm_init（487465）无守卫且 <<set $farm to {}>> 会抹掉已有进度，故不复用原版 widget，改走 ensureFarmState(true)（只补不覆盖）。
+   - Brothel 无 $brothel 对象（扁平 $brothel_* 键）；Asylum 用扁平 $asylum_mirror / 数字 $asylum —— 均无需兜底。
+   - $livestock 由本体变量初始化 widget（183372 整对象）随新档建立 → 无需兜底。 */
+function ensureSceneStateFor(name) {
+	try {
+		var V2 = getV();
+		if (!V2) { return; }
+		var nm = String(name || "");
+		if (/^Prison/.test(nm)) { /* 无 \b：PrisonScarredInmate 一类无空格段名也命中 */
+			if (V2.prison && typeof V2.prison === "object") { return; } /* 已有进度：绝不调 init（避免 morning 被重置） */
+			var sc = (typeof window !== "undefined" && window && window.SugarCube) ? window.SugarCube : null;
+			var W = (sc && sc.Wikifier) ? sc.Wikifier : (typeof Wikifier !== "undefined" ? Wikifier : null);
+			if (W) { new W(null, "<<prison_init>>"); }
+			return;
+		}
+		if (nm.indexOf("The Farm") === 0 || nm.indexOf("Farmland") === 0) {
+			if (V2.farm && typeof V2.farm === "object") { return; }
+			var fs = Number(V2.farm_stage);
+			ensureFarmState(!(fs >= 1)); /* 农场线未推进也补壳（只补不覆盖）：直达后子段落会读 $farm.* */
+		}
+	} catch (e) {}
+}
+function teleportTo(name) {
 		try {
 			if (!passageExists(name)) {
 				setStatus("段落不存在：「" + name + "」（可能未安装对应剧情 MOD）", "mce-err");
@@ -109,6 +153,7 @@
 			}
 			ensureAveryMansion(); /* 防崩：庄园状态对象可能延迟初始化，直达前兜底（缺失才建，不覆盖进度） */
 			ensureFarmState(); /* 防崩：farm_stage 已推进但 $farm 缺失时补空壳（社交页读 $farm.beasts/aggro） */
+			ensureSceneStateFor(name); /* v2.0.1：监狱/农场原版状态对象兜底（新档直达不崩） */
 			if (name === "Scene Viewer passages") {
 				/* 直达场景查看器入口：设 pending 让首次 case 播放，剧情结束链回时不再重播；
 				   同时设 replayScene（原版 default 退出分支需要 $replayScene.exitpassage 才能给出 Back 链接） */
@@ -200,7 +245,20 @@
 			{ key: "asylum", name: "精神病院评估", path: "asylumassessmentprogress", max: 4, note: "精神病院评估进度（0-4）" },
 			{ key: "asylum_puzzle", name: "精神病院谜题", path: "asylumPuzzleProgress", max: 5, note: "精神病院谜题进度（0-5）" },
 			{ key: "science", name: "学校科学项目", path: "scienceprogression", max: 4, note: "学校科学项目进度（0-4）" },
-			{ key: "terrarium", name: "学校生态箱", path: "scienceterrariumprogression", max: 4, note: "学校生态箱进度（0-4）" }
+			{ key: "terrarium", name: "学校生态箱", path: "scienceterrariumprogression", max: 4, note: "学校生态箱进度（0-4）" },
+			{ key: "asylum_mirror", name: "精神病院镜像", path: "asylum_mirror", max: 5, note: "镜像线进度（0-5，原版 gte 5 判定触发深层镜像场景）" }
+		]},
+		/* v2.0.0.007 好友实测补录：监狱与雷米牧场的原版档位数（键名/取值形态均经 0.5.12.13 赋值实证） */
+		{ name: "监狱（原版 Prison）", note: "狱中关注度 / 保护度 / 当日劳动时数（$prison.* 对象键，宿主由原版初始化）", items: [
+			{ key: "prison_attention", name: "监狱关注度", path: "prison.attention_level", max: 3, note: "狱中关注度档位（实证 to 2/3；越高越容易被狱霸盯上）" },
+			{ key: "prison_protection", name: "监狱保护度", path: "prison.protection", max: 10, note: "狱中被庇护层数（受累加；写高=直接有靠山，不再被骚扰）" },
+			{ key: "prison_hours", name: "监狱劳动时数", path: "prison.hours_worked", max: 12, note: "当日已劳动时数（原版按 Time.hour-7 计，0-12）" }
+		]},
+		{ name: "雷米牧场（原版 Livestock）", note: "牲口线服从度 / 产奶量 / 产精量 / 自尊（$livestock.* 对象键）", items: [
+			{ key: "lv_obey", name: "服从度", path: "livestock.obey", max: 100, note: "牲口服从度（默认 50；越高越顺从，反抗选项减少）" },
+			{ key: "lv_milk", name: "产奶量", path: "livestock.milk", max: 1000, note: "累计产奶量（number，挤奶事件累加）" },
+			{ key: "lv_semen", name: "产精量", path: "livestock.semen", max: 1000, note: "累计产精量（number，同步挤取事件累加）" },
+			{ key: "lv_pride", name: "自尊残留", path: "livestock.pride", max: 1, note: "0/1 二态（1=仍有自尊，会反抗）" }
 		]}
 	];
 	/* 地点阶段读取（safe：任何层级缺失 → 0） */

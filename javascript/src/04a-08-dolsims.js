@@ -1,3 +1,4 @@
+/* 职责：DoLSims 适配器声明 */
 	CHEAT_ADAPTERS["dolsims"] = {
 		detect: function () {
 			try {

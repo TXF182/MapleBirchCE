@@ -204,7 +204,7 @@ window.maplebirch.npc = {
 };
 global.setup.NPCNameList = (global.setup.NPCNameList || []).concat(["Alice", "Liddell", "Seath", "TestNPC"]);
 const tabBtns = document.querySelectorAll('.mce-tabs button[data-tab]');
-assert(tabBtns.length >= 6, "外层标签按钮 >=6，实际 " + tabBtns.length);
+assert(tabBtns.length >= 7, "外层标签按钮 >=7（v2.0.0.006 新增言灵页），实际 " + tabBtns.length);
 function clickTabSafe(name) {
   try {
     const btn = document.querySelector('.mce-tabs button[data-tab="' + name + '"]');
@@ -296,6 +296,17 @@ const placeDirectBtn = placesPane.querySelector('.mce-inner button[data-place="d
 placeDirectBtn.click();
 const directBtnNew = placesPane.querySelector('.mce-inner button[data-place="direct"]');
 assert(!!directBtnNew && directBtnNew.classList.contains("mce-active") && placesPane.textContent.indexOf("场景直达") !== -1, "切回「场景直达」页签激活（jsdom）");
+/* v2.0.0.007 好友实测：场景直达补「妓院（含地下层）/ 雷米牧场牲口线 / 雷米农场」三组（组标题在 passages 为空时也必须渲染） */
+assert(placesPane.textContent.indexOf("妓院 · 含地下层 Brothel") !== -1 && placesPane.textContent.indexOf("雷米牧场 · 牲口线 Livestock") !== -1 && placesPane.textContent.indexOf("雷米农场 · The Farm") !== -1, "场景直达新增妓院/雷米牧场/雷米农场三组，实际 " + placesPane.textContent.slice(0, 200));
+/* 地点子页：监狱 / 雷米牧场档位组（原版 $prison.* / $livestock.* 实证键） */
+const stageBtnV7 = placesPane.querySelector('.mce-inner button[data-place="stage"]');
+assert(!!stageBtnV7, "地点阶段页签按钮可再次获取");
+stageBtnV7.click();
+assert(placesPane.textContent.indexOf("监狱（原版 Prison）") !== -1 && placesPane.textContent.indexOf("雷米牧场（原版 Livestock）") !== -1, "地点阶段新增监狱/雷米牧场档位组，实际 " + placesPane.textContent.slice(0, 200));
+assert(placesPane.textContent.indexOf("监狱关注度") !== -1 && placesPane.textContent.indexOf("服从度") !== -1, "监狱关注度 / 牲口服从度 档位行渲染");
+const directBtnV7 = placesPane.querySelector('.mce-inner button[data-place="direct"]');
+if (directBtnV7) { directBtnV7.click(); }
+
 ptxt = clickTabSafe("global");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "全局页渲染不崩，实际 " + ptxt.slice(0, 50));
 /* v1.8.8 全局页新区：战斗终结（学 CombatTerminator）+ 庄园自动维护（学 AutoClean） */
@@ -323,6 +334,43 @@ if (restockBtn[0]) { restockBtn[0].click(); }
 const cleanBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动庄园打扫") !== -1; });
 assert(cleanBtn.length === 1, "庄园维护「自动庄园打扫」按钮存在");
 if (cleanBtn[0]) { cleanBtn[0].click(); }
+
+/* v2.0.0.006 言灵页：玩家路径真实点击（开页签 → 开启 → 按钮翻转 → 清零读回） */
+window.isCrossdressing = function () { return true; }; /* 模拟原版 72536 挂在 window 上的判定 */
+const ylOrigCD = window.isCrossdressing;
+ptxt = clickTabSafe("yanling");
+assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "言灵页渲染不崩，实际 " + ptxt.slice(0, 50));
+let ylPane = document.querySelector('[data-pane="yanling"]');
+assert(ylPane.textContent.indexOf("无视着装性别") !== -1 && ylPane.textContent.indexOf("负面名声清零") !== -1, "言灵页含「无视着装性别 / 负面名声清零」两区，实际 " + ylPane.textContent.slice(0, 120));
+const ylOnBtn = [].slice.call(ylPane.querySelectorAll("button")).filter(function (b) { return b.textContent === "开启"; });
+assert(ylOnBtn.length === 1, "言灵页「开启」按钮存在");
+if (ylOnBtn[0]) { ylOnBtn[0].click(); }
+assert(!!V.mbCE_yanling && V.mbCE_yanling.noCross === true, "点击开启 → $mbCE_yanling.noCross=true，实际 " + JSON.stringify(V.mbCE_yanling));
+assert(typeof window.isCrossdressing === "function" && window.isCrossdressing() === false, "开启后 window.isCrossdressing() 恒 false（NPC 不再按服装标注性别判异装）");
+ylPane = document.querySelector('[data-pane="yanling"]');
+const ylOffBtn = [].slice.call(ylPane.querySelectorAll("button")).filter(function (b) { return b.textContent === "关闭（恢复原版判定）"; });
+assert(ylOffBtn.length === 1, "开启后按钮翻转为「关闭（恢复原版判定）」（rerender 生效）");
+/* 存量净化：写脏值 → 点按钮 → 读回 */
+V.crossdressingTrait = 66;
+V.backgroundTraits = ["crossdresser"];
+const ylPurgeT = [].slice.call(ylPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("立即清空进度") !== -1; });
+assert(ylPurgeT.length === 1, "「立即清空进度 + 移除特质」按钮存在");
+if (ylPurgeT[0]) { ylPurgeT[0].click(); }
+assert(V.crossdressingTrait === 0 && V.backgroundTraits.indexOf("crossdresser") === -1, "点击后 $crossdressingTrait=0 且 crossdresser 已移除，实际 " + V.crossdressingTrait);
+V.schoolrep = { crossdress: 3, herm: 2 };
+V.school_crossdress_message = 2;
+V.fame = { sex: 500, scrap: 1000 };
+const ylPurgeF = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("全部负面名声") !== -1; });
+assert(ylPurgeF.length === 1, "「一键清零：全部负面名声」按钮存在");
+if (ylPurgeF[0]) { ylPurgeF[0].click(); }
+assert(V.fame.sex === 0 && V.fame.scrap === 1000 && V.schoolrep.crossdress === 0 && V.schoolrep.herm === 0 && V.school_crossdress_message === undefined, "点击后 城镇负面清零、正面 scrap 保持 1000、学校 2 键清零、文案已删");
+/* 关闭链：卸载钩子必须把 window.isCrossdressing 还原为原版函数（而不是留一层空包装） */
+const ylOff = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "关闭（恢复原版判定）"; });
+assert(ylOff.length === 1, "「关闭（恢复原版判定）」按钮存在");
+if (ylOff[0]) { ylOff[0].click(); }
+assert(window.isCrossdressing === ylOrigCD && window.isCrossdressing() === true, "关闭后 window.isCrossdressing 还原为原版函数且判定恢复 true（不留空包装层）");
+/* 收尾：关掉开关 + 复位 mock，避免守卫定时器影响后续用例 */
+if (V.mbCE_yanling) { V.mbCE_yanling.noCross = false; V.mbCE_yanling.noTrait = false; }
 /* v1.9.12 全局页新区：世界腐化（原版 World Corruption）数值调整 */
 const wcTxt = globalPane.textContent;
 assert(wcTxt.indexOf("世界腐化") !== -1 && wcTxt.indexOf("world_corruption_hard") !== -1 && wcTxt.indexOf("world_corruption_soft") !== -1,
@@ -428,6 +476,70 @@ Object.defineProperty(rejEv, "reason", { value: new Error("pr-reject-test") });
 window.dispatchEvent(rejEv);
 const errCount1 = api.mbCEErrors().length;
 assert(errCount1 === errCount0 + 1 && api.mbCEErrors()[errCount1 - 1].msg.indexOf("pr-reject-test") !== -1, "Promise 拒绝入错误收集器，实际 " + (errCount1 - errCount0) + " 条，msg=" + api.mbCEErrors()[errCount1 - 1].msg.slice(0, 40));
+/* ---------- 9.5 v2.0.0.007 好友实机反馈三修：锁定即时反馈 / 行标签中文 / 武器「已获得」 ---------- */
+if (typeof api.mbCELockHas === "function" && api.mbCELockHas("skulduggery")) { api.mbCELockRemove("skulduggery"); }
+if (typeof api.mbCELockHas === "function" && api.mbCELockHas("prof.baton")) { api.mbCELockRemove("prof.baton"); }
+V.prof = V.prof || {};
+V.prof.baton = 0;
+api.renderPlayerEdit();
+const skRow1 = modsPane.querySelector('.mce-row[data-mce-key="quick:skulduggery"]');
+assert(!!skRow1, "9.5 快速面板 skulduggery 行存在");
+const skLbl1 = skRow1.querySelector(".mce-row-lbl");
+assert(skLbl1.textContent.indexOf("skulduggery") === -1, "9.5 行标签走中文映射（不含英文裸 key），实际 " + skLbl1.textContent);
+const skLock1 = skRow1.querySelector('[data-mce-role="lock"]');
+assert(!!skLock1 && skLock1.textContent === "锁定" && skLock1.className.indexOf("mce-gold") === -1, "9.5 初始锁定按钮=锁定且不高亮，实际 " + (skLock1 ? skLock1.textContent : "无"));
+skLock1.click();
+const skRow2 = modsPane.querySelector('.mce-row[data-mce-key="quick:skulduggery"]');
+const skLock2 = skRow2 && skRow2.querySelector('[data-mce-role="lock"]');
+assert(!!skLock2 && skLock2.textContent === "已锁定", "9.5 点一下 → 按钮立刻变「已锁定」（不再需要切页签），实际 " + (skLock2 ? skLock2.textContent : "无"));
+assert(skLock2.className.indexOf("mce-gold") !== -1, "9.5 已锁定按钮金色高亮，实际 class=" + skLock2.className);
+assert(api.mbCELockHas("skulduggery"), "9.5 锁定表已记录 skulduggery");
+const skLbl2 = skRow2.querySelector(".mce-row-lbl");
+assert(skLbl2.textContent.indexOf("skulduggery") === -1, "9.5 锁定后行标签仍为中文（回归：原先退回英文 key），实际 " + skLbl2.textContent);
+const skLock3Now = skRow2.querySelector('[data-mce-role="lock"]');
+skLock3Now.click();
+const skLock4 = modsPane.querySelector('.mce-row[data-mce-key="quick:skulduggery"] [data-mce-role="lock"]');
+assert(!api.mbCELockHas("skulduggery") && skLock4 && skLock4.textContent === "锁定", "9.5 再点取消锁定并立刻恢复「锁定」，实际 " + (skLock4 ? skLock4.textContent : "无"));
+/* 武器持有态：prof.baton=500 → 「已获得」；归 0 → 「获得」 */
+V.prof.baton = 500;
+api.renderPlayerEdit();
+const batonRow1 = modsPane.querySelector('.mce-row[data-mce-key="quick:prof.baton"]');
+const batonGr1 = batonRow1 && batonRow1.querySelector('[data-mce-role="grant"]');
+assert(!!batonGr1 && batonGr1.textContent === "已获得" && batonGr1.className.indexOf("mce-gold") !== -1, "9.5 武器已持有 → 按钮「已获得」+高亮，实际 " + (batonGr1 ? batonGr1.textContent : "无"));
+V.prof.baton = 0;
+api.renderPlayerEdit();
+const batonGr2 = modsPane.querySelector('.mce-row[data-mce-key="quick:prof.baton"] [data-mce-role="grant"]');
+assert(!!batonGr2 && batonGr2.textContent === "获得", "9.5 未持有 → 按钮「获得」，实际 " + (batonGr2 ? batonGr2.textContent : "无"));
+/* ---------- 9.6 v2.0.1 收敛：锁定状态栏文案中文化 + 监狱/农场直达兜底 ---------- */
+V.skulduggery = 500;
+api.renderPlayerEdit();
+const skLock6 = modsPane.querySelector('.mce-row[data-mce-key="quick:skulduggery"] [data-mce-role="lock"]');
+skLock6.click();
+const st6 = document.querySelector(".mce-status");
+assert(!!st6, "9.6 状态栏节点存在");
+assert(st6.textContent.indexOf("skulduggery") === -1 && st6.textContent.indexOf("诡术") !== -1,
+  "9.6 锁定后状态栏走中文名（不含英文裸 key），实际「" + (st6 ? st6.textContent : "无") + "」");
+const stRm6 = api.mbCELockRemove("skulduggery");
+assert(stRm6.ok && stRm6.message.indexOf("skulduggery") === -1, "9.6 取消锁定文案为中文名，实际「" + stRm6.message + "」");
+/* 直达兜底（jsdom 无 SugarCube → 注入假 Wikifier 记录调用） */
+const wik6 = [];
+const scOrig6 = window.SugarCube;
+window.SugarCube = { Wikifier: function (elm, txt) { wik6.push(String(txt)); } };
+delete V.prison;
+api.ensureSceneStateFor("Prison Cell");
+assert(wik6.length === 1 && wik6[0].indexOf("prison_init") !== -1, "9.6 $prison 缺失 → 调 prison_init，实际 " + JSON.stringify(wik6));
+V.prison = { guards: 50 };
+api.ensureSceneStateFor("Prison Cell");
+assert(wik6.length === 1, "9.6 已有 $prison → 不重复调 init，实际 " + wik6.length);
+delete V.farm; delete V.farm_stage;
+api.ensureSceneStateFor("The Farm");
+assert(!!V.farm && V.farm.beasts && V.farm.beasts.pigs === 0, "9.6 The Farm 直达 → $farm 兜底建壳");
+delete V.farm; delete V.farm_stage; delete V.prison;
+window.SugarCube = scOrig6;
+delete V.skulduggery;
+delete V.prof.baton;
+api.mbCEUiSave({ tab: "char", filter: "" });
+
 
 /* ---------- 10. v1.8.12 二轮优化：错误去重合并 / 全部展开收起 / 角色记忆 / 残留键清理 / 时间戳 ---------- */
 /* 10.1 同源错误 30 秒内合并计数（×N） */

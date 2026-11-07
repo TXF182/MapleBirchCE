@@ -1,3 +1,4 @@
+/* 职责：面板外壳续 —— 外层页签分发（switchOuterTab）、页签状态持久化（mbCEUiLoad / mbCEUiSave / mbCEUiCollapsed）、主题切换 */
 	function switchOuterTab(name) {
 		var tabs = root.querySelectorAll(".mce-tabs button");
 		var i;
@@ -15,6 +16,7 @@
 		if (name === "places") { renderPlaces(); }
 		if (name === "global") { renderGlobal(); }
 		if (name === "mods") { renderModCheats(); }
+		if (name === "yanling") { renderYanling(); } /* v2.0.0.006 言灵页（07i-yanling.js） */
 	}
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */

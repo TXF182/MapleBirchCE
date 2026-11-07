@@ -15,14 +15,10 @@
 			var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape("quick:" + path) : String("quick:" + path).replace(/["\\]/g, "\\$&");
 			var row = pane ? pane.querySelector('[data-mce-key="' + esc + '"]') : null;
 			if (row) {
-				var inp = row.querySelector("input.mce-inp");
-				var lbl = row.querySelector(".mce-row-lbl");
-				var cur = quickReadValue(path);
-				if (inp) { inp.value = (typeof cur === "number") ? String(cur) : "0"; }
-				if (lbl) {
-					var meta = (PANEL_QUICK_PATH_INDEX && PANEL_QUICK_PATH_INDEX[path]) || null;
-					lbl.textContent = (meta ? meta.label : path) + "（当前 " + (typeof cur === "number" ? cur : "—") + "）";
-				}
+				/* v2.0.0.007 好友实测修复：局部刷新必须连按钮状态一起同步——
+				   ① 点「锁定」后按钮要立刻变「已锁定」（原先只刷 input/label，得切页才变）
+				   ② 行标签走 ensureQuickIndex 取中文 label（索引未建时退回英文路径 = 「点了变英文」根因） */
+				mbCESyncQuickRow(row, path);
 				/* v1.9.14 效果2：写入成功 → 该行金底闪烁 */
 				if (res && res.ok) { mbCEFlash(row); }
 				return;
@@ -102,8 +98,18 @@
 			{ path: "fame.good", label: zhKey("fame.good"), min: 0, max: 999999, note: "善行积累（≥1000 触发 A Good Reputation 线）" }
 		] }
 	];
-	/* v1.8.12 功能13：数据表路径索引（quickWrite 查 min/max 用，懒建） */
+	/* v1.8.12 功能13：数据表路径索引（quickWrite 查 min/max 用，懒建）
+	   v2.0.0.007：抽成 ensureQuickIndex()，局部刷新（actPlayer）也走它——已建索引才拿得到中文 label，
+	   否则行标签退回英文路径（好友实测「点锁定后技能名变英文」的根因） */
 	var PANEL_QUICK_PATH_INDEX = null;
+	function ensureQuickIndex() {
+		if (PANEL_QUICK_PATH_INDEX) { return PANEL_QUICK_PATH_INDEX; }
+		PANEL_QUICK_PATH_INDEX = {};
+		PANEL_QUICK_GROUPS.forEach(function (g) {
+			g.items.forEach(function (it) { PANEL_QUICK_PATH_INDEX[it.path] = it; });
+		});
+		return PANEL_QUICK_PATH_INDEX;
+	}
 	function quickReadValue(path) {
 		try {
 			var V2 = getV();
@@ -209,16 +215,43 @@
 			if (!es.ok) { return es; }
 		}
 		/* v1.8.12 功能6：查数据表取该项 min/max，传给 cheatWriteValue 统一写入（上限不钳制）*/
-		if (!PANEL_QUICK_PATH_INDEX) {
-			PANEL_QUICK_PATH_INDEX = {};
-			PANEL_QUICK_GROUPS.forEach(function (g) {
-				g.items.forEach(function (it) { PANEL_QUICK_PATH_INDEX[it.path] = it; });
-			});
-		}
-		var meta = PANEL_QUICK_PATH_INDEX[path] || null;
+		var meta = ensureQuickIndex()[path] || null;
 		return cheatWriteValue("player-self", "p:" + path, "value_set", path, raw, "number",
 			meta && typeof meta.min === "number" ? meta.min : undefined,
 			meta && typeof meta.max === "number" ? meta.max : undefined);
+	}
+	/* v2.0.0.007：行内状态唯一真值路径——渲染（renderQuickRow）与局部刷新（actPlayer）都调它。
+	   好友实测两个问题都出在「只有整页重渲染才更新」：
+	   ① 点「锁定」后按钮文案不变成「已锁定」，必须切页签再回来才看到；
+	   ② 点完后该行技能名变英文裸 key（skulduggery / athletics …），切页后恢复中文——
+	      根因是局部刷新时 PANEL_QUICK_PATH_INDEX 尚未构建，label 回退成 path 原文。 */
+	function mbCESyncQuickRow(row, path) {
+		if (!row) { return; }
+		var cur = quickReadValue(path);
+		var meta = ensureQuickIndex()[path] || null;
+		var inp = row.querySelector("input.mce-inp");
+		if (inp) { inp.value = (typeof cur === "number") ? String(cur) : "0"; }
+		var lbl = row.querySelector(".mce-row-lbl");
+		if (lbl) { lbl.textContent = (meta ? meta.label : path) + "（当前 " + (typeof cur === "number" ? cur : "—") + "）"; }
+		var lk = row.querySelector('[data-mce-role="lock"]');
+		if (lk) {
+			var locked = (typeof mbCELockHas === "function") ? !!mbCELockHas(path) : false;
+			if (lk.classList) { lk.classList.toggle("mce-gold", locked); } else { lk.className = locked ? "mce-btn mce-gold" : ""; }
+			lk.textContent = locked ? "已锁定" : "锁定";
+			lk.title = locked
+				? "该值已锁定（每 1 秒强制写回目标 " + mbCELockTarget(path) + "）；点击取消锁定"
+				: "锁定：输入框的数值（含 +N/-N 相对写法）成为目标值，每 1 秒强制写回，存存档";
+		}
+		var gr = row.querySelector('[data-mce-role="grant"]');
+		if (gr) {
+			/* 持有判定对齐 grantWeapon：prof 值为 number 且 ≥1 = 已在手（原版 isnot undefined 外还挡住 0 值） */
+			var owned = (typeof cur === "number") && cur >= 1;
+			if (gr.classList) { gr.classList.toggle("mce-gold", owned); } else { gr.className = owned ? "mce-btn mce-gold" : "mce-btn"; }
+			gr.textContent = owned ? "已获得" : "获得";
+			gr.title = owned
+				? "该武器已持有（熟练度 " + cur + "）；点此仍会补齐喷雾的容量与弹药"
+				: "直接获得该武器：写 prof 键（原版持有判定）+ 入门熟练度 100；喷雾同时补容量 5 与满弹药";
+		}
 	}
 	function renderQuickRow(pane, it) {
 		var path = it.path, label = it.label;
@@ -236,13 +269,11 @@
 		b.addEventListener("click", function () { actPlayer(quickWrite(path, inp.value), path); });
 		var und = el("button", "", "回退"); und.type = "button";
 		und.addEventListener("click", function () { actPlayer(undoCheatModValue("player-self", "p:" + path), path); });
-		/* v2.0.0.002 需求①：数值锁定（复用 07f-lock.js 通道，每 1 秒强制写回，存存档） */
-		var lockedNow = (typeof mbCELockHas === "function") ? !!mbCELockHas(path) : false;
-		var lk = el("button", lockedNow ? "mce-btn mce-gold" : "", lockedNow ? "已锁定" : "锁定");
+		/* v2.0.0.002 需求①：数值锁定（复用 07f-lock.js 通道，每 1 秒强制写回，存存档）
+		   v2.0.0.007：文案/样式交给 mbCESyncQuickRow，渲染与刷新共用一条真值路径 */
+		var lk = el("button", "", "锁定");
 		lk.type = "button";
-		lk.title = lockedNow
-			? "该值已锁定（每 1 秒强制写回目标 " + mbCELockTarget(path) + "）；点击取消锁定"
-			: "锁定：输入框的数值（含 +N/-N 相对写法）成为目标值，每 1 秒强制写回，存存档";
+		lk.setAttribute("data-mce-role", "lock");
 		lk.addEventListener("click", function () {
 			if (typeof mbCELockHas !== "function" || typeof mbCELockSet !== "function" || typeof mbCELockRemove !== "function") {
 				setStatus("锁定模块未加载（07f-lock.js）", "mce-err"); return;
@@ -253,14 +284,16 @@
 			actPlayer(mbCELockSet(path, tgt), path);
 		});
 		row.appendChild(inp); row.appendChild(b); row.appendChild(und); row.appendChild(lk);
-		/* v2.0.0.002 需求②：武器组每行加「获得」（非武器组不出现） */
+		/* v2.0.0.002 需求②：武器组每行加「获得」（非武器组不出现）
+		   v2.0.0.007：已持有（prof ≥1）→ 文案变「已获得」（原先固定「获得」，好友截图四即此） */
 		if (String(path).indexOf("prof.") === 0) {
 			var gr = el("button", "mce-btn", "获得");
 			gr.type = "button";
-			gr.title = "直接获得该武器：写 prof 键（原版持有判定）+ 入门熟练度 100；喷雾同时补容量 5 与满弹药";
+			gr.setAttribute("data-mce-role", "grant");
 			gr.addEventListener("click", function () { actPlayer(grantWeapon(path), path); });
 			row.appendChild(gr);
 		}
+		mbCESyncQuickRow(row, path);
 		pane.appendChild(row);
 	}
 	function renderQuickPanel(pane) {

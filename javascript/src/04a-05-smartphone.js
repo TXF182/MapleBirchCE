@@ -1,3 +1,4 @@
+/* 职责：SmartPhone 适配器声明 */
 	CHEAT_ADAPTERS["smartphone"] = {
 		detect: function () {
 			try {

@@ -28,20 +28,47 @@ var MB_CE_FERT_ID_KEYS = ["species", "monster", "beastTransform", "divineTransfo
 function mbCEFertApi() {
 	try { return (typeof window !== "undefined" && window.EdenCheats) ? window.EdenCheats : null; } catch (e) { return null; }
 }
+/* v2.0.0.003 需求①：不再要求玩家先开原版作弊页。
+   模组侧有两道闸：available()（vars().cheatsEnabled === true 或原版 Cheats 面板 DOM 判据）和
+   perform() 里的 guard()（每次动作都 `if (!available()) throw new Error("请先打开原版作弊页。")`，
+   _modcache\fert_tmp\...\modules\eden-cheats.js:37-51 逐字实证）。所以仅绕开 CE 侧的自检不够，
+   必须在调用它的瞬间让它「看见」cheatsEnabled=true。做法：临时置 V.cheatsEnabled = true，
+   调用返回后立即还原原值（原本没有该字段则删除），不污染存档、不触发原版作弊页 UI。
+   模组其余安全闸（statFreeze / 战斗中 / 附属 NPC / 生产流程中 / NPCList[0]）仍全部生效。
+   置位到还原在同一个同步调用栈内完成（finally 覆盖 throw），SugarCube 的 autosave 只发生在 passage
+   导航/显式保存，不会插进这段同步栈 —— 结构性推理，非实机实测；enabled-cheats 全模组只有 1 处读它（:38）。 */
+function mbCEFertWithCheats(fn) {
+	var V = null, had = false, old;
+	try { V = getV(); } catch (e) { V = null; }
+	if (!V || typeof V !== "object") { return fn(); }
+	had = Object.prototype.hasOwnProperty.call(V, "cheatsEnabled");
+	old = V.cheatsEnabled;
+	if (old !== true) { try { V.cheatsEnabled = true; } catch (e2) { return fn(); } }
+	try {
+		return fn();
+	} finally {
+		try {
+			if (old !== true) {
+				if (had) { V.cheatsEnabled = old; }
+				else { try { delete V.cheatsEnabled; } catch (e3) { /* delete 被拒（Proxy/冻结对象）：退化为 undefined，而非写 false —— false 会在存档里留下与「从未设置」语义不同的假值，undefined 会被 JSON.stringify 丢弃 */ try { V.cheatsEnabled = undefined; } catch (e5) { /* 只能放弃还原 */ } } }
+			}
+		} catch (e4) { /* 还原失败不影响主流程 */ }
+	}
+}
 function mbCEFertReady() {
 	var api = mbCEFertApi();
-	if (!api) { return { ok: false, message: "未检测到 window.EdenCheats（FertilityExpansion 未加载或版本不含自带作弊）" }; }
-	try {
-		if (typeof api.available === "function" && !api.available()) {
-			return { ok: false, message: "模组要求先开启原版作弊页（cheatsEnabled / 原版 Cheats 面板处于打开状态）" };
-		}
-	} catch (e) { return { ok: false, message: "模组前置检查失败：" + (e && e.message ? e.message : e) }; }
-	return { ok: true };
+	if (!api) { return { ok: false, message: "未检测到 window.EdenCheats（FertilityExpansion 未加载或版本不含自带作弊）", bypass: false }; }
+	var avail = true;
+	try { if (typeof api.available === "function") { avail = !!api.available(); } } catch (e) { avail = false; }
+	/* available 只作说明（面板据此展示红字），不再作为不可用门槛 */
+	return { ok: true, bypass: !avail };
 }
 function mbCEFertChildren() {
 	var api = mbCEFertApi();
 	if (!api || typeof api.children !== "function") { return []; }
-	try { return api.children("") || []; } catch (e) { return []; }
+	return mbCEFertWithCheats(function () {
+		try { return api.children("") || []; } catch (e) { return []; }
+	});
 }
 function mbCEFertRecord(id) {
 	try {
@@ -53,31 +80,35 @@ function mbCEFertChildLabel(entry) {
 	var id = String(entry[0]), child = entry[1] || {};
 	return "#" + id + " " + (child.name || "未命名") + "（" + (child.gender === "f" ? "女" : child.gender === "m" ? "男" : child.gender || "?") + "）";
 }
-/* 统一执行入口：所有动作都走模组 API，返回模组给出的 { ok, message } */
+/* 统一执行入口：所有动作都走模组 API，返回模组给出的 { ok, message }
+   v2.0.0.003：整个调用包在 mbCEFertWithCheats 里——模组 guard() 每次动作都查 available()，
+   所以临时满足必须覆盖「从进入 perform 到它内部快照/回滚结束」的完整区间。 */
 function mbCEFertRun(key, id, patch) {
 	var r = mbCEFertReady();
 	if (!r.ok) { return r; }
 	var api = mbCEFertApi();
-	try {
-		if (key === "fert_labour") { return api.labour() || { ok: true, message: "已执行" }; }
-		if (key === "fert_parasite_fert") { return api.parasites(true) || { ok: true, message: "已执行" }; }
-		if (key === "fert_parasite_ripe") { return api.parasites(false) || { ok: true, message: "已执行" }; }
-		if (!id) { return { ok: false, message: "请先选择一个已出生的孩子" }; }
-		if (key === "fert_innate") { return api.saveInnate(id, patch || {}) || { ok: true, message: "已执行" }; }
-		if (key === "fert_skills") { return api.saveSkills(id, patch || {}) || { ok: true, message: "已执行" }; }
-		if (key === "fert_reset") { return api.reset(id) || { ok: true, message: "已执行" }; }
-		if (key === "fert_adult") { return api.settleAdult(id) || { ok: true, message: "已执行" }; }
-		if (key === "fert_remove") { return api.removeChild(id) || { ok: true, message: "已执行" }; }
-		if (key === "fert_reset_reason") {
-			var rr = api.resetReason(id);
-			return { ok: true, message: rr ? ("不可重置：" + rr) : "可以重置（无阻塞前置）" };
-		}
-		if (key === "fert_adult_reason") {
-			var ar = api.adultReason(id);
-			return { ok: true, message: ar ? ("不可成年结算：" + ar) : "可以成年结算（无阻塞前置）" };
-		}
-		return { ok: false, message: "未知动作：" + key };
-	} catch (e) { return { ok: false, message: "模组 API 抛出异常：" + (e && e.message ? e.message : e) }; }
+	return mbCEFertWithCheats(function () {
+		try {
+			if (key === "fert_labour") { return api.labour() || { ok: true, message: "已执行" }; }
+			if (key === "fert_parasite_fert") { return api.parasites(true) || { ok: true, message: "已执行" }; }
+			if (key === "fert_parasite_ripe") { return api.parasites(false) || { ok: true, message: "已执行" }; }
+			if (!id) { return { ok: false, message: "请先选择一个已出生的孩子" }; }
+			if (key === "fert_innate") { return api.saveInnate(id, patch || {}) || { ok: true, message: "已执行" }; }
+			if (key === "fert_skills") { return api.saveSkills(id, patch || {}) || { ok: true, message: "已执行" }; }
+			if (key === "fert_reset") { return api.reset(id) || { ok: true, message: "已执行" }; }
+			if (key === "fert_adult") { return api.settleAdult(id) || { ok: true, message: "已执行" }; }
+			if (key === "fert_remove") { return api.removeChild(id) || { ok: true, message: "已执行" }; }
+			if (key === "fert_reset_reason") {
+				var rr = api.resetReason(id);
+				return { ok: true, message: rr ? ("不可重置：" + rr) : "可以重置（无阻塞前置）" };
+			}
+			if (key === "fert_adult_reason") {
+				var ar = api.adultReason(id);
+				return { ok: true, message: ar ? ("不可成年结算：" + ar) : "可以成年结算（无阻塞前置）" };
+			}
+			return { ok: false, message: "未知动作：" + key };
+		} catch (e) { return { ok: false, message: "模组 API 抛出异常：" + (e && e.message ? e.message : e) }; }
+	});
 }
 /* 面板：孩子下拉 + 10 项动作（先天/养成需要填表，其余一键） */
 function mbCEFertRender(container) {
@@ -85,7 +116,16 @@ function mbCEFertRender(container) {
 	var ready = mbCEFertReady();
 	container.appendChild(el("div", "mce-hint",
 		"直接调用模组自带的 window.EdenCheats（等价 eden-cheats-ui 的全部 10 项），门控、快照回滚与 feats.locked 语义与模组一致。"));
-	if (!ready.ok) { container.appendChild(el("div", "mce-err", ready.message)); return; }
+	/* v2.0.0.003 需求①：这行红字是模组自己的原始提示，原文保留不动，只在后面接一句「我不同意」。
+	   用户 2026-11-07 明确要求保留原文（不是删掉），红字照旧显示，功能不再受它限制。 */
+	container.appendChild(el("div", "mce-err",
+		"模组要求先开启原版作弊页（cheatsEnabled / 原版 Cheats 面板处于打开状态）—— 我不同意。"));
+	/* API 缺失时才早退：此时不能断言「你已经开着原版作弊页」（那会把缺 API 说成已开启） */
+	if (!ready.ok) { container.appendChild(el("div", "mce-hint", ready.message)); return; }
+	container.appendChild(el("div", "mce-hint",
+		ready.bypass
+			? "模组当前判为「未开启原版作弊页」：CE 每次调用时临时把 cheatsEnabled 置真满足它，返回后立刻还原原值，你不用真去开原版作弊页。"
+			: "你已经开着原版作弊页；即便不开，CE 也会在调用期间临时满足该前置，用完还原。"));
 	var list = mbCEFertChildren();
 	var sel = el("select", "mce-inp");
 	list.forEach(function (entry) { var o = el("option", "", mbCEFertChildLabel(entry)); o.value = String(entry[0]); sel.appendChild(o); });

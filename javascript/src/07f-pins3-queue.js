@@ -25,12 +25,12 @@
 	   该结构仅由本体 <<farm_stock_init>> 在"共享农场"剧情节点初始化——一键置高 farm_stage 后同样缺失 → 睡觉崩（reading 'truffles'），
 	   故空壳与残缺分支同步补齐 stock 四字段。
 	   按本体农场线初始化结构补空壳：仅当 farm_stage >= 1 且 $farm 缺失/结构残缺时补，绝不覆盖已有进度。 */
-	function ensureFarmState() {
+	function ensureFarmState(force) {
 		try {
 			var V = getV();
 			if (!V) { return; }
 			var fs = Number(V.farm_stage);
-			if (!(fs >= 1)) { return; } /* 农场线未推进 → 本体社交页有 $farm_stage gte 2 条件，不读 $farm */
+			if (!(fs >= 1) && !force) { return; } /* 农场线未推进且未强制 → 本体社交页有 $farm_stage gte 2 条件，不读 $farm */
 			if (typeof V.farm !== "object" || V.farm === null) {
 				V.farm = {
 					beasts: { horses: 0, pigs: 0, cattle: 0, dogs: 0 },
