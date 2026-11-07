@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>MapleBirchCE · Mod 导入器（IndexedDB）</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; background: #12151b; color: #d7dce5; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #8fd6ff; }
+  .sub { color: #8892a3; font-size: 12px; margin-bottom: 18px; }
+  .box { background: #1a1f28; border: 1px solid #262d38; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+  .box h2 { font-size: 14px; margin: 0 0 10px; color: #b9c5d6; }
+  button { background: #24405e; color: #dff0ff; border: 1px solid #3a6791; border-radius: 6px; padding: 8px 16px; font-size: 14px; cursor: pointer; margin: 0 8px 8px 0; }
+  button:hover { background: #2e5077; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: #1f6b4a; border-color: #2e9a6b; color: #e6fff4; }
+  button.primary:hover { background: #26805a; }
+  pre { background: #10141a; border: 1px solid #232a34; border-radius: 6px; padding: 10px; max-height: 260px; overflow: auto; font: 12px/1.5 Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  .ok { color: #6ee7a8; }
+  .warn { color: #fbbf4a; }
+  .err { color: #ff8080; }
+  input[type=file] { color: #cfd8e5; font-size: 13px; }
+  .hint { font-size: 12px; color: #8892a3; }
+</style>
+</head>
+<body>
+<h1>Mod 导入器 · IndexedDB</h1>
+<div class="sub">
+  写入库 <code>ModLoader_IndexDBLoader</code> / store <code>ModLoader_IndexDBLoader</code>：列表键 <code>modDataIndexDBZipList</code>，包键 <code>modDataIndexDBZip:&lt;文件名&gt;</code>。
+  <b>必须用本页（file:// 打开），与游戏同源才能读写同一份 IndexedDB。</b>
+</div>
+
+<div class="box">
+  <h2>① 当前已登记（读取自 IndexedDB）</h2>
+  <div id="current" class="hint">读取中…</div>
+  <pre id="curList"></pre>
+</div>
+
+<div class="box">
+  <h2>② 选择要导入的包</h2>
+  <input id="files" type="file" multiple accept=".zip,.modpack,.mod">
+  <div class="hint" style="margin-top:8px">选中后点下方按钮写入。同名包会被覆盖内容（位置保持不变）。</div>
+  <div style="margin-top:10px">
+    <button id="btnImport" class="primary" disabled>导入到 IndexedDB</button>
+    <button id="btnReload">重新读取</button>
+    <button id="btnBackup">导出列表备份</button>
+  </div>
+</div>
+
+<div class="box">
+  <h2>③ 执行日志</h2>
+  <pre id="log"></pre>
+</div>
+
+<script>
+(function () {
+  var DB_NAME = 'ModLoader_IndexDBLoader';
+  var STORE = 'ModLoader_IndexDBLoader';
+  var KEY_LIST = 'modDataIndexDBZipList';
+  var KEY_PREFIX = 'modDataIndexDBZip:';
+
+  var logEl = document.getElementById('log');
+  var curListEl = document.getElementById('curList');
+  var currentEl = document.getElementById('current');
+  var fileEl = document.getElementById('files');
+  var btnImport = document.getElementById('btnImport');
+
+  function log(msg, cls) {
+    var line = document.createElement('div');
+    if (cls) { line.className = cls; }
+    line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function openDB() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open(DB_NAME);
+      req.onupgradeneeded = function () {
+        // 库不存在时创建同名 store（与 ModLoader 的 idb-keyval 行为一致）
+        if (!req.result.objectStoreNames.contains(STORE)) { req.result.createObjectStore(STORE); }
+      };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+
+  function readAll() {
+    return openDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, 'readonly');
+        var st = tx.objectStore(STORE);
+        var keysReq = st.getAllKeys();
+        keysReq.onsuccess = function () { resolve({ db: db, keys: keysReq.result || [] }); };
+        keysReq.onerror = function () { reject(keysReq.error); };
+      });
+    });
+  }
+
+  function getKey(db, key) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(STORE, 'readonly');
+      var req = tx.objectStore(STORE).get(key);
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+
+  function putKey(db, key, value) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(STORE, 'readwrite');
+      var req = tx.objectStore(STORE).put(value, key);
+      tx.oncomplete = function () { resolve(true); };
+      tx.onerror = function () { reject(tx.error); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+
+  function deleteKey(db, key) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(STORE, 'readwrite');
+      var req = tx.objectStore(STORE).delete(key);
+      tx.oncomplete = function () { resolve(true); };
+      tx.onerror = function () { reject(tx.error); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+
+  // 自检：写入 → 读回 → 回滚，全程在同一 store 内完成，不触碰真实包键
+  function runSelfTest() {
+    var TKEY = KEY_PREFIX + '__mce_selftest__.zip';
+    var TNAME = '__mce_selftest__.zip';
+    return Promise.resolve().then(function () {
+      return putKey(state.db, TKEY, new Blob(['mce-selftest'], { type: 'application/zip' }));
+    }).then(function () {
+      var l = (state.list || []).slice();
+      l.push(TNAME);
+      return putKey(state.db, KEY_LIST, JSON.stringify(l));
+    }).then(function () {
+      return getKey(state.db, KEY_LIST);
+    }).then(function (raw) {
+      var l = parseList(raw);
+      if (!l || l.indexOf(TNAME) < 0) { throw new Error('列表回读未含测试项'); }
+      return getKey(state.db, TKEY).then(function (v) {
+        if (!v) { throw new Error('包键回读为空'); }
+        if (typeof Blob !== 'undefined' && v instanceof Blob && v.size !== 12) { throw new Error('包键字节不符: ' + v.size); }
+      });
+    }).then(function () {
+      // 回滚
+      return deleteKey(state.db, TKEY).then(function () {
+        if (state.rawList === undefined) { return deleteKey(state.db, KEY_LIST); }
+        return putKey(state.db, KEY_LIST, state.rawList);
+      });
+    }).then(function () {
+      return getKey(state.db, KEY_LIST);
+    }).then(function (raw) {
+      var l = parseList(raw);
+      if (l && l.indexOf(TNAME) >= 0) { throw new Error('回滚后测试项仍存在'); }
+      return deleteKey(state.db, TKEY);
+    }).then(function () {
+      document.title = 'SELFTEST: PASS';
+      log('[自检] 写入/读回/回滚 全部通过', 'ok');
+    }).catch(function (e) {
+      document.title = 'SELFTEST: FAIL';
+      log('[自检] 失败: ' + e, 'err');
+    });
+  }
+
+  function parseList(raw) {
+    if (!raw) { return null; }
+    if (Array.isArray(raw)) { return raw.slice(); }
+    if (typeof raw === 'string') {
+      try { var v = JSON.parse(raw); return Array.isArray(v) ? v : null; } catch (e) { return null; }
+    }
+    return null;
+  }
+
+  var state = { db: null, list: null, rawList: null, valueKind: 'unknown' };
+
+  function refresh() {
+    currentEl.textContent = '读取中…';
+    curListEl.textContent = '';
+    return readAll().then(function (r) {
+      state.db = r.db;
+      return getKey(r.db, KEY_LIST).then(function (raw) {
+        state.rawList = raw;
+        state.list = parseList(raw);
+        // 判定现有包值的形态（Blob 还是 base64 字符串）
+        var pkgKeys = r.keys.filter(function (k) { return String(k).indexOf(KEY_PREFIX) === 0; });
+        if (!pkgKeys.length) { return null; }
+        return getKey(r.db, pkgKeys[0]).then(function (v) {
+          if (typeof Blob !== 'undefined' && v instanceof Blob) { state.valueKind = 'blob'; }
+          else if (typeof v === 'string') { state.valueKind = 'string'; }
+          else { state.valueKind = typeof v; }
+          return v;
+        });
+      }).then(function (v) {
+        var n = state.list ? state.list.length : 0;
+        currentEl.innerHTML = '<span class="' + (state.list ? 'ok' : 'err') + '">列表键' + (state.list ? '可解析，共 ' + n + ' 项' : '读取失败或为空') + '</span>'
+          + ' ｜ store 内总键数 ' + r.keys.length
+          + ' ｜ 包值形态: <b>' + state.valueKind + '</b>'
+          + (v && v.size ? '（首项 ' + v.size + ' B）' : '');
+        curListEl.textContent = (state.list || []).map(function (x, i) { return (i + 1) + '. ' + x; }).join('\n')
+          + (state.list ? '\n\n[原始值类型] ' + typeof state.rawList : '');
+      });
+    }).catch(function (e) {
+      currentEl.innerHTML = '<span class="err">读取失败: ' + e + '</span>';
+    });
+  }
+
+  function toBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        var s = String(fr.result);
+        resolve(s.indexOf(',') >= 0 ? s.slice(s.indexOf(',') + 1) : s);
+      };
+      fr.onerror = function () { reject(fr.error); };
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  function doImport() {
+    var files = Array.prototype.slice.call(fileEl.files || []);
+    if (!files.length) { log('未选择文件', 'warn'); return; }
+    var list = state.list ? state.list.slice() : [];
+    log('开始导入 ' + files.length + ' 个文件；现有 ' + list.length + ' 项；按现有形态写入: ' + state.valueKind, 'warn');
+
+    var chain = Promise.resolve();
+    files.forEach(function (f) {
+      chain = chain.then(function () {
+        var key = KEY_PREFIX + f.name;
+        var valuePromise = state.valueKind === 'string' ? toBase64(f) : Promise.resolve(f);
+        return valuePromise.then(function (value) {
+          return putKey(state.db, key, value).then(function () {
+            if (list.indexOf(f.name) < 0) { list.push(f.name); }
+            log('写入包 ' + f.name + ' (' + f.size + ' B) → ' + key, 'ok');
+          });
+        });
+      });
+    });
+
+    return chain.then(function () {
+      return putKey(state.db, KEY_LIST, JSON.stringify(list));
+    }).then(function () {
+      log('列表键已更新，共 ' + list.length + ' 项', 'ok');
+      return refresh();
+    }).then(function () {
+      log('完成。请关闭本页并刷新游戏页面（Degrees of Lewdity.html）使新包生效。', 'ok');
+      btnImport.disabled = true;
+    }).catch(function (e) {
+      log('导入失败: ' + e, 'err');
+    });
+  }
+
+  fileEl.addEventListener('change', function () {
+    btnImport.disabled = !(fileEl.files && fileEl.files.length);
+    var names = Array.prototype.slice.call(fileEl.files || []).map(function (f) { return f.name + ' (' + f.size + ' B)'; });
+    if (names.length) { log('已选择: ' + names.join('、')); }
+  });
+
+  btnImport.addEventListener('click', function () {
+    btnImport.disabled = true;
+    doImport();
+  });
+
+  document.getElementById('btnReload').addEventListener('click', function () { refresh(); });
+
+  document.getElementById('btnBackup').addEventListener('click', function () {
+    if (!state.rawList) { log('无列表可备份', 'warn'); return; }
+    var text = (typeof state.rawList === 'string') ? state.rawList : JSON.stringify(state.rawList);
+    var blob = new Blob([text], { type: 'text/plain' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'modDataIndexDBZipList-backup.txt';
+    a.click();
+    log('已导出列表备份（' + text.length + ' 字符）', 'ok');
+  });
+
+  refresh().then(function () {
+    if (location.search.indexOf('selftest=1') >= 0) {
+      log('[自检模式] 开始写入/读回/回滚验证…', 'warn');
+      return runSelfTest();
+    }
+  });
+})();
+</script>
+</body>
+</html>

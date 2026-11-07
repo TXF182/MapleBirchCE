@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IndexedDB 包键删除（只删包键，不动加载列表）</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: "Microsoft YaHei", "Segoe UI", sans-serif; background: #12141a; color: #d8dbe2; margin: 0; padding: 24px 28px 60px; }
+  h1 { font-size: 20px; margin: 0 0 8px; color: #ffd45e; }
+  .hint { font-size: 13px; line-height: 1.7; color: #9aa2b1; margin-bottom: 18px; }
+  .card { background: #191c24; border: 1px solid #2a2f3c; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: #cfd6e4; }
+  pre { background: #0e1015; border: 1px solid #262b36; border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  input { width: 420px; background: #0e1015; border: 1px solid #333a49; color: #e6e9f0; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: Consolas, monospace; }
+  button { background: #33405c; border: 1px solid #46577c; color: #e8ecf5; border-radius: 8px; padding: 9px 16px; font-size: 13px; cursor: pointer; margin-right: 10px; }
+  button.warn { background: #7a3324; border-color: #a24a32; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .log { font-family: Consolas, monospace; font-size: 13px; line-height: 1.7; background: #0e1015; border: 1px solid #262b36; border-radius: 8px; padding: 12px; min-height: 120px; white-space: pre-wrap; }
+  .kv { font-family: Consolas, monospace; font-size: 13px; color: #b9c2d3; }
+</style>
+</head>
+<body>
+
+<h1>删除单个 IndexedDB 包键（只删包键，不改加载列表）</h1>
+<div class="hint">
+库 / store：<code>ModLoader_IndexDBLoader</code>（同名）。本页只做两件事：<b>只读列出</b>全部 <code>modDataIndexDBZip:*</code> 包键，以及<b>精确删除</b>你亲手输入的那一个键。<br>
+<b>不删加载列表</b>（<code>modDataIndexDBZipList</code> 全程只读，删除后回读断言其未变）。<br>
+删除不可逆：被删的是包内容本身，删完必须回加载列表页确认列表里没有指向它的条目，否则该条目会变成空引用。
+</div>
+
+<div class="card">
+  <h2>① 当前库内包键（只读）</h2>
+  <div class="kv" id="meta">读取中……</div>
+  <pre id="keys">（等待读取）</pre>
+  <button id="btnReload">重新读取</button>
+</div>
+
+<div class="card">
+  <h2>② 精确删除单个包键</h2>
+  <div class="hint" style="margin-bottom:10px">必须完整输入键名（含 <code>modDataIndexDBZip:</code> 前缀，区分大小写）。点击一次变「确认删除」，再点才执行。</div>
+  <div>
+    <input id="keyName" placeholder="modDataIndexDBZip:&lt;文件名&gt;" autocomplete="off" spellcheck="false">
+  </div>
+  <div style="margin-top:12px">
+    <button id="btnDrop" class="warn">删除该包键</button>
+    <button id="btnClear">清空输入</button>
+  </div>
+  <div style="margin-top:14px">
+    <div class="log" id="log">（未执行）</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DB_NAME = 'ModLoader_IndexDBLoader';
+  var LIST_KEY = 'modDataIndexDBZipList';
+  var PREFIX = 'modDataIndexDBZip:';
+
+  var elMeta = document.getElementById('meta');
+  var elKeys = document.getElementById('keys');
+  var elLog = document.getElementById('log');
+  var elInput = document.getElementById('keyName');
+  var btnReload = document.getElementById('btnReload');
+  var btnDrop = document.getElementById('btnDrop');
+  var btnClear = document.getElementById('btnClear');
+
+  var armed = false;
+
+  function log(msg) {
+    var t = new Date().toTimeString().slice(0, 8);
+    elLog.textContent += '[' + t + '] ' + msg + '\n';
+    elLog.scrollTop = elLog.scrollHeight;
+  }
+
+  function openDB() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open(DB_NAME);
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+      req.onblocked = function () { reject(new Error('open blocked')); };
+    });
+  }
+
+  function pickStore(db) {
+    var names = Array.prototype.slice.call(db.objectStoreNames);
+    for (var i = 0; i < names.length; i++) {
+      if (names[i] === DB_NAME) return names[i];
+    }
+    return names.length ? names[0] : null;
+  }
+
+  function readAll(db) {
+    return new Promise(function (resolve, reject) {
+      var store = pickStore(db);
+      if (!store) { reject(new Error('no object store')); return; }
+      var tx = db.transaction(store, 'readonly');
+      var os = tx.objectStore(store);
+      var out = { store: store, keys: [], list: null, listType: null, sizes: {} };
+      var kreq = os.getAllKeys();
+      kreq.onsuccess = function () { out.keys = Array.prototype.slice.call(kreq.result); };
+      var lreq = os.get(LIST_KEY);
+      lreq.onsuccess = function () {
+        var v = lreq.result;
+        out.listType = (v === undefined) ? 'missing' : (typeof v);
+        out.list = v;
+      };
+      tx.oncomplete = function () {
+        var pk = out.keys.filter(function (k) { return typeof k === 'string' && k.indexOf(PREFIX) === 0; });
+        var pending = pk.length;
+        if (!pending) { resolve(out); return; }
+        var tx2 = db.transaction(store, 'readonly');
+        var os2 = tx2.objectStore(store);
+        pk.forEach(function (k) {
+          var r = os2.get(k);
+          r.onsuccess = function () {
+            var v = r.result;
+            var size = (v && typeof v.size === 'number') ? v.size : (v && typeof v === 'object' ? -1 : (typeof v === 'string' ? v.length : 0));
+            out.sizes[k] = size;
+            pending--;
+            if (pending === 0) resolve(out);
+          };
+        });
+        tx2.onerror = function () { resolve(out); };
+      };
+      tx.onerror = function () { reject(tx.error); };
+    });
+  }
+
+  function render(data) {
+    var pk = data.keys.filter(function (k) { return typeof k === 'string' && k.indexOf(PREFIX) === 0; });
+    elMeta.textContent = 'store=' + data.store
+      + ' ｜ store 内总键数=' + data.keys.length
+      + ' ｜ 包键数=' + pk.length
+      + ' ｜ 列表键原始值类型=' + data.listType;
+
+    var lines = [];
+    lines.push('全部包键：');
+    if (!pk.length) {
+      lines.push('  （无）');
+    } else {
+      pk.forEach(function (k, i) {
+        var sz = data.sizes[k];
+        var shown = (typeof sz === 'number' && sz >= 0) ? (sz + ' B') : '未知';
+        lines.push('  ' + (i + 1) + '. ' + k + '  [' + shown + ']');
+      });
+    }
+    var listArr = null;
+    try {
+      var raw = data.list;
+      if (typeof raw === 'string') listArr = JSON.parse(raw);
+      else if (Array.isArray(raw)) listArr = raw;
+    } catch (e) { listArr = null; }
+    lines.push('');
+    lines.push('加载列表条目数：' + (listArr ? listArr.length : '无法解析'));
+    if (listArr) {
+      lines.push('列表内容：');
+      listArr.forEach(function (n, i) { lines.push('  ' + (i + 1) + '. ' + n); });
+    }
+    elKeys.textContent = lines.join('\n');
+  }
+
+  function refresh() {
+    return openDB().then(function (db) {
+      return readAll(db).then(function (data) {
+        db.close();
+        render(data);
+        return data;
+      });
+    });
+  }
+
+  function dropKey(key) {
+    return openDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var store = pickStore(db);
+        if (!store) { db.close(); reject(new Error('no object store')); return; }
+        var beforeList = null;
+        var tx = db.transaction(store, 'readwrite');
+        var os = tx.objectStore(store);
+        var listGet = os.get(LIST_KEY);
+        listGet.onsuccess = function () { beforeList = listGet.result; };
+        var del = os.delete(key);
+        del.onsuccess = function () { log('删除请求已提交：' + key); };
+        del.onerror = function () { log('删除失败：' + (del.error && del.error.message)); };
+        tx.oncomplete = function () {
+          var check = db.transaction(store, 'readonly');
+          var os2 = check.objectStore(store);
+          var kreq = os2.getAllKeys();
+          var lreq = os2.get(LIST_KEY);
+          var keys = null, afterList = undefined;
+          kreq.onsuccess = function () { keys = Array.prototype.slice.call(kreq.result); };
+          lreq.onsuccess = function () { afterList = lreq.result; };
+          check.oncomplete = function () {
+            db.close();
+            var stillThere = keys && keys.indexOf(key) >= 0;
+            var listSame = (JSON.stringify(beforeList) === JSON.stringify(afterList));
+            log('回读断言：键仍存在=' + stillThere + '（应为 false）');
+            log('回读断言：加载列表未变=' + listSame + '（应为 true）');
+            if (stillThere || !listSame) {
+              reject(new Error('断言失败'));
+            } else {
+              resolve(true);
+            }
+          };
+        };
+        tx.onerror = function () { db.close(); reject(tx.error); };
+      });
+    });
+  }
+
+  function disarm() {
+    armed = false;
+    btnDrop.textContent = '删除该包键';
+    btnDrop.classList.add('warn');
+  }
+
+  btnReload.addEventListener('click', function () {
+    log('重新读取……');
+    refresh().then(function () { log('读取完成'); }).catch(function (e) { log('读取失败：' + e.message); });
+  });
+
+  btnClear.addEventListener('click', function () {
+    elInput.value = '';
+    disarm();
+    log('输入已清空');
+  });
+
+  btnDrop.addEventListener('click', function () {
+    var key = (elInput.value || '').trim();
+    if (!key) { log('拒绝：输入为空'); return; }
+    if (key.indexOf(PREFIX) !== 0) { log('拒绝：键名必须以 ' + PREFIX + ' 开头'); return; }
+    if (key.slice(PREFIX.length).indexOf(PREFIX) >= 0) { log('拒绝：键名格式异常'); return; }
+    if (!armed) {
+      armed = true;
+      btnDrop.textContent = '确认删除 ' + key.slice(PREFIX.length);
+      log('已就绪：再点一次将删除 ' + key + '（不可逆）');
+      return;
+    }
+    disarm();
+    btnDrop.disabled = true;
+    log('开始删除：' + key);
+    dropKey(key)
+      .then(function () {
+        log('完成。请刷新游戏页使改动生效。');
+        return refresh();
+      })
+      .then(function (data) {
+        var pk = data.keys.filter(function (k) { return typeof k === 'string' && k.indexOf(PREFIX) === 0; });
+        log('删除后包键数=' + pk.length + '，store 内总键数=' + data.keys.length);
+      })
+      .catch(function (e) { log('失败：' + (e && e.message ? e.message : String(e))); })
+      .then(function () { btnDrop.disabled = false; });
+  });
+
+  log('页面就绪，开始读取当前库……');
+  refresh().then(function () { log('读取完成'); }).catch(function (e) { log('读取失败：' + (e && e.message ? e.message : String(e))); });
+})();
+</script>
+</body>
+</html>

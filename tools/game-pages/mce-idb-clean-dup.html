@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>清理重复条目 MapleBirchCE（列表项 + 旧包键）</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: "Microsoft YaHei", "Segoe UI", sans-serif; background: #12141a; color: #d8dbe2; margin: 0; padding: 24px 28px 60px; }
+  h1 { font-size: 20px; margin: 0 0 8px; color: #ffd45e; }
+  .hint { font-size: 13px; line-height: 1.7; color: #9aa2b1; margin-bottom: 16px; }
+  .card { background: #191c24; border: 1px solid #2a2f3c; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: #cfd6e4; }
+  pre { background: #0e1015; border: 1px solid #262b36; border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; max-height: 300px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  button { background: #33405c; border: 1px solid #46577c; color: #e8ecf5; border-radius: 8px; padding: 10px 18px; font-size: 14px; cursor: pointer; margin-right: 10px; }
+  button.warn { background: #7a3324; border-color: #a24a32; font-size: 15px; padding: 12px 22px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .log { font-family: Consolas, monospace; font-size: 13px; line-height: 1.8; background: #0e1015; border: 1px solid #262b36; border-radius: 8px; padding: 12px; min-height: 140px; white-space: pre-wrap; }
+  .kv { font-family: Consolas, monospace; font-size: 13px; color: #b9c2d3; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<h1>清理重复条目：列表项「MapleBirchCE」+ 旧包键</h1>
+<div class="hint">
+目标库 / store：<code>ModLoader_IndexDBLoader</code>（同名）。<br>
+本页只做一件事：把加载列表里精确等于 <code>MapleBirchCE</code> 的条目移除，并删除包键 <code>modDataIndexDBZip:MapleBirchCE</code>（该包内容是 2.0.0.001 旧版）。<br>
+新包 <code>MapleBirchCE.mod.zip</code>（2.0.0.002）与本条目的其他所有 mod 一律不动。执行后自动回读断言。
+</div>
+
+<div class="card">
+  <h2>① 执行前快照（只读）</h2>
+  <div class="kv" id="meta">读取中……</div>
+  <pre id="snap">（等待读取）</pre>
+  <button id="btnReload">重新读取</button>
+</div>
+
+<div class="card">
+  <h2>② 执行清理</h2>
+  <div class="hint" style="margin-bottom:12px">点击一次变「确认执行」，再点一次才真正写入。写入内容：列表移除 <code>MapleBirchCE</code> + 删除包键 <code>modDataIndexDBZip:MapleBirchCE</code>。</div>
+  <button id="btnFix" class="warn">清理重复条目</button>
+  <div style="margin-top:14px">
+    <div class="log" id="log">（未执行）</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DB_NAME = 'ModLoader_IndexDBLoader';
+  var LIST_KEY = 'modDataIndexDBZipList';
+  var PREFIX = 'modDataIndexDBZip:';
+  var TARGET_LIST_NAME = 'MapleBirchCE';
+  var TARGET_KEY = PREFIX + TARGET_LIST_NAME;
+
+  var elMeta = document.getElementById('meta');
+  var elSnap = document.getElementById('snap');
+  var elLog = document.getElementById('log');
+  var btnReload = document.getElementById('btnReload');
+  var btnFix = document.getElementById('btnFix');
+  var armed = false;
+
+  function log(m) {
+    var t = new Date().toTimeString().slice(0, 8);
+    elLog.textContent += '[' + t + '] ' + m + '\n';
+    elLog.scrollTop = elLog.scrollHeight;
+  }
+
+  function openDB() {
+    return new Promise(function (resolve, reject) {
+      var r = indexedDB.open(DB_NAME);
+      r.onsuccess = function () { resolve(r.result); };
+      r.onerror = function () { reject(r.error); };
+      r.onblocked = function () { reject(new Error('打开被阻塞（其他标签页仍持有连接）')); };
+    });
+  }
+
+  function pickStore(db) {
+    var names = Array.prototype.slice.call(db.objectStoreNames);
+    for (var i = 0; i < names.length; i++) { if (names[i] === DB_NAME) return names[i]; }
+    return names.length ? names[0] : null;
+  }
+
+  function parseList(v) {
+    if (typeof v === 'string') { try { var a = JSON.parse(v); return Array.isArray(a) ? a : null; } catch (e) { return null; } }
+    if (Array.isArray(v)) return v.slice();
+    return null;
+  }
+
+  function reqValue(os, method, arg) {
+    return new Promise(function (resolve, reject) {
+      var r = os[method](arg);
+      r.onsuccess = function () { resolve(r.result); };
+      r.onerror = function () { reject(r.error); };
+    });
+  }
+
+  function readAll(db) {
+    return new Promise(function (resolve, reject) {
+      var store = pickStore(db);
+      if (!store) { reject(new Error('找不到 object store')); return; }
+      var tx = db.transaction(store, 'readonly');
+      var os = tx.objectStore(store);
+      var keysReq = os.getAllKeys();
+      var listReq = os.get(LIST_KEY);
+      var keys = null, raw = undefined;
+      keysReq.onsuccess = function () { keys = Array.prototype.slice.call(keysReq.result); };
+      listReq.onsuccess = function () { raw = listReq.result; };
+      tx.oncomplete = function () {
+        var pkgKeys = keys.filter(function (k) { return typeof k === 'string' && k.indexOf(PREFIX) === 0; });
+        resolve({ store: store, keys: keys, pkgKeys: pkgKeys, listRaw: raw, listArr: parseList(raw) });
+      };
+      tx.onerror = function () { reject(tx.error); };
+    });
+  }
+
+  function render(d) {
+    elMeta.textContent = 'store=' + d.store + ' ｜ 总键数=' + d.keys.length + ' ｜ 包键数=' + d.pkgKeys.length
+      + ' ｜ 列表条目数=' + (d.listArr ? d.listArr.length : '解析失败');
+
+    var lines = [];
+    lines.push('包键中与 MapleBirchCE 相关的：');
+    var hits = d.pkgKeys.filter(function (k) { return k.indexOf('MapleBirchCE') >= 0; });
+    if (!hits.length) { lines.push('  （无）'); }
+    else { hits.forEach(function (k, i) { lines.push('  ' + (i + 1) + '. ' + k); }); }
+
+    lines.push('');
+    lines.push('列表里与 MapleBirchCE 相关的条目：');
+    if (!d.listArr) { lines.push('  （列表无法解析）'); }
+    else {
+      var lhits = d.listArr.filter(function (n) { return String(n).indexOf('MapleBirchCE') >= 0; });
+      if (!lhits.length) { lines.push('  （无）'); }
+      else {
+        lhits.forEach(function (n) {
+          var idx = d.listArr.indexOf(n);
+          lines.push('  [' + (idx + 1) + '] ' + n + (n === TARGET_LIST_NAME ? '   ← 本页目标（旧条目）' : ''));
+        });
+      }
+      lines.push('  列表末尾 3 条：' + d.listArr.slice(-3).join(' / '));
+    }
+    elSnap.textContent = lines.join('\n');
+  }
+
+  function snapshot() {
+    return openDB().then(function (db) {
+      return readAll(db).then(function (d) { db.close(); render(d); return d; });
+    });
+  }
+
+  function cleanup() {
+    return openDB().then(function (db) {
+      var store = pickStore(db);
+      if (!store) { db.close(); return Promise.reject(new Error('找不到 object store')); }
+
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(store, 'readwrite');
+        var os = tx.objectStore(store);
+        var beforeLen = null, afterLen = null;
+
+        var getReq = os.get(LIST_KEY);
+        getReq.onsuccess = function () {
+          var raw = getReq.result;
+          var arr = parseList(raw);
+          if (!arr) { log('列表无法解析，跳过列表改动（仅删包键）'); return; }
+          beforeLen = arr.length;
+          var hadTarget = arr.indexOf(TARGET_LIST_NAME) >= 0;
+          var next = arr.filter(function (n) { return n !== TARGET_LIST_NAME; });
+          afterLen = next.length;
+          if (!hadTarget) { log('列表里本来就没有 ' + TARGET_LIST_NAME + '，未改动列表'); return; }
+          if (typeof raw === 'string') { os.put(JSON.stringify(next), LIST_KEY); }
+          else { os.put(next, LIST_KEY); }
+          log('列表：' + beforeLen + ' → ' + afterLen + ' 项（移除 ' + TARGET_LIST_NAME + '，写入形态 ' + (typeof raw) + '）');
+        };
+
+        var delReq = os.delete(TARGET_KEY);
+        delReq.onsuccess = function () { log('已提交删除包键：' + TARGET_KEY); };
+        delReq.onerror = function () { log('包键删除失败：' + (delReq.error && delReq.error.message)); };
+
+        tx.oncomplete = function () { db.close(); resolve({ beforeLen: beforeLen, afterLen: afterLen }); };
+        tx.onerror = function () { db.close(); reject(tx.error); };
+        tx.onabort = function () { db.close(); reject(new Error('事务中止')); };
+      });
+    });
+  }
+
+  function verify() {
+    return openDB().then(function (db) {
+      return readAll(db).then(function (d) {
+        db.close();
+        var listHasTarget = !!(d.listArr && d.listArr.indexOf(TARGET_LIST_NAME) >= 0);
+        var keyExists = d.pkgKeys.indexOf(TARGET_KEY) >= 0;
+        var listHasNew = !!(d.listArr && d.listArr.indexOf('MapleBirchCE.mod.zip') >= 0);
+        var newKeyExists = d.pkgKeys.indexOf(PREFIX + 'MapleBirchCE.mod.zip') >= 0;
+        var diff = (d.listArr ? d.listArr.length : -1) - d.pkgKeys.length;
+
+        log('回读：列表仍含 ' + TARGET_LIST_NAME + ' = ' + listHasTarget + '（应 false）');
+        log('回读：旧包键仍存在 = ' + keyExists + '（应 false）');
+        log('回读：列表含 MapleBirchCE.mod.zip = ' + listHasNew + '（应 true）');
+        log('回读：新包键存在 = ' + newKeyExists + '（应 true）');
+        log('回读：列表条目数=' + (d.listArr ? d.listArr.length : '?') + '，包键数=' + d.pkgKeys.length + '，差值=' + diff + '（应 0）');
+        render(d);
+
+        var ok = (!listHasTarget) && (!keyExists) && listHasNew && newKeyExists && (diff === 0);
+        log(ok ? '断言全部通过。请刷新游戏页，然后确认 CE 面板标题为 v2.0.0.002。' : '存在断言未通过，见上。');
+        return ok;
+      });
+    });
+  }
+
+  function disarm() { armed = false; btnFix.textContent = '清理重复条目'; }
+
+  btnReload.addEventListener('click', function () {
+    log('重新读取……');
+    snapshot().then(function () { log('读取完成'); }).catch(function (e) { log('读取失败：' + e.message); });
+  });
+
+  btnFix.addEventListener('click', function () {
+    if (!armed) {
+      armed = true;
+      btnFix.textContent = '确认执行（写库）';
+      log('已就绪：再点一次将写库。目标 = 列表移除 ' + TARGET_LIST_NAME + ' + 删除包键 ' + TARGET_KEY);
+      return;
+    }
+    disarm();
+    btnFix.disabled = true;
+    log('开始执行……');
+    cleanup()
+      .then(function () { return verify(); })
+      .catch(function (e) { log('失败：' + (e && e.message ? e.message : String(e))); })
+      .then(function () { btnFix.disabled = false; });
+  });
+
+  log('页面就绪，读取当前状态……');
+  snapshot().then(function () { log('读取完成'); }).catch(function (e) { log('读取失败：' + (e && e.message ? e.message : String(e))); });
+})();
+</script>
+</body>
+</html>

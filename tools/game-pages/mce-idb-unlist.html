@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>MapleBirchCE · 从加载列表移除重复条目</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; background: #12151b; color: #d7dce5; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #8fd6ff; }
+  .sub { color: #8892a3; font-size: 12px; margin-bottom: 18px; }
+  .box { background: #1a1f28; border: 1px solid #262d38; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+  button { background: #24405e; color: #dff0ff; border: 1px solid #3a6791; border-radius: 6px; padding: 8px 16px; font-size: 14px; cursor: pointer; margin-right: 8px; }
+  button.primary { background: #6b3a1f; border-color: #9a5e2e; color: #ffe9d6; }
+  pre { background: #10141a; border: 1px solid #232a34; border-radius: 6px; padding: 10px; max-height: 300px; overflow: auto; font: 12px/1.5 Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  .ok { color: #6ee7a8; } .warn { color: #fbbf4a; } .err { color: #ff8080; }
+  .hint { font-size: 12px; color: #8892a3; }
+</style>
+</head>
+<body>
+<h1>从加载列表移除重复条目（只改列表，不删包）</h1>
+<div class="sub">
+  用途：同一次安装里出现 <b>duplicate mod name</b> 时，把<b>旧的列表名</b>从 <code>modDataIndexDBZipList</code> 里去掉，让 ModLoader 只加载新包。
+  包数据键 <code>modDataIndexDBZip:*</code> <b>全部保留</b>，可随时改回。
+</div>
+
+<div class="box">
+  <h2>当前列表</h2>
+  <pre id="cur"></pre>
+</div>
+
+<div class="box">
+  <h2>操作</h2>
+  <input id="target" value="MapleBirchCE" style="background:#10141a;color:#dff0ff;border:1px solid #3a6791;border-radius:6px;padding:6px 10px;font:13px Consolas,monospace;width:280px">
+  <div class="hint" style="margin-top:8px">要移除的列表名（精确匹配，区分大小写）。</div>
+  <div style="margin-top:10px">
+    <button id="btnRemove" class="primary">从加载列表移除</button>
+    <button id="btnReload">重新读取</button>
+  </div>
+</div>
+
+<div class="box">
+  <h2>执行日志</h2>
+  <pre id="log"></pre>
+</div>
+
+<script>
+(function () {
+  var DB = 'ModLoader_IndexDBLoader', LIST = 'modDataIndexDBZipList';
+  var logEl = document.getElementById('log'), curEl = document.getElementById('cur');
+  var targetEl = document.getElementById('target');
+  function log(m, cls) { var d = document.createElement('div'); if (cls) { d.className = cls; } d.textContent = '[' + new Date().toLocaleTimeString() + '] ' + m; logEl.appendChild(d); }
+
+  function openDB() {
+    return new Promise(function (res, rej) {
+      var q = indexedDB.open(DB);
+      q.onupgradeneeded = function () { if (!q.result.objectStoreNames.contains(DB)) { q.result.createObjectStore(DB); } };
+      q.onsuccess = function () { res(q.result); };
+      q.onerror = function () { rej(q.error); };
+    });
+  }
+  function getK(db, k) {
+    return new Promise(function (res, rej) {
+      var t = db.transaction(DB, 'readonly'), r = t.objectStore(DB).get(k);
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function putK(db, k, v) {
+    return new Promise(function (res, rej) {
+      var t = db.transaction(DB, 'readwrite'), r = t.objectStore(DB).put(v, k);
+      t.oncomplete = function () { res(true); };
+      t.onerror = function () { rej(t.error); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function parseList(raw) {
+    if (Array.isArray(raw)) { return raw.slice(); }
+    if (typeof raw === 'string') { try { var v = JSON.parse(raw); return Array.isArray(v) ? v : null; } catch (e) { return null; } }
+    return null;
+  }
+
+  var st = { db: null, raw: undefined, list: null };
+
+  function refresh() {
+    curEl.textContent = '读取中…';
+    return openDB().then(function (db) {
+      st.db = db;
+      return getK(db, LIST);
+    }).then(function (raw) {
+      st.raw = raw;
+      st.list = parseList(raw);
+      curEl.textContent = '原始值类型: ' + typeof raw + '\n共 ' + (st.list ? st.list.length : 0) + ' 项:\n'
+        + (st.list ? st.list.map(function (x, i) { return (i + 1) + '. ' + x; }).join('\n') : '（无法解析）');
+    }).catch(function (e) { curEl.textContent = '读取失败: ' + e; });
+  }
+
+  function doRemove() {
+    var t = String(targetEl.value || '').trim();
+    if (!t) { log('目标名为空', 'warn'); return; }
+    if (!st.list) { log('列表未就绪', 'err'); return; }
+    var idx = st.list.indexOf(t);
+    if (idx < 0) { log('列表里没有「' + t + '」，无需移除（当前 ' + st.list.length + ' 项）', 'warn'); return; }
+    var next = st.list.slice(); next.splice(idx, 1);
+    var value = (typeof st.raw === 'string') ? JSON.stringify(next) : next;
+    log('原 ' + st.list.length + ' 项 → 移除「' + t + '」（写入形态 ' + typeof st.raw + '）', 'warn');
+    return putK(st.db, LIST, value).then(function () {
+      return getK(st.db, LIST);
+    }).then(function (raw) {
+      var l = parseList(raw);
+      if (!l) { throw new Error('回读列表无法解析'); }
+      if (l.indexOf(t) >= 0) { throw new Error('回读仍含「' + t + '」'); }
+      log('已移除，列表现有 ' + l.length + ' 项；包键未改动', 'ok');
+      log('完成。请关闭本页并刷新游戏页面（Degrees of Lewdity.html）。', 'ok');
+      return refresh();
+    }).catch(function (e) { log('失败: ' + e, 'err'); });
+  }
+
+  document.getElementById('btnRemove').addEventListener('click', function () { doRemove(); });
+  document.getElementById('btnReload').addEventListener('click', function () { refresh(); });
+  refresh();
+})();
+</script>
+</body>
+</html>

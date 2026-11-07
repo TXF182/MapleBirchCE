@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>IDB 诊断</title>
+<style>
+body{font:13px/1.5 Consolas,monospace;background:#111;color:#ddd;padding:12px}
+h3{color:#7fd;margin:14px 0 6px;font-size:14px}
+pre{white-space:pre-wrap;word-break:break-all;background:#1b1b1b;padding:8px;border-left:3px solid #07f}
+.ok{color:#7d7}.warn{color:#fb3}
+</style>
+</head>
+<body>
+<div id="out">running...</div>
+<script>
+(function () {
+  var out = document.getElementById('out');
+  var lines = [];
+  function p(s) { lines.push(s); out.innerHTML = '<pre>' + lines.join('\n').replace(/[<>&]/g, function (c) { return ({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]; }) + '</pre>'; }
+
+  function openDB(name) {
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open(name);
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+
+  function listStores(db) {
+    var names = Array.prototype.slice.call(db.objectStoreNames);
+    return names.map(function (n) {
+      return new Promise(function (res) {
+        var tx = db.transaction(n, 'readonly');
+        var st = tx.objectStore(n);
+        var req = st.getAllKeys();
+        req.onsuccess = function () {
+          var keys = req.result || [];
+          res({ store: n, count: keys.length, keys: keys });
+        };
+        req.onerror = function () { res({ store: n, count: -1, keys: [], err: String(req.error) }); };
+      });
+    });
+  }
+
+  function describeValue(v) {
+    if (v == null) { return 'null'; }
+    if (typeof v === 'string') { return 'string len=' + v.length + ' head=' + v.slice(0, 40); }
+    if (v instanceof Blob) { return 'Blob size=' + v.size + ' type=' + v.type; }
+    if (v instanceof ArrayBuffer) { return 'ArrayBuffer bytes=' + v.byteLength; }
+    if (Array.isArray(v)) { return 'Array len=' + v.length; }
+    return typeof v + ' ' + String(v).slice(0, 80);
+  }
+
+  (async function () {
+    if (!indexedDB.databases) { p('indexedDB.databases() 不可用'); return; }
+    var dbs = await indexedDB.databases();
+    p('数据库数量: ' + dbs.length);
+    for (var i = 0; i < dbs.length; i++) {
+      var d = dbs[i];
+      p('\n=== DB[' + i + '] ' + d.name + ' v=' + d.version);
+      try {
+        var db = await openDB(d.name);
+        var stores = await listStores(db);
+        for (var s of stores) {
+          p('  store=' + s.store + ' 键数=' + s.count);
+          var shown = s.keys.slice(0, 25);
+          for (var k of shown) { p('    key: ' + String(k).slice(0, 140)); }
+          if (s.keys.length > shown.length) { p('    ...共 ' + s.keys.length + ' 键'); }
+        }
+        // 抽样前 2 个 store 的前 3 个值形态
+        for (var st2 of stores.slice(0, 2)) {
+          var tx = db.transaction(st2.store, 'readonly');
+          var os = tx.objectStore(st2.store);
+          var kr = os.getAllKeys();
+          kr.onsuccess = function () {};
+        }
+        db.close();
+      } catch (e) { p('  ERROR ' + e); }
+    }
+    document.title = 'IDB 诊断完成(' + dbs.length + ' 库)';
+    p('\n[完成] 记录条数: ' + lines.length);
+  })().catch(function (e) { p('FATAL ' + e); });
+})();
+</script>
+</body>
+</html>
