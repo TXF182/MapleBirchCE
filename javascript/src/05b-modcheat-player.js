@@ -297,10 +297,12 @@
 		pane.appendChild(row);
 	}
 	function renderQuickPanel(pane) {
-		/* v2.0.0.002 需求③：自由选择说话态度——放在本页最上方（用户指定位置） */
-		renderAttitudeFree(pane);
-		/* v1.9.13 预设模板：一键批量写入（逐项走 quickWrite 统一留痕，可单独回退） */
-		var psec = el("div", "mce-section", "一键方案（预设模板）");
+		/* v2.0.0.002 需求③：自由选择说话态度——放在本页最上方（用户指定位置）
+		   v2.0.3：本页也是多区块页，传入本页编号 1（原先复用全局页写死的 ⑩，在本页是错号） */
+		renderAttitudeFree(pane, 1);
+		/* v1.9.13 预设模板：一键批量写入（逐项走 quickWrite 统一留痕，可单独回退）
+		   v2.0.3：改 mceNewSec 统一区块样式与编号（本页第 2 区块） */
+		var psec = mceNewSec(pane, 2, "一键方案（预设模板）", "整组批量写入（每个键各自留痕，可单独回退）；与下方各属性折叠组不冲突，预设只写固定档位。");
 		var pWrap = el("div", "mce-row");
 		var presets = [
 			{ key: "max", name: "全属性拉满", desc: "全部核心/技能/性技能/成绩/武器写满 + 负面清零 + 名声清零" },
@@ -318,7 +320,7 @@
 		});
 		psec.appendChild(pWrap);
 		psec.appendChild(el("div", "mce-hint", "预设为固定值批量写入，逐项留痕（「回退」可逐项还原）；如需微调请在各分组手动改。"));
-		pane.appendChild(psec);
+		/* v2.0.3：mceNewSec 已把区块挂到 pane，无需再 append */
 		PANEL_QUICK_GROUPS.forEach(function (g) {
 			/* v1.9.16：属性分组改可折叠（学特质页 .mce-collapse-head 机制，mbCEUiCollapsed 持久化，默认收起） */
 			var qkey = "quick:" + g.title;

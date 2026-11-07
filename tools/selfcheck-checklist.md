@@ -28,7 +28,9 @@
 - [ ] 功能级 E2E（____ 区块）：____
 - [ ] 性别集成（passed/failed）：____
 - [ ] codegraph sync：____
-- [ ] 打包 verifier 4/4：____
+- [ ] 适配器声明一致性（check_claims + check_key_types）：____
+- [ ] 原版数字档位形态（check_vanilla_types，CONFLICT 0）：____
+- [ ] 打包 verifier 校验（verifier-hub 或 VERIFIER-FALLBACK 等价核对，4 条目全命中 + CRC）：____
 - [ ] zip 正斜杠 4/4：____
 - [ ] SHA256（本地 / game / Release 回读一致）：____
 - [ ] 远端 CI 等价（本机 Node ≥22.22.2 / CI 同为 22；`$env:MCE_DOL_HTML` 指向不存在路径跑 `npm ci` + smoke，SKIP 数 ____，并在 GitHub Actions 上确认一次 success）：____

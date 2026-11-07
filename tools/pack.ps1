@@ -1,4 +1,4 @@
-# 一键发布链：run_all 全链验证 → 打包 .mod.zip → verifier 4/4 校验 → SHA256
+# 一键发布链：run_all 全链验证 → 打包 .mod.zip → verifier 校验（verifier-hub 优先；本机无该包时自动走内置等价核对：条目集合精确匹配 + CRC 全量，两条路径判据相同）→ SHA256
 # 用法：.\tools\pack.ps1
 # 说明：学习 Cheat Extended 的 pack.sh（模组根带打包脚本），把"打包"从手工命令升级为
 #       验证链的一部分；发布前跑一次，全绿即可交付。
@@ -62,7 +62,7 @@ if ($badSep.Count -gt 0) {
 }
 Write-Host "  全部 $entryCount 条正斜杠: $($entryNames -join ', ')"
 
-Write-Host "[4/5] verifier 校验（4/4 条目匹配）"
+Write-Host "[4/5] verifier 校验（4 个条目全部命中；verifier-hub 优先，缺失走内置等价核对）"
 # verifier-hub 入口：skill root 曾迁移（AppData\Local\Doubao\... → AppData\Roaming\LarkShell\aha\users\<id>\doubao\...），
 # 此处遍历候选位置取第一个存在的 bin\verifier，避免再次硬编码失效（ERR-20261105-001）。
 # skill 被卸载/切换（本机已无 verifier-hub）时不再 fail-open 也不能 fail-shut 掉整条链：
@@ -92,7 +92,7 @@ if ($verifier) {
         Write-Host $check
         exit 1
     }
-    Write-Host "  VERIFIER-FALLBACK: 条目集合精确匹配 + CRC 全量校验通过（4/4）"
+    Write-Host "  VERIFIER-FALLBACK（等价核对）：条目集合精确匹配 + CRC 全量校验通过，4 个条目全部命中"
 }
 
 Write-Host "[5/5] SHA256"

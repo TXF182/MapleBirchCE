@@ -8,6 +8,8 @@
 		}
 		var stages = getRomanceStages(curName);
 		if (stages.length) {
+			/* v2.0.3：单区块页统一编号（原为裸 mce-section，与全局页 / 言灵页的 ①②③ 编号体系不一致） */
+			var sRom = mceNewSec(pane, 1, "框架恋爱条件", "框架（Maplebirch）注册的恋爱阶段条件，来自各模组 romanceConditions；「一键完成」先补数值再置位，可由「回退」撤销面板写入的标记。");
 			var box = el("div", "mce-stages");
 			stages.forEach(function (stg) {
 				var row = el("div", "mce-stage " + (stg.ok ? "mce-pass" : "mce-fail"));
@@ -49,7 +51,7 @@
 				}
 				box.appendChild(row);
 			});
-			pane.appendChild(box);
+			sRom.appendChild(box);
 		} else {
 			pane.appendChild(el("div", "mce-hint", "该角色未注册框架恋爱剧情条件（romanceConditions 为空）。"));
 		}
@@ -57,7 +59,7 @@
 		/* 原版恋爱阶段（格威岚 7 阶段，来自游戏原版 gwylanStatusCheck 体系） */
 		var vanilla = getVanillaStages(curName);
 		if (vanilla.length) {
-			pane.appendChild(el("div", "mce-section", "原版恋爱阶段（" + displayNameEx(curName) + "）"));
+			var sVan = mceNewSec(pane, 2, "原版恋爱阶段（" + displayNameEx(curName) + "）", "原版 gwylanStatusCheck 体系的原生阶段判定（不依赖模组）；「一键完成」先补到官方门槛再置位，规避原版自动校验把阶段重置。");
 			var vbox = el("div", "mce-stages");
 			vanilla.forEach(function (s) {
 				var row = el("div", "mce-stage " + (s.ok ? "mce-pass" : "mce-fail"));
@@ -93,7 +95,7 @@
 				row.appendChild(el("div", "mce-stage-txt", "门槛：" + s.desc));
 				vbox.appendChild(row);
 			});
-			pane.appendChild(vbox);
+			sVan.appendChild(vbox);
 		}
 	}
 
@@ -104,6 +106,8 @@
 			pane.appendChild(el("div", "mce-hint", "该角色未注册转化阶段。"));
 			return;
 		}
+		/* v2.0.3：转化页统一编号（原为无标题卡片堆） */
+		var sTr = mceNewSec(pane, 1, "转化阶段", "每张卡片对应一个转化系（原版 / 玩家扩展）；「一键解锁全部阶段」= 先补成长值到门槛再逐级置位，扩展转化直接调 MOD 公共 API setup.myTFSet。");
 		types.forEach(function (levels, type) {
 			var st = readTransformState(curName, type);
 			var max = levels.length;
@@ -156,7 +160,7 @@
 				})(i);
 			}
 			block.appendChild(stages);
-			pane.appendChild(block);
+			sTr.appendChild(block);
 		});
 		/* 扩展转化（MOD 独立系统：玩家全局，与选中角色无关） */
 		exts.forEach(function (k) {
@@ -191,7 +195,7 @@
 			srow.appendChild(sh);
 			srow.appendChild(el("div", "mce-stage-txt", "门槛：成长值 30 / 60 / 90 对应阶段 1 / 2 / 3"));
 			block.appendChild(srow);
-			pane.appendChild(block);
+			sTr.appendChild(block);
 		});
 	}
 

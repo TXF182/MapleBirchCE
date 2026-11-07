@@ -190,6 +190,51 @@
 			pane.appendChild(block);
 		});
 		pane.appendChild(el("div", "mce-hint", "共枚举 " + total + " 个可直达段落（已按组精简，仅显示主场景；副场景段落计入统计不逐条列出）。点击「直达」立即跳转，不打断存档。"));
+		/* v2.0.3 回退语义补齐：世界入口解锁留痕可见 + 逐项撤回（记录 key = world:<gid>:<path>） */
+		var wRows = [];
+		if (V && V.mbCE_wrote && typeof V.mbCE_wrote === "object") {
+			Object.keys(V.mbCE_wrote).forEach(function (k) {
+				if (k.indexOf("world:") !== 0) { return; }
+				var rec = V.mbCE_wrote[k];
+				if (!rec || !rec.gid) { return; }
+				for (var wi = 0; wi < wRows.length; wi++) {
+					if (wRows[wi] && wRows[wi].gid === rec.gid) { return; }
+				}
+				wRows.push({ gid: rec.gid, path: rec.path, before: rec.before, after: rec.after });
+			});
+		}
+		if (wRows.length) {
+			var wsec = el("div", "mce-stage");
+			var whead = el("div", "mce-stage-head");
+			whead.appendChild(el("span", "mce-dot", ""));
+			whead.appendChild(el("span", "mce-stage-name", "■ 世界入口解锁记录　（" + wRows.length + " 项，可撤回）"));
+			wsec.appendChild(whead);
+			wsec.appendChild(el("div", "mce-stage-note", "「直达」会自动把该场景的世界入口条件写进存档（如 Elk Street 的大院入口）。以下为写入留痕；撤回 = 还原到首次写入前状态（原本无该字段则删除）。"));
+			wRows.forEach(function (w) {
+				var gname = "";
+				if (typeof PLACE_GROUPS !== "undefined" && Array.isArray(PLACE_GROUPS)) {
+					for (var gi = 0; gi < PLACE_GROUPS.length; gi++) {
+						if (PLACE_GROUPS[gi] && PLACE_GROUPS[gi].id === w.gid) { gname = PLACE_GROUPS[gi].name; }
+					}
+				}
+				var entry = (typeof WORLD_UNLOCKS === "object" && WORLD_UNLOCKS[w.gid] && WORLD_UNLOCKS[w.gid].entry) ? WORLD_UNLOCKS[w.gid].entry : "";
+				var row = el("div", "mce-row");
+				row.appendChild(el("span", "mce-row-lbl", (gname || w.gid) + "　" + w.path + "：" + (w.before === undefined ? "（原本无）" : String(w.before)) + " → " + String(w.after) + (entry ? "　（" + entry + "）" : "")));
+				var ubtn = el("button", "mce-btn mce-red", "撤回");
+				ubtn.type = "button";
+				ubtn.setAttribute("data-op", "world-undo");
+				(function (gid) {
+					ubtn.addEventListener("click", function () {
+						var ru = mbCEWorldUndo(gid);
+						setStatus(ru.msg, ru.ok ? "mce-ok" : "mce-err");
+						if (ru.ok) { renderPlaces(); }
+					});
+				})(w.gid);
+				row.appendChild(ubtn);
+				wsec.appendChild(row);
+			});
+			pane.appendChild(wsec);
+		}
 	}
 	function describeCondition(text, name) {
 		try {

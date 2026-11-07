@@ -151,12 +151,14 @@
 		}
 		return mbCEAttitudeApply(best.key);
 	}
-	function renderAttitudeFree(pane) {
+	/* idx：区块编号。本函数只被快速页 renderQuickPanel 调用（05b-modcheat-player.js），原先写死 10 会显示成「⑩」错号；
+	   现由调用方传入（快速页传 1）；缺省按「本页第 1 区块」处理 —— 不回落 10，避免任何复用方拿到全局页的错号（v2.0.3 修）。 */
+	function renderAttitudeFree(pane, idx) {
 		if (!pane) { return; }
 		mbCEAttitudeEnsureTimer();
 		var st = mbCEAttitudeState();
 		var curTier = st.lock ? mbCEAttitudeTier(st.value) : null;
-		var sec = mceNewSec(pane, 10, "说话态度", "原版三档（顺从 / 中立 / 反抗），选定后开启「维持」即每秒复位 $speech_attitude 并把顺从度拉回该档门槛内侧，永久维持；「解除维持」清除锁定但保留当前值，「解除并还原」恢复锁定前的态度与顺从度。");
+		var sec = mceNewSec(pane, (typeof idx === "number" && idx > 0) ? idx : 1, "说话态度", "原版三档（顺从 / 中立 / 反抗），选定后开启「维持」即每秒复位 $speech_attitude 并把顺从度拉回该档门槛内侧，永久维持；「解除维持」清除锁定但保留当前值，「解除并还原」恢复锁定前的态度与顺从度。");
 		var hint = el("div", "mce-hint", mbCEAttitudeStatusLine(st));
 		hint.setAttribute("data-mce-att", "1");
 		sec.appendChild(hint);

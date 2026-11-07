@@ -4841,6 +4841,32 @@ try {
   const t54c = y54.yanlingToggle("evilField");
   assert(t54c.ok === false && V.mbCE_yanling.evilField === undefined, "54.28 toggle 拒绝白名单外字段（不往存档写垃圾键）");
 
+  // 54.29~54.32 正面名声拉满（v2.0.3：fame 正面 5 项写到 clamp 上限 2000，pregnancy 上限动态不写）
+  V.fame = { sex: 0, prostitution: 0, good: 120, business: 2000, scrap: 800, social: 350, model: 5, pregnancy: 3, impreg: 0 };
+  const r54d = y54.yanlingMaxFame();
+  assert(r54d.ok === true && V.fame.good === 2000 && V.fame.business === 2000 && V.fame.scrap === 2000 && V.fame.social === 2000 && V.fame.model === 2000,
+    "54.29 max_fame 把正面 5 项拉到 2000（原 business 已是 2000 不重复改写）");
+  assert(V.fame.pregnancy === 3 && V.fame.impreg === 0 && V.fame.sex === 0,
+    "54.30 max_fame 不动 pregnancy（上限是动态的 playerNormalPregnancyTotal*250）/ impreg / 负面项");
+  assert(!!(V.mbCE_wrote && V.mbCE_wrote["yanling:max_fame"] && V.mbCE_wrote["yanling:max_fame"].before.good === 120),
+    "54.31 max_fame 按 yanling:op 留痕且 before 含原值（可回退）");
+  const r54e = y54.yanlingMaxFame();
+  assert(r54e.ok === true && r54e.msg.indexOf("实际改写 0 项") !== -1, "54.32 max_fame 幂等（已满时改写 0 项），实际 " + r54e.msg);
+  delete V.fame;
+  assert(y54.yanlingMaxFame().ok === false, "54.33 无 $fame 时拒绝并给中文原因（不凭空建对象污染存档）");
+
+  // 54.34~54.36 监狱庇护枚举直写（原版 $prison.protection 合法值 = "" / "scarred" / "tattooed"）
+  V.prison = { protection: "", attention_level: 2, scarred_level: 1 };
+  const r54f = y54.yanlingPrisonProtect("scarred");
+  assert(r54f.ok === true && V.prison.protection === "scarred" && typeof V.prison.protection === "string",
+    "54.34 prison_protect 直写字符串 \"scarred\"（写数字会让原版两处 is 判定 + !protection 同时失效）");
+  assert(y54.yanlingPrisonProtect("tattooed").ok === true && V.prison.protection === "tattooed", "54.35 prison_protect 可切到 \"tattooed\"");
+  assert(!!(V.mbCE_wrote && V.mbCE_wrote["yanling:prison_protection"]), "54.36 prison_protect 按 yanling:op 留痕（含 before 供回退）");
+  assert(y54.yanlingPrisonProtect("").ok === true && V.prison.protection === "", "54.37 prison_protect 清空为 \"\"（空串为假值 = 无庇护）");
+  delete V.prison;
+  const r54h = y54.yanlingPrisonProtect("scarred");
+  assert(r54h.ok === false && r54h.msg.indexOf("无监狱对象") !== -1, "54.38 无 $prison 时拒绝并提示「进一次监狱后可用」");
+
   global.window = origWin54;
 } catch (e54) {
   failures++;
@@ -4954,6 +4980,435 @@ try {
   console.error("FAIL: 56 言灵扩容测试异常: " + (e56 && e56.message ? e56.message : e56));
 }
 
+
+// ===== 57 回退语义补齐（v2.0.3）：世界入口解锁留痕 · 维护写入留痕 =====
+try {
+  const api57 = setup.mbStageCE;
+  const V7 = global.V;
+
+  // 57.1~57.4 世界入口（子路径型）：父对象原本缺失 → 逐层补壳 + before=undefined
+  V7.mbCE_wrote = {};
+  delete V7.compound;
+  api57.applyWorldUnlock("elk_compound");
+  assert(V7.compound && V7.compound.allowed === true, "57.1 compound.allowed 写入 true（父对象缺失时逐层补壳）");
+  assert(V7.compound.discovered === true, "57.2 顺带补 compound.discovered=true");
+  const rec57a = V7.mbCE_wrote["world:elk_compound:compound.allowed"];
+  const rec57b = V7.mbCE_wrote["world:elk_compound:compound.discovered"];
+  assert(rec57a && rec57a.type === "world" && rec57a.before === undefined && rec57a.after === true, "57.3 主键留痕：type=world / before=undefined / after=true");
+  assert(rec57b && rec57b.before === undefined && rec57b.after === true, "57.4 discovered 亦留痕（before=undefined）");
+  const t57a = rec57a.t;
+  api57.applyWorldUnlock("elk_compound");
+  assert(V7.mbCE_wrote["world:elk_compound:compound.allowed"].t === t57a, "57.5 重复调用幂等：值已到位不重写、留痕时间戳不变");
+
+  // 57.6~57.7 撤回：before=undefined → 删字段；记录清除
+  const u57a = api57.worldUndo("elk_compound");
+  assert(u57a.ok === true && u57a.n === 2, "57.6 worldUndo 撤回 2 项世界入口写入");
+  assert(V7.compound && !("allowed" in V7.compound) && !("discovered" in V7.compound), "57.7 before=undefined → 回退即删除两字段");
+  assert(V7.mbCE_wrote["world:elk_compound:compound.allowed"] === undefined, "57.8 撤回后留痕记录清除");
+
+  // 57.9~57.10 首次 before 语义：原本 false → 写 true → 撤回回 false（不是删除）
+  V7.mbCE_wrote = {};
+  V7.compound = { allowed: false };
+  api57.applyWorldUnlock("elk_compound");
+  assert(V7.compound.allowed === true, "57.9 原本 false 时写入 true");
+  api57.worldUndo("elk_compound");
+  assert(V7.compound.allowed === false, "57.10 before 保留首次写入前值 → 撤回还原 false（非删除）");
+
+  // 57.11~57.12 平铺数值型 / 字符串型
+  V7.mbCE_wrote = {};
+  delete V7.syndromekylar;
+  api57.applyWorldUnlock("kylar_manor");
+  assert(V7.syndromekylar === 1, "57.11 平铺数值型 syndromekylar 写入 1");
+  assert(V7.mbCE_wrote["world:kylar_manor:syndromekylar"] && V7.mbCE_wrote["world:kylar_manor:syndromekylar"].before === undefined, "57.12 平铺键同样留痕（before=undefined）");
+  api57.worldUndo("kylar_manor");
+  assert(!("syndromekylar" in V7) || V7.syndromekylar === undefined, "57.13 撤回后删除 syndromekylar");
+
+  V7.mbCE_wrote = {};
+  V7.adultshopstate = "";
+  api57.applyWorldUnlock("sirris_places");
+  assert(V7.adultshopstate === "open", "57.14 字符串型 adultshopstate 空值时写入 open");
+  api57.worldUndo("sirris_places");
+  assert(V7.adultshopstate === "", "57.15 撤回还原空串（原逻辑只补空值）");
+  V7.adultshopstate = "closed";
+  api57.applyWorldUnlock("sirris_places");
+  assert(V7.adultshopstate === "closed" && !V7.mbCE_wrote["world:sirris_places:adultshopstate"], "57.15b 非空值（closed）不覆盖、不留痕（保持幂等语义）");
+
+  // 57.16~57.18 维护写入：伊甸锁 4 幂等 + before 留痕 + 单键回退
+  V7.mbCE_wrote = {};
+  V7.edengarden = 2; V7.edenshrooms = 4; V7.edenspring = 0;
+  const ed57 = api57.mcMaintainEden();
+  assert(ed57.locked === 3 && V7.edengarden === 4 && V7.edenspring === 4, "57.16 伊甸三键锁 4（locked 计数保持原语义=3）");
+  const rec57e = V7.mbCE_wrote["maint:edengarden"];
+  assert(rec57e && rec57e.type === "maint" && rec57e.before === 2 && rec57e.after === 4, "57.17 maint:edengarden 留痕 before=2 / after=4");
+  assert(V7.mbCE_wrote["maint:edenshrooms"] === undefined, "57.18 值已为 4 的键幂等不写、不留痕");
+  const t57e = rec57e.t;
+  api57.mcMaintainEden();
+  assert(V7.mbCE_wrote["maint:edengarden"].t === t57e && V7.edengarden === 4, "57.19 再次维护幂等：值不变、留痕时间戳不变");
+  api57.maintUndo("edengarden");
+  assert(V7.edengarden === 2, "57.20 maintUndo 还原 edengarden=2");
+
+  // 57.21~57.23 庄园打扫（嵌套路径）+ 全量回退
+  V7.mbCE_wrote = {};
+  V7.avery_fate = "saved";
+  V7.avery_mansion = { pool: 3, kitchen: 5, days_absent: 7 };
+  const cl57 = api57.mcCleanMansion();
+  assert(cl57.rooms === 2 && V7.avery_mansion.pool === 0 && V7.avery_mansion.kitchen === 0 && V7.avery_mansion.days_absent === 0, "57.21 打扫清零房间与 days_absent");
+  assert(V7.mbCE_wrote["maint:avery_mansion.pool"] && V7.mbCE_wrote["maint:avery_mansion.pool"].before === 3, "57.22 嵌套路径留痕 before=3");
+  const ua57 = api57.maintUndoAll();
+  assert(ua57.ok === true && ua57.n === 3 && V7.avery_mansion.pool === 3 && V7.avery_mansion.kitchen === 5 && V7.avery_mansion.days_absent === 7, "57.23 maintUndoAll 还原 3 项嵌套维护键");
+
+  // 57.24~57.26 边界：未达标不写 / 宿主缺失不补壳 / 非数值键拒绝
+  V7.mbCE_wrote = {};
+  V7.housekeeping = 999; V7.tending = 0; V7.temple_quarters = 40; V7.temple_garden = 40;
+  const tm57 = api57.mcMaintainTemple();
+  assert(tm57.quarters === false && tm57.garden === false && V7.temple_quarters === 40, "57.24 技能未达标（999/0）不写、不留痕");
+  delete V7.farm;
+  assert(api57.maintWrite("farm.beasts.horses", 30) === false, "57.25 宿主缺失 → maintWrite 返回 false，不补壳");
+  assert(!V7.farm, "57.26 宿主缺失时未创建空壳 farm 对象");
+
+  delete V7.edengarden; delete V7.edenshrooms; delete V7.edenspring;
+  delete V7.avery_fate; delete V7.avery_mansion;
+  V7.mbCE_wrote = {};
+} catch (e57) {
+  failures++;
+  console.error("FAIL: 57 回退语义补齐测试异常: " + (e57 && e57.message ? e57.message : e57));
+}
+
+
+// ===== 58 覆盖率补盲（v2.0.3 P0~P3）：战斗终结分支 · 扩展转化 · 原版阶段边界 · 潜伏者 · 数值固定 =====
+try {
+  const api58 = setup.mbStageCE;
+  const V8 = global.V;
+  const bk58 = {
+    NPCName: V8.NPCName, gwylanSeen: V8.gwylanSeen, gwylan: V8.gwylan, wrote: V8.mbCE_wrote,
+    tfSet: global.setup.myTFSet, tfParts: V8.transformationParts, lock: V8.mbCE_lock,
+    temp: global.State.temporary, sets: global.setup.specialClothesSets, clothes: global.setup.specialClothes,
+    li: V8.loveInterest, struggle: V8.struggle, tentacles: V8.tentacles
+  };
+
+  // 58.1~58.7 战斗终结：三条未覆盖动作 + 未知 key + 动作抛错
+  delete V8.struggle;
+  const c1 = api58.mcCombatAction("struggle");
+  assert(c1.ok === true && !V8.struggle, "58.1 结束挣扎：struggle 缺失时静默成功且不建空壳");
+  V8.struggle = { number: 3, done: 0 };
+  api58.mcCombatAction("struggle");
+  assert(V8.struggle.done === 4, "58.2 结束挣扎：done = number + 1（3→4）");
+  delete V8.struggle;
+  delete V8.tentacles;
+  const c2 = api58.mcCombatAction("tentacle");
+  assert(c2.ok === true && !V8.tentacles, "58.3 结束触手：tentacles 缺失时静默成功");
+  V8.tentacles = { active: 2 };
+  api58.mcCombatAction("tentacle");
+  assert(V8.tentacles.active === 0, "58.4 结束触手：active 归零");
+  delete V8.tentacles;
+  api58.mcCombatAction("cluster");
+  assert(V8.timer === 0 && V8.vorestage === 0 && V8.swimdistance === 0, "58.5 结束集群：计时/阶段/距离三键清零");
+  const c3 = api58.mcCombatAction("no_such_action");
+  assert(c3.ok === false && c3.message.indexOf("未知战斗操作") !== -1, "58.6 未知战斗操作给出明确拒绝（" + c3.message + "）");
+  api58.COMBAT_ACTIONS.push({ key: "p4boom", name: "炸", run: function () { throw new Error("boom"); } });
+  const c4 = api58.mcCombatAction("p4boom");
+  api58.COMBAT_ACTIONS.pop();
+  assert(c4.ok === false && c4.message.indexOf("执行失败") !== -1, "58.7 动作抛错被捕获为执行失败（" + c4.message + "）");
+  delete V8.timer; delete V8.vorestage; delete V8.swimdistance;
+
+  // 58.8~58.11 扩展转化：API 缺失早退 / transformationParts 兜底补位 / 非数值过滤 / 完成校验
+  delete global.setup.myTFSet;
+  assert(api58.listExtTransforms().length === 0, "58.8 myTFSet 缺失时 listExtTransforms 返回空（不误报扩展转化）");
+  assert(api58.completeExtTransform("rabbit") === false, "58.9 myTFSet 缺失时 completeExtTransform 返回 false");
+  global.setup.myTFSet = function (k, lv) { global.V[k] = lv; return true; };
+  delete V8.transformationParts;
+  V8.rabbit = 1;
+  const ex1 = api58.listExtTransforms();
+  assert(ex1.indexOf("rabbit") !== -1, "58.10 transformationParts 缺失时按 rabbit/mermaid 兜底补位（" + ex1.join(",") + "）");
+  V8.rabbit = "notnum";
+  assert(api58.listExtTransforms().length === 0, "58.11 同名键非数值时不计入扩展转化");
+  delete V8.rabbit;
+  V8.transformationParts = { rabbit: 1 };
+  V8.rabbit = 1;
+  assert(api58.completeExtTransform("rabbit") === true && V8.rabbit === 3, "58.12 扩展转化一键完成写入 stage=3 并回读确认");
+  delete V8.rabbit; delete V8.transformationParts;
+
+  // 58.13~58.20 原版恋爱阶段（格威岚）：三种 hasVanillaRomance 入口 + 未知阶段 / NPC 缺失 / 数值不足 / 达成
+  V8.NPCName = [{ nam: "Gwylan", love: 0, dom: 0, lust: 0, wary: 0, state: "active", init: 1 }];
+  V8.gwylanSeen = [];
+  delete V8.gwylan;
+  const r1 = api58.completeVanillaStage("Robin", "lust");
+  assert(r1.ok === false && r1.message.indexOf("没有原版恋爱阶段系统") !== -1, "58.13 非格威岚角色拒绝（hasVanillaRomance=false）");
+  const r2 = api58.completeVanillaStage("Gwylan", "no_such_stage");
+  assert(r2.ok === false && r2.message.indexOf("未知阶段") !== -1, "58.14 未知阶段拒绝（" + r2.message + "）");
+  const namesBk = V8.NPCName;
+  V8.NPCName = [];
+  const r3 = api58.completeVanillaStage("Gwylan", "ritual_sex");
+  V8.NPCName = namesBk;
+  assert(r3.ok === false && r3.message.indexOf("未找到该角色运行时对象") !== -1, "58.15 NPC 运行时对象缺失时拒绝写入");
+  /* 第三入口：无 gwylanSeen / 无 gwylan 对象，仅 findNpc 命中（01-core.js:306 按 nam 匹配） */
+  delete V8.gwylanSeen;
+  delete V8.gwylan;
+  assert(api58.getVanillaStages("Gwylan").length === 7, "58.16 findNpc 命中即视为原版恋爱角色（第三分支，返回 7 阶段）");
+  V8.gwylan = { wary: 0 };
+  assert(api58.getVanillaStages("Gwylan").length === 7, "58.17 V.gwylan 对象型入口同样成立（第二分支）");
+  delete V8.gwylan;
+  V8.gwylanSeen = [];
+  /* 数值不足 → 孕育意愿不达成 */
+  global.setup.specialClothesSets = {};
+  global.setup.specialClothes = [];
+  const r4 = api58.completeVanillaStage("Gwylan", "wantsPregnancy");
+  assert(r4.ok === false && r4.message.indexOf("均未怀孕") !== -1, "58.18 数值不足时孕育意愿如实说明不达成（" + r4.message + "）");
+  /* 数值充足 → 内置原版公式路径（vanillaComputeStatus）判达成 */
+  global.setup.specialClothesSets = { f1: { shop: ["forest"] }, f2: { shop: ["forest"] } };
+  global.setup.specialClothes = [{ name: "f1", sets: ["forest"] }, { name: "f2", sets: ["forest"] }];
+  V8.specialClothes = [];
+  V8.gwylanTalked = [];
+  V8.gwylanSeen = [];
+  const npc58 = V8.NPCName[0];
+  npc58.dom = 200; npc58.lust = 100; npc58.state = "active";
+  const r5 = api58.completeVanillaStage("Gwylan", "wantsPregnancy");
+  assert(r5.ok === true && V8.specialClothes.length === 2 && V8.gwylanTalked.indexOf("f1") !== -1,
+    "58.19 数值充足时孕育意愿达成，且森林套装/已聊套装自动补满（" + r5.message + "）");
+  const st58 = global.State.temporary && global.State.temporary.gwylanStatus;
+  assert(Array.isArray(st58) && st58.indexOf("lust") !== -1 && st58.indexOf("heat") !== -1 && st58.indexOf("wantsPregnancy") !== -1,
+    "58.20 内置原版公式算出 lust/heat/wantsPregnancy（" + (Array.isArray(st58) ? st58.join(",") : "无") + "）");
+  /* 面板痕迹：completeVanillaStage 成功必留 vanilla:<key> 痕迹 */
+  assert(V8.mbCE_wrote && V8.mbCE_wrote["vanilla:wantsPregnancy"] && V8.mbCE_wrote["vanilla:wantsPregnancy"].type === "vanilla",
+    "58.21 原版阶段完成写入 vanilla 留痕（可供统一回退中心识别）");
+
+  // 58.22~58.26 undoVanillaStage / undoRomanceStage 的拒绝与还原边界
+  const u1 = api58.undoVanillaStage("Gwylan", "heat");
+  assert(u1.ok === false && u1.message.indexOf("实时计算") !== -1, "58.22 状态型阶段（heat）拒绝回退并说明原因");
+  delete V8.mbCE_wrote["vanilla:ritual_sex"];
+  const u2 = api58.undoVanillaStage("Gwylan", "ritual_sex");
+  assert(u2.ok === false && u2.message.indexOf("真实达成") !== -1, "58.23 无面板痕迹（真实达成）拒绝回退");
+  V8.mbCE_wrote["vanilla:ritual_sex"] = { type: "vanilla", key: "ritual_sex", npc: "Gwylan", t: Date.now() };
+  const u3 = api58.undoVanillaStage("Gwylan", "ritual_sex");
+  assert(u3.ok === true && V8.gwylanSeen.indexOf("ritual_sex") === -1 && !V8.mbCE_wrote["vanilla:ritual_sex"],
+    "58.24 有痕迹的 seen 型阶段回退成功并清痕迹（" + u3.message + "）");
+  V8.mbCE_wrote["vanilla:no_such_stage"] = { type: "vanilla", key: "no_such_stage", npc: "Gwylan", t: Date.now() };
+  const u4 = api58.undoVanillaStage("Gwylan", "no_such_stage");
+  delete V8.mbCE_wrote["vanilla:no_such_stage"];
+  assert(u4.ok === false && u4.message.indexOf("未知阶段") !== -1, "58.25 有痕迹但阶段名未知时拒绝（" + u4.message + "）");
+  V8.loveInterest = ["Gwylan", "Whitney"];
+  V8.mbCE_wrote["romance:native:gwylan"] = { type: "native", t: Date.now() };
+  const u5 = api58.undoRomanceStage("Gwylan", { native: true });
+  assert(u5 === true && V8.loveInterest.length === 1 && V8.loveInterest[0] === "Whitney", "58.26 native 回退：数组型恋人卡槽按名移除");
+  V8.loveInterest = { a: "Whitney", b: "Gwylan" };
+  V8.mbCE_wrote["romance:native:gwylan"] = { type: "native", t: Date.now() };
+  const u6 = api58.undoRomanceStage("Gwylan", { native: true });
+  assert(u6 === true && !V8.loveInterest.b && V8.loveInterest.a === "Whitney", "58.27 native 回退：对象型恋人卡槽按值删除");
+
+  // 58.28~58.34 潜伏者：状态读取 / 写入上限 / 自动搬运（含空手持与锁定优先）
+  V8.lurkers_held = 3;
+  V8.hookah = { lurkers: 2, juice: 1 };
+  V8.lurkers_stored = 1;
+  const ls58 = api58.mbCELurkerState();
+  assert(ls58.ok === true && ls58.held === 3 && ls58.fridge === 2, "58.28 潜伏者状态读取 handheld/fridge 真值");
+  assert(api58.MB_CE_LURKER_MAX === 9999, "58.29 潜伏者写入上限为防呆值 9999（原版无上限）");
+  const set58 = api58.mbCELurkerSet("lurkers_held", 7);
+  assert(set58.ok === true && V8.lurkers_held === 7, "58.30 潜伏者写入走 cheat 通道（留痕可回退）");
+  V8.mbCE_lurkerAuto = true;
+  V8.lurkers_held = 3; V8.hookah = { lurkers: 2 };
+  const mv1 = api58.mbCELurkerAutoTick();
+  assert(mv1 === 3 && V8.hookah.lurkers === 5 && V8.lurkers_held === 0, "58.31 自动搬运：手持转入冰箱（3→0，冰箱 2→5）");
+  V8.lurkers_held = 0;
+  assert(api58.mbCELurkerAutoTick() === 0, "58.32 自动搬运：手持为 0 时早退不搬运");
+  delete V8.hookah;
+  V8.lurkers_held = 2; V8.lurkers_stored = 1;
+  const mv2 = api58.mbCELurkerAutoTick();
+  assert(mv2 === 2 && V8.lurkers_stored === 3, "58.33 自动搬运：冰箱缺失时转入农场蒸馏笼（1→3）");
+  V8.hookah = { lurkers: 0, juice: 1 };
+  V8.lurkers_held = 4;
+  api58.mbCELockSet("lurkers_held", 4);
+  assert(api58.mbCELurkerAutoTick() === 0, "58.34 锁定优先：lurkers_held 被锁定时自动搬运不抢写");
+  api58.mbCELockRemove("lurkers_held");
+  const auto58 = api58.mbCELurkerSetAuto(false);
+  assert(auto58.ok === true && V8.mbCE_lurkerAuto === false, "58.35 自动搬运开关可关闭（关闭即清定时器）");
+
+  // 58.36~58.42 数值固定：路径校验 / 非数值拒绝 / 写入生效 / 只固定已存在键 / 移除
+  const l1 = api58.mbCELockSet("a..b", 1);
+  assert(l1.ok === false && l1.message.indexOf("空段") !== -1, "58.36 锁定路径存在空段时拒绝（防建脏键）");
+  const l2 = api58.mbCELockSet("p4lock", "abc");
+  assert(l2.ok === false && l2.message.indexOf("有限数值") !== -1, "58.37 锁定目标非有限数值时拒绝");
+  V8.p4lock = 1;
+  const l3 = api58.mbCELockSet("p4lock", 9);
+  assert(l3.ok === true && V8.p4lock === 9 && api58.mbCELockHas("p4lock") === true, "58.38 锁定立即生效（点击即写，不等 tick）");
+  assert(Array.isArray(V8.mbCE_lock) && V8.mbCE_lock[0] && V8.mbCE_lock[0].target === 9, "58.39 锁定目标可回读（清单项 target=9）");
+  assert(api58.mbCELockRead({ a: { b: { c: 5 } } }, "a.b.c") === 5, "58.40 深路径读取命中嵌套值");
+  V8.p4lock = 1;
+  api58.mbCELockTick();
+  assert(V8.p4lock === 9, "58.41 tick 强制写回锁定目标（1→9）");
+  delete V8.p4lock;
+  api58.mbCELockTick();
+  assert(!("p4lock" in V8), "58.42 当前值缺失时 tick 跳过，不凭空创建键");
+  const l4 = api58.mbCELockRemove("p4lock");
+  assert(l4.ok === true && api58.mbCELockHas("p4lock") === false, "58.43 取消锁定后清单移除");
+  const l5 = api58.mbCELockRemove("p4lock");
+  assert(l5.ok === false && l5.message.indexOf("未锁定") !== -1, "58.44 未锁定路径取消时如实拒绝");
+  assert(typeof api58.mbCELockLabel("history") === "string" && api58.mbCELockLabel("history").length > 0,
+    "58.45 锁定文案走中文名/falback（history → " + api58.mbCELockLabel("history") + "）");
+
+  // 收尾：恢复全部被改动的既有状态
+  V8.NPCName = bk58.NPCName;
+  if (bk58.gwylanSeen === undefined) { delete V8.gwylanSeen; } else { V8.gwylanSeen = bk58.gwylanSeen; }
+  if (bk58.gwylan === undefined) { delete V8.gwylan; } else { V8.gwylan = bk58.gwylan; }
+  if (bk58.wrote === undefined) { delete V8.mbCE_wrote; } else { V8.mbCE_wrote = bk58.wrote; }
+  if (bk58.tfSet === undefined) { delete global.setup.myTFSet; } else { global.setup.myTFSet = bk58.tfSet; }
+  if (bk58.tfParts === undefined) { delete V8.transformationParts; } else { V8.transformationParts = bk58.tfParts; }
+  if (bk58.lock === undefined) { delete V8.mbCE_lock; } else { V8.mbCE_lock = bk58.lock; }
+  if (bk58.temp === undefined) { delete global.State.temporary; } else { global.State.temporary = bk58.temp; }
+  if (bk58.sets === undefined) { delete global.setup.specialClothesSets; } else { global.setup.specialClothesSets = bk58.sets; }
+  if (bk58.clothes === undefined) { delete global.setup.specialClothes; } else { global.setup.specialClothes = bk58.clothes; }
+  if (bk58.li === undefined) { delete V8.loveInterest; } else { V8.loveInterest = bk58.li; }
+  if (bk58.struggle === undefined) { delete V8.struggle; } else { V8.struggle = bk58.struggle; }
+  if (bk58.tentacles === undefined) { delete V8.tentacles; } else { V8.tentacles = bk58.tentacles; }
+  delete V8.specialClothes; delete V8.gwylanTalked;
+  delete V8.lurkers_held; delete V8.lurkers_stored; delete V8.hookah; delete V8.mbCE_lurkerAuto; delete V8.mbCE_lurkerMoved;
+  delete V8.timer; delete V8.vorestage; delete V8.swimdistance;
+} catch (e58) {
+  failures++;
+  console.error("FAIL: 58 覆盖率补盲测试异常: " + (e58 && e58.message ? e58.message : e58));
+}
+
+// ===== 59 覆盖率补盲（v2.0.3 P1~P3 续）：言灵运行期钩子 · FertilityExpansion API · 潜伏者解限补丁 · 面板状态持久化 =====
+try {
+  const api59 = setup.mbStageCE;
+  const V9 = global.V;
+  const bk59 = { yanling: V9.mbCE_yanling, wrote: V9.mbCE_wrote, cheats: V9.cheatsEnabled, eden: V9.eden, win: global.window, ls: global.localStorage };
+
+  // 59.1~59.8 言灵：钩子安装/拦截/透传/幂等/卸载/同步
+  assert(api59.yanlingInstall() === false, "59.1 无 window 环境时钩子安装安全返回 false");
+  assert(api59.yanlingUninstall() === true, "59.2 无 window 时卸载幂等成功");
+  global.window = global.window || {};
+  delete global.window.isCrossdressing;
+  assert(api59.yanlingInstall() === false, "59.3 上游 isCrossdressing 非函数时拒绝安装");
+  let up59 = 0;
+  const upFn59 = function () { up59++; return true; };
+  global.window.isCrossdressing = upFn59;
+  V9.mbCE_yanling = { noCross: true, noTrait: false };
+  assert(api59.yanlingInstall() === true, "59.4 上游存在时安装钩子成功");
+  assert(global.window.isCrossdressing() === false && up59 === 0, "59.5 开关开启时钩子恒 false 且不调用上游");
+  assert(api59.yanlingInstall() === true, "59.6 重复安装幂等（已装则直接返回 true）");
+  V9.mbCE_yanling.noCross = false;
+  assert(global.window.isCrossdressing() === true && up59 === 1, "59.7 开关关闭时透传上游原值");
+  assert(api59.yanlingSync() === true, "59.8 同步：关闭状态下走卸载分支");
+  assert(global.window.isCrossdressing === upFn59, "59.9 卸载后 window 恢复为上游原函数（不留包装层）");
+  V9.mbCE_yanling = { noCross: true, noTrait: false };
+  assert(api59.yanlingSync() === true && global.window.isCrossdressing !== upFn59, "59.10 同步：开启状态自动挂钩子");
+
+  // 59.11~59.15 言灵存量净化三项
+  V9.mbCE_wrote = {};
+  V9.crossdressing = 1; V9.schoolrep = { crossdress: 2, herm: 3 }; V9.school_crossdress_message = "x"; V9.school_herm_message = "y";
+  const pc59 = api59.yanlingPurgeCross();
+  assert(pc59.ok === true && V9.crossdressing === 0 && V9.schoolrep.crossdress === 0 && V9.school_crossdress_message === undefined,
+    "59.11 异装净化：crossdressing/schoolrep/学校文案三处清零");
+  assert(V9.mbCE_wrote["yanling:purge_cross"] && V9.mbCE_wrote["yanling:purge_cross"].before.crossdressing === 1,
+    "59.12 净化留痕记录 before=1（可回退中心可见）");
+  V9.crossdressingTrait = 88; V9.backgroundTraits = ["crossdresser", "other", "crossdresser"];
+  const pt59 = api59.yanlingPurgeTrait();
+  assert(pt59.ok === true && V9.crossdressingTrait === 0 && V9.backgroundTraits.join(",") === "other",
+    "59.13 异装癖净化：进度归零 + 重复特质全部移除");
+  V9.fame = { sex: 5, rape: 3, good: 10 }; V9.fameDecay = { sex: 1 }; V9.fameDecayTimer = { rape: 2 };
+  const pf59 = api59.yanlingPurgeFame();
+  assert(pf59.ok === true && V9.fame.sex === 0 && V9.fame.rape === 0 && V9.fame.good === 10 && V9.schoolrep.herm === 0,
+    "59.14 负面名声清零：只清负面项、正面项不动（" + pf59.msg + "）");
+  assert(!V9.fameDecay.sex && !V9.fameDecayTimer.rape, "59.15 负面名声清零同步删除衰减队列项");
+  const mf59 = api59.yanlingMaxFame();
+  assert(mf59.ok === true && V9.fame.good === 2000 && V9.fame.business === 2000, "59.16 正面名声拉满 5 项各 2000");
+  delete V9.fame;
+  const mf59b = api59.yanlingMaxFame();
+  assert(mf59b.ok === false && mf59b.msg.indexOf("无 $fame") !== -1, "59.17 $fame 缺失时如实拒绝（不凭空建名声对象）");
+
+  // 59.18~59.26 FertilityExpansion 自带作弊 API 桥接
+  global.window = global.window || {};
+  delete global.window.EdenCheats;
+  assert(api59.mbCEFertReady().ok === false, "59.18 未装模组（无 window.EdenCheats）时明示不可用");
+  assert(api59.mbCEFertChildren().length === 0, "59.19 无 API 时孩子清单为空（不抛错）");
+  let calls59 = [];
+  global.window.EdenCheats = {
+    available: function () { return false; },
+    children: function () { return [["0", { name: "Tracey", gender: "f" }]]; },
+    labour: function () { calls59.push("labour"); return { ok: true, message: "已推进到破水" }; },
+    parasites: function (fert) { calls59.push("parasites:" + fert); return { ok: true }; },
+    saveInnate: function (id, p) { calls59.push("innate:" + id); return { ok: true }; },
+    saveSkills: function (id) { calls59.push("skills:" + id); return { ok: true }; },
+    reset: function (id) { calls59.push("reset:" + id); return { ok: true }; },
+    settleAdult: function (id) { calls59.push("adult:" + id); return { ok: true }; },
+    removeChild: function (id) { calls59.push("remove:" + id); return { ok: true }; },
+    resetReason: function () { return "生产流程进行中"; },
+    adultReason: function () { return ""; }
+  };
+  const fr59 = api59.mbCEFertReady();
+  assert(fr59.ok === true && fr59.bypass === true, "59.20 available() 为假时仍可用，但标记 bypass=true（说明红字来源）");
+  assert(api59.mbCEFertChildren().length === 1, "59.21 孩子清单直连模组 API（1 条）");
+  assert(api59.mbCEFertRun("fert_labour").ok === true && calls59.indexOf("labour") !== -1, "59.22 一键分娩转发模组 labour()");
+  assert(!("cheatsEnabled" in V9), "59.23 调用期间临时置位 cheatsEnabled，返回后还原（不污染存档）");
+  const ar59 = api59.mbCEFertRun("fert_adult_reason", "0");
+  assert(ar59.ok === true && ar59.message.indexOf("可以成年结算") !== -1, "59.24 只读查询：无阻塞前置时给出可结算结论");
+  const rr59 = api59.mbCEFertRun("fert_reset_reason", "0");
+  assert(rr59.ok === true && rr59.message.indexOf("不可重置") !== -1, "59.25 只读查询：有阻塞前置时回传模组原因（" + rr59.message + "）");
+  const noId59 = api59.mbCEFertRun("fert_innate");
+  assert(noId59.ok === false && noId59.message.indexOf("请先选择") !== -1, "59.26 孩子级动作缺 id 时拒绝");
+  const unk59 = api59.mbCEFertRun("fert_no_such", "0");
+  assert(unk59.ok === false && unk59.message.indexOf("未知动作") !== -1, "59.27 未知动作如实拒绝");
+  global.window.EdenCheats.labour = function () { throw new Error("模组内闸拒绝"); };
+  const boom59 = api59.mbCEFertRun("fert_labour");
+  assert(boom59.ok === false && boom59.message.indexOf("模组 API 抛出异常") !== -1, "59.28 模组 API 抛错被捕获并原文回传（" + boom59.message + "）");
+  global.window.EdenCheats.available = function () { throw new Error("available 炸了"); };
+  const fava = api59.mbCEFertReady();
+  assert(fava.ok === true && fava.bypass === true, "59.29 available() 自身抛错按不可用处理，不影响调用（bypass=true）");
+
+  // 59.30~59.38 潜伏者解限补丁：纯文本替换 / 幂等 / 通道缺失 / Story 通道 / 汇总
+  const FARM59 = "行首 $farm_stage gte 10 and $lurkers_held lt 1 结句";
+  const ptxt59 = api59.mbCELurkerPatchText("Farm Yard", FARM59);
+  assert(ptxt59.hits === 1 && ptxt59.text.indexOf("and $lurkers_held lt 1") === -1 && ptxt59.text.indexOf("$farm_stage gte 10 ") !== -1,
+    "59.30 纯文本替换：捕捉门控去掉手持上限条件");
+  const ptxt59b = api59.mbCELurkerPatchText("Farm Yard", ptxt59.text);
+  assert(ptxt59b.hits === 0, "59.31 幂等：已替换过的文本再跑 hits=0");
+  assert(api59.mbCELurkerPatchText("No Such Passage", FARM59).hits === 0, "59.32 未登记的 passage 不改动");
+  const SW59 = "前 <<switch $hookah.lurkers>> <<case 1>>1<<default>>no<</switch>> 后";
+  const sw59 = api59.mbCELurkerPatchText("Widgets Flats", SW59);
+  assert(sw59.hits === 1 && sw59.text.indexOf("<<switch") === -1 && sw59.text.indexOf("gt 0 ? $hookah.lurkers") !== -1,
+    "59.33 冰箱显示：switch 段整体换成真实数值表达式（>5 不再落到 no）");
+  const dom59 = api59.mbCELurkerPatchDom();
+  assert(dom59.ok === false && dom59.channel === "dom", "59.34 无 document 环境时 DOM 通道安全降级（不抛错）");
+  const st59 = api59.mbCELurkerPatchStory();
+  assert(st59.ok === false && st59.access === "none", "59.35 无 Story/SugarCube 通道时如实标注 access=none");
+  global.Story = { get: function (n) { return (n === "Farm Yard") ? { text: FARM59 } : null; } };
+  const st59b = api59.mbCELurkerPatchStory();
+  assert(st59b.ok === true && st59b.access === "Story" && st59b.hits === 1, "59.36 Story 通道命中 1 处（运行期兜底生效）");
+  const rep59 = api59.mbCELurkerPatchReport();
+  assert(rep59 && rep59.hits >= 1, "59.37 补丁汇总报告累计 hits（供面板状态行显示）");
+  const rp59 = api59.mbCELurkerRepatch();
+  assert(typeof rp59.message === "string" && rp59.message.indexOf("解限补丁") !== -1, "59.38 重新应用补丁返回可读结论（" + rp59.message.slice(0, 40) + "…）");
+  delete global.Story;
+
+  // 59.39~59.42 面板状态持久化与主题
+  const mem59 = {};
+  global.localStorage = {
+    getItem: function (k) { return mem59[k] === undefined ? null : mem59[k]; },
+    setItem: function (k, v) { mem59[k] = String(v); }
+  };
+  api59.mbCEUiSave({ tab: "mods", theme: "starry", filter: "abc" });
+  const key59 = Object.keys(mem59)[0];
+  assert(key59 && mem59[key59].indexOf('"tab":"mods"') !== -1 && mem59[key59].indexOf('"theme":"starry"') !== -1,
+    "59.40 面板状态写入 localStorage（页签/主题/搜索词同一条）");
+  api59.mbCEUiLoad();
+  assert(api59.getTheme() === "gold" || api59.getTheme() === "starry", "59.41 读回状态不抛错（getTheme 返回合法值 " + api59.getTheme() + "）");
+  assert(api59.setTheme("starry") === "starry" && api59.getTheme() === "starry", "59.42 切星空蓝主题生效并回读");
+  assert(api59.setTheme("bogus") === "gold" && api59.getTheme() === "gold", "59.43 非法主题名回落 gold（不写入脏值）");
+
+  // 收尾
+  if (bk59.yanling === undefined) { delete V9.mbCE_yanling; } else { V9.mbCE_yanling = bk59.yanling; }
+  if (bk59.wrote === undefined) { delete V9.mbCE_wrote; } else { V9.mbCE_wrote = bk59.wrote; }
+  if (bk59.cheats === undefined) { delete V9.cheatsEnabled; } else { V9.cheatsEnabled = bk59.cheats; }
+  if (bk59.eden === undefined) { delete V9.eden; } else { V9.eden = bk59.eden; }
+  delete V9.crossdressing; delete V9.crossdressingTrait; delete V9.backgroundTraits;
+  delete V9.schoolrep; delete V9.school_crossdress_message; delete V9.school_herm_message;
+  delete V9.fame; delete V9.fameDecay; delete V9.fameDecayTimer;
+  if (bk59.win === undefined) { delete global.window; } else { global.window = bk59.win; }
+  if (bk59.ls === undefined) { delete global.localStorage; } else { global.localStorage = bk59.ls; }
+} catch (e59) {
+  failures++;
+  console.error("FAIL: 59 覆盖率补盲测试异常: " + (e59 && e59.message ? e59.message : e59));
+}
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

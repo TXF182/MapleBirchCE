@@ -89,6 +89,11 @@
 				unlockVanillaAll: unlockVanillaAll,
 				describeCondition: describeCondition,
 				listStageTypes: listStageTypes,
+				/* v2.0.3 P4-1 统一回退中心 */
+				undoList: mbCEUndoList,
+				undoOne: mbCEUndoOne,
+				undoGroup: mbCEUndoGroup,
+				undoAll: mbCEUndoAll,
 				readTransformState: readTransformState,
 				adjustTransform: adjustTransform,
 				completeTransformStage: completeTransformStage,
@@ -108,6 +113,9 @@
 				yanlingPurgeTrait: mbCEYanlingPurgeTrait,
 				yanlingPurgeFame: mbCEYanlingPurgeFame,
 				YANLING_FAME_NEG: mbCEYanlingFameNeg,
+				/* v2.0.3：正面名声拉满 + 监狱庇护枚举直写（$prison.protection 是字符串，数字档位会静默半失效） */
+				yanlingMaxFame: mbCEYanlingMaxFame,
+				yanlingPrisonProtect: mbCEYanlingPrisonProtect,
 				/* v2.0.2 言灵扩容：一次性写入动作（衣物 / 数值 / 天气 / 角色放逐） */
 				yanlingDryClothes: mbCEYanlingDryClothes,
 				yanlingRepairClothes: mbCEYanlingRepairClothes,
@@ -150,6 +158,7 @@
 				unpinScene: unpinScene,
 				applyWorldUnlock: applyWorldUnlock,
 				applyWorldUnlockForScene: applyWorldUnlockForScene,
+				worldUndo: mbCEWorldUndo,
 				ensureFarmState: ensureFarmState,
 				ensureAveryMansion: ensureAveryMansion,
 				ensureGwylanSceneState: ensureGwylanSceneState,
@@ -262,6 +271,10 @@
 				mcMaintainEden: mcMaintainEden,
 				mcRestockSupplies: mcRestockSupplies,
 				mcCleanMansion: mcCleanMansion,
+				/* v2.0.3 维护写入留痕回退 */
+				maintUndo: mbCEMaintUndo,
+				maintUndoAll: mbCEMaintUndoAll,
+				maintWrite: mbCEMaintWrite,
 				/* v1.9.x 庄园自动维护：每日全自动调度（AutoClean 模式） */
 				AUTO_MAINTAIN_ITEMS: AUTO_MAINTAIN_ITEMS,
 				mcAutoState: mcAutoState,

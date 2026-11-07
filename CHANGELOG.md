@@ -2,6 +2,65 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.3（2026-11-07 P0~P4 迭代：覆盖率归因修复 + 统一回退中心 + 写入前 diff 预览 + 补盲断言）
+
+**触发**：用户指令「p0~p4，做完之后在升版」——按 P0（惰性渲染页签覆盖率）→ P1（言灵页分支）→ P2（适配器门控分支）→ P3（导出面与 lurker）→ P4（产品侧三项）五档推进，完成后升版。
+
+### 一、P0：覆盖率归因根因修复（历史所有覆盖率数字只统计了一个测试）
+
+- 根因：五个测试里只有 `tests/test_mce.js` 带 `//# sourceURL`；`smoke_dom.js` / `functional_e2e.js` / `stability_loop.js` 是 `eval(fs.readFileSync(...))` 裸执行，`integration_gender.js` 走 `VM.runInContext`。V8 把覆盖率记到 `evalmachine.<anonymous>`，被 `c8 --include=javascript/maplebirchce.js` 整段丢弃 —— 于是**看似"P0 六文件近乎零覆盖"，实为另外四个测试的覆盖率根本没被计入**。
+- 修复：三个 eval 测试改为 `fs.readFileSync(jsPath,"utf8") + "\n//# sourceURL=" + jsPath.replace(/\\/g,"/")`；`integration_gender.js` 改为 `VM.runInContext(mceSrc + "\n# sourceURL=" + MCE_JS...)`。四文件 `node --check` 全过。
+- 效果（本轮两轮 c8 实测）：Statements 78.42% → **94.65%（12615/13327）**，Branches 65.42% → **73.37%~73.39%（3692/5032 与 3694/5033 两轮）**，Functions 84.61% → **96.99%（516/532）**（门禁 75/60/80 由"擦线"变为余量充足）。分支分母两轮差 1、命中差 2，来自 `smoke_dom.js` 结尾分片 `setTimeout` 在本机时序下是否全部走完，非代码差异。分母同步变大，因新增 `08c` / `08d` 两个源文件。
+
+### 二、P4-1：统一回退中心（`javascript/src/08c-undo-center.js`，新增）
+
+- 数据源唯一是 `V.mbCE_wrote`，不另建账本；`mbCEUndoList()` 按 `t` 倒序，`mbCEUndoOne(key)` 按 type 分发到各专用回退函数（cheat / world / maint / place / native / vanilla；set/clear/append 按 path/value 还原）。
+- `mbCEUndoBlocked()` 明确三类不可回退并给原因：`batch`（仅审计）、`yanling`（言灵页开关处撤销）、`state`（关系状态由原版实时判定）。全量回退跳过它们并计入 `skip`，不混进成功数。
+- `mbCEUndoCenterRender(pane)` 挂在全局页 `renderGlobal()` 末尾、不参与 ①…⑯ 编号；按 type 分组（组按条数降序）、每组「回退本组」+ 逐行「回退」、每组最多列 24 条。
+
+### 三、P4-2：写入前 diff 预览（`javascript/src/08d-diff-preview.js`，新增）
+
+- 开关默认**关闭**，`mbCEPreviewEnabled()` 读 `mbCEUiState.diffPreview === "1"`；顶部金色按钮切换并持久化。
+- 门控插点在 `cheatWriteValue`（`04b-modcheat-write.js`）解析出 `before` 之后、真正赋值之前：`before === after` 放行，否则挂起 `mbCEPendingPreview`（内存对象 + 重放闭包，刷新即失效）并弹 `#mce-preview-bar` 确认条；确认后 `mbCEPreviewReplay=true` 重跑闭包防二次门控，取消不写档。
+- 边界如实登记：`cheatWriteListValue`（列表型写入）**未接门控**，面板只对单值写入生效。
+
+### 四、P1/P2/P3：覆盖率补盲断言（+87 条）
+
+- `tests/test_mce.js` §58（45 条）：战斗终结分支（struggle 缺失静默 / done+1 / tentacle / active / cluster / 未知 key / 抛错动作）、扩展转化（myTFSet 缺失 / transformationParts 兜底 / 同名键非数值过滤 / 完成后 rabbit===3）、原版恋爱阶段（三入口 / 未知阶段 / NPC 缺失 / 对象型入口 / 孕育意愿数值门槛 / 内置 vanillaComputeStatus / 写 `vanilla:wantsPregnancy` 留痕）、回退边界（heat 型实时计算拒绝 / 无痕迹拒绝 / 有痕迹回退 / native 数组与对象两型）、潜伏者（state 读三源 / MAX 9999 / set 走 cheat 通道 / autoTick 搬运 / 锁定优先 / 关自动）、数值固定（`a..b` 空段 / 非有限数 / set 即写 / tick 写回 / 当前值缺失不建键 / remove 两态 / label 非空）。
+- `tests/test_mce.js` §59（42 条，编号 59.1~59.43、缺 59.39）：言灵运行期钩子六态（无 window / 上游非函数 / 安装 / 恒 false 且不调上游 / 幂等 / 透传 / 卸载还原原函数 / sync 双向）、存量净化三项（异装 / 异装癖含重复特质 / 负面名声只清负面且删衰减队列 / 正面拉满 5×2000 / `$fame` 缺失拒绝）、FertilityExpansion API 桥接九态（无 API / available 为假仍可用但标 bypass / 孩子清单 / 各动作转发 / **cheatsEnabled 临时置位后还原不污染存档** / 只读查询两型 / 缺 id 拒绝 / 未知动作 / API 抛错原文回传 / available 自身抛错不影响调用）、潜伏者解限补丁九态（纯文本替换 / 幂等 / 未登记不改 / switch 段整体替换 / 无 document 降级 / 无通道标 none / Story 通道命中 / 汇总 report / 重新应用文案）、面板状态与主题（localStorage 写入 / 读回 / 切星空蓝 / 非法主题回落 gold）。
+- `tests/smoke_dom.js` 既有 7b2/7f/7g/7h/3.1/P4-1·P4-2 共 471 条断言保持全绿。
+
+### 五、P4-3：D 维三渠道离线对账
+
+- `game\` 内实装包清点：升版前 18 个（13 `.zip` + 5 `.modpack`），本轮补装后**19 个（14 `.zip` + 5 `.modpack`）**；枯木逢春 2.5.8 三包 + 归途之书 1.4.6 复验 `Copy-Item` 均返回 `SKIP 已存在`（确实在位）。
+- 唯一真缺的 FertilityExpansion 从上游 GitHub（`Liliths-Legacy/DOL-FertilityExpansion-MOD` v1.7.0，asset 684750257）下载 `FertilityExpansion-v1.7.0-Visual.mod.zip`：**36,247,181 B / SHA256 `89E01574BA083843AC0064BEF5E207681F5DBD869C2A158C03DB85583371290C`，与 release API 返回的官方 asset digest 逐字符一致**，包内 81 条目、`boot.json` 为 `{"name":"FertilityExpansion","version":"1.7.0"}`；已 `Copy-Item` 装入 `game\`（同名同哈希）。下载通道记录：Node `https.get` 直连三次均 timeout，改 `curl -L -C -` + `git credential fill` token 断点续传才走通（`mce_gh_dl2.js` 参数化尝试亦失败，最终用 curl）。
+- 源码树 `_modcache\fert_tmp` 与 `%TEMP%\fert.zip` 均非 ModLoader 包（前者是 `main.py` + `src/` 的 Python 源码工程，后者是 807,589 B 源码压缩包），此前口径已作废。
+- 离线对账工具 `mce-e2e\idb_audit.ps1`（只读，判「已装载 / 在库 / 确定未装载 / 无法确证」四档，`-Strict` 有问题项 `exit 3`）；实测 19 包结果：**已装载 8 / 明文在库 0 / 确定未装载 4 / 无法确证 7**。FertilityExpansion Visual 判「确定未装载」（36 MB 的 base64 形态需 ≈48 MB > leveldb 3,911,123 B），`MapleBirchCE.mod.zip` 判「无法确证」——**复制进 `game\` 不等于装载**，两者都须走 `game\mce-mod-import.html` 导入 IndexedDB 后才生效（项目规则 §6 已固化该口径）。
+- `docs\modpack-inventory.md` §一 由 18 包更新为 19 包（新增 #19 fert Visual），§二 适配器覆盖由 11/11 更新为 12/12（补 `fertility-expansion`），§三 13 zip → 14 zip，§6.5 四层数字表与三档判据按本轮实测重写。
+
+### 六、本轮未做（如实登记）
+
+- `05a3-modcheat-actions.js` 的 `mbCEActionRow()` 当前**无任何适配器使用 `actions` 数组**（全部走 `actionPanel` 整组接管），属预留路径，本轮不为它伪造调用者。
+- `07i-yanling.js` 剩余未覆盖行基本是防御性 `catch` 与 `getV()` 返回 null 的不可达分支（`getV` 是闭包，测试无法在不改源码的前提下构造）。
+- `real_smoke.ps1`（moli 实机冒烟）本轮仍未跑：用户硬约束「都别用浏览器」，面板级交互只由 jsdom 断言覆盖，交付说明已标注该盲区。
+
+### 七、验证结果（`tools/run_all.ps1` 十步，本轮实测）
+
+| 步 | 内容 | 结果 |
+|---|---|---|
+| 1 | build_js 拼接（64 段） | ✓ 828,853 B / order `b91a5bb460ee` |
+| 2 | `node --check` 产物 | ✓ 0 错 |
+| 3 | ESLint 八规则 | ✓ 0 错 |
+| 4 | DOM 冒烟（jsdom） | ✓ **471 PASS / 0 FAIL** |
+| 5 | 全量回归 `test_mce.js` | ✓ **1658 PASS / 0 FAIL**（含 §57 27 / §58 45 / §59 42 条补盲） |
+| 6 | 功能级 E2E | ✓ 172 PASS / 0 FAIL |
+| 7 | 性别集成 | ✓ 24 PASS / 0 FAIL |
+| 8 | 适配器声明一致性 + 类型形态 | ✓ 0 命中 |
+| 9 | 原版数字档位形态 | ✓ CONFLICT 0 |
+| 10 | 覆盖率门禁（c8 + stability_loop 2337 PASS） | ✓ 94.65% / 73.37% / 96.99%（门禁 75/60/80） |
+
+合计 **4662 PASS / 0 FAIL**，`run_all.ps1` 退出码 0，末尾 `codegraph sync` 已同步。
+
 ## v2.0.2（2026-11-07 按键重排版：言灵页 8 区块归位 + 全局页 10 区块统一编号）
 
 **触发**：用户反馈「这几次更新添加的东西有点多，也有点乱了。对我的模组按键进行重新排版」。逐页清点后确认"乱"不是文案过长（全库 107 个按钮里 >10 汉字的仅 1 条），而是**区块多、无编号、单按钮独占一行、说明密文堆叠**三件事叠加。

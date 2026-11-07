@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.0.2**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.0.3**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -78,6 +78,8 @@
 - **数值固定（v1.9.15）**：防游戏机制改值——8 个预设推荐（渡鸦转化点数：未戴羽毛项链每日衰减；马/鲸转化；亡灵等级：锁 0 解除诅咒；天使：无三位一体成长点减少；堕天使：每日纯洁流失；恶魔；纯洁 0-2000 内部）+ **自由添加任意 varPath**。锁定后每 1 秒强制写回目标值（锁定/更新即时生效），锁表存存档 `V.mbCE_lock` 读档自动恢复；不存在的值不凭空创建，非法路径拒绝；取消即停写。
 - **世界腐化（v1.9.12）**：原版世界硬/软腐化数值调整（`world_corruption_hard/soft`），直接填数不钳制原版上限，留痕可回退。
 - **时间调节（v1.9.13）**：当前时间/日期显示 + 前进 1 小时/6 小时/1 天 + 跳转指定时刻（只用游戏时钟，不碰行动点）。
+- **统一回退中心（v2.0.3）**：把散落在各页的 `V.mbCE_wrote` 留痕汇总成一处——按 type 分组（cheat / world / maint / place / native / vanilla / …）、按时间倒序、每组可「回退本组」、顶部可「全部回退（N 项可回退）」与「刷新清单」。三条**明确不可回退**的类型各有原因：`batch`（仅审计记录）、`yanling`（言灵页开关处自带撤销）、`state`（关系状态由原版实时判定），面板会打「不可回退」标记而不是假装能撤。
+- **写入前 diff 预览（v2.0.3）**：开关默认**关闭**（不打断现有操作习惯）；开启后每次写入前弹确认条「待确认写入：<路径>　<旧值> → <新值>」，确认才落档、取消则不动；同值写入不触发确认（幂等写入不重复打扰）。
 
 ### 6. Mod作弊页（第三方模组扩展内容）
 - **主容器页**：只展示已识别模组列表，点击进入子页面；顶部有「玩家自己」入口卡片。
@@ -89,7 +91,7 @@
 - **定位**：对应原版「穿异性服装 → 判为异装 → 涨异装癖 → 学校异装名声」整条链，一次开关全断。核心手段是**运行期覆盖 `window.isCrossdressing`**（本体 72520-72536 定义并在 72536 挂到 window），包装原函数、开启时直接返回 `false` —— NPC 与换衣间再也判不出异装，`$crossdressing` 恒 0，且**不依赖任何原版文案/文本匹配**（老式「言灵」模组用 `TweeReplacer` 做字符串替换，原版 passage 一改就整块静默失效，这正是它过时的根因）。
 - **① 无视着装性别**：开关 + 状态行 + 运行时诊断（钩子是否挂载 / `$crossdressing` 当前值）。**开关关闭时语义完全透传原判定**，不改玩家性别 / 生殖器 / 外观性别，`isGenitalMismatch` 与原版 herm 链保持原样。**关闭开关会立即卸载钩子**（`window.isCrossdressing` 还原为原版/上游函数），不留空包装层。生效面已实证：本体 45 处 `<<if isCrossdressing()>>`（twee）全部走 window 求值，JS 内只有 `isHermOrCrossdresser`（72548）一处裸调用——覆盖窗口函数即可断掉服装性别链，后者保持原版 herm / 外观语义。
 - **② 异装癖压制**：显示 `$crossdressingTrait` 进度（x/100）与 `crossdresser` 特质状态；「立即清空进度 + 移除特质」清存量，「持续压制」每秒把进度压回 0。
-- **③ 负面名声清零**：显示学校 `crossdress` / `herm` 两键与城镇 `V.fame` 负面八项合计；「一键清零：学校异装名声」清学校两键并删 `$school_crossdress_message`；「一键清零：全部负面名声」连带 `V.fame` 八项负面（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp）与 `V.fameDecay` / `V.fameDecayTimer` 的衰减队列（避免清零后又被队列改回），**正面五项（scrap / good / business / social / model）保持不动**。
+- **③ 负面名声清零**：显示学校 `crossdress` / `herm` 两键与城镇 `V.fame` 负面八项合计；「一键清零：学校异装名声」清学校两键并删 `$school_crossdress_message`；「一键清零：全部负面名声」连带 `V.fame` 八项负面（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp）与 `V.fameDecay` / `V.fameDecayTimer` 的衰减队列（避免清零后又被队列改回），**正面五项（scrap / good / business / social / model）保持不动**。「一键拉满：正面名声」把这五项各写 2000（原版 clamp 上限，290894-290895 / 306924-306928 双实证）；`$fame.pregnancy` 上限是动态的 `clamp(playerNormalPregnancyTotal(),1,8)*250`，写死会造出与实孕不符的名声，故不写。
 - **生效范围**：开关状态存在存档 `$mbCE_yanling`（`{noCross, noTrait}`），**读档后不打开面板也生效** —— 1 秒守卫表由 `:passagedisplay` 与 init 按需起（两个开关都关时自动停表，不占事件循环）。
 - **留痕**：所有净化动作按 `V.mbCE_wrote["yanling:<op>"]`（含 before/after/t）记录，可在全局页留痕区核对。
 - **④ 身体与衣物**（v2.0.0.008）：一键烘干 `$upperwet` / `$lowerwet` / `$underupperwet` / `$underlowerwet` 四项湿度；衣物加固按各槽 `integrity_max` 写满（不照抄 CE 的 +1000，避免超上限破表）。
@@ -97,9 +99,45 @@
 - **⑥ 数值快补**：施虐/受虐 1000、奶量 5000/上限 10000、解除成就限制（`$feats.locked=false`）、罗宾存款清零、今晚艾弗里来约、校长办公室密码、集齐种子（调原版 `unlockAllSeeds()`）、清理农田 + 补 5 袋堆肥。
 - **⑦ 天气**：直调原版 `window.setWeather(type, true)`，给晴 / 阴 / 大雨 / 雷雨 4 档（**不写已废弃的 `$weather`**，0.5 起迁 `$weatherObj`）。
 - **⑧ 角色放逐**：格威岚走原版 scorned 线（state=scorned + 当日进度锁 + 9 天倒计时）/ 立即召回；凯拉尔 state=prison↔active；惠特尼 state=dungeon↔active。**不提供枷锁示众**（pillory 需 `$pillory_tenant` 联动，硬写会错位）。
-- **版面（v2.0.2 重排）**：原先 8 个区块平铺且编号错位（s1→s2→s3→s5→s6→s7→s8→s4、「说明与边界」错排在第 4 位却排在最后）→ 现按语义分 3 组（**A 着装与名声** ①②③ / **B 身体与数值** ④⑤⑥⑦ / **C 角色状态** ⑧），按钮统一进 2 列网格，说明收进页尾可折叠块（默认 2 行摘要，点开看 6 条边界）。
+- **⑨ 监狱庇护**（v2.0.3）：原版 `$prison.protection` **不是数字档位**，而是枚举字符串 —— `""`（空串 = 无庇护，假值）/ `"scarred"`（已烙印，657114 等 17 处写入）/ `"tattooed"`（已纹身，仅 `is` 判定，全库无赋值点）。判定点 650845 `is "scarred"`、651145 `is "tattooed"`、654586-654587 `!$prison.protection` —— 写数字会让两个 `is` 都不匹配、`!protection` 也因真值不成立，庇护线**面板显示成功、游戏侧静默半失效**。故本区块直写字符串三档（疤痕 / 纹身 / 清除），并与「场景 · 地点」页监狱数字键（`attention_level` / `scarred_level` / `tattooed` / `hours_worked`）分开。`$prison` 未初始化（没进过监狱）时按中文提示拒绝，不凭空建对象。
+- **版面（v2.0.2 重排，v2.0.3 增 ⑨）**：原先 8 个区块平铺且编号错位（s1→s2→s3→s5→s6→s7→s8→s4、「说明与边界」错排在第 4 位却排在最后）→ 现按语义分 3 组（**A 着装与名声** ①②③ / **B 身体与数值** ④⑤⑥⑦ / **C 角色状态** ⑧⑨），按钮统一进 2 列网格，说明收进页尾可折叠块（默认 2 行摘要，点开看 6 条边界）。`mceSecMark()` 现对 `idx<=0` / 非数字返回空串（真正“不编号”），超字表回落阿拉伯数字。
 
-## Mod作弊 适配器一览（当前版本 2.0.2）
+### 7b. 回退语义与留痕边界（v2.0.3）
+
+所有面板写入按 `V.mbCE_wrote` 留痕（`01-core.js` 有界化：超过 400 条按 `t` 升序删最旧一半）。key 命名空间与回退入口：
+
+| key 前缀 | 写入来源 | type | 回退入口 | 说明 |
+|---|---|---|---|---|
+| `cheat:<modId>:<item>` | Mod作弊 / 玩家自己 | cheat | 每项「回退」→ `undoCheatModValue` | 只撤面板写入，真实达成进度拒绝回退 |
+| `place:<path>` | 地点页阶段任务 | place | 行内「回退」→ `placeStageUndo` | 建壳字段多次写入后回退删除 |
+| `yanling:<op>` | 言灵页 | yanling | 各区块自带清除/回退 | — |
+| `romance:native:<name>` | 恋爱一键完成 | native | 阶段页「回退」→ `undoRomanceStage` | 关系 state 类不回退 |
+| `vanilla:<key>` / `cheat:vanilla-attitudes:<key>` | 原版数值类写入 | cheat | 同上 | — |
+| **`world:<gid>:<path>`** | **场景直达自动解锁世界入口** | **world** | **场景直达页「世界入口解锁记录」逐项「撤回」**（`worldUndo(gid)`） | **v2.0.3 新增**：改动前为裸写 `V[path]=value`，无痕迹、误点直达无法撤回 |
+| **`maint:<path>`** | **庄园自动维护（神殿/伊甸/补给/农场锁值/庄园打扫）** | **maint** | **全局页维护区「撤回全部维护写入」**（`maintUndoAll()` / `maintUndo(path)`） | **v2.0.3 新增**：仅纯数值覆盖型；投喂、农场收获清库存、战斗终结/恋爱阶段不回退（状态机推进，回退会错位） |
+
+补充语义：
+- 两套新通道都**幂等**：值已到位则不写、不新增痕迹（每日自动维护不会把留痕刷爆）；`before` 始终保留「首次写入前」状态（含「原本无该字段」→ 回退即删字段）。
+- 世界入口写入在父对象缺失时逐层补空壳（防写 undefined）；维护写入**不补壳**——宿主对象缺失即视为模组未初始化，直接跳过（与 `cheatResolvePath` 的 parent 拒绝同义）。
+- `world` / `maint` / `batch` 三类不在通用回退白名单内，`undoCheatModValue` 等通用入口不会误撤它们，必须走各自的专用函数。
+
+### 7c. 统一回退中心与写入前 diff 预览（v2.0.3）
+
+**统一回退中心**（`javascript/src/08c-undo-center.js`，全局页第一个区块，不参与 ①…⑯ 编号）——数据源唯一是 `V.mbCE_wrote`，不另建账本：
+
+- 分组：`cheat` / `world` / `maint` / `place` / `native` / `vanilla` / `set` / `clear` / `append` / `state` / `batch` / `yanling`，组按条数降序；每组最多列 24 条（超出只影响展示，不影响回退）。
+- 分发：`cheat`→`undoCheatModValue(modId,itemKey)`、`world`→`mbCEWorldUndo(gid)`、`maint`→`mbCEMaintUndo(rec.path)`、`place`→`placeStageUndo(rec.path)`、`native`→`undoRomanceStage(nm,{native:true})`、`vanilla`→`undoVanillaStage(rec.npc||"Gwylan", rec.key)`、`set/clear/append` 按 `rec.path` / `rec.value` 还原。
+- 不可回退三类（`mbCEUndoBlocked`）会给出原因文本，全量回退时计入 `skip` 而不是混进成功数。
+- 顶部「diff 预览」开关：金色 = 已开启，点击写 `mbCEUiState.diffPreview` 并持久化。
+
+**写入前 diff 预览**（`javascript/src/08d-diff-preview.js`）：
+
+- `mbCEPreviewEnabled()` 读 `mbCEUiState.diffPreview === "1"`（默认关闭）。
+- 门控插点在 `cheatWriteValue`（`04b-modcheat-write.js`）**解析出 `before` 之后、真正赋值之前**：`before === after` 直接放行；否则挂起 `mbCEPendingPreview`（内存对象，含重放闭包，刷新即失效）并弹确认条，返回 `{ok:false, pending:true, message:"待确认写入：…"}`。
+- 确认条 `#mce-preview-bar` 贴在 `root` 底部：文案「待确认写入：<path>　<旧值> → <新值>」+「确认写入」+「取消」；确认后置 `mbCEPreviewReplay=true` 重跑闭包（防二次门控），取消则不写档。
+- 已知边界：`cheatWriteListValue`（列表型写入）**未接门控**——它的写入路径与单值不同，接入需要另一套 before 解析，本轮不做，面板只对单值写入生效。
+
+## Mod作弊 适配器一览（当前版本 2.0.3）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -693,7 +731,7 @@ MapleBirchCE/（git 源码真相源）
 
 **代码检查（ESLint 八规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是不完整片段（段数随拆分变化，以 `build_js.js` 输出的 `(N 段, …)` 与 `order <指纹>` 为准），单文件解析必然失败）。八条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）/ 自赋值 / 恒定条件（`while(true)` 放行）/ 不安全取反 / switch 贯穿。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
 
-**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（9 步：build → 语法 → ESLint → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成 → 适配器声明一致性 → 覆盖率门禁，末尾自动 `codegraph sync`）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
+**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（10 步：build → 语法 → ESLint → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成 → 适配器声明一致性 → 原版数字档位形态 → 覆盖率门禁，末尾自动 `codegraph sync`）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 校验（verifier-hub 优先，本机无该包时自动走内置等价核对：条目集合精确匹配 + CRC 全量，判据相同）+ SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
 
 **第三方模组升级核对（audit_adapters.js）**：模组发布新版后，运行
 `node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `smartphone` / `cattery` / `more-farm-upgrade`。

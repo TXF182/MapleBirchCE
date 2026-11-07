@@ -129,6 +129,13 @@
 			/* 留痕语义与地点通道一致：before 始终保留「首次面板写入前」状态（含 undefined=原本无字段），
 			   用 in 判断避免二次写入把 before 覆盖成当前值、回退丢失删除语义 */
 			if (prev && "before" in prev) { before = prev.before; }
+			/* v2.0.3 P4-2：写入前 diff 预览（默认关闭；开启时本函数不落档，改由确认条重放） */
+			var curNow = r.parent[r.leaf];
+			if (typeof mbCEPreviewGate === "function" && mbCEPreviewGate(path, curNow, val, function () {
+				return cheatWriteValue(modId, itemKey, op, path, raw, type, min, max, syncData);
+			})) {
+				return { ok: false, pending: true, message: "待确认写入：" + path + "（" + mbCEPreviewFmt(curNow) + " → " + mbCEPreviewFmt(val) + "）" };
+			}
 			r.parent[r.leaf] = val;
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: val, t: Date.now() };

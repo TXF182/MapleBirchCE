@@ -64,11 +64,28 @@ window.modUtils = { getMod: function () { return null; } };
 /* v1.9.4 问题2：Mod 子页超长组时间分片构建（>60 行分帧，防 DoL-Game-UI rAF 扫描下长任务卡顿/闪退）。
    分片默认开启；测试环境强制同步（smoke 同步断言依赖行渲染完成） */
 window.__mbCE_forceSyncRows = true;
-const js = fs.readFileSync(path.join(__dirname, "..", "javascript", "maplebirchce.js"), "utf8");
+/* v2.0.3 P3：预置悬浮球三个持久化键，让首次 ensureDom 走「清旧隐藏键 / 恢复拖动位置 / 拖动锁」三条分支（09-exports:81-99） */
+try {
+  localStorage.setItem("mbCE_toggle_hidden_v1", "1");
+  localStorage.setItem("mbCE_toggle_pos_v1", JSON.stringify({ left: 12, top: 34 }));
+  localStorage.setItem("mbCE_toggle_lock_v1", "1");
+} catch (e) { console.error("WARN: 预置悬浮球键失败:", e.message); }
+/* v2.0.3 覆盖率归因修复：eval 执行的脚本必须带 //# sourceURL，否则 V8 把覆盖率记到
+   evalmachine.<anonymous>，`c8 --include=javascript/maplebirchce.js` 会整段丢弃本测试的执行。
+   这是 C 维长期只统计 test_mce 一个测试、UI 惰性渲染全部"零覆盖"的根因。 */
+const jsPath = path.join(__dirname, "..", "javascript", "maplebirchce.js");
+const js = fs.readFileSync(jsPath, "utf8") + "\n//# sourceURL=" + jsPath.replace(/\\/g, "/");
 eval(js);
 const api = setup.mbStageCE;
 assert(!!api && typeof api.renderPlayerEdit === "function", "setup.mbStageCE 挂载且 renderPlayerEdit 可用");
 assert(!!document.querySelector("#mce-root"), "init→ensureDom 创建面板 #mce-root");
+/* ---------- 3.1 v2.0.3 P3：悬浮球持久化三键（09-exports.js:81-99） ---------- */
+const tg0 = document.getElementById("mce-toggle");
+assert(!!tg0, "悬浮球 #mce-toggle 已挂到 body");
+assert(localStorage.getItem("mbCE_toggle_hidden_v1") === null, "旧隐藏键在 ensureDom 时被清除（废除隐藏功能，避免面板入口死锁）");
+assert(tg0.style.left === "12px" && tg0.style.top === "34px" && tg0.style.right === "auto",
+  "拖动位置从 localStorage 恢复并置 right/bottom:auto，实际 " + tg0.style.left + "/" + tg0.style.top + "/" + tg0.style.right);
+assert(tg0.dataset.mceLocked === "1" && tg0.title.indexOf("拖动已锁定") !== -1, "拖动锁键=1 → dataset 标记 + 锁定 title 同时生效");
 
 /* ---------- 3.5 v1.9.18 排版 token 化 + 容器自适应断言 ---------- */
 const mceCss = (document.getElementById("mce-style") || {}).textContent || "";
@@ -242,6 +259,149 @@ assert(modBody16.textContent.indexOf("爱丽丝") !== -1 && modBody16.textConten
 assert(modBody16.textContent.indexOf("TestNPC") !== -1, "普通子组含 TestNPC，实际 " + modBody16.textContent.slice(0, 240));
 ptxt = clickTabSafe("stage");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "阶段页渲染不崩，实际 " + ptxt.slice(0, 50));
+/* ---------- 7b. v2.0.3 P0 阶段页深度渲染（覆盖 07c-stage 按钮 + 07g-romance 两套阶段） ---------- */
+/* mock 框架恋爱条件：给已知名字各注入条件——一条未达成（走"一键完成"）、一条已达成（走"回退"） */
+window.maplebirch.npc.romanceConditions = {
+  Robin: [function () { return rv.variables.love >= 50; }, function () { return true; }],
+  Whitney: [function () { return true; }],
+  Alice: [function () { return false; }, function () { return true; }],
+  Liddell: [function () { return true; }],
+  Seath: [function () { return false; }],
+  TestNPC: [function () { return false; }]
+};
+/* mock 框架转化注册（readTransformState 优先走 T.get，回落到 V.maplebirch.npc.<name>.transformation） */
+window.maplebirch.npc.Transformation = {
+  configs: new Map([["robin", new Map([["wolf", { levels: [5, 10, 15] }], ["cat", { levels: [5, 10, 15, 20] }]])]]),
+  get: function (n, t) { return { build: 3, level: 1, type: t }; },
+  build: function () { return null; },
+  set: function () { return null; }
+};
+/* mock MOD 扩展转化（setup.myTFSet + transformationParts + 存档键） */
+setup.myTFSet = function (k, lv) { V[k] = lv; return true; };
+if (!Array.isArray(setup.transformations)) { setup.transformations = []; }
+setup.transformations.push({ key: "wolf" });
+V.transformationParts = { rabbit: 1, wolf: 1 };
+V.rabbit = 1; V.rabbitbuild = 20; V.wolf = 0; V.wolfbuild = 0;
+ptxt = clickTabSafe("stage");
+let stPane0 = document.querySelector('[data-pane="stage"]');
+const innerBtnOf = function (pane, label) {
+  return [].slice.call(pane.querySelectorAll(".mce-inner button")).filter(function (b) { return b.textContent === label; })[0];
+};
+/* 默认内层 = 恋爱阶段：数据卡 + 数值 ±10 + 三个一键按钮全部点一遍 */
+let stBtns = [].slice.call(stPane0.querySelectorAll("button"));
+const statMinus = stBtns.filter(function (b) { return b.textContent === "-10"; })[0];
+assert(!!statMinus, "阶段页数值行含 -10 按钮");
+if (statMinus) { statMinus.click(); }
+stBtns = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button"));
+const statPlus = stBtns.filter(function (b) { return b.textContent === "+10"; })[0];
+if (statPlus) { statPlus.click(); }
+const fillBtn0 = stBtns.filter(function (b) { return b.textContent === "一键补齐全部数值"; })[0];
+assert(!!fillBtn0, "阶段页含「一键补齐全部数值」");
+if (fillBtn0) { fillBtn0.click(); }
+const romAllBtn = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "一键解锁全部恋爱阶段"; })[0];
+if (romAllBtn) { romAllBtn.click(); }
+/* 恋爱阶段两区：框架恋爱条件（未达成→一键完成 / 已达成→回退）+ 原版恋爱阶段 */
+stPane0 = document.querySelector('[data-pane="stage"]');
+assert(stPane0.textContent.indexOf("框架恋爱条件") !== -1 || stPane0.textContent.indexOf("不是可确立恋人关系") !== -1,
+  "阶段页恋爱内层渲染框架条件区（或非候选提示），实际 " + stPane0.textContent.slice(0, 80));
+const romDoneBtn = [].slice.call(stPane0.querySelectorAll("button")).filter(function (b) { return b.textContent === "一键完成"; })[0];
+assert(!!romDoneBtn, "恋爱条件未达成行含「一键完成」按钮");
+if (romDoneBtn) { romDoneBtn.click(); }
+const romUndoBtn = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "回退"; })[0];
+assert(!!romUndoBtn, "恋爱条件已达成行含「回退」按钮");
+if (romUndoBtn) { romUndoBtn.click(); }
+/* 切「转化阶段」内层：框架转化（成长 ±10 / 一键解锁 / 单阶段完成）+ MOD 扩展转化（一键完成） */
+/* v2.0.3 P0：框架转化注册只对 robin 有 cfg（listStageTypes 读 MB.npc.Transformation.configs），
+   先点罗宾卡片把 curName 锁过去，否则转化区只出扩展块、111-164 整段永不执行 */
+const robinCard0 = [].slice.call(document.querySelectorAll(".mce-card")).filter(function (c) { return c.textContent.indexOf("罗宾") !== -1; })[0];
+assert(!!robinCard0, "角色页含罗宾卡片（转化阶段数据源）");
+if (robinCard0) { robinCard0.click(); }
+const tfTabBtn = innerBtnOf(document.querySelector('[data-pane="stage"]'), "转化阶段");
+assert(!!tfTabBtn, "阶段页含「转化阶段」内层按钮");
+if (tfTabBtn) { tfTabBtn.click(); }
+let stPane1 = document.querySelector('[data-pane="stage"]');
+assert(stPane1.textContent.indexOf("转化阶段") !== -1, "点击转化内层 → 渲染转化阶段区，实际 " + stPane1.textContent.slice(0, 100));
+const tfBtns = [].slice.call(stPane1.querySelectorAll("button"));
+const tfMinus = tfBtns.filter(function (b) { return b.textContent === "-10"; })[0];
+if (tfMinus) { tfMinus.click(); }
+const tfPlus = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "+10"; })[0];
+if (tfPlus) { tfPlus.click(); }
+const tfUnlock = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "一键解锁全部阶段"; })[0];
+if (tfUnlock) { tfUnlock.click(); }
+const tfOne = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "一键完成"; })[0];
+if (tfOne) { tfOne.click(); }
+/* 扩展转化（rabbit）：点「一键完成」走 setup.myTFSet 分支 */
+let extBtn = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "一键完成"; })[0];
+if (extBtn) { extBtn.click(); }
+stPane1 = document.querySelector('[data-pane="stage"]');
+assert(stPane1.textContent.indexOf("玩家扩展转化") !== -1, "转化区渲染 MOD 扩展转化块（玩家扩展转化），实际 " + stPane1.textContent.slice(0, 140));
+/* 双空转化注册（无框架 cfg + 无扩展 API）→「该角色未注册转化阶段」早退（07g:105-108）
+   用爱丽丝（无 Transformation cfg）而非 Robin（有 cfg），并把 setup.myTFSet 临时摘掉 */
+const tfSave2 = { myTFSet: setup.myTFSet, parts: V.transformationParts, rabbit: V.rabbit, wolf: V.wolf };
+try { delete setup.myTFSet; } catch (e2) {}
+delete V.transformationParts; delete V.rabbit; delete V.wolf;
+const aliceCard = [].slice.call(document.querySelectorAll(".mce-card")).filter(function (c) { return c.textContent.indexOf("爱丽丝") !== -1; })[0];
+assert(!!aliceCard, "角色页含爱丽丝卡片（无转化注册角色）");
+if (aliceCard) { aliceCard.click(); }
+const tfTabA = innerBtnOf(document.querySelector('[data-pane="stage"]'), "转化阶段");
+assert(!!tfTabA, "爱丽丝阶段页含「转化阶段」内层按钮");
+if (tfTabA) { tfTabA.click(); }
+ptxt = document.querySelector('[data-pane="stage"]').textContent;
+assert(ptxt.indexOf("该角色未注册转化阶段") !== -1, "框架转化与扩展转化双空 → 显示「该角色未注册转化阶段」，实际 " + ptxt.slice(0, 90));
+setup.myTFSet = tfSave2.myTFSet;
+V.transformationParts = tfSave2.parts;
+V.rabbit = tfSave2.rabbit; V.wolf = tfSave2.wolf;
+/* 回 Robin 角色，再回恋爱内层 */
+const robinBack = [].slice.call(document.querySelectorAll(".mce-card")).filter(function (c) { return c.textContent.indexOf("罗宾") !== -1; })[0];
+if (robinBack) { robinBack.click(); }
+/* 回到恋爱内层，避免影响后续页签断言 */
+const romTabBtn = innerBtnOf(document.querySelector('[data-pane="stage"]'), "恋爱阶段");
+if (romTabBtn) { romTabBtn.click(); }
+/* ---------- 7b2. v2.0.3 P0 原版恋爱阶段（格威岚 7 阶段，07g vanilla 段）+ 角色卡片选中切换 ---------- */
+V.NPCNameList = (V.NPCNameList || []).concat(["Gwylan"]);
+if (!Array.isArray(V.NPCName)) { V.NPCName = []; }
+const gwObj = { nam: "Gwylan", love: 0, dom: 0, lust: 0, wary: 0, init: 1, state: "" };
+const gwIdx = V.NPCNameList.indexOf("Gwylan");
+while (V.NPCName.length < gwIdx) { V.NPCName.push(undefined); }
+V.NPCName[gwIdx] = gwObj;
+V.gwylan = { timer: {} };
+V.gwylanSeen = [];
+ptxt = clickTabSafe("char");
+for (let r2 = 0; r2 < 3; r2++) {
+  const b2 = [].slice.call(document.querySelectorAll('[data-pane="char"] .mce-grp-body')).filter(function (x) { return x.getAttribute("data-collapsed") === "1"; })[0];
+  if (!b2) { break; }
+  const h2 = b2.parentNode.querySelector(".mce-grp-t");
+  if (h2) { h2.click(); }
+}
+const gwCard = [].slice.call(document.querySelectorAll(".mce-card")).filter(function (c) { return c.textContent.indexOf("格威岚") !== -1; })[0];
+assert(!!gwCard, "角色页出现格威岚卡片（V.NPCNameList 追加 Gwylan 后）");
+if (gwCard) { gwCard.click(); }
+ptxt = document.querySelector('[data-pane="stage"]').textContent;
+assert(ptxt.indexOf("原版恋爱阶段（格威岚") !== -1, "阶段页渲染「原版恋爱阶段（格威岚）」区块，实际 " + ptxt.slice(0, 120));
+assert(ptxt.indexOf("该角色未注册框架恋爱剧情条件") !== -1, "格威岚无 romanceConditions → 走框架条件为空的提示分支");
+/* 逐个点「一键完成」把 7 个原版阶段推上去（每轮重渲染后重新取首个未达成行） */
+for (let v2 = 0; v2 < 9; v2++) {
+  const vb = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "一键完成"; })[0];
+  if (!vb) { break; }
+  vb.click();
+}
+ptxt = document.querySelector('[data-pane="stage"]').textContent;
+assert(ptxt.indexOf("已达成") !== -1, "格威岚原版阶段推进后出现「已达成」，实际 " + ptxt.slice(0, 160));
+assert(Array.isArray(V.gwylanSeen) && V.gwylanSeen.length > 0, "推进写入 $gwylanSeen 经历标记，实际 " + JSON.stringify(V.gwylanSeen));
+const gwUndo = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "回退"; })[0];
+assert(!!gwUndo, "格威岚已达成阶段含「回退」按钮");
+if (gwUndo) { gwUndo.click(); }
+assert(Array.isArray(V.gwylanSeen), "回退后 $gwylanSeen 仍为数组可读，实际 " + JSON.stringify(V.gwylanSeen));
+/* 同一角色切「转化阶段」内层：覆盖 renderTransformStages 在非 Robin 角色上的分支 */
+const gwTfBtn = innerBtnOf(document.querySelector('[data-pane="stage"]'), "转化阶段");
+if (gwTfBtn) { gwTfBtn.click(); }
+ptxt = document.querySelector('[data-pane="stage"]').textContent;
+assert(ptxt.indexOf("转化阶段") !== -1, "格威岚角色下切转化内层渲染正常，实际 " + ptxt.slice(0, 100));
+const gwTfOne = [].slice.call(document.querySelector('[data-pane="stage"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "一键完成"; })[0];
+if (gwTfOne) { gwTfOne.click(); }
+/* 复位：回到 Robin（首个角色），避免影响后续页签断言 */
+const rbCard = [].slice.call(document.querySelectorAll(".mce-card")).filter(function (c) { return c.textContent.indexOf("罗宾") !== -1; })[0];
+if (rbCard) { rbCard.click(); }
 /* v1.9.2 剧情页分区真实验证：注入含「原版键 + MOD 键」的 scenes widget 段落，
    renderScenes 必须产出 原版剧情（按角色分组）/ MOD 剧情 两区，键各归其位 */
 global.Story.passages = [{
@@ -280,6 +440,33 @@ if (averyRegion13) {
 ptxt = scPane13.textContent;
 assert(ptxt.indexOf("MOD-测试新场景") !== -1, "MOD 键渲染进 MOD 区，实际 " + ptxt.slice(0, 160));
 assert(ptxt.indexOf("剧情进度") !== -1 && ptxt.indexOf("高塔建造进度") !== -1, "艾弗里组渲染「剧情进度」块（高塔建造进度控件），实际 " + ptxt.slice(0, 260));
+/* ---------- 7d. v2.0.3 P0 剧情页锚定深度（07h-render2：徽章/取消锚定/展开收起/单阶段锚定/线锚定） ---------- */
+V.mbCE_queue = [{ key: "RobinCrossdressing1", name: "罗宾变装", startPassage: "RobinCrossdressing1", passages: ["RobinCrossdressing1"], used: false, anchor: { location: "street", timeNote: "" } }];
+ptxt = clickTabSafe("scenes");
+const scpane = function () { return document.querySelector('[data-pane="scenes"]'); };
+const scbtn = function (label) {
+  return [].slice.call(scpane().querySelectorAll("button")).filter(function (b) { return b.textContent === label; })[0];
+};
+assert(scpane().textContent.indexOf("已锚定 第1位") !== -1, "预置队列项渲染「已锚定 第1位」徽章");
+const unpinD = scbtn("取消锚定");
+assert(!!unpinD, "已锚定阶段含「取消锚定」按钮");
+if (unpinD) { unpinD.click(); }
+assert(!V.mbCE_queue || V.mbCE_queue.every(function (p) { return !p || p.key !== "RobinCrossdressing1"; }), "取消锚定后队列不再含该项，实际 " + JSON.stringify(V.mbCE_queue));
+/* 展开 / 收起各阶段（每条剧情线一个 tog，点两次覆盖两个方向） */
+const togD = scbtn("展开各阶段");
+assert(!!togD, "剧情线含「展开各阶段」按钮");
+if (togD) { togD.click(); }
+const togD2 = scbtn("收起各阶段");
+assert(!!togD2, "点击后按钮切换为「收起各阶段」");
+if (togD2) { togD2.click(); }
+assert(!!scbtn("展开各阶段"), "再点一次切回「展开各阶段」");
+/* 单阶段锚定 + 整线锚定（有地点元数据则入队，无则走拒绝分支） */
+const pinD = scbtn("锚定");
+const linePinD = scbtn("锚定整线");
+assert(!!pinD, "单阶段含「锚定」按钮");
+assert(!!linePinD, "剧情线含「锚定整线」按钮");
+if (pinD && !pinD.disabled) { pinD.click(); }
+if (linePinD) { linePinD.click(); }
 global.Story.passages = [];
 ptxt = clickTabSafe("places");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "场景直达页渲染不崩，实际 " + ptxt.slice(0, 50));
@@ -306,6 +493,18 @@ assert(placesPane.textContent.indexOf("监狱（原版 Prison）") !== -1 && pla
 assert(placesPane.textContent.indexOf("监狱关注度") !== -1 && placesPane.textContent.indexOf("服从度") !== -1, "监狱关注度 / 牲口服从度 档位行渲染");
 const directBtnV7 = placesPane.querySelector('.mce-inner button[data-place="direct"]');
 if (directBtnV7) { directBtnV7.click(); }
+/* v2.0.3 回退语义补齐：世界入口解锁留痕小节（world:* 记录 → 行 + 撤回按钮，点击后记录清除） */
+V.mbCE_wrote = V.mbCE_wrote || {};
+V.mbCE_wrote["world:elk_compound:compound.allowed"] = { type: "world", gid: "elk_compound", path: "compound.allowed", before: undefined, after: true, t: 1 };
+const stageBtnW = placesPane.querySelector('.mce-inner button[data-place="stage"]');
+if (stageBtnW) { stageBtnW.click(); }
+const directBtnW = placesPane.querySelector('.mce-inner button[data-place="direct"]');
+if (directBtnW) { directBtnW.click(); }
+assert(placesPane.textContent.indexOf("世界入口解锁记录") !== -1, "场景直达页渲染「世界入口解锁记录」小节，实际 " + placesPane.textContent.slice(-180));
+const wUndoBtn = placesPane.querySelector('button[data-op="world-undo"]');
+assert(!!wUndoBtn, "世界入口留痕行含「撤回」按钮");
+if (wUndoBtn) { wUndoBtn.click(); }
+assert(V.mbCE_wrote["world:elk_compound:compound.allowed"] === undefined, "点击撤回 → 世界入口留痕记录清除");
 
 ptxt = clickTabSafe("global");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "全局页渲染不崩，实际 " + ptxt.slice(0, 50));
@@ -313,6 +512,8 @@ assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "全局页渲染不崩�
 const globalPane = document.querySelector('[data-pane="global"]');
 const gtxt = globalPane.textContent;
 assert(gtxt.indexOf("战斗终结") !== -1 && gtxt.indexOf("庄园自动维护") !== -1, "全局页含 战斗终结+庄园自动维护 两区，实际 " + gtxt.slice(0, 120));
+/* v2.0.3 回退语义补齐：维护写入留痕行（无记录时提示文案，有记录时给「撤回全部维护写入」按钮） */
+assert(gtxt.indexOf("维护写入记录") !== -1, "全局页维护区含维护写入留痕行，实际 " + gtxt.slice(-160));
 const btBtns = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自我了断") !== -1; });
 assert(btBtns.length === 1, "战斗终结「自我了断」按钮存在");
 if (btBtns[0]) { btBtns[0].click(); }
@@ -334,6 +535,63 @@ if (restockBtn[0]) { restockBtn[0].click(); }
 const cleanBtn = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自动庄园打扫") !== -1; });
 assert(cleanBtn.length === 1, "庄园维护「自动庄园打扫」按钮存在");
 if (cleanBtn[0]) { cleanBtn[0].click(); }
+/* ---------- 7c. v2.0.3 P0/P3 全局页深度：原版态度 + 潜伏者 + 数值锁定 ---------- */
+V.uncomfortable = { underwear: true, nude: true, prostituting: true, lewd: true, hypnosis: true };
+V.lurkers_held = 3; V.lurkers_stored = 1; V.stat_lurkers_captured = 5; V.farm_stage = 10;
+V.hookah = { lurkers: 2 };
+ptxt = clickTabSafe("global");
+const gpane = function () { return document.querySelector('[data-pane="global"]'); };
+const gbtn = function (label, exact) {
+  return [].slice.call(gpane().querySelectorAll("button")).filter(function (b) {
+    return exact ? (b.textContent === label) : (b.textContent.indexOf(label) !== -1);
+  })[0];
+};
+/* 原版态度区（08b-attitude）：单项开关 → 全部解除 → 全部恢复 → 回退 */
+assert(gpane().textContent.indexOf("你对什么感到不安") !== -1, "全局页渲染原版态度区（$uncomfortable）");
+const attToggle = gbtn("解除不安", true);
+assert(!!attToggle, "态度行含「解除不安」按钮");
+if (attToggle) { attToggle.click(); }
+const attAllOff = gbtn("全部解除不安", false);
+assert(!!attAllOff, "态度区含「全部解除不安」按钮");
+if (attAllOff) { attAllOff.click(); }
+const attAllOn = gbtn("全部恢复不安", false);
+if (attAllOn) { attAllOn.click(); }
+const attUndoBtn = [].slice.call(gpane().querySelectorAll("button")).filter(function (b) { return b.textContent === "回退"; })[0];
+if (attUndoBtn) { attUndoBtn.click(); }
+/* 潜伏者区（07f-lurker）：非法值拒绝 + 合法值写入 + 回退 + 重打补丁 + 自动搬运开/关 */
+assert(gpane().textContent.indexOf("潜伏者") !== -1, "全局页渲染潜伏者区");
+const lurkSection = function () {
+  return [].slice.call(gpane().querySelectorAll(".mce-block")).filter(function (s2) { return s2.textContent.indexOf("手持潜伏者") !== -1; })[0];
+};
+const lurkSec0 = lurkSection();
+assert(!!lurkSec0, "全局页含潜伏者分区（手持潜伏者行）");
+const lurkBtn = function (label) {
+  const sec = lurkSection();
+  return sec ? [].slice.call(sec.querySelectorAll("button")).filter(function (b) { return b.textContent === label; })[0] : null;
+};
+const lurkApply = lurkBtn("应用");
+assert(!!lurkApply, "潜伏者行含「应用」按钮");
+if (lurkApply) {
+  const lInp0 = lurkApply.parentNode.querySelector("input");
+  if (lInp0) { lInp0.value = "abc"; lurkApply.click(); }  /* 非数字 → 正则拒绝分支 */
+  const lApply1 = lurkBtn("应用");
+  if (lApply1) {
+    const lInp1 = lApply1.parentNode.querySelector("input");
+    if (lInp1) { lInp1.value = "7"; lApply1.click(); }
+  }
+}
+assert(V.lurkers_held === 7, "潜伏者「应用」写入 lurkers_held=7，实际 " + V.lurkers_held);
+const lurkUndo = lurkBtn("回退");
+if (lurkUndo) { lurkUndo.click(); }
+const lurkRepatch = lurkBtn("重新应用解限补丁");
+if (lurkRepatch) { lurkRepatch.click(); }
+const lurkAutoOn = lurkBtn("自动搬运：关");
+assert(!!lurkAutoOn, "潜伏者区含「自动搬运：关」开关");
+if (lurkAutoOn) { lurkAutoOn.click(); }  /* 开 → 起 500ms 定时器 */
+const lurkAutoOff = lurkBtn("自动搬运：开");
+if (lurkAutoOff) { lurkAutoOff.click(); }  /* 立即关 → clearInterval，避免测试进程被定时器挂住 */
+/* 数值锁定区（07f-lock）：预设锁定行 + 自定义路径添加 */
+assert(gpane().textContent.indexOf("数值固定") !== -1 || gpane().textContent.indexOf("锁定") !== -1, "全局页渲染数值固定区");
 
 /* v2.0.0.006 言灵页：玩家路径真实点击（开页签 → 开启 → 按钮翻转 → 清零读回） */
 window.isCrossdressing = function () { return true; }; /* 模拟原版 72536 挂在 window 上的判定 */
@@ -381,12 +639,172 @@ const ylPurgeF = [].slice.call(document.querySelector('[data-pane="yanling"]').q
 assert(ylPurgeF.length === 1, "「一键清零：全部负面名声」按钮存在");
 if (ylPurgeF[0]) { ylPurgeF[0].click(); }
 assert(V.fame.sex === 0 && V.fame.scrap === 1000 && V.schoolrep.crossdress === 0 && V.schoolrep.herm === 0 && V.school_crossdress_message === undefined, "点击后 城镇负面清零、正面 scrap 保持 1000、学校 2 键清零、文案已删");
+/* v2.0.3 言灵新增：正面名声一键拉满（2000 clamp）+ 监狱庇护区块（枚举字符串直写，不用数字档位） */
+const ylFameMax = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "一键拉满：正面名声"; });
+assert(ylFameMax.length === 1, "「一键拉满：正面名声」按钮存在");
+if (ylFameMax[0]) { ylFameMax[0].click(); }
+assert(V.fame.good === 2000 && V.fame.business === 2000 && V.fame.scrap === 2000 && V.fame.social === 2000 && V.fame.model === 2000,
+  "点击后 正面名声 5 项全为 2000（原版 clamp 上限），实际 " + [V.fame.good, V.fame.business, V.fame.scrap, V.fame.social, V.fame.model].join("/"));
+V.prison = { protection: "", attention_level: 1, scarred_level: 0 };
+const ylPane9 = document.querySelector('[data-pane="yanling"]');
+assert(ylPane9.textContent.indexOf("监狱庇护") !== -1, "言灵页含「监狱庇护」区块（⑨），实际 " + ylPane9.textContent.slice(-160));
+const ylPris = [].slice.call(ylPane9.querySelectorAll("button")).filter(function (b) { return b.textContent === "疤痕狱友庇护" || b.textContent === "纹身狱友庇护" || b.textContent === "清除庇护"; });
+assert(ylPris.length === 3, "监狱庇护三按钮齐备（疤痕 / 纹身 / 清除），实际 " + ylPris.length);
+const ylPrisScar = ylPris.filter(function (b) { return b.textContent === "疤痕狱友庇护"; })[0];
+if (ylPrisScar) { ylPrisScar.click(); }
+assert(V.prison.protection === "scarred", "点击「疤痕狱友庇护」→ $prison.protection = 字符串 \"scarred\"（数字会令原版 is 判定全失效），实际 " + JSON.stringify(V.prison.protection));
+const ylPrisClr = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "清除庇护"; })[0];
+if (ylPrisClr) { ylPrisClr.click(); }
+assert(V.prison.protection === "", "点击「清除庇护」→ 空串（原版 !protection 判定成立 = 无庇护），实际 " + JSON.stringify(V.prison.protection));
+delete V.prison;
 /* 关闭链：卸载钩子必须把 window.isCrossdressing 还原为原版函数（而不是留一层空包装） */
 const ylOff = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "关闭（恢复原版判定）"; });
 assert(ylOff.length === 1, "「关闭（恢复原版判定）」按钮存在");
 if (ylOff[0]) { ylOff[0].click(); }
 assert(window.isCrossdressing === ylOrigCD && window.isCrossdressing() === true, "关闭后 window.isCrossdressing 还原为原版函数且判定恢复 true（不留空包装层）");
 /* 收尾：关掉开关 + 复位 mock，避免守卫定时器影响后续用例 */
+/* ---------- 7e. v2.0.3 P1 言灵页分支穷举（07i：缺对象/缺键/容器类型/缺原版函数 的早退分支） ---------- */
+const ylBackup = {
+  worn: V.worn, feats: V.feats, farm: V.farm, fertiliser: V.fertiliser,
+  milk_max: V.milk_max, milk_volume: V.milk_volume, robinmoney: V.robinmoney,
+  control: V.control, hallucinogen: V.hallucinogen, semen_volume: V.semen_volume, semen_amount: V.semen_amount,
+  NPCName: V.NPCName, NPCNameList: V.NPCNameList, backgroundTraits: V.backgroundTraits
+};
+const ylpane = function () { return document.querySelector('[data-pane="yanling"]'); };
+const ylbtn = function (label) {
+  return [].slice.call(ylpane().querySelectorAll("button")).filter(function (b) { return b.textContent === label; })[0];
+};
+const ylclick = function (label) {
+  const b = ylbtn(label);
+  if (b) { b.click(); return true; }
+  return false;
+};
+/* ① 监狱对象缺失（上方已 delete V.prison）→ 走「无监狱对象」早退且不硬建 $prison */
+assert(ylclick("疤痕狱友庇护"), "监狱庇护按钮存在（prison 缺失场景）");
+assert(V.prison === undefined, "prison 缺失时点庇护不硬建 $prison 垃圾对象，实际 " + JSON.stringify(V.prison));
+/* ② 背景特质为 Set 容器 → 走 arr.delete 分支（07i:145-147），其它项保留 */
+V.backgroundTraits = new Set(["crossdresser", "other"]);
+V.crossdressingTrait = 88;
+assert(ylclick("立即清空进度 + 移除特质"), "清空进度按钮存在（Set 容器）");
+assert(V.crossdressingTrait === 0 && V.backgroundTraits.size === 1 && !V.backgroundTraits.has("crossdresser"), "Set 容器走 delete 分支且其它项保留，实际 size=" + V.backgroundTraits.size);
+/* ③ 衣物加固：V.worn 缺失早退 → 有 worn 时无 integrity_max 回落「当前 +1000」、naked 槽跳过、有上限写满 */
+delete V.worn;
+ylclick("衣物加固（耐久回满）");
+assert(V.worn === undefined, "V.worn 缺失时不硬建 $worn 对象");
+V.worn = {
+  upper: { name: "sweater", integrity: 50 },
+  lower: { name: "naked", integrity: 1 },
+  under_upper: null,
+  under_lower: { name: "panties", integrity: 100, integrity_max: 300 }
+};
+ylclick("衣物加固（耐久回满）");
+assert(V.worn.upper.integrity === 1050 && V.worn.lower.integrity === 1 && V.worn.under_lower.integrity === 300,
+  "加固：无上限→+1000（1050）、naked 跳过、有上限→300，实际 " + [V.worn.upper.integrity, V.worn.lower.integrity, V.worn.under_lower.integrity].join("/"));
+/* ④ 精液缺键早退 → 补齐后按同序写（amount 补到原 volume，volume +1000） */
+delete V.semen_volume; delete V.semen_amount;
+ylclick("精液补满");
+assert(V.semen_volume === undefined && V.semen_amount === undefined, "缺键时不硬建 semen 键");
+V.semen_volume = 90; V.semen_amount = 30;
+ylclick("精液补满");
+assert(V.semen_volume === 1090 && V.semen_amount === 90, "精液补满 volume 90→1090 / amount→90，实际 " + V.semen_volume + "/" + V.semen_amount);
+/* ⑤ 精神：control/hallucinogen 缺失时 SetNum 返回 false（不建垃圾键）→ 补齐后写 1000/0 */
+delete V.control; delete V.hallucinogen;
+ylclick("精神恢复（控制拉满 + 幻觉清零）");
+assert(V.control === undefined && V.hallucinogen === undefined, "缺键时不建 $control/$hallucinogen 垃圾键");
+V.control = 0; V.hallucinogen = 500;
+ylclick("精神恢复（控制拉满 + 幻觉清零）");
+assert(V.control === 1000 && V.hallucinogen === 0, "精神恢复写 1000/0，实际 " + V.control + "/" + V.hallucinogen);
+/* ⑥ 成就：$feats 缺失早退 → locked true→false */
+delete V.feats;
+ylclick("解除成就限制");
+assert(V.feats === undefined, "缺 $feats 时不硬建对象");
+V.feats = { locked: true };
+ylclick("解除成就限制");
+assert(V.feats.locked === false, "解除成就限制 locked true→false，实际 " + V.feats.locked);
+/* ⑦ 农田：$farm / $fertiliser 均缺时空转 → 补齐后 clearing→0、堆肥 +5 */
+delete V.farm; delete V.fertiliser;
+ylclick("清理农田 + 补 5 袋堆肥");
+assert(V.farm === undefined && V.fertiliser === undefined, "缺 farm/fertiliser 时空转不建键");
+V.farm = { clearing: 3 }; V.fertiliser = { current: 2 };
+ylclick("清理农田 + 补 5 袋堆肥");
+assert(V.farm.clearing === 0 && V.fertiliser.current === 7, "农田 clearing→0 / 堆肥 2→7，实际 " + V.farm.clearing + "/" + V.fertiliser.current);
+/* ⑧ 奶量缺键早退 → 写 5000/10000 */
+delete V.milk_max; delete V.milk_volume;
+ylclick("奶量 5000 / 上限 10000");
+assert(V.milk_max === undefined && V.milk_volume === undefined, "缺奶量键时不硬建");
+V.milk_max = 3000; V.milk_volume = 30;
+ylclick("奶量 5000 / 上限 10000");
+assert(V.milk_volume === 5000 && V.milk_max === 10000, "奶量写 5000/10000，实际 " + V.milk_volume + "/" + V.milk_max);
+/* ⑨ 罗宾存款：非 number 早退 → 数值清零 */
+V.robinmoney = "abc";
+ylclick("罗宾存款清零");
+assert(V.robinmoney === "abc", "非数值 robinmoney 不被改写");
+V.robinmoney = 300;
+ylclick("罗宾存款清零");
+assert(V.robinmoney === 0, "robinmoney 300→0");
+/* ⑩ 种子：window.unlockAllSeeds 缺失早退 → 提供后调用 */
+delete window.unlockAllSeeds;
+ylclick("集齐所有种子");
+assert(typeof window.unlockAllSeeds !== "function", "缺 unlockAllSeeds 时不崩");
+let seedsCalled = 0;
+window.unlockAllSeeds = function () { seedsCalled++; };
+ylclick("集齐所有种子");
+assert(seedsCalled === 1, "提供 unlockAllSeeds 后点一次调用一次，实际 " + seedsCalled);
+delete window.unlockAllSeeds;
+/* ⑪ 天气：window.setWeather 缺失早退 → 提供后按类型调用 */
+delete window.setWeather;
+ylclick("切到「晴」");
+assert(window.setWeather === undefined, "缺 setWeather 时不崩且不建函数");
+window.setWeather = function (t) { window.__wtype = t; };
+ylclick("切到「雷暴」");
+assert(window.__wtype === "thunderstorm", "有 setWeather 时按类型调用，实际 " + window.__wtype);
+/* ⑫ 角色槽位缺失 → 三条动作全部早退不建键 */
+delete V.NPCNameList;
+ylclick("格威岚 · 放逐 9 天");
+ylclick("凯拉尔 · 送进监狱");
+ylclick("惠特尼 · 关进地牢");
+assert(V.NPCNameList === undefined, "NPCNameList 缺失时三动作均早退不建键");
+/* ⑬ 槽位存在但 init=0 早退 → init=1 后写 state */
+V.NPCNameList = ["Gwylan", "Kylar", "Whitney"];
+V.NPCName = [{ init: 0, state: "" }, { init: 0, state: "" }, { init: 0, state: "" }];
+ylclick("凯拉尔 · 送进监狱");
+assert(V.NPCName[1].state === "", "init=0 时不改 state");
+V.NPCName[1].init = 1; V.NPCName[2].init = 1;
+ylclick("凯拉尔 · 送进监狱");
+assert(V.NPCName[1].state === "prison", "凯拉尔 init=1 后 state=prison，实际 " + V.NPCName[1].state);
+ylclick("惠特尼 · 关进地牢");
+assert(V.NPCName[2].state === "dungeon", "惠特尼 state=dungeon，实际 " + V.NPCName[2].state);
+/* ⑭ 格威岚放逐：无 DateTime/Time 时时间戳不可算早退 → 补齐后写 scorned + 9 天 + 进度锁 */
+delete window.DateTime; delete global.Time;
+V.NPCName[0].init = 1;
+ylclick("格威岚 · 放逐 9 天");
+assert(V.NPCName[0].state === "", "无 DateTime 时放逐早退不改 state，实际 " + V.NPCName[0].state);
+window.DateTime = function (d) {
+  this.timeStamp = (d && typeof d.timeStamp === "number") ? d.timeStamp : 0;
+  this.addDays = function (n) { this.timeStamp += n * 86400; return this; };
+};
+global.Time = { date: { timeStamp: 0 } };
+ylclick("格威岚 · 放逐 9 天");
+assert(V.NPCName[0].state === "scorned" && V.gwylan.timer.scorned === 777600 && V.daily.gwylan.preventProgress === true,
+  "放逐写 scorned / +9 天 / 进度锁，实际 " + JSON.stringify(V.gwylan));
+ylclick("格威岚 · 立即召回");
+assert(V.NPCName[0].state === "active" && V.gwylan.timer.scorned === undefined && V.daily.gwylan.preventProgress === false, "召回清 timer 且解锁进度");
+/* ⑮ 页尾「说明与边界」折叠块两方向切换 */
+const ylInfoBlock = [].slice.call(ylpane().querySelectorAll(".mce-block")).filter(function (sb) { return sb.textContent.indexOf("说明与边界") !== -1; })[0];
+const ylFold = ylInfoBlock ? ylInfoBlock.querySelector(".mce-fold") : null;
+assert(!!ylFold, "页尾「说明与边界」折叠摘要存在");
+if (ylFold) {
+  ylFold.click();
+  const ylFoldBody = ylInfoBlock.querySelector(".mce-foldbox");
+  assert(!!ylFoldBody && ylFoldBody.getAttribute("data-open") === "1", "点折叠摘要 → body data-open=1，实际 " + (ylFoldBody ? ylFoldBody.getAttribute("data-open") : "无"));
+}
+/* 复位：恢复本轮临时改动的存档键，避免影响后续用例 */
+Object.keys(ylBackup).forEach(function (k) {
+  if (ylBackup[k] === undefined) { delete V[k]; } else { V[k] = ylBackup[k]; }
+});
+delete window.DateTime;
+if (global.Time === global.Time) { try { delete global.Time; } catch (eT) {} }
+delete V.gwylan;
 if (V.mbCE_yanling) { V.mbCE_yanling.noCross = false; V.mbCE_yanling.noTrait = false; }
 /* v1.9.12 全局页新区：世界腐化（原版 World Corruption）数值调整 */
 const wcTxt = globalPane.textContent;
@@ -409,6 +827,102 @@ V.mbCE_wrote = {};
 api.renderModCheats();
 const modsTxt2 = document.querySelector('[data-pane="mods"]').textContent;
 assert(modsTxt2.indexOf("Dol-Optimization") !== -1 && modsTxt2.indexOf("幽灵的倒影") !== -1 && modsTxt2.indexOf("DoLSims") !== -1, "Mod作弊 页渲染三新适配器，实际 " + modsTxt2.slice(0, 300));
+/* ---------- 7f. v2.0.3 P2 适配器门控分支（04a-10 more-farm / 04a-13 fertility 的 detect 逐键短路） ---------- */
+const mfFarmBackup = V.farm;
+const mfFarmKeys = ["compost", "cultivator", "seeder", "harvester", "laboratory", "cold_store", "farmhouse", "tank", "basement", "construction_machinery", "field_greenhouse", "farmer_can_hire"];
+const mfTopKeys = ["flowers_stored", "phials_stored", "fertiliser_stored", "compost_timer", "farmerSellTimer"];
+const modsPaneTxt = function () { return document.querySelector('[data-pane="mods"]').textContent; };
+V.farm = {};
+api.renderModCheats();
+assert(modsPaneTxt().indexOf("更多农场升级") === -1, "V.farm 空对象 → more-farm detect 为假、不渲染该适配器");
+mfFarmKeys.forEach(function (k) {
+  V.farm = {}; V.farm[k] = 1;
+  api.renderModCheats();
+  assert(modsPaneTxt().indexOf("更多农场升级") !== -1, "农场设施键逐个命中（" + k + "）→ more-farm 适配器渲染");
+});
+mfTopKeys.forEach(function (k) {
+  V.farm = {}; V[k] = 1;
+  api.renderModCheats();
+  assert(modsPaneTxt().indexOf("更多农场升级") !== -1, "顶层资源键逐个命中（" + k + "）→ more-farm 适配器渲染");
+  delete V[k];
+});
+/* 04a-13 fertility-expansion：mbCEHasModNamed 三种条目形态 + V.eden 兜底 */
+const fertileDetect = function (list, edenObj) {
+  window.modDataValueZipList = list;
+  V.eden = edenObj;
+  api.renderModCheats();
+  return modsPaneTxt().indexOf("FertilityExpansion") !== -1;
+};
+assert(fertileDetect(["FertilityExpansion"], undefined), "modDataValueZipList 字符串形态命中 → fertility 适配器渲染");
+assert(fertileDetect([{ name: "FertilityExpansion" }], undefined), "对象 name 形态命中 → fertility 适配器渲染");
+assert(fertileDetect([{ id: "x-fert" }], undefined) === false, "对象 id 不含关键词且无 $eden → detect 为假");
+assert(fertileDetect([{ modName: "Fertility Expansion" }], {}), "对象 modName 形态（空格变体）命中");
+assert(fertileDetect(["", "abc"], {}), "空名/无关条目被跳过 → 回落 $eden 对象判定命中");
+assert(fertileDetect([], undefined) === false, "空列表 + 无 $eden → detect 为假");
+delete window.modDataValueZipList; delete V.eden;
+V.farm = mfFarmBackup;
+api.renderModCheats();
+/* ---------- 7g. v2.0.3 P3 悬浮球拖动链（09-exports.js:106-165 pointerdown/move/up + rAF + 位置持久化） ---------- */
+const tgBtn = document.getElementById("mce-toggle");
+tgBtn.dataset.mceLocked = "0";
+const tgEv = function (type, x, y) {
+  const e = new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
+  try { Object.defineProperty(e, "pointerId", { value: 1, configurable: true }); } catch (e2) {}
+  return e;
+};
+const openBefore = document.querySelector("#mce-root").classList.contains("mce-open");
+tgBtn.dispatchEvent(tgEv("pointermove", 200, 200));   /* 未按下 → drag.on false 早退 */
+tgBtn.dispatchEvent(tgEv("pointerup", 200, 200));     /* 未按下 → tgDragEnd 早退 */
+tgBtn.dispatchEvent(tgEv("pointerdown", 100, 100));
+tgBtn.dispatchEvent(tgEv("pointermove", 102, 102));   /* 位移 <3px → 早退，不置 moved */
+tgBtn.dispatchEvent(tgEv("pointermove", 300, 320));   /* 位移足够 → moved + 位置计算 */
+tgBtn.dispatchEvent(tgEv("pointerup", 300, 320));
+assert(localStorage.getItem("mbCE_toggle_pos_v1") !== null, "拖动结束把位置写回 localStorage");
+let tgPos = {};
+try { tgPos = JSON.parse(localStorage.getItem("mbCE_toggle_pos_v1") || "{}"); } catch (e) { tgPos = {}; }
+assert(typeof tgPos.left === "number" && typeof tgPos.top === "number" && tgPos.left !== 12,
+  "拖动后位置坐标已更新（原 12 → 现 " + tgPos.left + "），实际 " + JSON.stringify(tgPos));
+assert(tgBtn.style.left !== "12px" && tgBtn.style.right === "auto", "拖动后悬浮球 style.left 同步更新，实际 " + tgBtn.style.left);
+tgBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));  /* 拖动后的首次 click 被吞掉 */
+assert(document.querySelector("#mce-root").classList.contains("mce-open") === openBefore,
+  "拖动后的首击被吞（不误开关面板），open 状态保持 " + openBefore);
+tgBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));  /* 第二次 click 正常开关 */
+/* 拖动锁：锁住后 pointerdown 不再进入拖动（107 早退） */
+tgBtn.dataset.mceLocked = "1";
+tgBtn.dispatchEvent(tgEv("pointerdown", 500, 500));
+tgBtn.dispatchEvent(tgEv("pointermove", 800, 800));
+tgBtn.dispatchEvent(tgEv("pointerup", 800, 800));
+tgPos = JSON.parse(localStorage.getItem("mbCE_toggle_pos_v1") || "{}");
+assert(typeof tgPos.left === "number" && tgPos.left < 800, "拖动锁=1 时 pointer 拖拽不生效（位置未被拖到 800），实际 " + JSON.stringify(tgPos));
+tgBtn.dataset.mceLocked = "0";
+/* ---------- 7h. v2.0.3 P3 render() 早退三分支（09-exports.js:4-19） ---------- */
+const statusTxt = function () {
+  const s = document.querySelector(".mce-status");
+  return s ? s.textContent : "";
+};
+assert(statusTxt().indexOf("就绪") !== -1, "正常态 render 状态栏为「就绪：N 个角色」，实际 " + statusTxt());
+const mbBackup = window.maplebirch;
+/* 注意：resolveMB() 有模块级 MB 缓存（首次解析后不再读 window），所以要动 MB 指向对象的 npc 字段，而不是整个 window.maplebirch */
+const npcReal = window.maplebirch.npc;
+window.maplebirch.npc = null;
+try { api.refresh(); } catch (e2) {}
+assert(statusTxt().indexOf("未检测到 Maplebirch 框架") !== -1, "框架缺失（mb.npc 为空）→ render() 早退并提示，实际 " + statusTxt());
+window.maplebirch.npc = npcReal;
+/* 注册池为空 → 第二条早退 */
+const vNpcBackup = V.NPCName, vListBackup = V.NPCNameList;
+window.maplebirch.npc = { data: new Map(), NPCNameList: [], romanceConditions: {}, type: {} };
+V.NPCName = []; V.NPCNameList = [];
+delete V.maplebirch; delete V.per_npc;
+try { api.refresh(); } catch (e2) {}
+assert(statusTxt().indexOf("注册池为空") !== -1, "注册池为空 → render() 提示「注册池为空：未枚举到角色」，实际 " + statusTxt());
+window.maplebirch = mbBackup;
+window.maplebirch.npc = npcReal;
+V.NPCName = vNpcBackup; V.NPCNameList = vListBackup;
+/* curName 记忆失效 → 回落到首个角色（09-exports:18） */
+V.NPCName = vNpcBackup.slice(0, gwIdx);
+try { api.refresh(); } catch (e2) {}
+assert(statusTxt().indexOf("就绪") !== -1, "curName 记忆失效 → 回落首个角色并正常渲染，实际 " + statusTxt());
+V.NPCName = vNpcBackup;
 delete window.DolOptimization; delete window.MirrorHypnoVariableRefresh; delete V.WraithsReflection;
 ptxt = clickTabSafe("mods");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "切回 Mod作弊页渲染正常");
@@ -501,6 +1015,10 @@ V.prof.baton = 0;
 api.renderPlayerEdit();
 const skRow1 = modsPane.querySelector('.mce-row[data-mce-key="quick:skulduggery"]');
 assert(!!skRow1, "9.5 快速面板 skulduggery 行存在");
+/* v2.0.3 区块编号统一：快速页首区块「说话态度」= ①，次区块「一键方案（预设模板）」= ②（原来复用全局页写死的 ⑩） */
+const qMarks = [].slice.call(modsPane.querySelectorAll(".mce-block .mce-sec-n"));
+assert(qMarks.length >= 2 && qMarks[0].textContent === "①" && qMarks[1].textContent === "②",
+  "9.5b 快速页区块编号连续 ①②（不复用全局页 ⑩），实际 " + qMarks.slice(0, 3).map(function (n) { return n.textContent; }).join("/"));
 const skLbl1 = skRow1.querySelector(".mce-row-lbl");
 assert(skLbl1.textContent.indexOf("skulduggery") === -1, "9.5 行标签走中文映射（不含英文裸 key），实际 " + skLbl1.textContent);
 const skLock1 = skRow1.querySelector('[data-mce-role="lock"]');
@@ -986,6 +1504,72 @@ setTimeout(function () {
       assert(js.indexOf("modRowQueue.length = 0;") !== -1, "16.1 重建时清残留分片任务（renderModCheatDetail 入口，源码）");
       assert(js.indexOf("if (modRowBatchTimer) { clearTimeout(modRowBatchTimer); modRowBatchTimer = null; }") !== -1, "16.1 重建时先清分片定时器（源码）");
       delete setup.mbCE_modCheats;
+      /* v2.0.3 P4-1 统一回退中心 + P4-2 写入前 diff 预览 */
+      try {
+        clickTabSafe("global");
+        const gp = document.querySelector('[data-pane="global"]');
+        const gpTxt = gp ? gp.textContent : "";
+        assert(gpTxt.indexOf("统一回退中心") !== -1, "P4.1 全局页渲染统一回退中心区块");
+        V.p4demo = 7;
+        V.mbCE_wrote = V.mbCE_wrote || {};
+        V.mbCE_wrote["cheat:test-mod:p4demo"] = { type: "cheat", modId: "test-mod", op: "value_set", path: "p4demo", before: 3, after: 7, t: Date.now() };
+        const lst = api.undoList();
+        assert(lst.some(function (it) { return it.key === "cheat:test-mod:p4demo"; }), "P4.1 undoList 把 cheat 留痕归一化入列（共 " + lst.length + " 条）");
+        const u1 = api.undoOne("cheat:test-mod:p4demo");
+        assert(u1.ok && V.p4demo === 3, "P4.1 undoOne 按 cheat 通道还原旧值（" + u1.msg + " / v=" + V.p4demo + "）");
+        assert(!V.mbCE_wrote["cheat:test-mod:p4demo"], "P4.1 回退成功后对应留痕条目被移除");
+        V.mbCE_wrote["cheat:global:unlockClothes"] = { type: "batch", modId: "global", op: "global_unlockClothes", n: 12, t: Date.now() };
+        const u2 = api.undoOne("cheat:global:unlockClothes");
+        assert(!u2.ok && u2.msg.indexOf("批量") !== -1, "P4.1 审计类留痕拒绝逐条回退（" + u2.msg + "）");
+        delete V.mbCE_wrote["cheat:global:unlockClothes"];
+        const pv0 = api.cheatWriteValuePlayer("p4pv", 11, "number");
+        assert(pv0.ok && V.p4pv === 11, "P4.2 预览默认关闭时写入直接落档（v=" + V.p4pv + "）");
+        const pvBtn = Array.prototype.slice.call(gp.querySelectorAll(".mce-btn")).filter(function (b) {
+          return b.textContent.indexOf("写入前 diff 预览") !== -1;
+        })[0];
+        assert(!!pvBtn, "P4.2 全局页存在写入前 diff 预览开关");
+        if (pvBtn) { pvBtn.click(); }
+        const gp2 = document.querySelector('[data-pane="global"]');
+        assert((gp2 ? gp2.textContent : "").indexOf("写入前 diff 预览：已开启") !== -1, "P4.2 开关点击后切换为已开启");
+        const g1 = api.cheatWriteValuePlayer("p4pv2", 22, "number");
+        assert(g1.ok === false && g1.pending === true, "P4.2 开启后写入被门控拦下（pending=" + g1.pending + "）");
+        assert(V.p4pv2 === undefined, "P4.2 未确认前不落档（v=" + V.p4pv2 + "）");
+        const bar = document.getElementById("mce-preview-bar");
+        assert(!!bar && bar.textContent.indexOf("p4pv2") !== -1, "P4.2 出现确认条并显示键名与 diff");
+        const okB = bar && Array.prototype.slice.call(bar.querySelectorAll(".mce-btn")).filter(function (b) {
+          return b.textContent === "确认写入";
+        })[0];
+        if (okB) { okB.click(); }
+        assert(V.p4pv2 === 22, "P4.2 确认后按 diff 落档（v=" + V.p4pv2 + "）");
+        assert(!document.getElementById("mce-preview-bar"), "P4.2 确认后确认条自动消失");
+        const g2 = api.cheatWriteValuePlayer("p4pv3", 33, "number");
+        assert(g2.pending === true, "P4.2 第二次写入同样被拦下");
+        const bar2 = document.getElementById("mce-preview-bar");
+        const cB = bar2 && Array.prototype.slice.call(bar2.querySelectorAll(".mce-btn")).filter(function (b) {
+          return b.textContent === "取消";
+        })[0];
+        if (cB) { cB.click(); }
+        assert(V.p4pv3 === undefined && !document.getElementById("mce-preview-bar"), "P4.2 取消后不写档且确认条消失");
+        api.cheatWriteValuePlayer("p4pv", 11, "number");
+        const g3 = api.cheatWriteValuePlayer("p4pv", 11, "number");
+        assert(g3.ok === true && V.p4pv === 11, "P4.2 同值写入不触发确认（直接返回成功）");
+        const pvBtn2 = Array.prototype.slice.call(document.querySelectorAll('[data-pane="global"] .mce-btn')).filter(function (b) {
+          return b.textContent.indexOf("写入前 diff 预览") !== -1;
+        })[0];
+        if (pvBtn2) { pvBtn2.click(); }
+        delete V.p4pv;
+        delete V.p4pv2;
+        delete V.p4pv3;
+        delete V.p4demo;
+        if (V.mbCE_wrote) {
+          delete V.mbCE_wrote["cheat:player-self:p:p4pv"];
+          delete V.mbCE_wrote["cheat:player-self:p:p4pv2"];
+          delete V.mbCE_wrote["cheat:player-self:p:p4pv3"];
+        }
+      } catch (eP4) {
+        failures++;
+        console.error("FAIL: P4 统一回退中心/diff 预览异常：" + (eP4 && eP4.message ? eP4.message : eP4));
+      }
       /* ---------- 17. v1.9.14 UI 动效：CSS 规则与工具函数源码断言（CSS 串内嵌构建产物） ---------- */
       assert(js.indexOf(".mce-btn:active{transform:scale(.96)}") !== -1, "17 .mce-btn 按压缩放 scale(.96)（效果1）");
       assert(js.indexOf("#mce-root button:active{transform:scale(.96)}") !== -1, "17 面板内全部按钮统一按压缩放（效果1）");
