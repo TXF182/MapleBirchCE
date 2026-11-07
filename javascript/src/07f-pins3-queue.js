@@ -180,7 +180,7 @@
 			msg += "。走到该地点交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
 			return { ok: true, message: msg };
 		} catch (e) {
-			return { ok: false, message: "锚定失败：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "锚定失败：" + mbCEErr(e) };
 		}
 	}
 	/* 锚定整条剧情线（v1.9.23）：把线内已标注触发地点的全部阶段按顺序加入锚定队列，
@@ -210,6 +210,6 @@
 			}
 			var reason = noMeta ? "：这些阶段均未标注触发地点（第一批元数据未覆盖），暂不可锚定" : (dup ? "：已在锚定队列中" : (farm ? "：依赖农场线未开启" : ""));
 			return { ok: false, message: "没有可锚定的阶段" + reason };
-		} catch (e) { return { ok: false, message: "锚定失败：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "锚定失败：" + mbCEErr(e) }; }
 	}
 	/* 回退：取消指定剧情（key 省略=清空队列）的固定；若正在重放固定场景，立即解冻并返回原位 */

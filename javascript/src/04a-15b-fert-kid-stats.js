@@ -86,7 +86,7 @@ function mbCEFertKidSaveSkills(id, vals) {
 	var before = mbCEFertKidEnsureSkills(rec, child);
 	var merged = mbCEFertKidMerge4(before, MB_CE_FERT_KID_SKILLS, vals, false);
 	if (!merged.ok) { return merged; }
-	var full = merged.vals, res = null, via = "direct";
+	var full = /** @type {any} */ (merged.vals), res = null, via = "direct";
 	var api = mbCEFertApi();
 	if (api && typeof api.saveSkills === "function") {
 		try { res = api.saveSkills(String(id), full); if (res && res.ok === true) { via = "EdenCheats.saveSkills"; } } catch (e) { res = null; }
@@ -96,7 +96,7 @@ function mbCEFertKidSaveSkills(id, vals) {
 			if (!rec.training || typeof rec.training !== "object" || Array.isArray(rec.training)) { rec.training = {}; }
 			if (!rec.training.skills || typeof rec.training.skills !== "object" || Array.isArray(rec.training.skills)) { rec.training.skills = {}; }
 			Object.assign(rec.training.skills, full);
-		} catch (e2) { return { ok: false, message: "写入养育属性失败：" + (e2 && e2.message ? e2.message : e2) }; }
+		} catch (e2) { return { ok: false, message: "写入养育属性失败：" + mbCEErr(e2) }; }
 	}
 	mbCEFertKidMark(id, "fert_child_skills", before, full, via, "eden.children." + id + ".training.skills");
 	return { ok: true, message: "已写入养育属性 " + MB_CE_FERT_KID_SKILLS.map(function (k) { return k + "=" + full[k]; }).join(" / ") + "（" + via + "）" };
@@ -109,7 +109,7 @@ function mbCEFertKidSaveInnate(id, vals) {
 	var before = mbCEFertKidEnsureInnate(rec, child, id);
 	var merged = mbCEFertKidMerge4(before, MB_CE_FERT_KID_INNATE, vals, true);
 	if (!merged.ok) { return merged; }
-	var full = merged.vals, res = null, via = "direct";
+	var full = /** @type {any} */ (merged.vals), res = null, via = "direct";
 	var api = mbCEFertApi();
 	if (api && typeof api.saveInnate === "function") {
 		/* 只给四项先天；身份九项由模组用 patch[key] ?? before[key] 自动沿用，不会被打乱 */
@@ -121,7 +121,7 @@ function mbCEFertKidSaveInnate(id, vals) {
 			Object.assign(rec.innate, full);
 			/* 与模组 eden-cheats.js:178 同一判据：temperament<=50 为 quiet，否则 active；仅在该字段已存在时跟随 */
 			if (rec.innate.personality !== undefined) { rec.innate.personality = full.temperament <= 50 ? "quiet" : "active"; }
-		} catch (e2) { return { ok: false, message: "写入先天属性失败：" + (e2 && e2.message ? e2.message : e2) }; }
+		} catch (e2) { return { ok: false, message: "写入先天属性失败：" + mbCEErr(e2) }; }
 	}
 	mbCEFertKidMark(id, "fert_child_innate", before, full, via, "eden.children." + id + ".innate");
 	return { ok: true, message: "已写入先天属性 " + MB_CE_FERT_KID_INNATE.map(function (k) { return k + "=" + full[k]; }).join(" / ") + "（" + via + "）" };

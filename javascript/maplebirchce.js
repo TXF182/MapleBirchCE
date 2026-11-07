@@ -114,7 +114,11 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.4";
+	var MCE_VERSION = "2.0.5";
+	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
+	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
+	/** @param {any} e @returns {any} */
+	function mbCEErr(e) { return (e && e.message) ? e.message : e; }
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -159,6 +163,7 @@
 	}
 
 	/* ============ 数值定义（通用标准，非角色硬编码） ============ */
+	/** @type {Array<{key: string, label: string, fill: number, max: number, min?: number, custom?: boolean}>} */
 	var STAT_DEFS = [
 		{ key: "love",      label: "爱意", fill: 100, max: 100 },
 		{ key: "lust",      label: "情欲", fill: 100, max: 100 },
@@ -325,6 +330,7 @@
 			var mb = resolveMB();
 			if (mb && mb.npc && mb.npc.data instanceof Map) {
 				var k2 = String(name).toLowerCase();
+				/** @type {any} */
 				var hit = null;
 				mb.npc.data.forEach(function (v, key) {
 					if (!hit && String(key).toLowerCase() === k2) { hit = v; }
@@ -1064,7 +1070,7 @@
 			else { cur[leaf] = rec.before; }
 			try { delete V.mbCE_wrote[key]; } catch (e) { V.mbCE_wrote[key] = undefined; }
 			return { ok: true, msg: "已回退 " + path + " 到维护写入前状态" };
-		} catch (e) { return { ok: false, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "回退异常：" + mbCEErr(e) }; }
 	}
 	function mbCEMaintUndoAll() {
 		try {
@@ -1076,13 +1082,14 @@
 				if (r.ok) { n += 1; }
 			});
 			return { ok: n > 0, n: n, msg: n > 0 ? "已回退 " + n + " 项维护写入" : "无维护写入留痕" };
-		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + mbCEErr(e) }; }
 	}
 	/* ============ v1.8.8：庄园自动维护（学 AutoClean 0.1.5 原功能，即时一键执行）
 	     AutoClean 原实现：每日 0 点调 AutoCleanFeedAvery()（艾弗里优先吃想吃的菜）+ AutoCleanFarm()
 	     （农场动物锁满/agro 清零/库存收获）。MCE 全局页提供同逻辑的即时按钮，数据逻辑与此处一致。 ============ */
 	function mcFeedAvery() {
 		var V = getV();
+		/** @type {{fed: string, missed: boolean, skipped?: boolean, error?: string}} */
 		var r = { fed: "", missed: false };
 		var man = V.avery_mansion;
 		try {
@@ -1124,7 +1131,7 @@
 						new window.SugarCube.Wikifier(null, "<<avery_food_select>>");
 					}
 				} catch (e3) {}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 	function mcMaintainFarm() {
@@ -1166,7 +1173,7 @@
 					r.harvested += 1;
 				});
 			}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 
@@ -1188,7 +1195,7 @@
 			if (V.tending >= 1000) {
 				if (typeof V.temple_garden === "number") { mbCEMaintWrite("temple_garden", 100); r.garden = true; }
 			}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 	function mcMaintainEden() {
@@ -1199,7 +1206,7 @@
 			["edengarden", "edenshrooms", "edenspring"].forEach(function (k) {
 				if (typeof V[k] === "number") { mbCEMaintWrite(k, 4); r.locked += 1; }
 			});
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 	function mcRestockSupplies() {
@@ -1217,11 +1224,12 @@
 				V.bird.materials && typeof V.bird.materials.wood === "number" && V.bird.materials.wood < 10) {
 				mbCEMaintWrite("bird.materials.wood", 10); r.wood = true;
 			}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 	function mcCleanMansion() {
 		var V = getV();
+		/** @type {{rooms: number, days: boolean, error: string, skipped?: boolean}} */
 		var r = { rooms: 0, days: false, error: "" };
 		try {
 			/* 对齐 AutoClean 0.1.5 boot.json 补丁：
@@ -1241,7 +1249,7 @@
 				});
 				if (typeof man.days_absent === "number") { mbCEMaintWrite("avery_mansion.days_absent", 0); r.days = true; }
 			}
-		} catch (e) { r.error = String(e.message || e); }
+		} catch (e) { r.error = String(mbCEErr(e)); }
 		return r;
 	}
 
@@ -1320,7 +1328,7 @@
 			st.lastDay = days;
 			mcAutoSave(st);
 			return { day: days, ran: ran };
-		} catch (e) { return { error: String(e.message || e) }; }
+		} catch (e) { return { error: String(mbCEErr(e)) }; }
 	}
 
 	/* ============ v1.8.9 战斗终结（学 CombatTerminator 0.1 原功能，即时一键执行）
@@ -1341,7 +1349,7 @@
 		for (i = 0; i < COMBAT_ACTIONS.length; i++) { if (COMBAT_ACTIONS[i].key === key) { act = COMBAT_ACTIONS[i]; break; } }
 		if (!act) { return { ok: false, message: "未知战斗操作：" + key }; }
 		try { act.run(getV()); return { ok: true, name: act.name }; }
-		catch (e) { return { ok: false, message: "执行失败：" + (e.message || e) }; }
+		catch (e) { return { ok: false, message: "执行失败：" + mbCEErr(e) }; }
 	}
 
 	/* ============ 扩展转化系统（MOD 独立系统，如 v0.1.880 的兔子/人鱼：
@@ -1620,7 +1628,7 @@
 				return { ok: false, message: "未知阶段：" + key };
 			}
 		} catch (e) {
-			return { ok: false, message: "执行异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "执行异常：" + mbCEErr(e) };
 		}
 		recordVanillaWrite(key);
 		var data = readVanillaStageData();
@@ -1664,7 +1672,7 @@
 				if (changedN) { try { delete v.mbCE_wrote[nk]; } catch (e) {} }
 				return changedN;
 			}
-			var parsed = parseCondition(stage.text, name);
+			var parsed = /** @type {any} */ (parseCondition(stage.text, name));
 			if (!parsed) { return false; }
 			var key = parsed.type + ":" + (parsed.path || name) + ":" + (parsed.value || "");
 			if (!v.mbCE_wrote[key]) { return false; } /* 非面板写入 → 拒绝 */
@@ -1728,7 +1736,7 @@
 			if (ok) { return { ok: false, message: "回退未生效：该阶段仍由原版数值/事件驱动，已达成状态无法仅靠撤销标记回落" }; }
 			return { ok: true, message: "已回退「" + key + "」阶段（撤销面板写入的经历标记，真实属性未改动）" };
 		} catch (e) {
-			return { ok: false, message: "回退异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "回退异常：" + mbCEErr(e) };
 		}
 	}
 
@@ -3215,7 +3223,7 @@ function mbCEFertRun(key, id, patch) {
 				return { ok: true, message: ar ? ("不可成年结算：" + ar) : "可以成年结算（无阻塞前置）" };
 			}
 			return { ok: false, message: "未知动作：" + key };
-		} catch (e) { return { ok: false, message: "模组 API 抛出异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "模组 API 抛出异常：" + mbCEErr(e) }; }
 	});
 }
 /* 面板：孩子下拉 + 10 项动作（先天/养成需要填表，其余一键） */
@@ -3724,7 +3732,7 @@ function mbCEFertKidSaveSkills(id, vals) {
 	var before = mbCEFertKidEnsureSkills(rec, child);
 	var merged = mbCEFertKidMerge4(before, MB_CE_FERT_KID_SKILLS, vals, false);
 	if (!merged.ok) { return merged; }
-	var full = merged.vals, res = null, via = "direct";
+	var full = /** @type {any} */ (merged.vals), res = null, via = "direct";
 	var api = mbCEFertApi();
 	if (api && typeof api.saveSkills === "function") {
 		try { res = api.saveSkills(String(id), full); if (res && res.ok === true) { via = "EdenCheats.saveSkills"; } } catch (e) { res = null; }
@@ -3734,7 +3742,7 @@ function mbCEFertKidSaveSkills(id, vals) {
 			if (!rec.training || typeof rec.training !== "object" || Array.isArray(rec.training)) { rec.training = {}; }
 			if (!rec.training.skills || typeof rec.training.skills !== "object" || Array.isArray(rec.training.skills)) { rec.training.skills = {}; }
 			Object.assign(rec.training.skills, full);
-		} catch (e2) { return { ok: false, message: "写入养育属性失败：" + (e2 && e2.message ? e2.message : e2) }; }
+		} catch (e2) { return { ok: false, message: "写入养育属性失败：" + mbCEErr(e2) }; }
 	}
 	mbCEFertKidMark(id, "fert_child_skills", before, full, via, "eden.children." + id + ".training.skills");
 	return { ok: true, message: "已写入养育属性 " + MB_CE_FERT_KID_SKILLS.map(function (k) { return k + "=" + full[k]; }).join(" / ") + "（" + via + "）" };
@@ -3747,7 +3755,7 @@ function mbCEFertKidSaveInnate(id, vals) {
 	var before = mbCEFertKidEnsureInnate(rec, child, id);
 	var merged = mbCEFertKidMerge4(before, MB_CE_FERT_KID_INNATE, vals, true);
 	if (!merged.ok) { return merged; }
-	var full = merged.vals, res = null, via = "direct";
+	var full = /** @type {any} */ (merged.vals), res = null, via = "direct";
 	var api = mbCEFertApi();
 	if (api && typeof api.saveInnate === "function") {
 		/* 只给四项先天；身份九项由模组用 patch[key] ?? before[key] 自动沿用，不会被打乱 */
@@ -3759,7 +3767,7 @@ function mbCEFertKidSaveInnate(id, vals) {
 			Object.assign(rec.innate, full);
 			/* 与模组 eden-cheats.js:178 同一判据：temperament<=50 为 quiet，否则 active；仅在该字段已存在时跟随 */
 			if (rec.innate.personality !== undefined) { rec.innate.personality = full.temperament <= 50 ? "quiet" : "active"; }
-		} catch (e2) { return { ok: false, message: "写入先天属性失败：" + (e2 && e2.message ? e2.message : e2) }; }
+		} catch (e2) { return { ok: false, message: "写入先天属性失败：" + mbCEErr(e2) }; }
 	}
 	mbCEFertKidMark(id, "fert_child_innate", before, full, via, "eden.children." + id + ".innate");
 	return { ok: true, message: "已写入先天属性 " + MB_CE_FERT_KID_INNATE.map(function (k) { return k + "=" + full[k]; }).join(" / ") + "（" + via + "）" };
@@ -4041,6 +4049,7 @@ function mbCEFertRenderChildren(container) {
 		return !!(path && mbCEAdapterPaths[path]);
 	}
 	/* varPath 解析：父级对象链必须存在（禁止写入 undefined 对象）；叶子允许缺失（正常初始化）。 */
+	/** @returns {{ok: false, reason: string, root?: string, path?: string} | {ok: true, parent: any, leaf: string, exists: boolean}} */
 	function cheatResolvePath(path) {
 		var V = getV();
 		if (!V) { return { ok: false, reason: "存档变量不可用" }; }
@@ -4101,7 +4110,7 @@ function mbCEFertRenderChildren(container) {
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
 			var r = cheatResolvePath(path);
-			if (!r.ok) {
+			if (r.ok !== true) {
 				if (r.reason === "vanilla") {
 					return { ok: false, message: "目标「" + r.root + "」为 DoL 原版变量，拒绝操作（原版内容请使用对应五大面板）" };
 				}
@@ -4148,7 +4157,7 @@ function mbCEFertRenderChildren(container) {
 			applyCheatSync(V, syncData, val); /* 联动修正（主写入成功后） */
 			return { ok: true, message: "已写入 " + path + " = " + JSON.stringify(val), before: before, after: val };
 		} catch (e) {
-			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "操作异常：" + mbCEErr(e) };
 		}
 	}
 	/* 列表型写入（v1.4.0 扩展）：varPath 指向字符串数组，on=true 追加 / on=false 移除；
@@ -4158,7 +4167,7 @@ function mbCEFertRenderChildren(container) {
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
 			var r = cheatResolvePath(path);
-			if (!r.ok) {
+			if (r.ok !== true) {
 				if (r.reason === "vanilla") {
 					return { ok: false, message: "目标「" + r.root + "」为 DoL 原版变量，拒绝操作（原版内容请使用对应五大面板）" };
 				}
@@ -4181,7 +4190,7 @@ function mbCEFertRenderChildren(container) {
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
 			return { ok: true, message: "已更新 " + path + (on ? " ＋ " : " － ") + value, after: arr.slice() };
 		} catch (e) {
-			return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "操作异常：" + mbCEErr(e) };
 		}
 	}
 	/* 回退：还原 before（首次面板写入前状态）；无痕迹 / 结构已变化 → 拒绝。 */
@@ -4194,7 +4203,7 @@ function mbCEFertRenderChildren(container) {
 			var rec = V.mbCE_wrote[key];
 			if (!rec || rec.type !== "cheat") { return { ok: false, message: "该操作非面板写入（或已回退），无可撤销痕迹" }; }
 			var r = cheatResolvePath(rec.path);
-			if (!r.ok) { return { ok: false, message: "目标变量结构已变化，拒绝回退（" + rec.path + "）" }; }
+			if (r.ok !== true) { return { ok: false, message: "目标变量结构已变化，拒绝回退（" + rec.path + "）" }; }
 			if (rec.before === undefined) {
 				try { delete r.parent[r.leaf]; } catch (e) { r.parent[r.leaf] = undefined; }
 			} else {
@@ -4203,7 +4212,7 @@ function mbCEFertRenderChildren(container) {
 			try { delete V.mbCE_wrote[key]; } catch (e) { V.mbCE_wrote[key] = undefined; }
 			return { ok: true, message: "已回退（还原为面板写入前状态）" };
 		} catch (e) {
-			return { ok: false, message: "回退异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "回退异常：" + mbCEErr(e) };
 		}
 	}
 /* 职责：写入工具 —— 模组对象归一化（normalizeCheatMod）与适配器声明审计（auditAdapters） */
@@ -4226,6 +4235,7 @@ function mbCEFertRenderChildren(container) {
 	   注册键与 entry.modId 一致、分类项 key/name/varPath 完整、探测函数存在、无空适配器）。
 	   返回 { total, healthy, warnings[], errors[] }；healthy>0 时可用面板正常渲染全部适配器。 */
 	function auditAdapters() {
+		/** @type {{total: number, healthy: number, warnings: string[], errors: string[]}} */
 		var out = { total: 0, healthy: 0, warnings: [], errors: [] };
 		try {
 			Object.keys(CHEAT_ADAPTERS).forEach(function (id) {
@@ -4262,7 +4272,7 @@ function mbCEFertRenderChildren(container) {
 				if (errs.length) { out.errors.push(id + "（" + name + "）：" + errs.slice(0, 6).join("；") + (errs.length > 6 ? " 等" + errs.length + " 项" : "")); return; }
 				out.healthy++;
 			});
-		} catch (e) { out.errors.push("审计异常：" + (e && e.message ? e.message : e)); }
+		} catch (e) { out.errors.push("审计异常：" + mbCEErr(e)); }
 		return out;
 	}
 	/* v1.9.4 问题2 根治：Mod 子页超长组时间分片构建（模块级状态，跨 renderModCheatDetail 渲染存活）。
@@ -4886,7 +4896,7 @@ function mbCEActionRow(m, a) {
 		var res;
 		try {
 			res = (typeof a.run === "function") ? a.run({}) : { ok: false, message: "该动作未实现" };
-		} catch (e) { res = { ok: false, message: "动作抛出异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { res = { ok: false, message: "动作抛出异常：" + mbCEErr(e) }; }
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
 	});
 	row.appendChild(b);
@@ -4901,7 +4911,7 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 		/* 适配器自带完整面板：面板里已有全部动作入口，不再重复铺一行一个按钮 */
 		g.pending.push(function () {
 			var box = el("div", "mce-col");
-			try { m.actionPanel(box, m); } catch (e) { box.appendChild(el("div", "mce-err", "动作面板渲染失败：" + (e && e.message ? e.message : e))); }
+			try { m.actionPanel(box, m); } catch (e) { box.appendChild(el("div", "mce-err", "动作面板渲染失败：" + mbCEErr(e))); }
 			return box;
 		});
 		g.count += 1;
@@ -5302,7 +5312,7 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 			});
 			return { ok: fails === 0, message: "预设「" + (kind === "max" ? "全属性拉满" : "经典开局") + "」已写入 " + done + " 项" + (fails ? "，失败 " + fails + " 项" : "") };
 		} catch (e) {
-			return { ok: false, message: "预设执行异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "预设执行异常：" + mbCEErr(e) };
 		}
 	}
 	/* ============ v2.0.0.002 需求⑤：原版三档说话态度 + 选定后永久维持 ============
@@ -5809,6 +5819,7 @@ function traitEval(V, C, expr) {
 }
 /* 解析 has 表达式：找出所有 "$var op value" 比较段与 includes 段 */
 function parseTraitHas(expr) {
+	/** @type {{vars: Array<{path: string, op: string, val: string}>, includes: string|null, complex: boolean}} */
 	var out = { vars: [], includes: null, complex: false };
 	if (!expr) { return out; }
 	var re = /\$([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s+(gte|gt|lte|lt|is|isnot)\s+(true|false|undefined|"[^"]*"|'[^']*'|\d+)/g;
@@ -5916,7 +5927,7 @@ function grantTrait(t, V, C) {
 			} else {
 				wrote.push("mbCE_forcedTraits+" + (t.name || fk) + "(已有)");
 			}
-		} catch (e) { wrote.push("(强制获得失败) " + (e && e.message ? e.message : e)); }
+		} catch (e) { wrote.push("(强制获得失败) " + mbCEErr(e)); }
 	}
 	return wrote;
 }
@@ -5946,7 +5957,7 @@ function revokeTrait(t, V, C) {
 	return wrote;
 }
 function traitWriteSatisfy(V, path, op, valRaw) {
-	var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
+	/** @type {any} */ var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
 	/* 十二巡修复：isnot 语义是「不等于」——满足 isnot true → 写 false；isnot false → 写 true；
 	   isnot undefined → 写 1；isnot N → 写 N-1。此前与 is 共用分支导致布尔写反 */
 	if (op === "isnot") {
@@ -5968,7 +5979,7 @@ function traitWriteSatisfy(V, path, op, valRaw) {
 	setPathVal(V, path, num); return path + "=" + num;
 }
 function traitWriteUnsatisfy(V, path, op, valRaw) {
-	var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
+	/** @type {any} */ var num = (String(valRaw) === "true" || String(valRaw) === "false") ? null : parseFloat(String(valRaw).replace(/["']/g, ""));
 	/* 十二巡修复：移除时让 isnot 条件变 false——isnot true → 写 true；isnot false → 写 false；
 	   isnot undefined → 写 undefined（属性值为 undefined 时 undefined !== undefined 为 false）；isnot N → 写 N */
 	if (op === "isnot") {
@@ -6369,7 +6380,7 @@ function toggleFavTrait(t, V) {
 		if (idx !== -1) { v.mbCE_favTraits.splice(idx, 1); return { ok: true, fav: false, message: "已取消收藏" }; }
 		v.mbCE_favTraits.push(k);
 		return { ok: true, fav: true, message: "已收藏（置顶显示）" };
-	} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+	} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 }
 
 function traitWriteValue(t, V, path, raw) {
@@ -6453,7 +6464,7 @@ function applyPlayerGender(V, g) {
 			if (typeof window !== "undefined" && typeof window.exposedcheck === "function") { window.exposedcheck(true); }
 		} catch (e) {}
 		return out.join(",");
-	} catch (e) { return "FAIL: " + (e && e.message ? e.message : e); }
+	} catch (e) { return "FAIL: " + mbCEErr(e); }
 }
 function renderGenderBox(pane, V) {
 	var g = getPlayerGender(V);
@@ -6868,6 +6879,7 @@ function renderPlayerEdit() {
 	}
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
+	/** @type {any} */
 	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "" };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
 	function mbCEUiLoad() {
@@ -7103,7 +7115,7 @@ function renderPlayerEdit() {
 						}
 						mbCEPushError(parts.join(" | "), "console.error", "");
 					} catch (e2) {}
-					origErr.apply(this, arguments);
+					origErr.apply(this, /** @type {any} */ (arguments));
 				};
 			}
 		} catch (e) {}
@@ -7538,7 +7550,7 @@ function teleportTo(name) {
 			setStatus("已传送至「" + name + "」", "mce-ok");
 			var gidT = placeIdForPassage(name, name);
 			if (gidT) { applyWorldUnlock(gidT); setStatus("已传送至「" + name + "」并已解锁世界入口", "mce-ok"); }
-		} catch (e) { setStatus("传送失败：" + (e && e.message ? e.message : e), "mce-err"); }
+		} catch (e) { setStatus("传送失败：" + mbCEErr(e), "mce-err"); }
 	}
 	function listPlaceGroups() {
 		var ps = listAllPassages();
@@ -7683,7 +7695,7 @@ function teleportTo(name) {
 			Vp.mbCE_wrote["place:" + path] = { type: "place", path: path, before: before, after: final, t: Date.now() };
 			mbCEWroteTrim(Vp);
 			return { ok: true, message: "已写入 " + path + " = " + final, before: before, after: final };
-		} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 	}
 	/* 地点阶段回退：还原首次写入前状态（before 为 undefined → 删除字段） */
 	function placeStageUndo(path) {
@@ -7702,7 +7714,7 @@ function teleportTo(name) {
 			else { cur[leaf] = rec.before; }
 			delete Vp.mbCE_wrote["place:" + path];
 			return { ok: true, message: "已回退 " + path + " 到写入前状态" };
-		} catch (e) { return { ok: false, message: "操作异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 	}
 	function renderPlacesStage(pane) {
 		pane.appendChild(el("div", "mce-hint", "地点阶段任务（原版 $变量 直改，全部留痕可回退）："));
@@ -8824,6 +8836,7 @@ function mbCELurkerPatchNames() {
 }
 /* ① 启动前改 DOM（唯一能改到 widget 定义的通道） */
 function mbCELurkerPatchDom() {
+	/** @type {any} */
 	var report = { ok: false, hits: 0, kept: 0, skipped: 0, nodes: 0, missed: mbCELurkerPatchNames(), channel: "dom" };
 	try {
 		if (typeof document === "undefined" || !document.getElementsByTagName) { return report; }
@@ -8846,7 +8859,7 @@ function mbCELurkerPatchDom() {
 		}
 		report.missed = names.filter(function (x) { return !done[x]; });
 		report.ok = report.hits > 0;
-	} catch (e) { report.error = String(e && e.message ? e.message : e); }
+	} catch (e) { report.error = String(mbCEErr(e)); }
 	window.mbCELurkerPatchReport = report;
 	return report;
 }
@@ -8868,6 +8881,7 @@ function mbCELurkerPassageAccess() {
 }
 /* ② 运行期兜底：改 passage 文本（普通 passage 每次渲染重新 wikify 有效；已注册的 widget 定义无效） */
 function mbCELurkerPatchStory() {
+	/** @type {any} */
 	var report = { ok: false, hits: 0, kept: 0, skipped: 0, missed: mbCELurkerPatchNames(), channel: "story", access: null };
 	try {
 		var access = mbCELurkerPassageAccess();
@@ -8888,7 +8902,7 @@ function mbCELurkerPatchStory() {
 		}
 		report.missed = names.filter(function (x) { return !done[x]; });
 		report.ok = report.hits > 0;
-	} catch (e) { report.error = String(e && e.message ? e.message : e); }
+	} catch (e) { report.error = String(mbCEErr(e)); }
 	var prev = window.mbCELurkerPatchReport;
 	window.mbCELurkerPatchReport = {
 		ok: report.ok || !!(prev && prev.ok),
@@ -9092,7 +9106,7 @@ var SCENE_LOCATIONS = {
 			var s = SCENE_LOCATIONS[key];
 			if (!s && /^AlexFarmWorkStage\d+$/.test(key || "")) {
 				/* 兼容一位/两位数字位宽：真实注册表 key 为两位（03..12），部分来源为一位 */
-				var nn = /^AlexFarmWorkStage(\d+)$/.exec(key)[1];
+				var nn = (/^AlexFarmWorkStage(\d+)$/.exec(key) || [])[1];
 				s = SCENE_LOCATIONS["AlexFarmWorkStage" + (nn.length === 1 ? "0" + nn : nn)];
 			}
 			if (s) { return { location: s.loc, timeNote: s.time || "" }; }
@@ -9245,10 +9259,10 @@ var SCENE_LOCATIONS = {
 				/* 跳转失败：回滚 used（保留队列项）+ 清重放状态，避免卡死 */
 				try { P.used = false; } catch (e2) {}
 				mbCEClearReplay(true);
-				return { ok: false, message: "跳转失败：" + (e && e.message ? e.message : e) };
+				return { ok: false, message: "跳转失败：" + mbCEErr(e) };
 			}
 			return { ok: true, message: "已开始触发「" + P.name + "」" };
-		} catch (e) { return { ok: false, message: "触发失败：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "触发失败：" + mbCEErr(e) }; }
 	}
 	/* v1.9.30 剧情直达触发：从场景 def 构造临时 P 并直接开始锚定重放。
 	   与「锚定」的区别：跳过地点判定/确认条/队列——点即触发；不写 mbCE_queue，
@@ -9275,7 +9289,7 @@ var SCENE_LOCATIONS = {
 			var r = startAnchoredReplay(P);
 			if (!r.ok) { return r; }
 			return { ok: true, message: r.message, scene: P };
-		} catch (e) { return { ok: false, message: "直达失败：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "直达失败：" + mbCEErr(e) }; }
 	}
 	/* 挂载确认条（页面顶部，非阻断式） */
 	function showAnchorPrompt(P, meta) {
@@ -9612,7 +9626,7 @@ var SCENE_LOCATIONS = {
 			msg += "。走到该地点交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
 			return { ok: true, message: msg };
 		} catch (e) {
-			return { ok: false, message: "锚定失败：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "锚定失败：" + mbCEErr(e) };
 		}
 	}
 	/* 锚定整条剧情线（v1.9.23）：把线内已标注触发地点的全部阶段按顺序加入锚定队列，
@@ -9642,7 +9656,7 @@ var SCENE_LOCATIONS = {
 			}
 			var reason = noMeta ? "：这些阶段均未标注触发地点（第一批元数据未覆盖），暂不可锚定" : (dup ? "：已在锚定队列中" : (farm ? "：依赖农场线未开启" : ""));
 			return { ok: false, message: "没有可锚定的阶段" + reason };
-		} catch (e) { return { ok: false, message: "锚定失败：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "锚定失败：" + mbCEErr(e) }; }
 	}
 	/* 回退：取消指定剧情（key 省略=清空队列）的固定；若正在重放固定场景，立即解冻并返回原位 */
 /* 职责：锚定队列与解锁 —— 取消锚定（unpinScene）、passage→地点映射、场景世界入口解锁（applyWorldUnlock） */
@@ -9801,7 +9815,7 @@ var SCENE_LOCATIONS = {
 				n += 1;
 			});
 			return { ok: n > 0, n: n, msg: n > 0 ? "已撤回 " + n + " 项世界入口解锁" : "无该地点的世界入口留痕" };
-		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + mbCEErr(e) }; }
 	}
 	/* 幂等写入世界入口条件：已有更高/相同值不覆盖，只补缺失或更低值（v1.7.0 支持子路径 path 型，如 compound.allowed） */
 	function applyWorldUnlock(gid) {
@@ -10965,11 +10979,12 @@ var SCENE_LOCATIONS = {
 			if (cur === mbCEYanlingHookFn) { return true; }
 			var upstream = cur;
 			mbCEYanlingUpstream = upstream;
+			/** @this {any} */
 			mbCEYanlingHookFn = function () {
 				try {
 					if (mbCEYanlingNoCross()) { return false; }
 				} catch (e) {}
-				return upstream.apply(this, arguments);
+				return upstream.apply(/** @type {any} */ (this), /** @type {any} */ (arguments));
 			};
 			window.isCrossdressing = mbCEYanlingHookFn;
 			return true;
@@ -11013,7 +11028,7 @@ var SCENE_LOCATIONS = {
 			if (V.school_crossdress_message !== undefined) { delete V.school_crossdress_message; }
 			mbCEYanlingTrace("purge_cross", before, { crossdressing: 0, schoolrep: 0, message: null });
 			return { ok: true, msg: "已清空异装判定与学校异装名声" };
-		} catch (e) { return { ok: false, msg: "净化异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "净化异常：" + mbCEErr(e) }; }
 	}
 	/* 存量净化：异装癖进度 + crossdresser 背景特质 */
 	function mbCEYanlingPurgeTrait() {
@@ -11032,7 +11047,7 @@ var SCENE_LOCATIONS = {
 			}
 			mbCEYanlingTrace("purge_trait", before, { trait: 0, has: false });
 			return { ok: true, msg: "已清空异装癖进度并移除 Crossdresser 特质" };
-		} catch (e) { return { ok: false, msg: "净化异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "净化异常：" + mbCEErr(e) }; }
 	}
 	/* 负面名声清零：学校 crossdress / herm 双键 + 学校文案 + 城镇 fame 负面项与衰减队列 */
 	function mbCEYanlingPurgeFame() {
@@ -11059,7 +11074,7 @@ var SCENE_LOCATIONS = {
 			}
 			mbCEYanlingTrace("purge_fame", before, { cleared: n });
 			return { ok: true, msg: "负面名声已清零（学校 " + ns + " 项 + 城镇 " + n + " 项）" };
-		} catch (e) { return { ok: false, msg: "净化异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "净化异常：" + mbCEErr(e) }; }
 	}
 
 	/* 正面名声拉满（v2.0.3）：V.fame 的正面 5 项各写 2000。
@@ -11142,7 +11157,7 @@ var SCENE_LOCATIONS = {
 			mbCEYanlingTrace("toggle_" + field, !on, on);
 			var label = field === "noCross" ? "无视着装性别" : "压制异装癖";
 			return { ok: true, msg: label + (on ? " 已开启" : " 已关闭") };
-		} catch (e) { return { ok: false, msg: "切换异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, msg: "切换异常：" + mbCEErr(e) }; }
 	}
 
 	/* 职责：言灵页（07i）一键动作 —— 衣物湿度与耐久 / 体液与精神 / 数值快补 / 天气 / NPC state 层（按原版语义直写）。 */
@@ -11882,7 +11897,7 @@ var SCENE_LOCATIONS = {
 			Time.set(ts + delta * 60);
 			return { ok: true, message: "时间已前进 " + delta + " 分钟" };
 		} catch (e) {
-			return { ok: false, message: "时间前进失败：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "时间前进失败：" + mbCEErr(e) };
 		}
 	}
 	function mcTimeJump(hour, minute) {
@@ -11894,7 +11909,7 @@ var SCENE_LOCATIONS = {
 			Time.setTime(h, m);
 			return { ok: true, message: "时间已设为 " + h + ":" + (m < 10 ? "0" : "") + m };
 		} catch (e) {
-			return { ok: false, message: "时间调整失败：" + (e && e.message ? e.message : e) };
+			return { ok: false, message: "时间调整失败：" + mbCEErr(e) };
 		}
 	}
 /* 职责：全局页渲染（renderGlobal）—— 批量操作 / 世界数值 / 原版态度 / 庄园维护等分组 */
@@ -12140,7 +12155,7 @@ var SCENE_LOCATIONS = {
 				var on = !mcAutoIsOn(it.key);
 				mcAutoSet(it.key, on);
 				if (on) {
-					var r = mcAutoRunOnce(it.key);
+					var r = /** @type {any} */ (mcAutoRunOnce(it.key));
 					var msg;
 					if (r.error) { msg = it.name + "执行失败：" + r.error; }
 					else if (r.skipped) { msg = it.name + "已开启（本次跳过：艾弗里关系未确立）"; }
@@ -12477,14 +12492,14 @@ function renderAttitudesGroup(pane) {
 				var sep = rest.indexOf(":");
 				var modId = sep === -1 ? rest : rest.slice(0, sep);
 				var itemKey = sep === -1 ? "" : rest.slice(sep + 1);
-				var r1 = undoCheatModValue(modId, itemKey);
+				var r1 = /** @type {any} */ (undoCheatModValue(modId, itemKey));
 				return { ok: !!(r1 && r1.ok), msg: (r1 && (r1.message || r1.msg)) || "作弊项回退失败" };
 			}
 			if (type === "world") {
 				var gid = key.indexOf("world:") === 0 ? key.slice(6) : key;
 				var sepW = gid.indexOf(":");
 				if (sepW !== -1) { gid = gid.slice(0, sepW); }
-				var r2 = mbCEWorldUndo(gid);
+				var r2 = /** @type {any} */ (mbCEWorldUndo(gid));
 				return { ok: !!(r2 && r2.ok), msg: (r2 && (r2.message || r2.msg)) || "世界入口回退失败" };
 			}
 			if (type === "maint") {
@@ -12492,7 +12507,7 @@ function renderAttitudesGroup(pane) {
 				return { ok: !!(r3 && r3.ok), msg: (r3 && r3.msg) || "维护写入回退失败" };
 			}
 			if (type === "place") {
-				var r4 = placeStageUndo(rec.path || key.replace(/^place:/, ""));
+				var r4 = /** @type {any} */ (placeStageUndo(rec.path || key.replace(/^place:/, "")));
 				return { ok: !!(r4 && r4.ok), msg: (r4 && (r4.message || r4.msg)) || "地点阶段回退失败" };
 			}
 			if (type === "native") {
@@ -12502,7 +12517,7 @@ function renderAttitudesGroup(pane) {
 			}
 			if (type === "vanilla") {
 				var vk = rec.key || key.replace(/^vanilla:/, "");
-				var r5 = undoVanillaStage(rec.npc || "Gwylan", vk);
+				var r5 = /** @type {any} */ (undoVanillaStage(rec.npc || "Gwylan", vk));
 				return { ok: !!(r5 && r5.ok), msg: (r5 && (r5.message || r5.msg)) || "原版阶段回退失败" };
 			}
 			/* 框架恋爱条件三类：留痕里已存 path / value，可直接还原（与 undoRomanceStage 同口径） */
@@ -12536,7 +12551,7 @@ function renderAttitudesGroup(pane) {
 			}
 			return { ok: false, msg: "未知留痕类型：" + (type || "(空)") };
 		} catch (e) {
-			return { ok: false, msg: "回退异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, msg: "回退异常：" + mbCEErr(e) };
 		}
 	}
 	/* 按类型分组回退 */

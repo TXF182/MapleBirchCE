@@ -241,7 +241,7 @@
 				var on = !mcAutoIsOn(it.key);
 				mcAutoSet(it.key, on);
 				if (on) {
-					var r = mcAutoRunOnce(it.key);
+					var r = /** @type {any} */ (mcAutoRunOnce(it.key));
 					var msg;
 					if (r.error) { msg = it.name + "执行失败：" + r.error; }
 					else if (r.skipped) { msg = it.name + "已开启（本次跳过：艾弗里关系未确立）"; }

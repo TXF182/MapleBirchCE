@@ -2,6 +2,33 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.5（2026-11-07 src strict 类型真债务清零：169 → 0，纯类型层，运行时行为不变）
+
+**触发**：用户指令「清 169 条 src strict 真债务」。判定过两条路：调基线 / 在 `tsconfig.src.json` 关 `useUnknownInCatchVariables` 都是一次性糊过去，与「不许调基线」冲突；最终只改类型层（JSDoc 注解 + 一处等价的显式比较），产物逻辑零变化。
+
+### 一、改了什么（26 文件 / +150 −289）
+
+- **catch 取值收口**：新增 `mbCEErr(e)`（`javascript/src/01-core.js`，`MCE_VERSION` 之后），全库四种内联写法统一收口——`(e && e.message ? e.message : e)` 33 处、`(e2 && …)` 2 处、`String(e.message || e)` 7 处、`(e.message || e)` 1 处。语义完全等价（有 `message` 用 message，否则回原值），消掉 strict 下 `catch` 变量为 `unknown` 引发的 118 条 TS2339 家族。
+- **`r.parent[r.leaf]` 的 TS2538（16 处）**：`cheatResolvePath` 补 `@returns` 判别联合（false 支 `reason/root/path`，true 支 `parent/leaf/exists`）。
+- **`never[]` 家族**：`parseTraitHas` 的 `out.vars`、`auditAdapters` 的 `warnings/errors` 补完整 `@type`。
+- **零散族**：`STAT_DEFS` 补可选 `min/custom`、布尔型 `num`、`merged.vals`、`mcAutoRunOnce`、`undoCheatModValue/mbCEWorldUndo/placeStageUndo/undoVanillaStage` 下四处结果、两处 `report`、`mbCEUiState`、`parsed`、03b 两个 `r`（补 `skipped?/error?`）、`07a` 的 `arguments`、`07i` 的 `@this {any}`、`07f-pins2` 的 `exec` 结果兜底（该分支经上方正则前置证明不可达，命中失败时新旧都落同一 `catch → null`）。
+- **判空写法 3 处**：`04b` 的 `if (!r.ok)` → `if (r.ok !== true)`。原因是**产物侧 `tsconfig.json` 是 `strict:false`**，负向真值判断不窄化判别联合（`!r.ok` / `else` 分支都失败；`r.ok === false` / `r.ok !== true` / 正向 `if (r.ok)` 才收窄，npx tsc 四写法各跑一遍实证）。布尔字段下两者语义等价。
+- **基线收窄**：`tools/src-types-baseline.json` 由 169 条 / 26 文件 → `total: 0 / files: {}`（棘轮从此锁死，新增债务即红）。
+
+### 二、验证（磁盘实测）
+
+- `node tools/check_src_types.js`：**0 个 src 段 / 0 条 strict 真债务（基线 0）**，`拼接 SHA b3c9cd1feb88 == 产物 SHA`，exit 0；隐式 any 噪声 1023 条按口径不计账。
+- 产物侧 `tsc -p tsconfig.json`：**0 错误**（改前 8 条 TS2339）。
+- `tools/run_all.ps1` **12/12 ALL CHECKS PASSED**：`ASSERT_TOTAL=5806 PASS=5806 FAIL=0`、性别集成 `passed=24 failed=0`、声明矩阵 12 适配器 / 423 条目 / 965 探针、覆盖率门禁 90/70/95 通过、`codegraph sync` 已同步。
+- `pack.ps1`：zip 正斜杠校验 + verifier 4 条目全命中（verifier-hub 本机缺入口，走内置等价核对「条目集合精确匹配 + CRC 全量」并打 WARN）。
+- 产物 `javascript/maplebirchce.js`：**841,759 B / `B3C9CD1FEB883C9959C83D8D9D8734CAD2538432135B569ADC2C106F41D0BBBC`**。
+
+### 三、新增坑位（已记 `.learnings/LEARNINGS.md` LRN-20261107-011）
+
+- 本仓类型门禁是**双口径**：src 侧 `strict:true` + 产物侧 `strict:false`，必须两边都绿才算过。
+- 机械替换模式以 `(` 开头会吞掉外层调用的左括号（`String(e.message || e)` → `StringmbCEErr(e)`，TS2304）。
+- 自写的 tsc 分账探针必须自己重建 `tools/_srctypes/src-united.js`，否则改完源码仍读旧联合文件、债务数字不动。
+
 ## v2.0.4（2026-11-07 质量门禁加固 + 架构审计 P0-P2 落地：构建顺序显式化 / 声明 schema 化 / 声明驱动断言矩阵）
 
 **触发**：用户指令「我这个还有哪些缺陷？1~5」（按上一轮五层诊断给出的修复顺序，全部五项）。

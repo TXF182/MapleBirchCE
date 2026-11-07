@@ -56,14 +56,14 @@
 				var sep = rest.indexOf(":");
 				var modId = sep === -1 ? rest : rest.slice(0, sep);
 				var itemKey = sep === -1 ? "" : rest.slice(sep + 1);
-				var r1 = undoCheatModValue(modId, itemKey);
+				var r1 = /** @type {any} */ (undoCheatModValue(modId, itemKey));
 				return { ok: !!(r1 && r1.ok), msg: (r1 && (r1.message || r1.msg)) || "作弊项回退失败" };
 			}
 			if (type === "world") {
 				var gid = key.indexOf("world:") === 0 ? key.slice(6) : key;
 				var sepW = gid.indexOf(":");
 				if (sepW !== -1) { gid = gid.slice(0, sepW); }
-				var r2 = mbCEWorldUndo(gid);
+				var r2 = /** @type {any} */ (mbCEWorldUndo(gid));
 				return { ok: !!(r2 && r2.ok), msg: (r2 && (r2.message || r2.msg)) || "世界入口回退失败" };
 			}
 			if (type === "maint") {
@@ -71,7 +71,7 @@
 				return { ok: !!(r3 && r3.ok), msg: (r3 && r3.msg) || "维护写入回退失败" };
 			}
 			if (type === "place") {
-				var r4 = placeStageUndo(rec.path || key.replace(/^place:/, ""));
+				var r4 = /** @type {any} */ (placeStageUndo(rec.path || key.replace(/^place:/, "")));
 				return { ok: !!(r4 && r4.ok), msg: (r4 && (r4.message || r4.msg)) || "地点阶段回退失败" };
 			}
 			if (type === "native") {
@@ -81,7 +81,7 @@
 			}
 			if (type === "vanilla") {
 				var vk = rec.key || key.replace(/^vanilla:/, "");
-				var r5 = undoVanillaStage(rec.npc || "Gwylan", vk);
+				var r5 = /** @type {any} */ (undoVanillaStage(rec.npc || "Gwylan", vk));
 				return { ok: !!(r5 && r5.ok), msg: (r5 && (r5.message || r5.msg)) || "原版阶段回退失败" };
 			}
 			/* 框架恋爱条件三类：留痕里已存 path / value，可直接还原（与 undoRomanceStage 同口径） */
@@ -115,7 +115,7 @@
 			}
 			return { ok: false, msg: "未知留痕类型：" + (type || "(空)") };
 		} catch (e) {
-			return { ok: false, msg: "回退异常：" + (e && e.message ? e.message : e) };
+			return { ok: false, msg: "回退异常：" + mbCEErr(e) };
 		}
 	}
 	/* 按类型分组回退 */

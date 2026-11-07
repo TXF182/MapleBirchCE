@@ -6,7 +6,7 @@
 			var s = SCENE_LOCATIONS[key];
 			if (!s && /^AlexFarmWorkStage\d+$/.test(key || "")) {
 				/* 兼容一位/两位数字位宽：真实注册表 key 为两位（03..12），部分来源为一位 */
-				var nn = /^AlexFarmWorkStage(\d+)$/.exec(key)[1];
+				var nn = (/^AlexFarmWorkStage(\d+)$/.exec(key) || [])[1];
 				s = SCENE_LOCATIONS["AlexFarmWorkStage" + (nn.length === 1 ? "0" + nn : nn)];
 			}
 			if (s) { return { location: s.loc, timeNote: s.time || "" }; }
@@ -159,10 +159,10 @@
 				/* 跳转失败：回滚 used（保留队列项）+ 清重放状态，避免卡死 */
 				try { P.used = false; } catch (e2) {}
 				mbCEClearReplay(true);
-				return { ok: false, message: "跳转失败：" + (e && e.message ? e.message : e) };
+				return { ok: false, message: "跳转失败：" + mbCEErr(e) };
 			}
 			return { ok: true, message: "已开始触发「" + P.name + "」" };
-		} catch (e) { return { ok: false, message: "触发失败：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "触发失败：" + mbCEErr(e) }; }
 	}
 	/* v1.9.30 剧情直达触发：从场景 def 构造临时 P 并直接开始锚定重放。
 	   与「锚定」的区别：跳过地点判定/确认条/队列——点即触发；不写 mbCE_queue，
@@ -189,7 +189,7 @@
 			var r = startAnchoredReplay(P);
 			if (!r.ok) { return r; }
 			return { ok: true, message: r.message, scene: P };
-		} catch (e) { return { ok: false, message: "直达失败：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, message: "直达失败：" + mbCEErr(e) }; }
 	}
 	/* 挂载确认条（页面顶部，非阻断式） */
 	function showAnchorPrompt(P, meta) {

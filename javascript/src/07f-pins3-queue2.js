@@ -154,7 +154,7 @@
 				n += 1;
 			});
 			return { ok: n > 0, n: n, msg: n > 0 ? "已撤回 " + n + " 项世界入口解锁" : "无该地点的世界入口留痕" };
-		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + mbCEErr(e) }; }
 	}
 	/* 幂等写入世界入口条件：已有更高/相同值不覆盖，只补缺失或更低值（v1.7.0 支持子路径 path 型，如 compound.allowed） */
 	function applyWorldUnlock(gid) {

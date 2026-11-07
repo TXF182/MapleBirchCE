@@ -20,6 +20,7 @@
 	}
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
+	/** @type {any} */
 	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "" };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
 	function mbCEUiLoad() {
@@ -255,7 +256,7 @@
 						}
 						mbCEPushError(parts.join(" | "), "console.error", "");
 					} catch (e2) {}
-					origErr.apply(this, arguments);
+					origErr.apply(this, /** @type {any} */ (arguments));
 				};
 			}
 		} catch (e) {}
