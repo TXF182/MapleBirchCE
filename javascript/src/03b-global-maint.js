@@ -1,3 +1,67 @@
+	/* ============ v2.0.3 回退语义补齐：维护写入统一走「幂等 + 首次 before 留痕」 ============
+	   原维护函数是裸写（V[k] = 4 / 100 / 0），写入后无痕迹：玩家看不到自动维护改了什么，也无法撤回。
+	   现所有「纯数值覆盖型」维护键统一走 mbCEMaintWrite：
+	     - 值已到位则不写（幂等，避免每日调度重复写档）；
+	     - 记录 key = maint:<点号路径>，before 保留「首次写入前」状态（undefined 亦记录，回退可删字段）；
+	     - mbCEMaintUndo(path) 单键回退，mbCEMaintUndoAll() 全量回退。
+	   不接留痕的三类（设计取舍，避免破坏模组状态机）：
+	     ① 投喂：扣食材 + 经 wikifier 推进 avery_food_select 状态机；② 农场收获清库存：货已经 tending_give 发出；
+	     ③ 战斗终结/恋爱阶段：走各自 dedicated 通道（cheat:* / romance:*）。 */
+	function mbCEMaintWrite(path, val) {
+		try {
+			var V = getV();
+			var parts = String(path || "").split(".");
+			if (!V || !parts.length || !parts[0]) { return false; }
+			var cur = V, i;
+			for (i = 0; i < parts.length - 1; i++) {
+				/* 维护不补壳：宿主（对象）缺失即视为模组未初始化，跳过该键 */
+				if (cur[parts[i]] === null || typeof cur[parts[i]] !== "object") { return false; }
+				cur = cur[parts[i]];
+			}
+			var leaf = parts[parts.length - 1];
+			if (typeof cur[leaf] !== "number") { return false; }  /* 仅数值型维护键 */
+			if (cur[leaf] === val) { return false; }              /* 幂等 */
+			var before = cur[leaf];
+			var key = "maint:" + path;
+			var prev = V.mbCE_wrote && V.mbCE_wrote[key];
+			if (prev && "before" in prev) { before = prev.before; }
+			cur[leaf] = val;
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			V.mbCE_wrote[key] = { type: "maint", path: path, before: before, after: val, t: Date.now() };
+			mbCEWroteTrim(V);
+			return true;
+		} catch (e) { return false; }
+	}
+	function mbCEMaintUndo(path) {
+		try {
+			var V = getV(), key = "maint:" + path;
+			if (!V || !V.mbCE_wrote || !V.mbCE_wrote[key]) { return { ok: false, msg: "无该维护写入留痕" }; }
+			var rec = V.mbCE_wrote[key];
+			var parts = String(path || "").split(".");
+			var cur = V, i;
+			for (i = 0; i < parts.length - 1; i++) {
+				if (cur[parts[i]] === null || typeof cur[parts[i]] !== "object") { return { ok: false, msg: "宿主已被清除，无法回退" }; }
+				cur = cur[parts[i]];
+			}
+			var leaf = parts[parts.length - 1];
+			if (rec.before === undefined) { try { delete cur[leaf]; } catch (e) { cur[leaf] = undefined; } }
+			else { cur[leaf] = rec.before; }
+			try { delete V.mbCE_wrote[key]; } catch (e) { V.mbCE_wrote[key] = undefined; }
+			return { ok: true, msg: "已回退 " + path + " 到维护写入前状态" };
+		} catch (e) { return { ok: false, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+	}
+	function mbCEMaintUndoAll() {
+		try {
+			var V = getV(), n = 0;
+			if (!V || !V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { return { ok: false, n: 0, msg: "无维护写入留痕" }; }
+			Object.keys(V.mbCE_wrote).forEach(function (k) {
+				if (k.indexOf("maint:") !== 0) { return; }
+				var r = mbCEMaintUndo(k.slice(6));
+				if (r.ok) { n += 1; }
+			});
+			return { ok: n > 0, n: n, msg: n > 0 ? "已回退 " + n + " 项维护写入" : "无维护写入留痕" };
+		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+	}
 	/* ============ v1.8.8：庄园自动维护（学 AutoClean 0.1.5 原功能，即时一键执行）
 	     AutoClean 原实现：每日 0 点调 AutoCleanFeedAvery()（艾弗里优先吃想吃的菜）+ AutoCleanFarm()
 	     （农场动物锁满/agro 清零/库存收获）。MCE 全局页提供同逻辑的即时按钮，数据逻辑与此处一致。 ============ */
@@ -58,12 +122,12 @@
 			if (f && f.tower_guard && f.tower_guard_skill && f.tower_guard_skill >= 1000) {
 				var b = f.beasts;
 				if (b) {
-					if (b.horses !== undefined) { b.horses = 30; r.beasts += 1; }
-					if (b.pigs !== undefined) { b.pigs = 30; r.beasts += 1; }
-					if (b.cattle !== undefined) { b.cattle = 30; r.beasts += 1; }
-					if (b.dogs !== undefined) { b.dogs = 30; r.beasts += 1; }
+					if (b.horses !== undefined) { mbCEMaintWrite("farm.beasts.horses", 30); r.beasts += 1; }
+					if (b.pigs !== undefined) { mbCEMaintWrite("farm.beasts.pigs", 30); r.beasts += 1; }
+					if (b.cattle !== undefined) { mbCEMaintWrite("farm.beasts.cattle", 30); r.beasts += 1; }
+					if (b.dogs !== undefined) { mbCEMaintWrite("farm.beasts.dogs", 30); r.beasts += 1; }
 				}
-				if (V.farm_stage >= 5 && f.aggro) { f.aggro = 0; r.aggro = true; }
+				if (V.farm_stage >= 5 && f.aggro) { mbCEMaintWrite("farm.aggro", 0); r.aggro = true; }
 			}
 			if (f && f.stock && !V.farmerCanSell) {
 				Object.keys(f.stock).forEach(function (k) {
@@ -103,10 +167,10 @@
 			   earnFeat("Majordomo") 判 V.housekeeping>=1000、cheatSection 用 $housekeeping；
 			   V.skill 在原版不存在，v1.9.x 曾误写 V.skill.housekeeping → 恒 false → 永远"未达标"） */
 			if (V.housekeeping >= 1000) {
-				if (typeof V.temple_quarters === "number") { V.temple_quarters = 100; r.quarters = true; }
+				if (typeof V.temple_quarters === "number") { mbCEMaintWrite("temple_quarters", 100); r.quarters = true; }
 			}
 			if (V.tending >= 1000) {
-				if (typeof V.temple_garden === "number") { V.temple_garden = 100; r.garden = true; }
+				if (typeof V.temple_garden === "number") { mbCEMaintWrite("temple_garden", 100); r.garden = true; }
 			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
@@ -117,7 +181,7 @@
 		try {
 			/* 对齐 AutoClean：伊甸菜地/菇桶/泉水无条件锁 4 */
 			["edengarden", "edenshrooms", "edenspring"].forEach(function (k) {
-				if (typeof V[k] === "number") { V[k] = 4; r.locked += 1; }
+				if (typeof V[k] === "number") { mbCEMaintWrite(k, 4); r.locked += 1; }
 			});
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
@@ -131,11 +195,11 @@
 			   if( V.salve != undefined && V.salve < 10 )V.salve = 10;
 			   if(V.bird.upgrades !=undefined && V.bird.upgrades.firepit >= 3 && V.bird.materials.wood < 10 )V.bird.materials.wood = 10;
 			   —— 鹰塔木材需火坑升级≥3 且不足 10 才补 */
-			if (typeof V.soap === "number" && V.soap < 10) { V.soap = 10; r.soap = true; }
-			if (typeof V.salve === "number" && V.salve < 10) { V.salve = 10; r.salve = true; }
+			if (typeof V.soap === "number" && V.soap < 10) { mbCEMaintWrite("soap", 10); r.soap = true; }
+			if (typeof V.salve === "number" && V.salve < 10) { mbCEMaintWrite("salve", 10); r.salve = true; }
 			if (V.bird && V.bird.upgrades && V.bird.upgrades.firepit >= 3 &&
 				V.bird.materials && typeof V.bird.materials.wood === "number" && V.bird.materials.wood < 10) {
-				V.bird.materials.wood = 10; r.wood = true;
+				mbCEMaintWrite("bird.materials.wood", 10); r.wood = true;
 			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;
@@ -157,9 +221,9 @@
 			var man = V.avery_mansion;
 			if (man && typeof man === "object") {
 				["pool", "kitchen", "lounge", "display", "bedroom", "bathroom", "dining", "garden", "study", "garage"].forEach(function (k) {
-					if (typeof man[k] === "number") { man[k] = 0; r.rooms += 1; }
+					if (typeof man[k] === "number") { mbCEMaintWrite("avery_mansion." + k, 0); r.rooms += 1; }
 				});
-				if (typeof man.days_absent === "number") { man.days_absent = 0; r.days = true; }
+				if (typeof man.days_absent === "number") { mbCEMaintWrite("avery_mansion.days_absent", 0); r.days = true; }
 			}
 		} catch (e) { r.error = String(e.message || e); }
 		return r;

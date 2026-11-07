@@ -4981,5 +4981,99 @@ try {
 }
 
 
+// ===== 57 回退语义补齐（v2.0.3）：世界入口解锁留痕 · 维护写入留痕 =====
+try {
+  const api57 = setup.mbStageCE;
+  const V7 = global.V;
+
+  // 57.1~57.4 世界入口（子路径型）：父对象原本缺失 → 逐层补壳 + before=undefined
+  V7.mbCE_wrote = {};
+  delete V7.compound;
+  api57.applyWorldUnlock("elk_compound");
+  assert(V7.compound && V7.compound.allowed === true, "57.1 compound.allowed 写入 true（父对象缺失时逐层补壳）");
+  assert(V7.compound.discovered === true, "57.2 顺带补 compound.discovered=true");
+  const rec57a = V7.mbCE_wrote["world:elk_compound:compound.allowed"];
+  const rec57b = V7.mbCE_wrote["world:elk_compound:compound.discovered"];
+  assert(rec57a && rec57a.type === "world" && rec57a.before === undefined && rec57a.after === true, "57.3 主键留痕：type=world / before=undefined / after=true");
+  assert(rec57b && rec57b.before === undefined && rec57b.after === true, "57.4 discovered 亦留痕（before=undefined）");
+  const t57a = rec57a.t;
+  api57.applyWorldUnlock("elk_compound");
+  assert(V7.mbCE_wrote["world:elk_compound:compound.allowed"].t === t57a, "57.5 重复调用幂等：值已到位不重写、留痕时间戳不变");
+
+  // 57.6~57.7 撤回：before=undefined → 删字段；记录清除
+  const u57a = api57.worldUndo("elk_compound");
+  assert(u57a.ok === true && u57a.n === 2, "57.6 worldUndo 撤回 2 项世界入口写入");
+  assert(V7.compound && !("allowed" in V7.compound) && !("discovered" in V7.compound), "57.7 before=undefined → 回退即删除两字段");
+  assert(V7.mbCE_wrote["world:elk_compound:compound.allowed"] === undefined, "57.8 撤回后留痕记录清除");
+
+  // 57.9~57.10 首次 before 语义：原本 false → 写 true → 撤回回 false（不是删除）
+  V7.mbCE_wrote = {};
+  V7.compound = { allowed: false };
+  api57.applyWorldUnlock("elk_compound");
+  assert(V7.compound.allowed === true, "57.9 原本 false 时写入 true");
+  api57.worldUndo("elk_compound");
+  assert(V7.compound.allowed === false, "57.10 before 保留首次写入前值 → 撤回还原 false（非删除）");
+
+  // 57.11~57.12 平铺数值型 / 字符串型
+  V7.mbCE_wrote = {};
+  delete V7.syndromekylar;
+  api57.applyWorldUnlock("kylar_manor");
+  assert(V7.syndromekylar === 1, "57.11 平铺数值型 syndromekylar 写入 1");
+  assert(V7.mbCE_wrote["world:kylar_manor:syndromekylar"] && V7.mbCE_wrote["world:kylar_manor:syndromekylar"].before === undefined, "57.12 平铺键同样留痕（before=undefined）");
+  api57.worldUndo("kylar_manor");
+  assert(!("syndromekylar" in V7) || V7.syndromekylar === undefined, "57.13 撤回后删除 syndromekylar");
+
+  V7.mbCE_wrote = {};
+  V7.adultshopstate = "";
+  api57.applyWorldUnlock("sirris_places");
+  assert(V7.adultshopstate === "open", "57.14 字符串型 adultshopstate 空值时写入 open");
+  api57.worldUndo("sirris_places");
+  assert(V7.adultshopstate === "", "57.15 撤回还原空串（原逻辑只补空值）");
+  V7.adultshopstate = "closed";
+  api57.applyWorldUnlock("sirris_places");
+  assert(V7.adultshopstate === "closed" && !V7.mbCE_wrote["world:sirris_places:adultshopstate"], "57.15b 非空值（closed）不覆盖、不留痕（保持幂等语义）");
+
+  // 57.16~57.18 维护写入：伊甸锁 4 幂等 + before 留痕 + 单键回退
+  V7.mbCE_wrote = {};
+  V7.edengarden = 2; V7.edenshrooms = 4; V7.edenspring = 0;
+  const ed57 = api57.mcMaintainEden();
+  assert(ed57.locked === 3 && V7.edengarden === 4 && V7.edenspring === 4, "57.16 伊甸三键锁 4（locked 计数保持原语义=3）");
+  const rec57e = V7.mbCE_wrote["maint:edengarden"];
+  assert(rec57e && rec57e.type === "maint" && rec57e.before === 2 && rec57e.after === 4, "57.17 maint:edengarden 留痕 before=2 / after=4");
+  assert(V7.mbCE_wrote["maint:edenshrooms"] === undefined, "57.18 值已为 4 的键幂等不写、不留痕");
+  const t57e = rec57e.t;
+  api57.mcMaintainEden();
+  assert(V7.mbCE_wrote["maint:edengarden"].t === t57e && V7.edengarden === 4, "57.19 再次维护幂等：值不变、留痕时间戳不变");
+  api57.maintUndo("edengarden");
+  assert(V7.edengarden === 2, "57.20 maintUndo 还原 edengarden=2");
+
+  // 57.21~57.23 庄园打扫（嵌套路径）+ 全量回退
+  V7.mbCE_wrote = {};
+  V7.avery_fate = "saved";
+  V7.avery_mansion = { pool: 3, kitchen: 5, days_absent: 7 };
+  const cl57 = api57.mcCleanMansion();
+  assert(cl57.rooms === 2 && V7.avery_mansion.pool === 0 && V7.avery_mansion.kitchen === 0 && V7.avery_mansion.days_absent === 0, "57.21 打扫清零房间与 days_absent");
+  assert(V7.mbCE_wrote["maint:avery_mansion.pool"] && V7.mbCE_wrote["maint:avery_mansion.pool"].before === 3, "57.22 嵌套路径留痕 before=3");
+  const ua57 = api57.maintUndoAll();
+  assert(ua57.ok === true && ua57.n === 3 && V7.avery_mansion.pool === 3 && V7.avery_mansion.kitchen === 5 && V7.avery_mansion.days_absent === 7, "57.23 maintUndoAll 还原 3 项嵌套维护键");
+
+  // 57.24~57.26 边界：未达标不写 / 宿主缺失不补壳 / 非数值键拒绝
+  V7.mbCE_wrote = {};
+  V7.housekeeping = 999; V7.tending = 0; V7.temple_quarters = 40; V7.temple_garden = 40;
+  const tm57 = api57.mcMaintainTemple();
+  assert(tm57.quarters === false && tm57.garden === false && V7.temple_quarters === 40, "57.24 技能未达标（999/0）不写、不留痕");
+  delete V7.farm;
+  assert(api57.maintWrite("farm.beasts.horses", 30) === false, "57.25 宿主缺失 → maintWrite 返回 false，不补壳");
+  assert(!V7.farm, "57.26 宿主缺失时未创建空壳 farm 对象");
+
+  delete V7.edengarden; delete V7.edenshrooms; delete V7.edenspring;
+  delete V7.avery_fate; delete V7.avery_mansion;
+  V7.mbCE_wrote = {};
+} catch (e57) {
+  failures++;
+  console.error("FAIL: 57 回退语义补齐测试异常: " + (e57 && e57.message ? e57.message : e57));
+}
+
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

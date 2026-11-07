@@ -103,6 +103,59 @@
 		"sirris_places": { var: "adultshopstate", set: "open", entry: "成人商店 → 接近西里斯（营业时段可见）" },
 		"elk_compound": { path: "compound.allowed", set: true, entry: "Elk Street → Approach the compound（需 $compound.allowed）" }
 	};
+	/* v2.0.3 回退语义补齐：世界入口解锁原为裸写（V[path]=value 无痕迹，误点后无法撤回）。
+	   现统一走 mbCEWorldWrite：逐层补壳 + 仅值变化时写 + 首次 before 留痕（key=world:<gid>:<path>）；
+	   回退 mbCEWorldUndo(gid) 还原首次写入前状态（before=undefined → 删字段）。 */
+	function mbCEWorldResolve(path, create) {
+		var V = getV();
+		var parts = String(path || "").split(".");
+		if (!V || !parts.length || !parts[0]) { return null; }
+		var cur = V, i;
+		for (i = 0; i < parts.length - 1; i++) {
+			if (cur[parts[i]] === null || typeof cur[parts[i]] !== "object") {
+				if (!create) { return null; }
+				cur[parts[i]] = {}; /* 父级缺失则逐层补空对象壳（防 undefined 写入） */
+			}
+			cur = cur[parts[i]];
+		}
+		return { root: V, parent: cur, leaf: parts[parts.length - 1] };
+	}
+	function mbCEWorldWrite(gid, path, value) {
+		try {
+			var r = mbCEWorldResolve(path, true);
+			if (!r || !gid) { return false; }
+			if (r.parent[r.leaf] === value) { return false; } /* 幂等：值已到位不写、不新增留痕 */
+			var V = r.root;
+			var before = r.parent[r.leaf];
+			var key = "world:" + gid + ":" + path;
+			var prev = V.mbCE_wrote && V.mbCE_wrote[key];
+			/* before 始终保留「首次写入前」状态（含 undefined=原本无字段），用 in 判断避免覆盖 */
+			if (prev && "before" in prev) { before = prev.before; }
+			r.parent[r.leaf] = value;
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			V.mbCE_wrote[key] = { type: "world", gid: gid, path: path, before: before, after: value, t: Date.now() };
+			mbCEWroteTrim(V);
+			return true;
+		} catch (e) { return false; }
+	}
+	function mbCEWorldUndo(gid) {
+		try {
+			var V = getV(), n = 0, prefix = "world:" + gid + ":";
+			if (!V || !V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { return { ok: false, n: 0, msg: "无世界入口写入留痕" }; }
+			Object.keys(V.mbCE_wrote).forEach(function (k) {
+				if (k.indexOf(prefix) !== 0) { return; }
+				var rec = V.mbCE_wrote[k];
+				var r = mbCEWorldResolve(rec.path, false);
+				if (r) {
+					if (rec.before === undefined) { try { delete r.parent[r.leaf]; } catch (e) { r.parent[r.leaf] = undefined; } }
+					else { r.parent[r.leaf] = rec.before; }
+				}
+				try { delete V.mbCE_wrote[k]; } catch (e) { V.mbCE_wrote[k] = undefined; }
+				n += 1;
+			});
+			return { ok: n > 0, n: n, msg: n > 0 ? "已撤回 " + n + " 项世界入口解锁" : "无该地点的世界入口留痕" };
+		} catch (e) { return { ok: false, n: 0, msg: "回退异常：" + (e && e.message ? e.message : e) }; }
+	}
 	/* 幂等写入世界入口条件：已有更高/相同值不覆盖，只补缺失或更低值（v1.7.0 支持子路径 path 型，如 compound.allowed） */
 	function applyWorldUnlock(gid) {
 		try {
@@ -110,26 +163,17 @@
 			if (!V || !gid || !WORLD_UNLOCKS[gid]) { return; }
 			var w = WORLD_UNLOCKS[gid];
 			if (w.path !== undefined) {
-				var segs = String(w.path).split(".");
-				var cur = V, i;
-				for (i = 0; i < segs.length - 1; i++) {
-					if (cur[segs[i]] === null || typeof cur[segs[i]] !== "object") {
-						/* 父级缺失则逐层补空对象壳（防 undefined 写入） */
-						cur[segs[i]] = {};
-					}
-					cur = cur[segs[i]];
-				}
-				if (cur[segs[segs.length - 1]] !== w.set) { cur[segs[segs.length - 1]] = w.set; }
+				mbCEWorldWrite(gid, w.path, w.set);
 				/* 顺带补 discovered（Elk Street 逻辑：discovered 才显示大院入口判定） */
-				if (gid === "elk_compound" && V.compound && V.compound.discovered !== true) { V.compound.discovered = true; }
+				if (gid === "elk_compound" && (!V.compound || V.compound.discovered !== true)) { mbCEWorldWrite(gid, "compound.discovered", true); }
 				return;
 			}
 			if (w.var === undefined) { return; }
 			if (typeof w.set === "number") {
 				var cur2 = typeof V[w.var] === "number" ? V[w.var] : 0;
-				if (cur2 < w.set) { V[w.var] = w.set; }
+				if (cur2 < w.set) { mbCEWorldWrite(gid, w.var, w.set); }
 			} else if (V[w.var] === undefined || V[w.var] === null || V[w.var] === "") {
-				V[w.var] = w.set;
+				mbCEWorldWrite(gid, w.var, w.set);
 			}
 		} catch (e) {}
 	}

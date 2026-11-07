@@ -153,6 +153,7 @@
 				unpinScene: unpinScene,
 				applyWorldUnlock: applyWorldUnlock,
 				applyWorldUnlockForScene: applyWorldUnlockForScene,
+				worldUndo: mbCEWorldUndo,
 				ensureFarmState: ensureFarmState,
 				ensureAveryMansion: ensureAveryMansion,
 				ensureGwylanSceneState: ensureGwylanSceneState,
@@ -265,6 +266,10 @@
 				mcMaintainEden: mcMaintainEden,
 				mcRestockSupplies: mcRestockSupplies,
 				mcCleanMansion: mcCleanMansion,
+				/* v2.0.3 维护写入留痕回退 */
+				maintUndo: mbCEMaintUndo,
+				maintUndoAll: mbCEMaintUndoAll,
+				maintWrite: mbCEMaintWrite,
 				/* v1.9.x 庄园自动维护：每日全自动调度（AutoClean 模式） */
 				AUTO_MAINTAIN_ITEMS: AUTO_MAINTAIN_ITEMS,
 				mcAutoState: mcAutoState,

@@ -262,6 +262,35 @@
 			acsec.appendChild(row);
 		});
 
+		/* v2.0.3 回退语义补齐：维护写入留痕可见 + 一键回退（key = maint:<点号路径>，
+	   before 保留「首次写入前」状态；写入前无该字段 → 回退即删除）。
+	   只覆盖纯数值覆盖型维护（神殿/伊甸/补给/农场锁值/庄园打扫）；投喂与农场收获属状态机推进，不回退。 */
+		var mtKeys = [];
+		(function () {
+			var Vt = getV();
+			if (Vt && Vt.mbCE_wrote && typeof Vt.mbCE_wrote === "object") {
+				Object.keys(Vt.mbCE_wrote).forEach(function (k) { if (k.indexOf("maint:") === 0) { mtKeys.push(k.slice(6)); } });
+			}
+		})();
+		var mtRow = el("div", "mce-row");
+		var mtLbl = el("span", "mce-row-lbl", mtKeys.length
+			? ("已记录 " + mtKeys.length + " 项维护写入：" + mtKeys.slice(0, 6).join(" / ") + (mtKeys.length > 6 ? " …" : ""))
+			: "暂无维护写入记录（开启任一维护项并实际改动数值后，在此显示并可回退）");
+		mtRow.appendChild(mtLbl);
+		if (mtKeys.length) {
+			var mtUndoAll = el("button", "mce-btn mce-red", "撤回全部维护写入");
+			mtUndoAll.type = "button";
+			mtUndoAll.setAttribute("data-op", "maint-undo-all");
+			mtUndoAll.title = "每项还原到维护写入前状态（写入前无该字段的直接删除）";
+			mtUndoAll.addEventListener("click", function () {
+				var ru = mbCEMaintUndoAll();
+				setStatus(ru.msg, ru.ok ? "mce-ok" : "mce-err");
+				if (ru.ok) { mtLbl.textContent = "已回退 " + ru.n + " 项维护写入（记录已清除）"; }
+			});
+			mtRow.appendChild(mtUndoAll);
+		}
+		acsec.appendChild(mtRow);
+
 		/* v1.9.12：世界腐化（原版 World Corruption）数值调整
 		   原版键：V.world_corruption_hard（世界硬腐化，罪孽/净化计数，原版宏 worldCorruption("hard",n) 钳 -30~30，初始 2）
 		          V.world_corruption_soft（世界软腐化，世界异变程度，原版宏钳 0~100，初始 0）

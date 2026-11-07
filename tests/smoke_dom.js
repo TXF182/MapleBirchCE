@@ -306,6 +306,18 @@ assert(placesPane.textContent.indexOf("监狱（原版 Prison）") !== -1 && pla
 assert(placesPane.textContent.indexOf("监狱关注度") !== -1 && placesPane.textContent.indexOf("服从度") !== -1, "监狱关注度 / 牲口服从度 档位行渲染");
 const directBtnV7 = placesPane.querySelector('.mce-inner button[data-place="direct"]');
 if (directBtnV7) { directBtnV7.click(); }
+/* v2.0.3 回退语义补齐：世界入口解锁留痕小节（world:* 记录 → 行 + 撤回按钮，点击后记录清除） */
+V.mbCE_wrote = V.mbCE_wrote || {};
+V.mbCE_wrote["world:elk_compound:compound.allowed"] = { type: "world", gid: "elk_compound", path: "compound.allowed", before: undefined, after: true, t: 1 };
+const stageBtnW = placesPane.querySelector('.mce-inner button[data-place="stage"]');
+if (stageBtnW) { stageBtnW.click(); }
+const directBtnW = placesPane.querySelector('.mce-inner button[data-place="direct"]');
+if (directBtnW) { directBtnW.click(); }
+assert(placesPane.textContent.indexOf("世界入口解锁记录") !== -1, "场景直达页渲染「世界入口解锁记录」小节，实际 " + placesPane.textContent.slice(-180));
+const wUndoBtn = placesPane.querySelector('button[data-op="world-undo"]');
+assert(!!wUndoBtn, "世界入口留痕行含「撤回」按钮");
+if (wUndoBtn) { wUndoBtn.click(); }
+assert(V.mbCE_wrote["world:elk_compound:compound.allowed"] === undefined, "点击撤回 → 世界入口留痕记录清除");
 
 ptxt = clickTabSafe("global");
 assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "全局页渲染不崩，实际 " + ptxt.slice(0, 50));
@@ -313,6 +325,8 @@ assert(ptxt.indexOf("THREW") === -1 && ptxt.length > 0, "全局页渲染不崩�
 const globalPane = document.querySelector('[data-pane="global"]');
 const gtxt = globalPane.textContent;
 assert(gtxt.indexOf("战斗终结") !== -1 && gtxt.indexOf("庄园自动维护") !== -1, "全局页含 战斗终结+庄园自动维护 两区，实际 " + gtxt.slice(0, 120));
+/* v2.0.3 回退语义补齐：维护写入留痕行（无记录时提示文案，有记录时给「撤回全部维护写入」按钮） */
+assert(gtxt.indexOf("维护写入记录") !== -1, "全局页维护区含维护写入留痕行，实际 " + gtxt.slice(-160));
 const btBtns = [].slice.call(globalPane.querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("自我了断") !== -1; });
 assert(btBtns.length === 1, "战斗终结「自我了断」按钮存在");
 if (btBtns[0]) { btBtns[0].click(); }
