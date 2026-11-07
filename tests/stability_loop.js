@@ -58,7 +58,11 @@ window.maplebirch = { get: function () { return null; }, npc: {} };
 window.modUtils = { getMod: function () { return null; } };
 
 window.__mbCE_forceSyncRows = true;
-const js = fs.readFileSync(path.join(__dirname, "..", "javascript", "maplebirchce.js"), "utf8");
+/* v2.0.3 覆盖率归因修复：eval 执行的脚本必须带 //# sourceURL，否则 V8 把覆盖率记到
+   evalmachine.<anonymous>，`c8 --include=javascript/maplebirchce.js` 会整段丢弃本测试的执行。
+   这是 C 维长期只统计 test_mce 一个测试、UI 惰性渲染全部"零覆盖"的根因。 */
+const jsPath = path.join(__dirname, "..", "javascript", "maplebirchce.js");
+const js = fs.readFileSync(jsPath, "utf8") + "\n//# sourceURL=" + jsPath.replace(/\\/g, "/");
 eval(js);
 const api = setup.mbStageCE;
 

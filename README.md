@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.0.2**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.0.3**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -78,6 +78,8 @@
 - **数值固定（v1.9.15）**：防游戏机制改值——8 个预设推荐（渡鸦转化点数：未戴羽毛项链每日衰减；马/鲸转化；亡灵等级：锁 0 解除诅咒；天使：无三位一体成长点减少；堕天使：每日纯洁流失；恶魔；纯洁 0-2000 内部）+ **自由添加任意 varPath**。锁定后每 1 秒强制写回目标值（锁定/更新即时生效），锁表存存档 `V.mbCE_lock` 读档自动恢复；不存在的值不凭空创建，非法路径拒绝；取消即停写。
 - **世界腐化（v1.9.12）**：原版世界硬/软腐化数值调整（`world_corruption_hard/soft`），直接填数不钳制原版上限，留痕可回退。
 - **时间调节（v1.9.13）**：当前时间/日期显示 + 前进 1 小时/6 小时/1 天 + 跳转指定时刻（只用游戏时钟，不碰行动点）。
+- **统一回退中心（v2.0.3）**：把散落在各页的 `V.mbCE_wrote` 留痕汇总成一处——按 type 分组（cheat / world / maint / place / native / vanilla / …）、按时间倒序、每组可「回退本组」、顶部可「全部回退（N 项可回退）」与「刷新清单」。三条**明确不可回退**的类型各有原因：`batch`（仅审计记录）、`yanling`（言灵页开关处自带撤销）、`state`（关系状态由原版实时判定），面板会打「不可回退」标记而不是假装能撤。
+- **写入前 diff 预览（v2.0.3）**：开关默认**关闭**（不打断现有操作习惯）；开启后每次写入前弹确认条「待确认写入：<路径>　<旧值> → <新值>」，确认才落档、取消则不动；同值写入不触发确认（幂等写入不重复打扰）。
 
 ### 6. Mod作弊页（第三方模组扩展内容）
 - **主容器页**：只展示已识别模组列表，点击进入子页面；顶部有「玩家自己」入口卡片。
@@ -119,7 +121,23 @@
 - 世界入口写入在父对象缺失时逐层补空壳（防写 undefined）；维护写入**不补壳**——宿主对象缺失即视为模组未初始化，直接跳过（与 `cheatResolvePath` 的 parent 拒绝同义）。
 - `world` / `maint` / `batch` 三类不在通用回退白名单内，`undoCheatModValue` 等通用入口不会误撤它们，必须走各自的专用函数。
 
-## Mod作弊 适配器一览（当前版本 2.0.2）
+### 7c. 统一回退中心与写入前 diff 预览（v2.0.3）
+
+**统一回退中心**（`javascript/src/08c-undo-center.js`，全局页第一个区块，不参与 ①…⑯ 编号）——数据源唯一是 `V.mbCE_wrote`，不另建账本：
+
+- 分组：`cheat` / `world` / `maint` / `place` / `native` / `vanilla` / `set` / `clear` / `append` / `state` / `batch` / `yanling`，组按条数降序；每组最多列 24 条（超出只影响展示，不影响回退）。
+- 分发：`cheat`→`undoCheatModValue(modId,itemKey)`、`world`→`mbCEWorldUndo(gid)`、`maint`→`mbCEMaintUndo(rec.path)`、`place`→`placeStageUndo(rec.path)`、`native`→`undoRomanceStage(nm,{native:true})`、`vanilla`→`undoVanillaStage(rec.npc||"Gwylan", rec.key)`、`set/clear/append` 按 `rec.path` / `rec.value` 还原。
+- 不可回退三类（`mbCEUndoBlocked`）会给出原因文本，全量回退时计入 `skip` 而不是混进成功数。
+- 顶部「diff 预览」开关：金色 = 已开启，点击写 `mbCEUiState.diffPreview` 并持久化。
+
+**写入前 diff 预览**（`javascript/src/08d-diff-preview.js`）：
+
+- `mbCEPreviewEnabled()` 读 `mbCEUiState.diffPreview === "1"`（默认关闭）。
+- 门控插点在 `cheatWriteValue`（`04b-modcheat-write.js`）**解析出 `before` 之后、真正赋值之前**：`before === after` 直接放行；否则挂起 `mbCEPendingPreview`（内存对象，含重放闭包，刷新即失效）并弹确认条，返回 `{ok:false, pending:true, message:"待确认写入：…"}`。
+- 确认条 `#mce-preview-bar` 贴在 `root` 底部：文案「待确认写入：<path>　<旧值> → <新值>」+「确认写入」+「取消」；确认后置 `mbCEPreviewReplay=true` 重跑闭包（防二次门控），取消则不写档。
+- 已知边界：`cheatWriteListValue`（列表型写入）**未接门控**——它的写入路径与单值不同，接入需要另一套 before 解析，本轮不做，面板只对单值写入生效。
+
+## Mod作弊 适配器一览（当前版本 2.0.3）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|

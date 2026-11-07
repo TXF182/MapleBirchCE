@@ -89,6 +89,11 @@
 				unlockVanillaAll: unlockVanillaAll,
 				describeCondition: describeCondition,
 				listStageTypes: listStageTypes,
+				/* v2.0.3 P4-1 统一回退中心 */
+				undoList: mbCEUndoList,
+				undoOne: mbCEUndoOne,
+				undoGroup: mbCEUndoGroup,
+				undoAll: mbCEUndoAll,
 				readTransformState: readTransformState,
 				adjustTransform: adjustTransform,
 				completeTransformStage: completeTransformStage,

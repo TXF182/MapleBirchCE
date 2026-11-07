@@ -362,4 +362,6 @@
 		mbCERenderLurker(pane);
 		/* v2.0.0.003 需求②：原版「你对什么感到不安?」直写（$uncomfortable，绕开 attitudesControl 重算门控） */
 		renderAttitudesGroup(pane);
+		/* v2.0.3 P4-1：统一回退中心（08c-undo-center.js）——收敛全部留痕回退入口 */
+		mbCEUndoCenterRender(pane);
 	}

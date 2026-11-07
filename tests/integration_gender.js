@@ -69,7 +69,8 @@ sandbox.window.SugarCube = undefined;
 sandbox.window.__mceExposedcheckCalls = 0;
 sandbox.window.exposedcheck = function () { sandbox.window.__mceExposedcheckCalls++; };
 VM.createContext(sandbox);
-VM.runInContext(mceSrc, sandbox);
+/* v2.0.3 覆盖率归因：vm 执行同样要 sourceURL，否则覆盖率不入 c8 报表 */
+VM.runInContext(mceSrc + "\n//# sourceURL=" + MCE_JS.replace(/\\/g, "/"), sandbox);
 const api = sandbox.setup.mbStageCE;
 if (!api || !api.applyPlayerGender || !api.getPlayerGender) {
   console.log("SKIP: 构建产物未暴露性别 API（applyPlayerGender/getPlayerGender）——先 build 或检查导出");
