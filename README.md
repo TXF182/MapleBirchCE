@@ -201,6 +201,12 @@
 
 ## 版本说明
 
+- **v2.0.5（2026-11-07 · src strict 类型真债务清零 169 → 0，纯类型层，运行时行为不变）**：
+  - **catch 取值收口**：新增 `mbCEErr(e)`，全库 43 处内联写法（`(e && e.message ? e.message : e)` / `String(e.message || e)` 四型）统一收口，语义等价，消掉 strict 下 `catch` 变量为 `unknown` 的 118 条 TS2339 家族；
+  - **判别联合**：`cheatResolvePath` 补 `@returns`（false 支 `reason/root/path` × true 支 `parent/leaf/exists`），消 18 条 TS2538；`04b` 3 处判空改 `r.ok !== true`（产物侧 `strict:false` 下负向判断不窄化）；
+  - **never[] 与零散族**：`parseTraitHas.vars`、`auditAdapters.warnings/errors`、`STAT_DEFS`、四处 undo 结果、两处 `report`、`mbCEUiState` 等逐处补注解；
+  - **基线锁死**：`tools/src-types-baseline.json` 169 条 / 26 文件 → `total: 0 / files: {}`，新增债务即红；
+  - **验证**：src 侧 0 债务（`拼接 SHA b3c9cd1feb88 == 产物 SHA`）+ 产物侧 `tsc -p tsconfig.json` 0 错误 + `run_all.ps1` 12/12 全绿（`ASSERT_TOTAL=5806 PASS=5806`）+ 打包 verifier 4/4；产物 841,759 B。
 - **v2.0.4（2026-11-07 · 质量门禁加固：孤儿测试入链 + 覆盖率阈值收紧 + CI 补两步 + 快照脚本修缺陷 + 文档数字订正）**：
   - **键核单测入链**：`tests/test_keycheck.js`（**281 断言，实测 `node tests/test_keycheck.js` → 通过 281 失败 0**；内核 `tools/lib/keycheck.js`）原先三处门禁都不跑，现加入 `tools/run_coverage.js` 序列（不新增全链步号），本地第 10 步与 CI 第 10 步同时覆盖；
   - **覆盖率阈值收紧**：`75/60/80 → 90/70/95`（`package.json` `coverage:gate` + `run_all.ps1` 第 10 步 + 本文件台账三处同步）；本地实测 94.65/73.31/96.99、CI 口径（缺原版 HTML）94.32/72.89/96.99 两端都过；
