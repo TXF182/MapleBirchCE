@@ -267,6 +267,10 @@
       "layer": "ui"
     },
     {
+      "file": "08e-undo-labels.js",
+      "layer": "ui"
+    },
+    {
       "file": "09-exports.js",
       "layer": "export"
     },

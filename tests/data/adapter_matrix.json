@@ -1446,7 +1446,7 @@
       "varPath": "RBR.necklace.retaken",
       "kind": "number",
       "type": "boolean",
-      "min": null,
+      "min": 0,
       "max": null,
       "levels": null,
       "probes": [
@@ -7172,7 +7172,7 @@
       "varPath": "AdmitMR",
       "kind": "number",
       "type": "boolean",
-      "min": null,
+      "min": 0,
       "max": null,
       "levels": null,
       "probes": [
@@ -7222,7 +7222,7 @@
       "varPath": "SilverConchAsk",
       "kind": "number",
       "type": "boolean",
-      "min": null,
+      "min": 0,
       "max": null,
       "levels": null,
       "probes": [

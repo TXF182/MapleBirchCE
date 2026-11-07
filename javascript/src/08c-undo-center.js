@@ -227,14 +227,18 @@
 			}
 			items.slice(0, 24).forEach(function (it) {
 				var row = el("div", "mce-row");
-				row.appendChild(el("span", "mce-row-lbl", it.key.length > 58 ? it.key.slice(0, 58) + "…" : it.key));
+				/* 展示中文名（08e-undo-labels 解析），原始键留在 label 的 tooltip 里便于排障 */
+				var nm = mbCEUndoItemName(it.key, it);
+				var lbl = el("span", "mce-row-lbl", nm.length > 58 ? nm.slice(0, 58) + "…" : nm);
+				lbl.title = it.key;
+				row.appendChild(lbl);
 				row.appendChild(el("span", "mce-hint", mbCEUndoFmtTime(it.t)));
 				if (blocked) {
 					row.appendChild(el("span", "mce-badge", "不可回退"));
 				} else {
 					var b = el("button", "mce-btn", "回退");
 					b.type = "button";
-					b.title = "还原「" + it.key + "」为面板写入前状态";
+					b.title = "还原「" + nm + "」为面板写入前状态（原始键 " + it.key + "）";
 					b.addEventListener("click", function () {
 						var r = mbCEUndoOne(it.key);
 						setStatus(r.msg, r.ok ? "mce-ok" : "mce-err");

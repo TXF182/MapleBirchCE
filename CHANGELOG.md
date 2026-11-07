@@ -89,6 +89,21 @@
 - **新增负控两条（P3）** 与 **一条（P4 幂等守卫）** 均实测命中，见上两节。
 - **未做（明确边界）**：不升版本（双源仍 2.0.4）、不发布、不改 169 条真债务（策略是棘轮只减不增，清债另轮）。
 
+### 十二、v2.0.4 增补（2026-11-07 好友实机反馈：潜伏者整段英文根因修复 + 回退中心键中文化 + 3 条 WARN 清零）
+
+**触发**：好友实测「一进潜伏者遭遇，整个界面变英文」，并指向 CE 的「潜伏者解锁补丁」；同一反馈里另附回退中心逐项英文裸键截图；用户要求「把它翻译成中文，别作弊，是汉字」。
+
+- **根因取证（双重闭环，非推测）**：① CE 内全量审计改剧情原文的位置 → 只有 `07f-lurker0-patch.js` 一处写回（`tw-passagedata` / `State.passages` / `Story.get().text` / `textContent`）；② 截图英文句 `remain light on your feet` 在 `game/Degrees of Lewdity.html` 偏移 24,919,889，所属 passage = `Widgets Struggle`，正是该补丁改的 5 个 passage 之一；③ 汉化包 `i18nLoad.js` 的锚点是**字符偏移**：`pos` / `pos±1` / `pos±2`，失败才落 `[pos-10, pos+len+30]` 模糊窗口，**任一条定位失败 → 整段 passage 放弃翻译**。CE 旧补丁把门控串删短（-41/-25 字符）→ 后续条目 pos 全下移 → anchor-error → 5 个 passage 全段落回英文。**故英文是「改短」的间接后果，补丁本身不写英文。**
+- **修复（长度守恒）**：新增 `mbCELurkerPadTo()` 把替换串右补空格补到与原文等长（`<<if>>` 表达式里尾随空格无副作用）；`mbCELurkerPatchText()` 改为返回 `{ text, hits, kept, skipped }` 并上报数量。
+- **汉化在场时的 switch 保留**：`Widgets Flats` 冰箱数量的 `<<switch $hookah.lurkers>>` 6 个 `<span>`（five/four/three/two/one/no）是 6 条译文的锚点，整块替换 = 物理删锚点、补空格也救不回 → 新增 `mbCELurkerCjkI18n()`（`window.modI18N` 在场，或框架 `mainLanguage==="zh"`）为真时**原样保留该块**（`skipped` 计数），>5 只时游戏内显示原版 "no"，真实数量看面板数值行；未装汉化时照旧改写成真实数值。
+- **真实代码验收（不是纸面对照）**：用 `vm` 直接加载 `javascript/src/07f-lurker0-patch.js`，取出源码里真实的 `mbCELurkerPatchText`，配一份从 `i18nLoad.js` 复刻的完整匹配器（含 `<tw-passagedata>` 必须过 `decodeEntities`、模糊窗口必须判 `pStart >= lastIndex`），逐 passage 实测 5/5 打补丁后**仍是全中文**：`Widgets Struggle`（106,066→106,066；417 条 / 汉字 4,567）、`Widgets Flats`（5,522→5,522；37 / 415，switch 保留）、`Farm Yard`（11/135）、`Farm Tending Lurker Work`（8/65）、`Farm Tending Lurker Alex Fail`（6/96）；对照组用旧补丁（删短）实测汉字数直接归 0 并在 4~20 条后 anchor-error。
+- **面板文案同步**：`07f-lurker.js` 说明段改写为「等长替换」原理 + 汉化在场时 >5 只的口径；标签增「· 长度守恒 N」「· 汉化在场保留 switch N」。
+- **回退中心键中文化（新增段 `08e-undo-labels.js`，纯展示层）**：不改键、不改回退逻辑（回退仍按原始 key 精确分发）。解析顺序 = 适配器真实 entry（按 `key` / `varPath` 反查行名）→ 玩家自身路径词表（`prof.spray` 防狼喷雾 / `lurker:hookah.*` 水烟馆等）→ `03d-global-modzh.js` 的 `zhKey` → 地点分组名（`市政改造 · 绿地/桥梁/灌木丛/道路`）→ 维护写入表（`神殿宿舍清洁` / `神殿花园打理` 等）→ 言灵 op 表（`异装与校规记录清除`）→ 兜底原键体（**绝不返回空**）。`08c-undo-center.js` 改为渲染中文名，**原始键只留在 `title` 供排障**；`09-exports2.js` 导出 `undoLabel` / `undoItemName`。
+- **新增断言**：`tests/test_mce.js` 59.44–59.50（7 条，实测值全中：`防狼喷雾` / `市政改造 · 绿地` / `神殿宿舍清洁` / `异装与校规记录清除` / 兜底 `unknown_key` / 空键 / `阶段 · 罗宾 · 店铺开办阶段`）；`tests/smoke_dom.js` P4.1b（6 条 DOM 断言：按截图 8 个裸键造留痕 → `refresh()` 后**行内不再出现英文裸键**、四个中文名可见、原始键在 title 里）。
+- **3 条 `boolean+numeric` 缺 `min` 的 WARN 清零**：`revelation:nkl_retaken`、`wraiths:wr_admit`、`wraiths:wr_conch_ask` 补 `min: 0`（三键实为 0/1 域），`validate_adapters` 由 `[WARN] 3 项` → `OK：声明形态全部通过`；`check_key_types` 仍 1 条 `WARN_BOOL_01`（`RefuseWR`），属既有「真值判定、非严格比较」已知项，不改。
+- **产物**：67 段（新增 `08e-undo-labels.js`）/ 841,205 B / `44eaba2f7f5fecd4d71a95b4483adb37b285c3708255f287007a132d0df39b6c`；结构门禁 1 条已知 WARN（`CHEAT_ADAPTERS` 两段重复声明）。
+- **未做（明确边界）**：169 条 src strict 真债务本轮未清（涉及 26 个文件、`TS2339×118` / `TS2538×18` 等真实类型重构，需单独一轮），棘轮仍只减不增。
+
 ## v2.0.3（2026-11-07 P0~P4 迭代：覆盖率归因修复 + 统一回退中心 + 写入前 diff 预览 + 补盲断言）
 
 **触发**：用户指令「p0~p4，做完之后在升版」——按 P0（惰性渲染页签覆盖率）→ P1（言灵页分支）→ P2（适配器门控分支）→ P3（导出面与 lurker）→ P4（产品侧三项）五档推进，完成后升版。

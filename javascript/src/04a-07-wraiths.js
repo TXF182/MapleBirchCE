@@ -32,9 +32,9 @@
 				  note: "模组自身 Return Necklace 2 写入「rreturn」（双 r），但 Lake Ruin Plinth/Schism/Nightmare 等约 6 处补丁只认「return」——写「return」覆盖面最全" }
 			],
 			abilities: [
-				{ key: "wr_admit", name: "监狱对峙 · 承认罪过", varPath: "AdmitMR", type: "boolean", numeric: true, note: "v2.0：模组按严格比较 <<if $AdmitMR is 1>> 判定（ReturnNecklace.twee:34），写 true 恒为假、作弊项静默失效；numeric 勾选写 1" },
+				{ key: "wr_admit", name: "监狱对峙 · 承认罪过", varPath: "AdmitMR", type: "boolean", numeric: true, min: 0, note: "v2.0：模组按严格比较 <<if $AdmitMR is 1>> 判定（ReturnNecklace.twee:34），写 true 恒为假、作弊项静默失效；numeric 勾选写 1；min 0 显式声明域（v2.0.4 清 WARN）" },
 				{ key: "wr_refuse", name: "分裂 · 已拒绝", varPath: "RefuseWR", type: "boolean" },
-				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean", numeric: true, note: "v2.0：LakeConchTalk.txt:4 按 <<if $SilverConchWR is 1 and $SilverConchAsk is 1>> 严格比较，写 true 恒为假；numeric 勾选写 1" }
+				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean", numeric: true, min: 0, note: "v2.0：LakeConchTalk.txt:4 按 <<if $SilverConchWR is 1 and $SilverConchAsk is 1>> 严格比较，写 true 恒为假；numeric 勾选写 1；min 0 显式声明域（v2.0.4 清 WARN）" }
 			],
 			scenes: [],
 			values: [

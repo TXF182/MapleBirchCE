@@ -94,6 +94,8 @@
 				undoOne: mbCEUndoOne,
 				undoGroup: mbCEUndoGroup,
 				undoAll: mbCEUndoAll,
+				undoLabel: mbCEUndoLabel,
+				undoItemName: mbCEUndoItemName,
 				readTransformState: readTransformState,
 				adjustTransform: adjustTransform,
 				completeTransformStage: completeTransformStage,

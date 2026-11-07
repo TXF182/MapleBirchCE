@@ -659,8 +659,8 @@ MapleBirchCE.mod.zip
 ```
 MapleBirchCE/（git 源码真相源）
 ├── javascript/
-│   ├── src/                       # 开发源，按功能域拆 66 段（改代码改这里）
-│   │   ├── manifest.json          # 段序唯一真源：66 段有序清单 + 层标签（段序即依赖序，不再靠文件名字典序）
+│   ├── src/                       # 开发源，按功能域拆 67 段（改代码改这里）
+│   │   ├── manifest.json          # 段序唯一真源：67 段有序清单 + 层标签（段序即依赖序，不再靠文件名字典序）
 │   │   ├── 00-preamble.js         # 顶部版本注释 + IIFE 头
 │   │   ├── 01-core.js             # 基础：版本号/框架解析/数值/中文/角色枚举/数值读写
 │   │   ├── 02-romance.js          # 恋爱剧情阶段 + 转化阶段
@@ -756,7 +756,7 @@ MapleBirchCE/（git 源码真相源）
 
 **架构门禁（v2.0.4 P0-P4，外部评估五条落地的对应物）**
 
-- **段序显式化（P0）**：`javascript/src/manifest.json` 是构建顺序的唯一真源（现 **66 段**），`build_js.js` 只按它拼；`--check` 只校验不写，`--write-manifest` 按目录名序登记新段并自动打层标签。**fail-closed 六种不一致**：manifest 缺失 / JSON 非法 / `segments` 非数组或空 / 缺段 / 多段或重复登记 / 指向不存在的文件或未知层 / **层序回退**。产物末尾打印 `order <指纹>`（`sha256(segs.join("|"))` 前 12 位），改名段文件不再改变段序。
+- **段序显式化（P0）**：`javascript/src/manifest.json` 是构建顺序的唯一真源（现 **67 段**），`build_js.js` 只按它拼；`--check` 只校验不写，`--write-manifest` 按目录名序登记新段并自动打层标签。**fail-closed 六种不一致**：manifest 缺失 / JSON 非法 / `segments` 非数组或空 / 缺段 / 多段或重复登记 / 指向不存在的文件或未知层 / **层序回退**。产物末尾打印 `order <指纹>`（`sha256(segs.join("|"))` 前 12 位），改名段文件不再改变段序。
 - **结构守门（P0）**：`tools/check_structure.js` 三条规则——S1 单段预算（默认 400 行，`structure-baseline.json` 的 `lineAllowlist` 是**预算制豁免**，现为空 `{}`：`07i` 拆三段后已无超长段）；S2 续号命名（剥掉末位数字后等于另一个真实段才算续号，白名单 9 项）；S3 注册表容器重复声明（WARN）。
 - **声明 schema（P1）**：`schemas/adapter.schema.json` + `tools/validate_adapters.js`（`--json` / `--src`）。**`varPath` 形状必须遵守运行时语义**：`cheatResolvePath` 只按 `.` 切段，段名允许中文/连字符/纯数字（数字段索引数组），**方括号 `a[0]` 会被当字面键名导致写入落空** → `^[^.\[\]\s]+(\.[^.\[\]\s]+)*$`。首轮 30 FAIL 里 29 条是按"JS 标识符"直觉写规则造成的误报（连字符/中文/数字段），唯一真缺陷是 `dolmod / stages:dm_conf_state` 缺 `labels`（面板会显示裸英文 `rejected/friend/lovers`，已补中文）。
 - **声明驱动矩阵（P2）**：`tools/gen_adapter_matrix.js` 从声明推导探针（stages 按 `levels` 每档一个；abilities 按 `numeric` 走 `min`/`max` 或 `true`/`false`；values 按 `type` 走 number/boolean/list/字符串），产物 `tests/data/adapter_matrix.json`（**423 条 / 965 探针 / 12 适配器**），`--check` 做漂移检测。`tests/test_adapter_matrix.js` 逐个探针**真写→回读→核留痕路径→核 sync 条件→undo 还原**（**5,806 断言**），补上了 `morefarm` / `dolopt` / `domrobin` 三个此前在整个 `tests/` 里零命中的适配器。**新增适配器不需要手写测试**：假适配器负控（1 阶段 + 1 数值能力 + 2 数值项）不写任何手写断言，矩阵自动派生 **+45 条**全绿。

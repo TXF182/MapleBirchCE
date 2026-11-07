@@ -4327,9 +4327,11 @@ try {
   assert(moved0 === 0 && gV.lurkers_held === 2, "54.5h 关闭后不搬运, moved=" + moved0);
   assert(api54.MB_CE_LURKER_FRIDGE_MAX === 9999 && api54.MB_CE_LURKER_MAX === 9999, "54.5i 上限常量=9999（防呆值，非原版 5）");
   // 54.5j 文本解限纯函数：门控移除 + 冰箱 switch 换真实数值 + 幂等
-  const p1 = api54.mbCELurkerPatchText("Farm Yard", '<<if $farm_stage gte 10 and $lurkers_held lt 1>>x<</if>>');
-  assert(p1.hits === 1 && p1.text.indexOf("lurkers_held lt 1") < 0 && p1.text.indexOf("$farm_stage gte 10>>") >= 0,
+  const src54 = '<<if $farm_stage gte 10 and $lurkers_held lt 1>>x<</if>>';
+  const p1 = api54.mbCELurkerPatchText("Farm Yard", src54);
+  assert(p1.hits === 1 && p1.kept === 1 && p1.text.indexOf("lurkers_held lt 1") < 0 && p1.text.indexOf("$farm_stage gte 10 ") >= 0,
     "54.5j 捕捉门控已移除, " + p1.text);
+  assert(p1.text.length === src54.length, "54.5j2 长度守恒（汉化 pos 锚点不位移）: " + p1.text.length + " == " + src54.length);
   assert(api54.mbCELurkerPatchText("Farm Yard", p1.text).hits === 0, "54.5k 幂等（二次替换 0 处）");
   const p2 = api54.mbCELurkerPatchText("Widgets Flats",
     'and <<switch $hookah.lurkers>><<case 5>>five<</case>><<case 1>>one<</case>><<default>>no<</default>><</switch>> <<pluralise $hookah.lurkers "lurker">>');
@@ -5358,8 +5360,9 @@ try {
   // 59.30~59.38 潜伏者解限补丁：纯文本替换 / 幂等 / 通道缺失 / Story 通道 / 汇总
   const FARM59 = "行首 $farm_stage gte 10 and $lurkers_held lt 1 结句";
   const ptxt59 = api59.mbCELurkerPatchText("Farm Yard", FARM59);
-  assert(ptxt59.hits === 1 && ptxt59.text.indexOf("and $lurkers_held lt 1") === -1 && ptxt59.text.indexOf("$farm_stage gte 10 ") !== -1,
+  assert(ptxt59.hits === 1 && ptxt59.kept === 1 && ptxt59.text.indexOf("and $lurkers_held lt 1") === -1 && ptxt59.text.indexOf("$farm_stage gte 10 ") !== -1,
     "59.30 纯文本替换：捕捉门控去掉手持上限条件");
+  assert(ptxt59.text.length === FARM59.length, "59.30a 替换后字符数不变（" + ptxt59.text.length + " == " + FARM59.length + "，汉化锚点靠 pos 定位）");
   const ptxt59b = api59.mbCELurkerPatchText("Farm Yard", ptxt59.text);
   assert(ptxt59b.hits === 0, "59.31 幂等：已替换过的文本再跑 hits=0");
   assert(api59.mbCELurkerPatchText("No Such Passage", FARM59).hits === 0, "59.32 未登记的 passage 不改动");
@@ -5367,6 +5370,15 @@ try {
   const sw59 = api59.mbCELurkerPatchText("Widgets Flats", SW59);
   assert(sw59.hits === 1 && sw59.text.indexOf("<<switch") === -1 && sw59.text.indexOf("gt 0 ? $hookah.lurkers") !== -1,
     "59.33 冰箱显示：switch 段整体换成真实数值表达式（>5 不再落到 no）");
+  /* 59.33a/b 汉化在场（window.modI18N）时：switch 整块必须原样保留，否则 6 条 span 译文锚点被物理删除 → 整段落回英文 */
+  global.window.modI18N = { fake: true };
+  const sw59b = api59.mbCELurkerPatchText("Widgets Flats", SW59);
+  assert(sw59b.hits === 0 && sw59b.skipped === 1 && sw59b.text === SW59,
+    "59.33a 汉化在场：switch 原样保留（skipped=1, 文本未变）");
+  const gate59b = api59.mbCELurkerPatchText("Farm Yard", FARM59);
+  assert(gate59b.hits === 1 && gate59b.text.length === FARM59.length,
+    "59.33b 汉化在场：门控仍按长度守恒替换（不因汉化而失效）");
+  delete global.window.modI18N;
   const dom59 = api59.mbCELurkerPatchDom();
   assert(dom59.ok === false && dom59.channel === "dom", "59.34 无 document 环境时 DOM 通道安全降级（不抛错）");
   const st59 = api59.mbCELurkerPatchStory();
@@ -5394,6 +5406,20 @@ try {
   assert(api59.getTheme() === "gold" || api59.getTheme() === "starry", "59.41 读回状态不抛错（getTheme 返回合法值 " + api59.getTheme() + "）");
   assert(api59.setTheme("starry") === "starry" && api59.getTheme() === "starry", "59.42 切星空蓝主题生效并回读");
   assert(api59.setTheme("bogus") === "gold" && api59.getTheme() === "gold", "59.43 非法主题名回落 gold（不写入脏值）");
+
+  // 59.44~59.50 回退中心键→中文名（08e-undo-labels）：截图里 8 个裸键必须落到汉字，且兜底不返回空
+  assert(api59.undoItemName("cheat:player-self:p:prof.spray", { path: "prof.spray" }) === "防狼喷雾",
+    "59.44 cheat 玩家自身路径名（prof.spray→防狼喷雾）, " + api59.undoItemName("cheat:player-self:p:prof.spray", { path: "prof.spray" }));
+  assert(api59.undoItemName("place:town_projects.green", { path: "town_projects.green" }).indexOf("绿地") !== -1,
+    "59.45 place 项名带分组中文（绿地），" + api59.undoItemName("place:town_projects.green", {}));
+  assert(api59.undoItemName("maint:temple_quarters", {}) === "神殿宿舍清洁",
+    "59.46 maint 维护键中文（temple_quarters）, " + api59.undoItemName("maint:temple_quarters", {}));
+  assert(api59.undoItemName("yanling:purge_cross", {}) === "异装与校规记录清除",
+    "59.47 yanling op 中文（purge_cross）, " + api59.undoItemName("yanling:purge_cross", {}));
+  assert(api59.undoItemName("weird:unknown_key", {}) === "unknown_key", "59.48 未知命名空间兜底原键体（不返回空）");
+  assert(api59.undoItemName("", {}) === "", "59.49 空键不抛错");
+  const dw59 = api59.undoItemName("cheat:deadwood-reblooms:stage_set:r_shop_stage", { path: "RobinExpansion.shop_stage" });
+  assert(dw59.indexOf("店铺开办阶段") !== -1, "59.50 适配器 entry 反查行名（枯木 r_shop_stage）, " + dw59);
 
   // 收尾
   if (bk59.yanling === undefined) { delete V9.mbCE_yanling; } else { V9.mbCE_yanling = bk59.yanling; }

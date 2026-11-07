@@ -92,8 +92,8 @@
 				{ key: "td_sydney_agree", name: "神殿值勤 · 悉尼候选同意", varPath: "TempleDuties.candidates.Sydney.agreed", type: "boolean" },
 				{ key: "nkl_returned", name: "怨灵 · 项链已归还", varPath: "RBR.necklace.returnedOnce", type: "boolean",
 				  note: "1.4.6 项链取回/安抚线主开关（原 RBR.necklace.returned 重构为 returnedOnce）：勾选视为已把象牙项链归还湖中一次，梦线与安抚线（WraithAftercare）入口开放" },
-				{ key: "nkl_retaken", name: "怨灵 · 项链已取回", varPath: "RBR.necklace.retaken", type: "boolean", numeric: true,
-				  note: "1.4.6 新增取回分支：勾选=已再次取回（retaken=1，模组 gt 0 判定；模组侧 +1 累加计数，numeric 勾选写 1 不污染计数）" },
+				{ key: "nkl_retaken", name: "怨灵 · 项链已取回", varPath: "RBR.necklace.retaken", type: "boolean", numeric: true, min: 0,
+				  note: "1.4.6 新增取回分支：勾选=已再次取回（retaken=1，模组 gt 0 判定；模组侧 +1 累加计数，numeric 勾选写 1 不污染计数）。min 0 显式声明域（v2.0.4 清 WARN）" },
 				{ key: "nkl_reclaimed", name: "怨灵 · 项链已取回（归还后）", varPath: "RBR.necklace.reclaimed", type: "boolean",
 				  note: "1.4.6 回收线成功后置 true（WraithRecovery 实证）：勾选=当前持有已从湖边取回的项链，等价项链盗贼分支，开放 Gwylan/归还后续剧情（Wraith.twee:89/131/208 判定）" }
 			],

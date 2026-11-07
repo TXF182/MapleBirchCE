@@ -84,18 +84,23 @@ function mbCELurkerSetAuto(on) {
 	};
 }
 function mbCELurkerPatchLabel(st) {
-	if (st && st.patch && st.patch.ok) { return "解限补丁：已生效（" + st.patch.hits + " 处）"; }
+	if (st && st.patch && st.patch.ok) {
+		var extra = "";
+		if (st.patch.kept) { extra += " · 长度守恒 " + st.patch.kept; }
+		if (st.patch.skipped) { extra += " · 汉化在场保留 switch " + st.patch.skipped; }
+		return "解限补丁：已生效（" + st.patch.hits + " 处" + extra + "）";
+	}
 	return "解限补丁：未命中";
 }
 function mbCERenderLurker(pane) {
 	if (!pane) { return; }
 	mbCELurkerEnsureTimer();
 	var st = mbCELurkerState();
-	var sec = mceNewSec(pane, 9, "潜伏者", "原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。");
+	var sec = mceNewSec(pane, 9, "潜伏者", "原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。改法为「等长替换」（右补空格，字符总数不变）——汉化包按字符偏移逐条匹配译文，长度一变就会整段落回英文（v2.0.4 修复）。汉化在场时冰箱 switch 原文保留（>5 只原版文案显示 no，真实数量看本面板数值），否则改写成真实数值。未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。");
 	if (!st.ok) { sec.appendChild(el("div", "mce-err", st.message)); return; }
 	var rows = [
 		{ path: "lurkers_held", name: "手持潜伏者（无上限）", cur: st.held, note: "原版 ≥1 即不再出网；解限后不再受限" },
-		{ path: "hookah.lurkers", name: "水烟馆冰箱（无上限）", cur: st.fridge, note: "≥1 可消耗换 50 juice；解限后显示真实数量" },
+		{ path: "hookah.lurkers", name: "水烟馆冰箱（无上限）", cur: st.fridge, note: "≥1 可消耗换 50 juice；未装汉化时显示真实数量，装汉化时 >5 保留原版 no（真实数量看本行数值）" },
 		{ path: "lurkers_stored", name: "农场蒸馏笼", cur: st.stored, note: "farm_stage ≥9 时每 7 天 1 只 → 1 瓶" }
 	];
 	rows.forEach(function (r) {
