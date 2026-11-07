@@ -5135,10 +5135,12 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 		pane.appendChild(row);
 	}
 	function renderQuickPanel(pane) {
-		/* v2.0.0.002 需求③：自由选择说话态度——放在本页最上方（用户指定位置） */
-		renderAttitudeFree(pane);
-		/* v1.9.13 预设模板：一键批量写入（逐项走 quickWrite 统一留痕，可单独回退） */
-		var psec = el("div", "mce-section", "一键方案（预设模板）");
+		/* v2.0.0.002 需求③：自由选择说话态度——放在本页最上方（用户指定位置）
+		   v2.0.3：本页也是多区块页，传入本页编号 1（原先复用全局页写死的 ⑩，在本页是错号） */
+		renderAttitudeFree(pane, 1);
+		/* v1.9.13 预设模板：一键批量写入（逐项走 quickWrite 统一留痕，可单独回退）
+		   v2.0.3：改 mceNewSec 统一区块样式与编号（本页第 2 区块） */
+		var psec = mceNewSec(pane, 2, "一键方案（预设模板）", "整组批量写入（每个键各自留痕，可单独回退）；与下方各属性折叠组不冲突，预设只写固定档位。");
 		var pWrap = el("div", "mce-row");
 		var presets = [
 			{ key: "max", name: "全属性拉满", desc: "全部核心/技能/性技能/成绩/武器写满 + 负面清零 + 名声清零" },
@@ -5156,7 +5158,7 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 		});
 		psec.appendChild(pWrap);
 		psec.appendChild(el("div", "mce-hint", "预设为固定值批量写入，逐项留痕（「回退」可逐项还原）；如需微调请在各分组手动改。"));
-		pane.appendChild(psec);
+		/* v2.0.3：mceNewSec 已把区块挂到 pane，无需再 append */
 		PANEL_QUICK_GROUPS.forEach(function (g) {
 			/* v1.9.16：属性分组改可折叠（学特质页 .mce-collapse-head 机制，mbCEUiCollapsed 持久化，默认收起） */
 			var qkey = "quick:" + g.title;
@@ -5379,12 +5381,14 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 		}
 		return mbCEAttitudeApply(best.key);
 	}
-	function renderAttitudeFree(pane) {
+	/* idx：区块编号。本函数只被快速页 renderQuickPanel 调用（05b-modcheat-player.js），原先写死 10 会显示成「⑩」错号；
+	   现由调用方传入（快速页传 1）；缺省按「本页第 1 区块」处理 —— 不回落 10，避免任何复用方拿到全局页的错号（v2.0.3 修）。 */
+	function renderAttitudeFree(pane, idx) {
 		if (!pane) { return; }
 		mbCEAttitudeEnsureTimer();
 		var st = mbCEAttitudeState();
 		var curTier = st.lock ? mbCEAttitudeTier(st.value) : null;
-		var sec = mceNewSec(pane, 10, "说话态度", "原版三档（顺从 / 中立 / 反抗），选定后开启「维持」即每秒复位 $speech_attitude 并把顺从度拉回该档门槛内侧，永久维持；「解除维持」清除锁定但保留当前值，「解除并还原」恢复锁定前的态度与顺从度。");
+		var sec = mceNewSec(pane, (typeof idx === "number" && idx > 0) ? idx : 1, "说话态度", "原版三档（顺从 / 中立 / 反抗），选定后开启「维持」即每秒复位 $speech_attitude 并把顺从度拉回该档门槛内侧，永久维持；「解除维持」清除锁定但保留当前值，「解除并还原」恢复锁定前的态度与顺从度。");
 		var hint = el("div", "mce-hint", mbCEAttitudeStatusLine(st));
 		hint.setAttribute("data-mce-att", "1");
 		sec.appendChild(hint);
@@ -6459,7 +6463,13 @@ function renderPlayerEdit() {
 	     ④ 长说明默认折叠成 2 行（mceFoldHint），点击展开，避免每块 2~3 行密文占屏。
 	   全部返回普通 DOM 节点，调用方后续 appendChild 逻辑不变（替换点最小）。 */
 	var mceSecNo = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫", "⑬", "⑭", "⑮", "⑯"];
-	function mceSecMark(idx) { return mceSecNo[idx - 1] || String(idx); }
+	/* 编号映射：idx<=0 / 非数字 → 空串（真正“不编号”）；超出字表 → 阿拉伯数字。
+	   旧实现 mceSecMark(0) 返回 "0"、mceSecMark(undefined) 返回 "undefined" 文本，与“idx=0 不编号”的约定不符。 */
+	function mceSecMark(idx) {
+		var n = Number(idx);
+		if (!isFinite(n) || n <= 0) { return ""; }
+		return mceSecNo[n - 1] || String(n);
+	}
 	/* 说明折叠：默认 2 行截断，点击整块切换展开/收起（data-open=1/0 供测试断言） */
 	function mceFoldHint(text) {
 		var h = el("div", "mce-hint mce-fold", text);
@@ -7529,9 +7539,15 @@ function teleportTo(name) {
 			{ key: "asylum_mirror", name: "精神病院镜像", path: "asylum_mirror", max: 5, note: "镜像线进度（0-5，原版 gte 5 判定触发深层镜像场景）" }
 		]},
 		/* v2.0.0.007 好友实测补录：监狱与雷米牧场的原版档位数（键名/取值形态均经 0.5.12.13 赋值实证） */
-		{ name: "监狱（原版 Prison）", note: "狱中关注度 / 保护度 / 当日劳动时数（$prison.* 对象键，宿主由原版初始化）", items: [
+		/* v2.0.3 修正：原 `prison.protection` 声明为数字 0-10 是错的——它是枚举字符串（657114 等 14 处 `set to "scarred"`、
+		   650845/651145/658072 用 `is "scarred"` / `is "tattooed"` 判定），本页写入通道强制 Number + clamp，
+		   会写出「两个 is 都不匹配、但 !protection 为假」的半失效态。故从本页移除，改由言灵页 ⑨「监狱庇护」按字符串直写；
+		   这里换成两个真正的数字键（均经 0.5.12.13 实证）：scarred_level 0-5（281352-281376 五档 + 657030 switch 判定）、
+		   tattooed 0-100（651161/651179/653267 按 gte 80 / gte 20 分档）。 */
+		{ name: "监狱（原版 Prison）", note: "狱中关注度 / 疤痕狱友等级 / 纹身狱友声望 / 当日劳动时数（$prison.* 对象键，宿主由原版初始化）", items: [
 			{ key: "prison_attention", name: "监狱关注度", path: "prison.attention_level", max: 3, note: "狱中关注度档位（实证 to 2/3；越高越容易被狱霸盯上）" },
-			{ key: "prison_protection", name: "监狱保护度", path: "prison.protection", max: 10, note: "狱中被庇护层数（受累加；写高=直接有靠山，不再被骚扰）" },
+			{ key: "prison_scarred_level", name: "疤痕狱友等级", path: "prison.scarred_level", max: 5, note: "疤痕狱友线推进档位 0-5（657030 switch 判定；3 档「Molestation」、4 档为高危档）" },
+			{ key: "prison_tattooed", name: "纹身狱友声望", path: "prison.tattooed", max: 100, note: "纹身狱友声望 0-100（≥20 进中档文案、≥80 进高档；651161/651179/653267 实证）" },
 			{ key: "prison_hours", name: "监狱劳动时数", path: "prison.hours_worked", max: 12, note: "当日已劳动时数（原版按 Time.hour-7 计，0-12）" }
 		]},
 		{ name: "雷米牧场（原版 Livestock）", note: "牲口线服从度 / 产奶量 / 产精量 / 自尊（$livestock.* 对象键）", items: [
@@ -10012,6 +10028,8 @@ var SCENE_LOCATIONS = {
 		}
 		var stages = getRomanceStages(curName);
 		if (stages.length) {
+			/* v2.0.3：单区块页统一编号（原为裸 mce-section，与全局页 / 言灵页的 ①②③ 编号体系不一致） */
+			var sRom = mceNewSec(pane, 1, "框架恋爱条件", "框架（Maplebirch）注册的恋爱阶段条件，来自各模组 romanceConditions；「一键完成」先补数值再置位，可由「回退」撤销面板写入的标记。");
 			var box = el("div", "mce-stages");
 			stages.forEach(function (stg) {
 				var row = el("div", "mce-stage " + (stg.ok ? "mce-pass" : "mce-fail"));
@@ -10053,7 +10071,7 @@ var SCENE_LOCATIONS = {
 				}
 				box.appendChild(row);
 			});
-			pane.appendChild(box);
+			sRom.appendChild(box);
 		} else {
 			pane.appendChild(el("div", "mce-hint", "该角色未注册框架恋爱剧情条件（romanceConditions 为空）。"));
 		}
@@ -10061,7 +10079,7 @@ var SCENE_LOCATIONS = {
 		/* 原版恋爱阶段（格威岚 7 阶段，来自游戏原版 gwylanStatusCheck 体系） */
 		var vanilla = getVanillaStages(curName);
 		if (vanilla.length) {
-			pane.appendChild(el("div", "mce-section", "原版恋爱阶段（" + displayNameEx(curName) + "）"));
+			var sVan = mceNewSec(pane, 2, "原版恋爱阶段（" + displayNameEx(curName) + "）", "原版 gwylanStatusCheck 体系的原生阶段判定（不依赖模组）；「一键完成」先补到官方门槛再置位，规避原版自动校验把阶段重置。");
 			var vbox = el("div", "mce-stages");
 			vanilla.forEach(function (s) {
 				var row = el("div", "mce-stage " + (s.ok ? "mce-pass" : "mce-fail"));
@@ -10097,7 +10115,7 @@ var SCENE_LOCATIONS = {
 				row.appendChild(el("div", "mce-stage-txt", "门槛：" + s.desc));
 				vbox.appendChild(row);
 			});
-			pane.appendChild(vbox);
+			sVan.appendChild(vbox);
 		}
 	}
 
@@ -10108,6 +10126,8 @@ var SCENE_LOCATIONS = {
 			pane.appendChild(el("div", "mce-hint", "该角色未注册转化阶段。"));
 			return;
 		}
+		/* v2.0.3：转化页统一编号（原为无标题卡片堆） */
+		var sTr = mceNewSec(pane, 1, "转化阶段", "每张卡片对应一个转化系（原版 / 玩家扩展）；「一键解锁全部阶段」= 先补成长值到门槛再逐级置位，扩展转化直接调 MOD 公共 API setup.myTFSet。");
 		types.forEach(function (levels, type) {
 			var st = readTransformState(curName, type);
 			var max = levels.length;
@@ -10160,7 +10180,7 @@ var SCENE_LOCATIONS = {
 				})(i);
 			}
 			block.appendChild(stages);
-			pane.appendChild(block);
+			sTr.appendChild(block);
 		});
 		/* 扩展转化（MOD 独立系统：玩家全局，与选中角色无关） */
 		exts.forEach(function (k) {
@@ -10195,7 +10215,7 @@ var SCENE_LOCATIONS = {
 			srow.appendChild(sh);
 			srow.appendChild(el("div", "mce-stage-txt", "门槛：成长值 30 / 60 / 90 对应阶段 1 / 2 / 3"));
 			block.appendChild(srow);
-			pane.appendChild(block);
+			sTr.appendChild(block);
 		});
 	}
 
@@ -10831,6 +10851,27 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "净化异常：" + (e && e.message ? e.message : e) }; }
 	}
 
+	/* 正面名声拉满（v2.0.3）：V.fame 的正面 5 项各写 2000。
+	   0.5.12.13 实证上限：290894 / 290895 对 good / business 用 `Math.clamp($fame.x, 0, 2000)`；
+	   306924-306928 原版设置页 numberStepper 也把 Combat(scrap) / Kindness(good) / Business / Socialite(social) / Model 的 max 定为 2000。
+	   pregnancy 不写：其上限是动态的 `Math.clamp(playerNormalPregnancyTotal(),1,8) * 250`（306916），写死会造出与实孕不符的名声。 */
+	var mbCEYanlingFamePos = ["good", "business", "scrap", "social", "model"];
+	function mbCEYanlingMaxFame() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			if (!V.fame || typeof V.fame !== "object") { return { ok: false, msg: "本存档无 $fame 对象（原版 182504-182518 初始化）" }; }
+			var before = {}, n = 0;
+			for (var i = 0; i < mbCEYanlingFamePos.length; i++) {
+				var k = mbCEYanlingFamePos[i];
+				before[k] = V.fame[k];
+				if (V.fame[k] !== 2000) { V.fame[k] = 2000; n++; }
+			}
+			mbCEYanlingTrace("max_fame", before, { good: 2000, business: 2000, scrap: 2000, social: 2000, model: 2000 });
+			return { ok: true, msg: "正面名声已拉满（good / business / scrap / social / model 各 2000，实际改写 " + n + " 项）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
 	/* 守卫：开关开启期间每秒把存量压回 0（防读档后残留、防战斗/舞蹈中途恢复判定）。
 	   全部包在 try 内 —— 回调里的任何异常都不能每秒抛一次（见 ui-tick-refresh-scope-guard）。 */
 	function mbCEYanlingTick() {
@@ -11232,6 +11273,27 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 监狱庇护：原版 $prison.protection 是**枚举字符串**，不是数字档位（DoL 0.5.12.13 实证）
+	   · 赋值：657114 / 657139 / 657210 / 657294 / 657501 / 657850 … 全部为 <<set $prison.protection to "scarred">>
+	   · 判定：650845 `is "scarred"`、651145 / 658072 `is "tattooed"`（SugarCube 的 is 等价 ===）
+	   · 空值判定：654586 `$prison.attention_level gte 1 and !$prison.protection` → 空串为假值 = 无庇护
+	   写数字的后果：两个 is 全部不匹配（庇护线文案与分支不走），而 !protection 因数字为真值而不成立（attention 事件也不再触发）
+	   → 面板显示写入成功、游戏侧静默半失效。本组按原版枚举语义直写字符串，与「场景 · 地点」页的数字键分开。 */
+	function mbCEYanlingPrisonProtect(val) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			if (!V.prison || typeof V.prison !== "object") {
+				return { ok: false, msg: "本存档无监狱对象（尚未进过监狱时原版不初始化 $prison；进一次监狱后即可使用）" };
+			}
+			var before = V.prison.protection;
+			V.prison.protection = val;
+			mbCEYanlingTrace("prison_protection", before, val);
+			var label = val === "scarred" ? "疤痕狱友庇护" : (val === "tattooed" ? "纹身狱友庇护" : "无庇护");
+			return { ok: true, msg: "监狱庇护已设为「" + label + "」（原 " + (before === undefined ? "未设置" : JSON.stringify(before)) + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
 	/* 渲染：言灵页（7 号外层页签） */
 	function renderYanling() {
 		try {
@@ -11328,7 +11390,7 @@ var SCENE_LOCATIONS = {
 			s2.appendChild(rowT);
 
 			/* ③ 负面名声清零 */
-			var s3 = mceNewSec(gA, 3, "负面名声清零", "学校名声仅 crossdress / herm 两键（schoolrep 346656-346682）；城镇名声取 V.fame 负面 8 项（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp），并同步删除 V.fameDecay / V.fameDecayTimer 的衰减队列项，避免清零后又被队列改回。正面项（scrap / good / business / social / model）保持不动。");
+			var s3 = mceNewSec(gA, 3, "负面名声清零", "学校名声仅 crossdress / herm 两键（schoolrep 346656-346682）；城镇名声取 V.fame 负面 8 项（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp），并同步删除 V.fameDecay / V.fameDecayTimer 的衰减队列项，避免清零后又被队列改回。正面项（scrap / good / business / social / model）由本区块第二个按钮单独拉满到 2000（290894-290895 clamp 与 306924-306928 numberStepper max 双实证）。");
 			var schTxt = "—";
 			try {
 				if (V && V.schoolrep && typeof V.schoolrep === "object") {
@@ -11350,6 +11412,7 @@ var SCENE_LOCATIONS = {
 			var s3g = mceBtnGrid(s3);
 			mkBtn(s3g, "一键清零：学校异装名声", "mce-gold", mbCEYanlingPurgeCross, "清 $schoolrep.crossdress 并删 $school_crossdress_message");
 			mkBtn(s3g, "一键清零：全部负面名声", "mce-gold", mbCEYanlingPurgeFame, "学校 crossdress/herm + 城镇 fame 负面 8 项 + 衰减队列");
+			mkBtn(s3g, "一键拉满：正面名声", "mce-gold", mbCEYanlingMaxFame, "fame.good / business / scrap / social / model 各写 2000（实证 clamp 上限 2000；pregnancy 上限动态不写）");
 
 			/* ④ 身体与衣物（对照 CheatExtend 1.1.3「快捷言灵」补入；v2.0.2 拆出 ⑤ 精神与体液） */
 			var s4 = mceNewSec(gB, 4, "身体与衣物", "一键烘干：$upperwet / $lowerwet / $underupperwet / $underlowerwet（原版初始化 182261-182267，debug 直写 60670-60682）。衣物加固：$worn.{upper,lower,under_upper,under_lower}.integrity 按该件 integrity_max 写满（上限取自 clothingData(slot,item,\"integrity_max\")，163772；不照抄 CE 的 +1000，避免超上限导致耐久显示破表）。");
@@ -11419,6 +11482,20 @@ var SCENE_LOCATIONS = {
 			mkBtn(s8g, "惠特尼 · 关进地牢", "mce-red", function () { return mbCEYanlingWhitney(true); }, "state=dungeon（188677 四处地牢事件按此值触发）");
 			mkBtn(s8g, "惠特尼 · 放回", "mce-gold", function () { return mbCEYanlingWhitney(false); }, "state=active");
 			s8.appendChild(el("div", "mce-hint", "惠特尼不提供「枷锁示众」：pillory 由 $pillory_tenant 联动（188675 按承租人姓名判定），只写 state 会出现「人不在枷锁却显示示众」的错位。凯拉尔亦同：其 prison 线除 state 还要 $prison.kylar 等配套键，本组只做 state 层（与原版 npcset 等价），不伪造监狱进度。"));
+
+			/* ⑨ 监狱庇护（v2.0.3 新增：原 $prison.protection 是枚举字符串，数字档位在半失效，见上方 mbCEYanlingPrisonProtect 注释） */
+			var s9 = mceNewSec(gC, 9, "监狱庇护", "原版 $prison.protection **不是数字**：657114 等 14 处 `set to \"scarred\"`，650845 / 651145 / 658072 用 `is \"scarred\"` / `is \"tattooed\"` 判定（is 等价 ===），654586 用 `!$prison.protection` 判空。所以只有「有某种庇护 / 无庇护」两态——写 scarred 或 tattooed 都等价屏蔽狱中 attention 事件，只是走不同狱友的早餐 / 午餐分支。");
+			var protTxt = "—";
+			try {
+				var pv = (V && V.prison) ? V.prison.protection : undefined;
+				protTxt = (V && V.prison) ? (pv === "" ? "无庇护（空串）" : (pv === undefined ? "未设置（字段缺省，等价无庇护）" : JSON.stringify(pv))) : "本存档无监狱对象（尚未进过监狱）";
+			} catch (eP) {}
+			s9.appendChild(el("div", "mce-hint", "当前：$prison.protection = " + protTxt));
+			var s9g = mceBtnGrid(s9);
+			mkBtn(s9g, "疤痕狱友庇护", "mce-gold", function () { return mbCEYanlingPrisonProtect("scarred"); }, "prison.protection = \"scarred\"（原版 14 处同值；早餐 / 午餐走 scarred 狱友分支）");
+			mkBtn(s9g, "纹身狱友庇护", "mce-gold", function () { return mbCEYanlingPrisonProtect("tattooed"); }, "prison.protection = \"tattooed\"（651145 / 658072 有对应判定分支）");
+			mkBtn(s9g, "清除庇护", "", function () { return mbCEYanlingPrisonProtect(""); }, "prison.protection = \"\"（空串为假值，恢复 attention 事件的随机遭遇）");
+			s9.appendChild(el("div", "mce-hint", "注意：$prison.scarred_level（0-5）与 $prison.tattooed（0-100）是另外两个**数字**键（狱友线声望档位），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
 
 			/* v2.0.2 按键重排：说明与边界不再伪装成"第 4 个区块"，改为页尾折叠块（不占编号，默认 2 行） */
 			var sInfo = el("div", "mce-block");
@@ -12466,6 +12543,9 @@ function renderAttitudesGroup(pane) {
 				yanlingPurgeTrait: mbCEYanlingPurgeTrait,
 				yanlingPurgeFame: mbCEYanlingPurgeFame,
 				YANLING_FAME_NEG: mbCEYanlingFameNeg,
+				/* v2.0.3：正面名声拉满 + 监狱庇护枚举直写（$prison.protection 是字符串，数字档位会静默半失效） */
+				yanlingMaxFame: mbCEYanlingMaxFame,
+				yanlingPrisonProtect: mbCEYanlingPrisonProtect,
 				/* v2.0.2 言灵扩容：一次性写入动作（衣物 / 数值 / 天气 / 角色放逐） */
 				yanlingDryClothes: mbCEYanlingDryClothes,
 				yanlingRepairClothes: mbCEYanlingRepairClothes,

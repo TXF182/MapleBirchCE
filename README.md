@@ -89,7 +89,7 @@
 - **定位**：对应原版「穿异性服装 → 判为异装 → 涨异装癖 → 学校异装名声」整条链，一次开关全断。核心手段是**运行期覆盖 `window.isCrossdressing`**（本体 72520-72536 定义并在 72536 挂到 window），包装原函数、开启时直接返回 `false` —— NPC 与换衣间再也判不出异装，`$crossdressing` 恒 0，且**不依赖任何原版文案/文本匹配**（老式「言灵」模组用 `TweeReplacer` 做字符串替换，原版 passage 一改就整块静默失效，这正是它过时的根因）。
 - **① 无视着装性别**：开关 + 状态行 + 运行时诊断（钩子是否挂载 / `$crossdressing` 当前值）。**开关关闭时语义完全透传原判定**，不改玩家性别 / 生殖器 / 外观性别，`isGenitalMismatch` 与原版 herm 链保持原样。**关闭开关会立即卸载钩子**（`window.isCrossdressing` 还原为原版/上游函数），不留空包装层。生效面已实证：本体 45 处 `<<if isCrossdressing()>>`（twee）全部走 window 求值，JS 内只有 `isHermOrCrossdresser`（72548）一处裸调用——覆盖窗口函数即可断掉服装性别链，后者保持原版 herm / 外观语义。
 - **② 异装癖压制**：显示 `$crossdressingTrait` 进度（x/100）与 `crossdresser` 特质状态；「立即清空进度 + 移除特质」清存量，「持续压制」每秒把进度压回 0。
-- **③ 负面名声清零**：显示学校 `crossdress` / `herm` 两键与城镇 `V.fame` 负面八项合计；「一键清零：学校异装名声」清学校两键并删 `$school_crossdress_message`；「一键清零：全部负面名声」连带 `V.fame` 八项负面（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp）与 `V.fameDecay` / `V.fameDecayTimer` 的衰减队列（避免清零后又被队列改回），**正面五项（scrap / good / business / social / model）保持不动**。
+- **③ 负面名声清零**：显示学校 `crossdress` / `herm` 两键与城镇 `V.fame` 负面八项合计；「一键清零：学校异装名声」清学校两键并删 `$school_crossdress_message`；「一键清零：全部负面名声」连带 `V.fame` 八项负面（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp）与 `V.fameDecay` / `V.fameDecayTimer` 的衰减队列（避免清零后又被队列改回），**正面五项（scrap / good / business / social / model）保持不动**。「一键拉满：正面名声」把这五项各写 2000（原版 clamp 上限，290894-290895 / 306924-306928 双实证）；`$fame.pregnancy` 上限是动态的 `clamp(playerNormalPregnancyTotal(),1,8)*250`，写死会造出与实孕不符的名声，故不写。
 - **生效范围**：开关状态存在存档 `$mbCE_yanling`（`{noCross, noTrait}`），**读档后不打开面板也生效** —— 1 秒守卫表由 `:passagedisplay` 与 init 按需起（两个开关都关时自动停表，不占事件循环）。
 - **留痕**：所有净化动作按 `V.mbCE_wrote["yanling:<op>"]`（含 before/after/t）记录，可在全局页留痕区核对。
 - **④ 身体与衣物**（v2.0.0.008）：一键烘干 `$upperwet` / `$lowerwet` / `$underupperwet` / `$underlowerwet` 四项湿度；衣物加固按各槽 `integrity_max` 写满（不照抄 CE 的 +1000，避免超上限破表）。
@@ -97,7 +97,8 @@
 - **⑥ 数值快补**：施虐/受虐 1000、奶量 5000/上限 10000、解除成就限制（`$feats.locked=false`）、罗宾存款清零、今晚艾弗里来约、校长办公室密码、集齐种子（调原版 `unlockAllSeeds()`）、清理农田 + 补 5 袋堆肥。
 - **⑦ 天气**：直调原版 `window.setWeather(type, true)`，给晴 / 阴 / 大雨 / 雷雨 4 档（**不写已废弃的 `$weather`**，0.5 起迁 `$weatherObj`）。
 - **⑧ 角色放逐**：格威岚走原版 scorned 线（state=scorned + 当日进度锁 + 9 天倒计时）/ 立即召回；凯拉尔 state=prison↔active；惠特尼 state=dungeon↔active。**不提供枷锁示众**（pillory 需 `$pillory_tenant` 联动，硬写会错位）。
-- **版面（v2.0.2 重排）**：原先 8 个区块平铺且编号错位（s1→s2→s3→s5→s6→s7→s8→s4、「说明与边界」错排在第 4 位却排在最后）→ 现按语义分 3 组（**A 着装与名声** ①②③ / **B 身体与数值** ④⑤⑥⑦ / **C 角色状态** ⑧），按钮统一进 2 列网格，说明收进页尾可折叠块（默认 2 行摘要，点开看 6 条边界）。
+- **⑨ 监狱庇护**（v2.0.3）：原版 `$prison.protection` **不是数字档位**，而是枚举字符串 —— `""`（空串 = 无庇护，假值）/ `"scarred"`（已烙印，657114 等 17 处写入）/ `"tattooed"`（已纹身，仅 `is` 判定，全库无赋值点）。判定点 650845 `is "scarred"`、651145 `is "tattooed"`、654586-654587 `!$prison.protection` —— 写数字会让两个 `is` 都不匹配、`!protection` 也因真值不成立，庇护线**面板显示成功、游戏侧静默半失效**。故本区块直写字符串三档（疤痕 / 纹身 / 清除），并与「场景 · 地点」页监狱数字键（`attention_level` / `scarred_level` / `tattooed` / `hours_worked`）分开。`$prison` 未初始化（没进过监狱）时按中文提示拒绝，不凭空建对象。
+- **版面（v2.0.2 重排，v2.0.3 增 ⑨）**：原先 8 个区块平铺且编号错位（s1→s2→s3→s5→s6→s7→s8→s4、「说明与边界」错排在第 4 位却排在最后）→ 现按语义分 3 组（**A 着装与名声** ①②③ / **B 身体与数值** ④⑤⑥⑦ / **C 角色状态** ⑧⑨），按钮统一进 2 列网格，说明收进页尾可折叠块（默认 2 行摘要，点开看 6 条边界）。`mceSecMark()` 现对 `idx<=0` / 非数字返回空串（真正“不编号”），超字表回落阿拉伯数字。
 
 ## Mod作弊 适配器一览（当前版本 2.0.2）
 
@@ -693,7 +694,7 @@ MapleBirchCE/（git 源码真相源）
 
 **代码检查（ESLint 八规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是不完整片段（段数随拆分变化，以 `build_js.js` 输出的 `(N 段, …)` 与 `order <指纹>` 为准），单文件解析必然失败）。八条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）/ 自赋值 / 恒定条件（`while(true)` 放行）/ 不安全取反 / switch 贯穿。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
 
-**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（9 步：build → 语法 → ESLint → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成 → 适配器声明一致性 → 覆盖率门禁，末尾自动 `codegraph sync`）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 4/4 + SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
+**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js` → 一键命令 `.\tools\run_all.ps1`（10 步：build → 语法 → ESLint → DOM 冒烟 → 全量回归 → 功能 E2E → 性别集成 → 适配器声明一致性 → 原版数字档位形态 → 覆盖率门禁，末尾自动 `codegraph sync`）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 校验（verifier-hub 优先，本机无该包时自动走内置等价核对：条目集合精确匹配 + CRC 全量，判据相同）+ SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
 
 **第三方模组升级核对（audit_adapters.js）**：模组发布新版后，运行
 `node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `smartphone` / `cattery` / `more-farm-upgrade`。

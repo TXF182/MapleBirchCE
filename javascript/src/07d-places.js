@@ -249,9 +249,15 @@ function teleportTo(name) {
 			{ key: "asylum_mirror", name: "精神病院镜像", path: "asylum_mirror", max: 5, note: "镜像线进度（0-5，原版 gte 5 判定触发深层镜像场景）" }
 		]},
 		/* v2.0.0.007 好友实测补录：监狱与雷米牧场的原版档位数（键名/取值形态均经 0.5.12.13 赋值实证） */
-		{ name: "监狱（原版 Prison）", note: "狱中关注度 / 保护度 / 当日劳动时数（$prison.* 对象键，宿主由原版初始化）", items: [
+		/* v2.0.3 修正：原 `prison.protection` 声明为数字 0-10 是错的——它是枚举字符串（657114 等 14 处 `set to "scarred"`、
+		   650845/651145/658072 用 `is "scarred"` / `is "tattooed"` 判定），本页写入通道强制 Number + clamp，
+		   会写出「两个 is 都不匹配、但 !protection 为假」的半失效态。故从本页移除，改由言灵页 ⑨「监狱庇护」按字符串直写；
+		   这里换成两个真正的数字键（均经 0.5.12.13 实证）：scarred_level 0-5（281352-281376 五档 + 657030 switch 判定）、
+		   tattooed 0-100（651161/651179/653267 按 gte 80 / gte 20 分档）。 */
+		{ name: "监狱（原版 Prison）", note: "狱中关注度 / 疤痕狱友等级 / 纹身狱友声望 / 当日劳动时数（$prison.* 对象键，宿主由原版初始化）", items: [
 			{ key: "prison_attention", name: "监狱关注度", path: "prison.attention_level", max: 3, note: "狱中关注度档位（实证 to 2/3；越高越容易被狱霸盯上）" },
-			{ key: "prison_protection", name: "监狱保护度", path: "prison.protection", max: 10, note: "狱中被庇护层数（受累加；写高=直接有靠山，不再被骚扰）" },
+			{ key: "prison_scarred_level", name: "疤痕狱友等级", path: "prison.scarred_level", max: 5, note: "疤痕狱友线推进档位 0-5（657030 switch 判定；3 档「Molestation」、4 档为高危档）" },
+			{ key: "prison_tattooed", name: "纹身狱友声望", path: "prison.tattooed", max: 100, note: "纹身狱友声望 0-100（≥20 进中档文案、≥80 进高档；651161/651179/653267 实证）" },
 			{ key: "prison_hours", name: "监狱劳动时数", path: "prison.hours_worked", max: 12, note: "当日已劳动时数（原版按 Time.hour-7 计，0-12）" }
 		]},
 		{ name: "雷米牧场（原版 Livestock）", note: "牲口线服从度 / 产奶量 / 产精量 / 自尊（$livestock.* 对象键）", items: [

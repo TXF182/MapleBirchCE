@@ -4841,6 +4841,32 @@ try {
   const t54c = y54.yanlingToggle("evilField");
   assert(t54c.ok === false && V.mbCE_yanling.evilField === undefined, "54.28 toggle 拒绝白名单外字段（不往存档写垃圾键）");
 
+  // 54.29~54.32 正面名声拉满（v2.0.3：fame 正面 5 项写到 clamp 上限 2000，pregnancy 上限动态不写）
+  V.fame = { sex: 0, prostitution: 0, good: 120, business: 2000, scrap: 800, social: 350, model: 5, pregnancy: 3, impreg: 0 };
+  const r54d = y54.yanlingMaxFame();
+  assert(r54d.ok === true && V.fame.good === 2000 && V.fame.business === 2000 && V.fame.scrap === 2000 && V.fame.social === 2000 && V.fame.model === 2000,
+    "54.29 max_fame 把正面 5 项拉到 2000（原 business 已是 2000 不重复改写）");
+  assert(V.fame.pregnancy === 3 && V.fame.impreg === 0 && V.fame.sex === 0,
+    "54.30 max_fame 不动 pregnancy（上限是动态的 playerNormalPregnancyTotal*250）/ impreg / 负面项");
+  assert(!!(V.mbCE_wrote && V.mbCE_wrote["yanling:max_fame"] && V.mbCE_wrote["yanling:max_fame"].before.good === 120),
+    "54.31 max_fame 按 yanling:op 留痕且 before 含原值（可回退）");
+  const r54e = y54.yanlingMaxFame();
+  assert(r54e.ok === true && r54e.msg.indexOf("实际改写 0 项") !== -1, "54.32 max_fame 幂等（已满时改写 0 项），实际 " + r54e.msg);
+  delete V.fame;
+  assert(y54.yanlingMaxFame().ok === false, "54.33 无 $fame 时拒绝并给中文原因（不凭空建对象污染存档）");
+
+  // 54.34~54.36 监狱庇护枚举直写（原版 $prison.protection 合法值 = "" / "scarred" / "tattooed"）
+  V.prison = { protection: "", attention_level: 2, scarred_level: 1 };
+  const r54f = y54.yanlingPrisonProtect("scarred");
+  assert(r54f.ok === true && V.prison.protection === "scarred" && typeof V.prison.protection === "string",
+    "54.34 prison_protect 直写字符串 \"scarred\"（写数字会让原版两处 is 判定 + !protection 同时失效）");
+  assert(y54.yanlingPrisonProtect("tattooed").ok === true && V.prison.protection === "tattooed", "54.35 prison_protect 可切到 \"tattooed\"");
+  assert(!!(V.mbCE_wrote && V.mbCE_wrote["yanling:prison_protection"]), "54.36 prison_protect 按 yanling:op 留痕（含 before 供回退）");
+  assert(y54.yanlingPrisonProtect("").ok === true && V.prison.protection === "", "54.37 prison_protect 清空为 \"\"（空串为假值 = 无庇护）");
+  delete V.prison;
+  const r54h = y54.yanlingPrisonProtect("scarred");
+  assert(r54h.ok === false && r54h.msg.indexOf("无监狱对象") !== -1, "54.38 无 $prison 时拒绝并提示「进一次监狱后可用」");
+
   global.window = origWin54;
 } catch (e54) {
   failures++;

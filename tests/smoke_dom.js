@@ -381,6 +381,24 @@ const ylPurgeF = [].slice.call(document.querySelector('[data-pane="yanling"]').q
 assert(ylPurgeF.length === 1, "「一键清零：全部负面名声」按钮存在");
 if (ylPurgeF[0]) { ylPurgeF[0].click(); }
 assert(V.fame.sex === 0 && V.fame.scrap === 1000 && V.schoolrep.crossdress === 0 && V.schoolrep.herm === 0 && V.school_crossdress_message === undefined, "点击后 城镇负面清零、正面 scrap 保持 1000、学校 2 键清零、文案已删");
+/* v2.0.3 言灵新增：正面名声一键拉满（2000 clamp）+ 监狱庇护区块（枚举字符串直写，不用数字档位） */
+const ylFameMax = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "一键拉满：正面名声"; });
+assert(ylFameMax.length === 1, "「一键拉满：正面名声」按钮存在");
+if (ylFameMax[0]) { ylFameMax[0].click(); }
+assert(V.fame.good === 2000 && V.fame.business === 2000 && V.fame.scrap === 2000 && V.fame.social === 2000 && V.fame.model === 2000,
+  "点击后 正面名声 5 项全为 2000（原版 clamp 上限），实际 " + [V.fame.good, V.fame.business, V.fame.scrap, V.fame.social, V.fame.model].join("/"));
+V.prison = { protection: "", attention_level: 1, scarred_level: 0 };
+const ylPane9 = document.querySelector('[data-pane="yanling"]');
+assert(ylPane9.textContent.indexOf("监狱庇护") !== -1, "言灵页含「监狱庇护」区块（⑨），实际 " + ylPane9.textContent.slice(-160));
+const ylPris = [].slice.call(ylPane9.querySelectorAll("button")).filter(function (b) { return b.textContent === "疤痕狱友庇护" || b.textContent === "纹身狱友庇护" || b.textContent === "清除庇护"; });
+assert(ylPris.length === 3, "监狱庇护三按钮齐备（疤痕 / 纹身 / 清除），实际 " + ylPris.length);
+const ylPrisScar = ylPris.filter(function (b) { return b.textContent === "疤痕狱友庇护"; })[0];
+if (ylPrisScar) { ylPrisScar.click(); }
+assert(V.prison.protection === "scarred", "点击「疤痕狱友庇护」→ $prison.protection = 字符串 \"scarred\"（数字会令原版 is 判定全失效），实际 " + JSON.stringify(V.prison.protection));
+const ylPrisClr = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "清除庇护"; })[0];
+if (ylPrisClr) { ylPrisClr.click(); }
+assert(V.prison.protection === "", "点击「清除庇护」→ 空串（原版 !protection 判定成立 = 无庇护），实际 " + JSON.stringify(V.prison.protection));
+delete V.prison;
 /* 关闭链：卸载钩子必须把 window.isCrossdressing 还原为原版函数（而不是留一层空包装） */
 const ylOff = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent === "关闭（恢复原版判定）"; });
 assert(ylOff.length === 1, "「关闭（恢复原版判定）」按钮存在");
@@ -501,6 +519,10 @@ V.prof.baton = 0;
 api.renderPlayerEdit();
 const skRow1 = modsPane.querySelector('.mce-row[data-mce-key="quick:skulduggery"]');
 assert(!!skRow1, "9.5 快速面板 skulduggery 行存在");
+/* v2.0.3 区块编号统一：快速页首区块「说话态度」= ①，次区块「一键方案（预设模板）」= ②（原来复用全局页写死的 ⑩） */
+const qMarks = [].slice.call(modsPane.querySelectorAll(".mce-block .mce-sec-n"));
+assert(qMarks.length >= 2 && qMarks[0].textContent === "①" && qMarks[1].textContent === "②",
+  "9.5b 快速页区块编号连续 ①②（不复用全局页 ⑩），实际 " + qMarks.slice(0, 3).map(function (n) { return n.textContent; }).join("/"));
 const skLbl1 = skRow1.querySelector(".mce-row-lbl");
 assert(skLbl1.textContent.indexOf("skulduggery") === -1, "9.5 行标签走中文映射（不含英文裸 key），实际 " + skLbl1.textContent);
 const skLock1 = skRow1.querySelector('[data-mce-role="lock"]');

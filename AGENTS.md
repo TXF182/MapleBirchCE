@@ -7,8 +7,8 @@
 - **本目录（生产端）**：源码 `javascript\src\*.js`、测试 `tests\`、工具 `tools\`（pack/release/push/audit/resolve/snap/核查）、对照源码 `tools\_modcache\`、版本双源（`01-core.js:3` MCE_VERSION + `boot.json:7` version）、git、CHANGELOG/README。
 - **消费端（物理位置不变）**：`C:\Users\27352\Doubao\chats\2026-10-19\new-chat\DoL-Project` —— `game\` 游戏本体、`real_smoke.ps1`（moli 实机冒烟）、旧桥接 `dev.ps1`。
 - 完整闭环入口（本目录即可跑完，消费端仅作脚本外部目标）：
-  - `.\tools\run_all.ps1`：全链 9 步（build / `node --check` / ESLint 八规则 / DOM 冒烟 / 全量回归 / E2E / 性别集成 / **适配器声明一致性** / **覆盖率门禁**）→ 末尾自动 `codegraph sync`。第 8 步 = `check_claims.js`（结构自洽，命中即 fail）+ `check_key_types.js`（类型形态，仅在 `tools\_modcache\STATE.json` 存在时跑，缺失则 WARN 跳过）。
-  - `.\dev.ps1`：单元测试 → 全链（内含上述 9 步）→ 打包 verifier 4/4 + SHA256 → 复制 zip 装进消费端 game\（`$env:MCE_DOL_PROJECT` 可覆盖消费端路径）。
+  - `.\tools\run_all.ps1`：全链 10 步（build / `node --check` / ESLint 八规则 / DOM 冒烟 / 全量回归 / E2E / 性别集成 / **适配器声明一致性** / **原版数字档位形态** / **覆盖率门禁**）→ 末尾自动 `codegraph sync`。第 8 步 = `check_claims.js`（结构自洽，命中即 fail）+ `check_key_types.js`（类型形态，仅在 `tools\_modcache\STATE.json` 存在时跑，缺失则 WARN 跳过）。第 9 步 = `check_vanilla_types.js`（07d-places PLACE_GROUPS 的数字档位声明 vs 原版 0.5.12.13 赋值形态：有 `is "…"` 字符串判定即 CONFLICT；原版 HTML 缺失时 SKIP）。
+  - `.\dev.ps1`：单元测试 → 全链（内含上述 10 步）→ 打包 verifier 校验（verifier-hub `zip-check-entries` 优先；本机无该包时自动走内置等价核对 = 条目集合精确匹配 + CRC 全量，判据相同，输出 `VERIFIER-FALLBACK` 明示）+ SHA256 → 复制 zip 装进消费端 game\（`$env:MCE_DOL_PROJECT` 可覆盖消费端路径）。
   - `.\real_smoke.ps1`：包装调消费端 real_smoke.ps1。
   - 远端 CI：`.github/workflows/ci.yml`（push main / PR / 手动）在 ubuntu-latest + node 22 上跑 `npm ci` + 同口径验证（无 moli / 打包 / codegraph / 原版 HTML）。
 
@@ -16,7 +16,7 @@
 
 1. 只改 `javascript\src\*.js`，绝不手改 `javascript\maplebirchce.js`（打包产物，由构建生成）。
 2. 版本双源必须同步：`01-core.js` MCE_VERSION 与 `boot.json` version 一致。
-3. 打包必须走 `tools\pack.ps1`（zip 条目正斜杠、verifier 4/4、SHA256）。
+3. 打包必须走 `tools\pack.ps1`（zip 条目正斜杠、verifier 校验（verifier-hub 优先 / 内置等价核对兜底，判据同为 4 条目全命中 + CRC）、SHA256）。
 4. **不升版本、不发布、不擅自清理用户文件**——三者均需用户明确指令。
 5. 改码前先 `tools\snap.ps1` 存基线快照；出现异常优先回滚到基线。
 6. 发布通道：`node tools\release.js [--version <v>] [--dry]`（先 --dry 预览 body 非空）→ `node tools\push_api.js`；token 经 git credential fill 仅内存（gho_ 前缀）；github.com:443 常断走 API 通道；发布后回读 SHA。发布动作不可逆，先列清单再执行。

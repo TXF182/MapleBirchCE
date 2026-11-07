@@ -22,7 +22,13 @@
 	     ④ 长说明默认折叠成 2 行（mceFoldHint），点击展开，避免每块 2~3 行密文占屏。
 	   全部返回普通 DOM 节点，调用方后续 appendChild 逻辑不变（替换点最小）。 */
 	var mceSecNo = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫", "⑬", "⑭", "⑮", "⑯"];
-	function mceSecMark(idx) { return mceSecNo[idx - 1] || String(idx); }
+	/* 编号映射：idx<=0 / 非数字 → 空串（真正“不编号”）；超出字表 → 阿拉伯数字。
+	   旧实现 mceSecMark(0) 返回 "0"、mceSecMark(undefined) 返回 "undefined" 文本，与“idx=0 不编号”的约定不符。 */
+	function mceSecMark(idx) {
+		var n = Number(idx);
+		if (!isFinite(n) || n <= 0) { return ""; }
+		return mceSecNo[n - 1] || String(n);
+	}
 	/* 说明折叠：默认 2 行截断，点击整块切换展开/收起（data-open=1/0 供测试断言） */
 	function mceFoldHint(text) {
 		var h = el("div", "mce-hint mce-fold", text);

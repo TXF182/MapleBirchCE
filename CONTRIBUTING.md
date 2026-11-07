@@ -20,13 +20,13 @@
 
 # 3) 跑全链（9 步，1-3 分钟）
 .\tools\run_all.ps1
-#    build → node --check → ESLint 八规则 → DOM 冒烟 → 全量回归 → 功能级 E2E → 性别集成 → 适配器声明一致性 → 覆盖率门禁
+#    build → node --check → ESLint 八规则 → DOM 冒烟 → 全量回归 → 功能级 E2E → 性别集成 → 适配器声明一致性 → 原版数字档位形态 → 覆盖率门禁
 #    任何一步红都不算完成；末尾自动 codegraph sync
 
 # 4) 有 src 改动必须再跑实机冒烟（约 2-4 分钟）
 .\real_smoke.ps1
 
-# 5) 打包（zip 条目正斜杠 + verifier 4/4 + SHA256）
+# 5) 打包（zip 条目正斜杠 + verifier 校验（verifier-hub 优先 / 内置等价核对兜底）+ SHA256）
 .\tools\pack.ps1
 ```
 

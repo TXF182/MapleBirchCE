@@ -108,6 +108,9 @@
 				yanlingPurgeTrait: mbCEYanlingPurgeTrait,
 				yanlingPurgeFame: mbCEYanlingPurgeFame,
 				YANLING_FAME_NEG: mbCEYanlingFameNeg,
+				/* v2.0.3：正面名声拉满 + 监狱庇护枚举直写（$prison.protection 是字符串，数字档位会静默半失效） */
+				yanlingMaxFame: mbCEYanlingMaxFame,
+				yanlingPrisonProtect: mbCEYanlingPrisonProtect,
 				/* v2.0.2 言灵扩容：一次性写入动作（衣物 / 数值 / 天气 / 角色放逐） */
 				yanlingDryClothes: mbCEYanlingDryClothes,
 				yanlingRepairClothes: mbCEYanlingRepairClothes,
