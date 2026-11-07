@@ -1,0 +1,33 @@
+{
+  "title": "MapleBirchCE 适配器声明 schema",
+  "note": "adapter_ir.js 解析出的对象图按本文件校验。字段白名单存在的意义：拼错的字段（如 varpath / lavel）在运行时不会报错、只会静默失效，必须在门禁里拦住。",
+  "entry": {
+    "required": ["modId", "modName", "stages", "abilities", "values"],
+    "optional": ["tasks", "scenes", "actions", "actionPanel"],
+    "arraySections": ["stages", "abilities", "values", "scenes", "tasks"]
+  },
+  "itemFields": {
+    "common": ["key", "name", "varPath", "note", "sync", "group", "options"],
+    "stages": ["levels", "labels"],
+    "abilities": ["type", "numeric", "min", "max"],
+    "values": ["type", "min", "max"],
+    "scenes": ["skipVar", "completeVar", "progressVar", "resetValue"],
+    "tasks": ["levels", "labels", "type", "numeric", "min", "max"]
+  },
+  "types": {
+    "values": ["number", "string", "boolean", "list"],
+    "abilities": ["boolean", "number", "string"],
+    "tasks": ["number", "string", "boolean"]
+  },
+  "sync": {
+    "fields": ["clear", "set", "copyMax"],
+    "setFields": ["path", "value", "if", "ifMissing"],
+    "ifFields": ["min", "max"]
+  },
+  "actions": {
+    "required": ["key", "name", "run"],
+    "optional": ["note", "needsChild", "varPath"]
+  },
+  "varPathPattern": "^[^.\\[\\]\\s]+(\\.[^.\\[\\]\\s]+)*$",
+  "varPathNote": "以 04b-modcheat-write.js cheatResolvePath 的真实语义为准：只按点号切段，段名允许中文/连字符/纯数字（数字段索引数组）；不允许方括号写法（a[0] 会被当成字面键名，写入落空）。"
+}

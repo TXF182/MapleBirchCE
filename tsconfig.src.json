@@ -1,0 +1,18 @@
+{
+  "//": "src 侧类型分账（P3）。src/*.js 是拼接进同一 IIFE 的片段（00-preamble 开括号 / 09-exports2 收括号），",
+  "//2": "单独逐文件编译只会产生跨片段噪声，所以这里检查的是 tools/check_src_types.js 按 manifest",
+  "//3": "拼出的联合文件（与产物字节相同），strict:true，错误按行区间映射回具体 src 文件后做棘轮。",
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": []
+  },
+  "include": ["tools/_srctypes/src-united.js", "types/**/*.d.ts"],
+  "exclude": ["node_modules"]
+}

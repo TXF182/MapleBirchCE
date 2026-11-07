@@ -1,0 +1,17 @@
+{
+  "note": "结构门禁基线（棘轮）：只减不增。新增豁免必须在评审中说明原因，并计划回落。",
+  "updatedAt": "2026-11-07",
+  "maxLines": 400,
+  "lineAllowlist": {},
+  "continuationAllowlist": [
+    "03c-global-combat2.js",
+    "07a-shell2.js",
+    "07d-places2.js",
+    "07e-scenes2.js",
+    "07f-pins3-queue2.js",
+    "07h-render2.js",
+    "07h-render3.js",
+    "08-npc-traits2.js",
+    "09-exports2.js"
+  ]
+}

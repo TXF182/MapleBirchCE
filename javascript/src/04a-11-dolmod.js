@@ -42,7 +42,8 @@ CHEAT_ADAPTERS["dolmod"] = {
 			   分手 passage 置 friend + romance=0 + 清 loveInterest 槽 + rage+20（adian-romance.twee:59-75）——CE 只写状态键，
 			   完整分手联动由模组 passage 负责；恋人态建议配「恋爱中」能力一起写） */
 			{ key: "dm_conf_state", name: "阿电 · 表白状态", varPath: "adian_confession_state",
-			  levels: ["", "rejected", "friend", "lovers"] }
+			  levels: ["", "rejected", "friend", "lovers"],
+			  labels: ["未触发", "拒绝", "朋友", "恋人"] }
 		],
 		abilities: [
 			/* 阿电状态线：全部严格比较（is/isnot 1）→ numeric 通道 1/0 */

@@ -3,6 +3,10 @@
 #   .\tools\snap.ps1                  # 快照全部 git 已修改文件（未跟踪文件也纳入）
 #   .\tools\snap.ps1 src\01-core.js src\04a-04-deadwood.js   # 快照指定文件
 # 输出：仓库根 tools\selfcheck\<UTC时间戳>-snapshot.txt（git status + 每文件 SHA256）
+# 2026-11-07 修两处缺陷：
+#   ① 原 `git status --porcelain` 正行解析漏掉 ` M path`（首列空格的已跟踪修改），改为 -z NUL 分隔 + 逐块解析；
+#   ② 原 Get-FileHash 对未跟踪目录（如 types\）直接抛 "Could not find a part of the path"，改为先判
+#      Leaf / Container：文件按行哈希，目录递归列出每个文件单独哈希。
 $ErrorActionPreference = "Stop"
 
 $MCE = "C:\Users\27352\Doubao\chats\2026-10-13\new-chat-2\MapleBirchCE"
@@ -27,21 +31,45 @@ try {
   $lines += ($status | ForEach-Object { "  " + $_ })
   $lines += ""
 
-  # 2) 指定文件优先；未指定时取 git 修改/新增文件
+  # 2) 指定文件优先；未指定时取 git 全部改动（修改 / 新增 / 删除 / 重命名）
+  #    -z: NUL 分隔 + 不转义，避免空格、中文、引号把路径解析切坏
   $targets = @($args)
   if ($targets.Count -eq 0) {
-    $modified = & $GIT status --porcelain 2>$null | ForEach-Object {
-      if ($_ -match "^(M|A|\?\?) (.+)$") { $Matches[2] }
+    $modified = @()
+    $raw = & $GIT -c core.quotepath=false status --porcelain -z 2>$null
+    if ($LASTEXITCODE -ne 0) { Write-Host "WARN: git status --porcelain -z 失败：$raw" -ForegroundColor Yellow }
+    if ($raw) {
+      $chunks = $raw -split "`0"
+      for ($i = 0; $i -lt $chunks.Count; $i++) {
+        $entry = $chunks[$i]
+        if ([string]::IsNullOrEmpty($entry) -or $entry.Length -lt 4) { continue }
+        $xy = $entry.Substring(0, 2)
+        $path = $entry.Substring(3)
+        if ($xy -match "^(R|C)" -and ($i + 1) -lt $chunks.Count) {
+          # 重命名/复制条目：下一块是原路径（无 XY 前缀），跳过，只记新路径
+          $i++
+        }
+        $modified += $path
+      }
     }
-    $targets = @($modified | Where-Object { $_ })
+    $targets = @($modified)
   }
 
   $lines += "[2] 涉及文件 SHA256（$(($targets | Measure-Object).Count) 个）"
   foreach ($t in $targets) {
     $full = Join-Path $MCE $t
-    if (Test-Path -LiteralPath $full) {
+    if (Test-Path -LiteralPath $full -PathType Leaf) {
       $sha = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash
       $lines += ("  {0}  {1}" -f $sha, $t)
+    } elseif (Test-Path -LiteralPath $full -PathType Container) {
+      # 未跟踪目录：逐个文件哈希（否则 Get-FileHash 对目录条目直接抛错）
+      $inner = Get-ChildItem -LiteralPath $full -File -Recurse -Force | Sort-Object FullName
+      $lines += ("  (目录) {0}  共 {1} 个文件" -f $t, $inner.Count)
+      foreach ($f in $inner) {
+        $rel = $f.FullName.Substring($MCE.Length + 1) -replace "\\", "/"
+        $sha = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash
+        $lines += ("  {0}  {1}" -f $sha, $rel)
+      }
     } else {
       $lines += "  (缺失) $t"
     }

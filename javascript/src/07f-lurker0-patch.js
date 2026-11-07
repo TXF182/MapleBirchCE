@@ -31,28 +31,56 @@ var MB_CE_LURKER_PATCHES = [
 	{ name: "Widgets Flats", find: "$lurkers_held gte 1 and $hookah.lurkers lt 5", repl: "$lurkers_held gte 1" },
 	{ name: "Widgets Flats", find: "<<switch $hookah.lurkers>>", repl: "", regex: true }
 ];
+/* v2.0.4 修复「潜伏者遭遇整段变英文」：门控替换必须长度守恒。
+   汉化包（ModI18N）的译文条目带 pos 偏移锚点，逐条按 <from, pos> 在 passage 原文里定位；
+   任何一条定位失败 → 整段 passage 放弃翻译、直接回显英文原文。CE 原先把门控串删短
+   （-41/-25 字符），后续条目 pos 全下移 → 第一处不匹配即 anchor-error → 5 个 passage 全段落译。
+   办法：把 repl 右补空格补到与 find 等长（<<if>> 表达式里尾随空格无副作用），偏移原地不动。 */
+function mbCELurkerPadTo(find, repl) {
+	var n = String(find).length - String(repl).length, pad = "";
+	if (n <= 0) { return String(repl); }
+	while (n-- > 0) { pad += " "; }
+	return String(repl) + pad;
+}
+/* 汉化层在场时：switch 整块替换 = 物理删掉 6 条 span 译文锚点（补空格也救不回），必须原样保留。
+   window.modI18N 由汉化包 earlyload（ModLoader 注入 <head>）挂载，早于 DOMContentLoaded，此处可判。 */
+function mbCELurkerCjkI18n() {
+	try {
+		if (window.modI18N) { return true; }
+		var d = window.modSC2DataManager;
+		if (d && typeof d.getLanguageManager === "function") {
+			var lm = d.getLanguageManager();
+			if (lm && (lm.mainLanguage === "zh" || lm.language === "zh")) { return true; }
+		}
+	} catch (e) { /* 无 ModLoader / 无汉化 */ }
+	return false;
+}
 /* 冰箱显示：把只映射 1–5 的 switch 段整体换成真实数值（>5 不再落到 <<default>> 显示 "no"） */
 var MB_CE_LURKER_SWITCH_RE = /<<switch \$hookah\.lurkers>>[\s\S]*?<<\/switch>>/;
 var MB_CE_LURKER_SWITCH_TO = '<<= $hookah.lurkers gt 0 ? $hookah.lurkers : "no">>';
-/* 纯函数：对单个 passage 文本做全套替换，返回 { text, hits }（幂等：已替换的文本再跑 hits=0） */
+/* 纯函数：对单个 passage 文本做全套替换，返回 { text, hits, kept, skipped }（幂等：已替换的文本再跑 hits=0）
+   kept = 长度守恒替换处数；skipped = 因汉化在场而主动放弃的整块替换数（switch） */
 function mbCELurkerPatchText(name, text) {
-	var out = String(text == null ? "" : text), hits = 0, i, p;
+	var out = String(text == null ? "" : text), hits = 0, kept = 0, skipped = 0, i, p;
 	for (i = 0; i < MB_CE_LURKER_PATCHES.length; i++) {
 		p = MB_CE_LURKER_PATCHES[i];
 		if (p.name !== name) { continue; }
 		if (p.regex) {
 			if (MB_CE_LURKER_SWITCH_RE.test(out)) {
+				/* 汉化在场：整块替换会删掉 span 译文锚点 → 放弃（>5 只显示原版 "no"，数量见面板） */
+				if (mbCELurkerCjkI18n()) { skipped++; continue; }
 				out = out.replace(MB_CE_LURKER_SWITCH_RE, MB_CE_LURKER_SWITCH_TO);
 				hits++;
 			}
 			continue;
 		}
 		if (out.indexOf(p.find) >= 0) {
-			out = out.split(p.find).join(p.repl);
+			out = out.split(p.find).join(mbCELurkerPadTo(p.find, p.repl));
 			hits++;
+			kept++;
 		}
 	}
-	return { text: out, hits: hits };
+	return { text: out, hits: hits, kept: kept, skipped: skipped };
 }
 function mbCELurkerPatchNames() {
 	var names = [], i;
@@ -63,7 +91,7 @@ function mbCELurkerPatchNames() {
 }
 /* ① 启动前改 DOM（唯一能改到 widget 定义的通道） */
 function mbCELurkerPatchDom() {
-	var report = { ok: false, hits: 0, nodes: 0, missed: mbCELurkerPatchNames(), channel: "dom" };
+	var report = { ok: false, hits: 0, kept: 0, skipped: 0, nodes: 0, missed: mbCELurkerPatchNames(), channel: "dom" };
 	try {
 		if (typeof document === "undefined" || !document.getElementsByTagName) { return report; }
 		var nodes = document.getElementsByTagName("tw-passagedata");
@@ -75,11 +103,13 @@ function mbCELurkerPatchDom() {
 			if (!nm || names.indexOf(nm) < 0 || done[nm]) { continue; }
 			var before = n.textContent || "";
 			var res = mbCELurkerPatchText(nm, before);
-			if (!res.hits) { continue; }
+			if (!res.hits && !res.skipped) { continue; }
 			/* textContent 写回由浏览器重新转义，SugarCube 读到的就是替换后的源码 */
-			n.textContent = res.text;
+			if (res.hits) { n.textContent = res.text; }
 			done[nm] = true;
 			report.hits += res.hits;
+			report.kept += res.kept;
+			report.skipped += res.skipped;
 		}
 		report.missed = names.filter(function (x) { return !done[x]; });
 		report.ok = report.hits > 0;
@@ -105,7 +135,7 @@ function mbCELurkerPassageAccess() {
 }
 /* ② 运行期兜底：改 passage 文本（普通 passage 每次渲染重新 wikify 有效；已注册的 widget 定义无效） */
 function mbCELurkerPatchStory() {
-	var report = { ok: false, hits: 0, missed: mbCELurkerPatchNames(), channel: "story", access: null };
+	var report = { ok: false, hits: 0, kept: 0, skipped: 0, missed: mbCELurkerPatchNames(), channel: "story", access: null };
 	try {
 		var access = mbCELurkerPassageAccess();
 		if (!access) { report.access = "none"; return report; }
@@ -120,6 +150,8 @@ function mbCELurkerPatchStory() {
 			p.text = res.text;
 			done[names[i]] = true;
 			report.hits += res.hits;
+			report.kept += res.kept;
+			report.skipped += res.skipped;
 		}
 		report.missed = names.filter(function (x) { return !done[x]; });
 		report.ok = report.hits > 0;
@@ -128,6 +160,8 @@ function mbCELurkerPatchStory() {
 	window.mbCELurkerPatchReport = {
 		ok: report.ok || !!(prev && prev.ok),
 		hits: (prev && prev.hits ? prev.hits : 0) + report.hits,
+		kept: (prev && prev.kept ? prev.kept : 0) + report.kept,
+		skipped: (prev && prev.skipped ? prev.skipped : 0) + report.skipped,
 		dom: prev && prev.channel === "dom" ? prev : null,
 		story: report,
 		channel: prev && prev.ok ? "dom" : report.channel,
@@ -162,7 +196,9 @@ function mbCELurkerRepatch() {
 	return {
 		ok: !!(r && r.ok),
 		message: r && r.ok
-			? "解限补丁已生效（累计替换 " + r.hits + " 处；未命中：" + ((r.missed && r.missed.length) ? r.missed.join(" / ") : "无") + "）"
+			? "解限补丁已生效（累计替换 " + r.hits + " 处，其中长度守恒 " + (r.kept || 0) + " 处" +
+				(r.skipped ? "；汉化在场保留 switch " + r.skipped + " 处（>5 只原版文案显示 no，真实数量见上方数值）" : "") +
+				"；未命中：" + ((r.missed && r.missed.length) ? r.missed.join(" / ") : "无") + "）"
 			: "解限补丁未命中（可能页面已启动或版本差异）——自动搬运仍可保底「无限次捕捉」；详情：" + JSON.stringify({ dom: dom.hits, story: story.hits })
 	};
 }

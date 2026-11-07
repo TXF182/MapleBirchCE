@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "note": "src 侧 strict 模式「真债务」基线（棘轮：只减不增）。隐式 any 家族（TS7006/7005/7034/7053/7023）不计账。新增债务请修代码，不要直接改写本文件；确需调整时用 --write-baseline 并在评审中说明。",
+  "updatedAt": "2026-11-07",
+  "strict": true,
+  "total": 169,
+  "noiseCodes": [
+    "TS7006",
+    "TS7005",
+    "TS7034",
+    "TS7053",
+    "TS7023"
+  ],
+  "files": {
+    "01-core.js": {
+      "total": 3,
+      "codes": {
+        "TS2339": 2,
+        "TS2353": 1
+      }
+    },
+    "03b-global-maint.js": {
+      "total": 14,
+      "codes": {
+        "TS2339": 7,
+        "TS18046": 7
+      }
+    },
+    "03c-global-combat.js": {
+      "total": 1,
+      "codes": {
+        "TS18046": 1
+      }
+    },
+    "03c-global-combat2.js": {
+      "total": 9,
+      "codes": {
+        "TS2339": 4,
+        "TS2538": 4,
+        "TS18047": 1
+      }
+    },
+    "04a-14-fert-cheats.js": {
+      "total": 2,
+      "codes": {
+        "TS2339": 2
+      }
+    },
+    "04a-15b-fert-kid-stats.js": {
+      "total": 8,
+      "codes": {
+        "TS2339": 5,
+        "TS18048": 3
+      }
+    },
+    "04b-modcheat-write.js": {
+      "total": 19,
+      "codes": {
+        "TS2538": 13,
+        "TS2339": 6
+      }
+    },
+    "04c-modcheat-util.js": {
+      "total": 6,
+      "codes": {
+        "TS2345": 4,
+        "TS2339": 2
+      }
+    },
+    "05a-modcheat-rows.js": {
+      "total": 1,
+      "codes": {
+        "TS2538": 1
+      }
+    },
+    "05a3-modcheat-actions.js": {
+      "total": 4,
+      "codes": {
+        "TS2339": 4
+      }
+    },
+    "05b-modcheat-player.js": {
+      "total": 2,
+      "codes": {
+        "TS2339": 2
+      }
+    },
+    "06b-traits-eval.js": {
+      "total": 32,
+      "codes": {
+        "TS2345": 3,
+        "TS2339": 21,
+        "TS18047": 8
+      }
+    },
+    "06c-traits-ui.js": {
+      "total": 2,
+      "codes": {
+        "TS2339": 2
+      }
+    },
+    "06d-traits-gender.js": {
+      "total": 2,
+      "codes": {
+        "TS2339": 2
+      }
+    },
+    "07a-shell2.js": {
+      "total": 1,
+      "codes": {
+        "TS2345": 1
+      }
+    },
+    "07d-places.js": {
+      "total": 2,
+      "codes": {
+        "TS2339": 2
+      }
+    },
+    "07d-places2.js": {
+      "total": 4,
+      "codes": {
+        "TS2339": 4
+      }
+    },
+    "07f-lurker0-patch.js": {
+      "total": 8,
+      "codes": {
+        "TS2339": 6,
+        "TS2322": 2
+      }
+    },
+    "07f-pins2-anchor.js": {
+      "total": 7,
+      "codes": {
+        "TS2531": 1,
+        "TS2339": 6
+      }
+    },
+    "07f-pins3-queue.js": {
+      "total": 4,
+      "codes": {
+        "TS2339": 4
+      }
+    },
+    "07f-pins3-queue2.js": {
+      "total": 2,
+      "codes": {
+        "TS2339": 2
+      }
+    },
+    "07i-yanling-core.js": {
+      "total": 9,
+      "codes": {
+        "TS2683": 1,
+        "TS2339": 8
+      }
+    },
+    "08-npc-traits.js": {
+      "total": 4,
+      "codes": {
+        "TS2339": 4
+      }
+    },
+    "08-npc-traits2.js": {
+      "total": 14,
+      "codes": {
+        "TS2339": 14
+      }
+    },
+    "08c-undo-center.js": {
+      "total": 8,
+      "codes": {
+        "TS2339": 8
+      }
+    },
+    "08d-diff-preview.js": {
+      "total": 1,
+      "codes": {
+        "TS2339": 1
+      }
+    }
+  }
+}

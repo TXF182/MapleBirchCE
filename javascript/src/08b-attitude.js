@@ -29,6 +29,7 @@ var MB_CE_ATTITUDE_ITEMS = [
 function mbCEAttitudeGate(gateKey) {
 	var V = null;
 	try { V = getV(); } catch (e) { V = null; }
+	/** @type {any} forEach 内赋值，TS 无法收窄，显式声明避免 "never" 误判 */
 	var item = null;
 	MB_CE_ATTITUDE_ITEMS.forEach(function (it) { if (it.gate === gateKey) { item = it; } });
 	if (!item) { return null; }

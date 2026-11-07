@@ -94,6 +94,8 @@
 				undoOne: mbCEUndoOne,
 				undoGroup: mbCEUndoGroup,
 				undoAll: mbCEUndoAll,
+				undoLabel: mbCEUndoLabel,
+				undoItemName: mbCEUndoItemName,
 				readTransformState: readTransformState,
 				adjustTransform: adjustTransform,
 				completeTransformStage: completeTransformStage,
@@ -178,6 +180,8 @@
 				toggleCheatAbility: toggleCheatAbility,
 				cheatSceneAction: cheatSceneAction,
 				cheatWriteValue: cheatWriteValue,
+				/* v2.0.4 治理：列表型写入导出，供声明矩阵测试走真实数组通道（内部实现未改） */
+				cheatWriteListValue: cheatWriteListValue,
 				/* v2.0.0.002 快速面板：数值锁定（复用 07f-lock）+ 武器直接获得 */
 				quickTargetValue: quickTargetValue,
 				grantWeapon: grantWeapon,

@@ -74,7 +74,10 @@
 			var v = raw && typeof raw === "object" ? raw : { value: String(raw), on: true };
 			return cheatWriteListValue(modId, "value_set:" + key + ":" + v.value, "value_set", it.varPath, v.value, !!v.on);
 		}
-		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, it.type === "boolean" ? "boolean" : "number", it.min, it.max, it.sync);
+		/* v2.0.4 治理：string 型也曾被 fallback 成 number 通道（Number("abc")=NaN → 静默拒绝写），
+		   现按声明类型分流；当前声明无 string 项，此分支由声明矩阵的假适配器负控覆盖 */
+		var wt = it.type === "boolean" ? "boolean" : (it.type === "string" ? "string" : "number");
+		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, wt, it.min, it.max, it.sync);
 	}
 	function cheatReadSafe(modId, path) {
 		try {
@@ -136,6 +139,7 @@
 	function renderModCheatDetail(modId) {
 		var pane = root.querySelector('[data-pane="mods"]');
 		if (!pane) { return; }
+		/** @type {any} 适配器 entry 形态有两类（含 actionPanel 与不含），统一按 any 访问可选字段 */
 		var m = findCheatMod(modId);
 		var st = pane.scrollTop; /* 五巡：重建后保持滚动位置（翻到长列表底部操作不再跳回顶部） */
 		/* v1.9.5-自检：重建时清残留分片任务——切 tab/重进子页后旧渲染的分片不再往已脱离 DOM 的 body 补行（省帧），

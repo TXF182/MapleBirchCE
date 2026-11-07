@@ -118,7 +118,7 @@
 	function zhKey(k) { return ZH_KEYS[k] || String(k); }
 	function zhPath(p) { return String(p).split(".").map(zhKey).join("."); }
 	function zhType(t) { return ZH_TYPES[t] || t; }
-	var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
+	/** @type {Record<string, any>} */ var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
 	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
 	var curCheatModId = "";
 

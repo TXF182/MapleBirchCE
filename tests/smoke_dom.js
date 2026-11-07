@@ -662,6 +662,32 @@ const ylOff = [].slice.call(document.querySelector('[data-pane="yanling"]').quer
 assert(ylOff.length === 1, "「关闭（恢复原版判定）」按钮存在");
 if (ylOff[0]) { ylOff[0].click(); }
 assert(window.isCrossdressing === ylOrigCD && window.isCrossdressing() === true, "关闭后 window.isCrossdressing 还原为原版函数且判定恢复 true（不留空包装层）");
+/* P4 拆分回归（07i-yanling.js 856 行 → core / actions / page 三段）：重渲染幂等 + 钩子装卸幂等。
+   拆分把「策略层 + 动作层 + 渲染层」放进三个段，跨段调用靠同一 IIFE 的函数提升；
+   这两组断言守住拆分最容易被拆坏的语义：重复渲染不重复挂载 DOM、重复装卸不叠包装层。 */
+const ylApi = setup.mbStageCE;
+const ylSnap = function () {
+  const p = document.querySelector('[data-pane="yanling"]');
+  return { groups: p.querySelectorAll(".mce-group").length, blocks: p.querySelectorAll(".mce-block").length, btns: p.querySelectorAll("button").length };
+};
+assert(typeof ylApi.renderYanling === "function", "renderYanling 已导出（拆分后渲染层仍在 exports 里）");
+ylApi.renderYanling(); ylApi.renderYanling();
+const ylS1 = ylSnap();
+assert(ylS1.groups === 3 && ylS1.blocks === 10, "言灵页 3 个分组 + 9 区块 + 1 说明块 = 10 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
+ylApi.renderYanling(); ylApi.renderYanling();
+const ylS2 = ylSnap();
+assert(JSON.stringify(ylS1) === JSON.stringify(ylS2), "连续重渲染幂等（分组/区块/按钮数不增长），实际 " + JSON.stringify(ylS1) + " vs " + JSON.stringify(ylS2));
+V.mbCE_yanling = { noCross: true, noTrait: false };
+ylApi.yanlingInstall();
+const ylHookRef = window.isCrossdressing;
+assert(typeof ylHookRef === "function" && ylHookRef() === false, "install 后 window.isCrossdressing 恒 false（拆分后钩子仍在策略段）");
+ylApi.yanlingInstall();
+assert(window.isCrossdressing === ylHookRef, "重复 install 不叠包装层（仍是同一函数引用）");
+ylApi.yanlingUninstall();
+assert(window.isCrossdressing === ylOrigCD, "uninstall 还原原版函数引用（不残留包装层）");
+ylApi.yanlingUninstall();
+assert(window.isCrossdressing === ylOrigCD, "重复 uninstall 幂等（原版函数引用不变）");
+V.mbCE_yanling.noCross = false; V.mbCE_yanling.noTrait = false;
 /* 收尾：关掉开关 + 复位 mock，避免守卫定时器影响后续用例 */
 /* ---------- 7e. v2.0.3 P1 言灵页分支穷举（07i：缺对象/缺键/容器类型/缺原版函数 的早退分支） ---------- */
 const ylBackup = {
@@ -1518,6 +1544,30 @@ setTimeout(function () {
         const u1 = api.undoOne("cheat:test-mod:p4demo");
         assert(u1.ok && V.p4demo === 3, "P4.1 undoOne 按 cheat 通道还原旧值（" + u1.msg + " / v=" + V.p4demo + "）");
         assert(!V.mbCE_wrote["cheat:test-mod:p4demo"], "P4.1 回退成功后对应留痕条目被移除");
+        /* P4.1b 回退中心逐项 key 中文化（v2.0.5）：截图里 8 个裸键渲染成汉字，原始键只进 tooltip */
+        V.mbCE_wrote["cheat:player-self:p:prof.spray"] = { type: "cheat", modId: "player-self", op: "value_set", path: "prof.spray", before: 0, after: 1000, t: Date.now() };
+        V.mbCE_wrote["place:town_projects.green"] = { type: "place", path: "town_projects.green", before: 0, after: 5, t: Date.now() };
+        V.mbCE_wrote["place:town_projects.bridge"] = { type: "place", path: "town_projects.bridge", before: 0, after: 5, t: Date.now() };
+        V.mbCE_wrote["place:town_projects.thicket"] = { type: "place", path: "town_projects.thicket", before: 0, after: 5, t: Date.now() };
+        V.mbCE_wrote["place:town_projects.road"] = { type: "place", path: "town_projects.road", before: 0, after: 5, t: Date.now() };
+        V.mbCE_wrote["maint:temple_quarters"] = { type: "maint", path: "temple_quarters", before: 0, after: 100, t: Date.now() };
+        V.mbCE_wrote["maint:temple_garden"] = { type: "maint", path: "temple_garden", before: 0, after: 100, t: Date.now() };
+        V.mbCE_wrote["yanling:purge_cross"] = { type: "yanling", op: "purge_cross", t: Date.now() };
+        api.refresh();
+        const p4b = document.querySelector('[data-pane="global"]');
+        const p4bTxt = p4b ? p4b.textContent : "";
+        assert(p4bTxt.indexOf("防狼喷雾") !== -1, "P4.1b cheat 项渲染中文名（防狼喷雾）");
+        assert(p4bTxt.indexOf("绿地") !== -1 && p4bTxt.indexOf("桥梁") !== -1, "P4.1b place 项渲染「分组 · 项名」中文");
+        assert(p4bTxt.indexOf("神殿宿舍清洁") !== -1 && p4bTxt.indexOf("神殿花园打理") !== -1, "P4.1b maint 项渲染中文名");
+        assert(p4bTxt.indexOf("异装与校规记录清除") !== -1, "P4.1b yanling op 渲染中文名");
+        assert(p4bTxt.indexOf("cheat:player-self") === -1 && p4bTxt.indexOf("place:town_projects") === -1 && p4bTxt.indexOf("maint:temple_") === -1,
+          "P4.1b 行内不再出现英文裸键（原始键只进 tooltip）");
+        const p4lbl = p4b ? Array.prototype.slice.call(p4b.querySelectorAll(".mce-row-lbl")).filter(function (s) {
+          const t = s.getAttribute("title") || "";
+          return t.indexOf("cheat:player-self") === 0 || t.indexOf("place:town_projects") === 0 || t.indexOf("maint:temple") === 0;
+        })[0] : null;
+        assert(!!p4lbl && (p4lbl.getAttribute("title") || "").indexOf(":") !== -1, "P4.1b 原始键保留在 label 的 title 里（可排障）");
+        Object.keys(V.mbCE_wrote).forEach(function (k) { if (k.indexOf("p4demo") < 0) { delete V.mbCE_wrote[k]; } });
         V.mbCE_wrote["cheat:global:unlockClothes"] = { type: "batch", modId: "global", op: "global_unlockClothes", n: 12, t: Date.now() };
         const u2 = api.undoOne("cheat:global:unlockClothes");
         assert(!u2.ok && u2.msg.indexOf("批量") !== -1, "P4.1 审计类留痕拒绝逐条回退（" + u2.msg + "）");

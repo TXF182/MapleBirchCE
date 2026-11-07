@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.3";
+	var MCE_VERSION = "2.0.4";
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -1852,7 +1852,7 @@
 	function zhKey(k) { return ZH_KEYS[k] || String(k); }
 	function zhPath(p) { return String(p).split(".").map(zhKey).join("."); }
 	function zhType(t) { return ZH_TYPES[t] || t; }
-	var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
+	/** @type {Record<string, any>} */ var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
 	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
 	var curCheatModId = "";
 
@@ -1869,6 +1869,7 @@
    构建 tools/build_js.js 按文件名 sort() 拼接：04a-00-core.js 排最前，先执行 var CHEAT_ADAPTERS = {}，
    各块文件随后执行 CHEAT_ADAPTERS["modId"] = {...} 赋值。
    工具脚本（check_mod_updates / audit_adapters / resolve_missing）已改读目录下全部 04a-*.js 拼接解析。 */
+/** @type {Record<string, any>} 注册表容器：modId -> { detect, entry }；各 04a-XX-*.js 块随后赋值 */
 var CHEAT_ADAPTERS = {};
 /* 职责：归途之书（revelation-the-book-of-return）适配器声明：阶段 / 能力 / 剧情 / 数值键 */
 	CHEAT_ADAPTERS["revelation-the-book-of-return"] = {
@@ -1964,8 +1965,8 @@ var CHEAT_ADAPTERS = {};
 				{ key: "td_sydney_agree", name: "神殿值勤 · 悉尼候选同意", varPath: "TempleDuties.candidates.Sydney.agreed", type: "boolean" },
 				{ key: "nkl_returned", name: "怨灵 · 项链已归还", varPath: "RBR.necklace.returnedOnce", type: "boolean",
 				  note: "1.4.6 项链取回/安抚线主开关（原 RBR.necklace.returned 重构为 returnedOnce）：勾选视为已把象牙项链归还湖中一次，梦线与安抚线（WraithAftercare）入口开放" },
-				{ key: "nkl_retaken", name: "怨灵 · 项链已取回", varPath: "RBR.necklace.retaken", type: "boolean", numeric: true,
-				  note: "1.4.6 新增取回分支：勾选=已再次取回（retaken=1，模组 gt 0 判定；模组侧 +1 累加计数，numeric 勾选写 1 不污染计数）" },
+				{ key: "nkl_retaken", name: "怨灵 · 项链已取回", varPath: "RBR.necklace.retaken", type: "boolean", numeric: true, min: 0,
+				  note: "1.4.6 新增取回分支：勾选=已再次取回（retaken=1，模组 gt 0 判定；模组侧 +1 累加计数，numeric 勾选写 1 不污染计数）。min 0 显式声明域（v2.0.4 清 WARN）" },
 				{ key: "nkl_reclaimed", name: "怨灵 · 项链已取回（归还后）", varPath: "RBR.necklace.reclaimed", type: "boolean",
 				  note: "1.4.6 回收线成功后置 true（WraithRecovery 实证）：勾选=当前持有已从湖边取回的项链，等价项链盗贼分支，开放 Gwylan/归还后续剧情（Wraith.twee:89/131/208 判定）" }
 			],
@@ -2537,9 +2538,9 @@ var CHEAT_ADAPTERS = {};
 				  note: "模组自身 Return Necklace 2 写入「rreturn」（双 r），但 Lake Ruin Plinth/Schism/Nightmare 等约 6 处补丁只认「return」——写「return」覆盖面最全" }
 			],
 			abilities: [
-				{ key: "wr_admit", name: "监狱对峙 · 承认罪过", varPath: "AdmitMR", type: "boolean", numeric: true, note: "v2.0：模组按严格比较 <<if $AdmitMR is 1>> 判定（ReturnNecklace.twee:34），写 true 恒为假、作弊项静默失效；numeric 勾选写 1" },
+				{ key: "wr_admit", name: "监狱对峙 · 承认罪过", varPath: "AdmitMR", type: "boolean", numeric: true, min: 0, note: "v2.0：模组按严格比较 <<if $AdmitMR is 1>> 判定（ReturnNecklace.twee:34），写 true 恒为假、作弊项静默失效；numeric 勾选写 1；min 0 显式声明域（v2.0.4 清 WARN）" },
 				{ key: "wr_refuse", name: "分裂 · 已拒绝", varPath: "RefuseWR", type: "boolean" },
-				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean", numeric: true, note: "v2.0：LakeConchTalk.txt:4 按 <<if $SilverConchWR is 1 and $SilverConchAsk is 1>> 严格比较，写 true 恒为假；numeric 勾选写 1" }
+				{ key: "wr_conch_ask", name: "银海螺 · 已咨询约旦", varPath: "SilverConchAsk", type: "boolean", numeric: true, min: 0, note: "v2.0：LakeConchTalk.txt:4 按 <<if $SilverConchWR is 1 and $SilverConchAsk is 1>> 严格比较，写 true 恒为假；numeric 勾选写 1；min 0 显式声明域（v2.0.4 清 WARN）" }
 			],
 			scenes: [],
 			values: [
@@ -2915,7 +2916,8 @@ CHEAT_ADAPTERS["dolmod"] = {
 			   分手 passage 置 friend + romance=0 + 清 loveInterest 槽 + rage+20（adian-romance.twee:59-75）——CE 只写状态键，
 			   完整分手联动由模组 passage 负责；恋人态建议配「恋爱中」能力一起写） */
 			{ key: "dm_conf_state", name: "阿电 · 表白状态", varPath: "adian_confession_state",
-			  levels: ["", "rejected", "friend", "lovers"] }
+			  levels: ["", "rejected", "friend", "lovers"],
+			  labels: ["未触发", "拒绝", "朋友", "恋人"] }
 		],
 		abilities: [
 			/* 阿电状态线：全部严格比较（is/isnot 1）→ numeric 通道 1/0 */
@@ -4339,7 +4341,10 @@ function mbCEFertRenderChildren(container) {
 			var v = raw && typeof raw === "object" ? raw : { value: String(raw), on: true };
 			return cheatWriteListValue(modId, "value_set:" + key + ":" + v.value, "value_set", it.varPath, v.value, !!v.on);
 		}
-		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, it.type === "boolean" ? "boolean" : "number", it.min, it.max, it.sync);
+		/* v2.0.4 治理：string 型也曾被 fallback 成 number 通道（Number("abc")=NaN → 静默拒绝写），
+		   现按声明类型分流；当前声明无 string 项，此分支由声明矩阵的假适配器负控覆盖 */
+		var wt = it.type === "boolean" ? "boolean" : (it.type === "string" ? "string" : "number");
+		return cheatWriteValue(modId, "value_set:" + key, "value_set", it.varPath, raw, wt, it.min, it.max, it.sync);
 	}
 	function cheatReadSafe(modId, path) {
 		try {
@@ -4401,6 +4406,7 @@ function mbCEFertRenderChildren(container) {
 	function renderModCheatDetail(modId) {
 		var pane = root.querySelector('[data-pane="mods"]');
 		if (!pane) { return; }
+		/** @type {any} 适配器 entry 形态有两类（含 actionPanel 与不含），统一按 any 访问可选字段 */
 		var m = findCheatMod(modId);
 		var st = pane.scrollTop; /* 五巡：重建后保持滚动位置（翻到长列表底部操作不再跳回顶部） */
 		/* v1.9.5-自检：重建时清残留分片任务——切 tab/重进子页后旧渲染的分片不再往已脱离 DOM 的 body 补行（省帧），
@@ -6614,7 +6620,7 @@ function renderPlayerEdit() {
 		} catch (e) {}
 	}
 
-	var CSS = "" +
+	var MB_CSS = "" +
 		/* ===== v1.9.18 排版 token 化：改主题/字号只动 :root 变量 ===== */
 		":root{" +
 		"--mce-accent:#d4a73c;--mce-accent-hover:#e0b44a;--mce-accent-dark:#b38a2a;--mce-accent-55:rgba(212,167,60,.55);" +
@@ -6830,7 +6836,7 @@ function renderPlayerEdit() {
 		if (document.getElementById("mce-style")) { return; }
 		var style = el("style", "");
 		style.id = "mce-style";
-		style.textContent = CSS;
+		style.textContent = MB_CSS;
 		(document.head || document.documentElement).appendChild(style);
 	}
 
@@ -8392,8 +8398,8 @@ function mbCELockLabel(path) {
 		if (typeof zhKey === "function") {
 			var z = zhKey(path);
 			if (z && z !== path) { return z; }
-			var leaf = String(path).split(".");
-			leaf = leaf[leaf.length - 1];
+			var leafParts = String(path).split(".");
+			var leaf = leafParts[leafParts.length - 1];
 			var z2 = zhKey(leaf);
 			if (z2 && z2 !== leaf) { return z2; }
 		}
@@ -8656,18 +8662,23 @@ function mbCELurkerSetAuto(on) {
 	};
 }
 function mbCELurkerPatchLabel(st) {
-	if (st && st.patch && st.patch.ok) { return "解限补丁：已生效（" + st.patch.hits + " 处）"; }
+	if (st && st.patch && st.patch.ok) {
+		var extra = "";
+		if (st.patch.kept) { extra += " · 长度守恒 " + st.patch.kept; }
+		if (st.patch.skipped) { extra += " · 汉化在场保留 switch " + st.patch.skipped; }
+		return "解限补丁：已生效（" + st.patch.hits + " 处" + extra + "）";
+	}
 	return "解限补丁：未命中";
 }
 function mbCERenderLurker(pane) {
 	if (!pane) { return; }
 	mbCELurkerEnsureTimer();
 	var st = mbCELurkerState();
-	var sec = mceNewSec(pane, 9, "潜伏者", "原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。");
+	var sec = mceNewSec(pane, 9, "潜伏者", "原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。改法为「等长替换」（右补空格，字符总数不变）——汉化包按字符偏移逐条匹配译文，长度一变就会整段落回英文（v2.0.4 修复）。汉化在场时冰箱 switch 原文保留（>5 只原版文案显示 no，真实数量看本面板数值），否则改写成真实数值。未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。");
 	if (!st.ok) { sec.appendChild(el("div", "mce-err", st.message)); return; }
 	var rows = [
 		{ path: "lurkers_held", name: "手持潜伏者（无上限）", cur: st.held, note: "原版 ≥1 即不再出网；解限后不再受限" },
-		{ path: "hookah.lurkers", name: "水烟馆冰箱（无上限）", cur: st.fridge, note: "≥1 可消耗换 50 juice；解限后显示真实数量" },
+		{ path: "hookah.lurkers", name: "水烟馆冰箱（无上限）", cur: st.fridge, note: "≥1 可消耗换 50 juice；未装汉化时显示真实数量，装汉化时 >5 保留原版 no（真实数量看本行数值）" },
 		{ path: "lurkers_stored", name: "农场蒸馏笼", cur: st.stored, note: "farm_stage ≥9 时每 7 天 1 只 → 1 瓶" }
 	];
 	rows.forEach(function (r) {
@@ -8753,28 +8764,56 @@ var MB_CE_LURKER_PATCHES = [
 	{ name: "Widgets Flats", find: "$lurkers_held gte 1 and $hookah.lurkers lt 5", repl: "$lurkers_held gte 1" },
 	{ name: "Widgets Flats", find: "<<switch $hookah.lurkers>>", repl: "", regex: true }
 ];
+/* v2.0.4 修复「潜伏者遭遇整段变英文」：门控替换必须长度守恒。
+   汉化包（ModI18N）的译文条目带 pos 偏移锚点，逐条按 <from, pos> 在 passage 原文里定位；
+   任何一条定位失败 → 整段 passage 放弃翻译、直接回显英文原文。CE 原先把门控串删短
+   （-41/-25 字符），后续条目 pos 全下移 → 第一处不匹配即 anchor-error → 5 个 passage 全段落译。
+   办法：把 repl 右补空格补到与 find 等长（<<if>> 表达式里尾随空格无副作用），偏移原地不动。 */
+function mbCELurkerPadTo(find, repl) {
+	var n = String(find).length - String(repl).length, pad = "";
+	if (n <= 0) { return String(repl); }
+	while (n-- > 0) { pad += " "; }
+	return String(repl) + pad;
+}
+/* 汉化层在场时：switch 整块替换 = 物理删掉 6 条 span 译文锚点（补空格也救不回），必须原样保留。
+   window.modI18N 由汉化包 earlyload（ModLoader 注入 <head>）挂载，早于 DOMContentLoaded，此处可判。 */
+function mbCELurkerCjkI18n() {
+	try {
+		if (window.modI18N) { return true; }
+		var d = window.modSC2DataManager;
+		if (d && typeof d.getLanguageManager === "function") {
+			var lm = d.getLanguageManager();
+			if (lm && (lm.mainLanguage === "zh" || lm.language === "zh")) { return true; }
+		}
+	} catch (e) { /* 无 ModLoader / 无汉化 */ }
+	return false;
+}
 /* 冰箱显示：把只映射 1–5 的 switch 段整体换成真实数值（>5 不再落到 <<default>> 显示 "no"） */
 var MB_CE_LURKER_SWITCH_RE = /<<switch \$hookah\.lurkers>>[\s\S]*?<<\/switch>>/;
 var MB_CE_LURKER_SWITCH_TO = '<<= $hookah.lurkers gt 0 ? $hookah.lurkers : "no">>';
-/* 纯函数：对单个 passage 文本做全套替换，返回 { text, hits }（幂等：已替换的文本再跑 hits=0） */
+/* 纯函数：对单个 passage 文本做全套替换，返回 { text, hits, kept, skipped }（幂等：已替换的文本再跑 hits=0）
+   kept = 长度守恒替换处数；skipped = 因汉化在场而主动放弃的整块替换数（switch） */
 function mbCELurkerPatchText(name, text) {
-	var out = String(text == null ? "" : text), hits = 0, i, p;
+	var out = String(text == null ? "" : text), hits = 0, kept = 0, skipped = 0, i, p;
 	for (i = 0; i < MB_CE_LURKER_PATCHES.length; i++) {
 		p = MB_CE_LURKER_PATCHES[i];
 		if (p.name !== name) { continue; }
 		if (p.regex) {
 			if (MB_CE_LURKER_SWITCH_RE.test(out)) {
+				/* 汉化在场：整块替换会删掉 span 译文锚点 → 放弃（>5 只显示原版 "no"，数量见面板） */
+				if (mbCELurkerCjkI18n()) { skipped++; continue; }
 				out = out.replace(MB_CE_LURKER_SWITCH_RE, MB_CE_LURKER_SWITCH_TO);
 				hits++;
 			}
 			continue;
 		}
 		if (out.indexOf(p.find) >= 0) {
-			out = out.split(p.find).join(p.repl);
+			out = out.split(p.find).join(mbCELurkerPadTo(p.find, p.repl));
 			hits++;
+			kept++;
 		}
 	}
-	return { text: out, hits: hits };
+	return { text: out, hits: hits, kept: kept, skipped: skipped };
 }
 function mbCELurkerPatchNames() {
 	var names = [], i;
@@ -8785,7 +8824,7 @@ function mbCELurkerPatchNames() {
 }
 /* ① 启动前改 DOM（唯一能改到 widget 定义的通道） */
 function mbCELurkerPatchDom() {
-	var report = { ok: false, hits: 0, nodes: 0, missed: mbCELurkerPatchNames(), channel: "dom" };
+	var report = { ok: false, hits: 0, kept: 0, skipped: 0, nodes: 0, missed: mbCELurkerPatchNames(), channel: "dom" };
 	try {
 		if (typeof document === "undefined" || !document.getElementsByTagName) { return report; }
 		var nodes = document.getElementsByTagName("tw-passagedata");
@@ -8797,11 +8836,13 @@ function mbCELurkerPatchDom() {
 			if (!nm || names.indexOf(nm) < 0 || done[nm]) { continue; }
 			var before = n.textContent || "";
 			var res = mbCELurkerPatchText(nm, before);
-			if (!res.hits) { continue; }
+			if (!res.hits && !res.skipped) { continue; }
 			/* textContent 写回由浏览器重新转义，SugarCube 读到的就是替换后的源码 */
-			n.textContent = res.text;
+			if (res.hits) { n.textContent = res.text; }
 			done[nm] = true;
 			report.hits += res.hits;
+			report.kept += res.kept;
+			report.skipped += res.skipped;
 		}
 		report.missed = names.filter(function (x) { return !done[x]; });
 		report.ok = report.hits > 0;
@@ -8827,7 +8868,7 @@ function mbCELurkerPassageAccess() {
 }
 /* ② 运行期兜底：改 passage 文本（普通 passage 每次渲染重新 wikify 有效；已注册的 widget 定义无效） */
 function mbCELurkerPatchStory() {
-	var report = { ok: false, hits: 0, missed: mbCELurkerPatchNames(), channel: "story", access: null };
+	var report = { ok: false, hits: 0, kept: 0, skipped: 0, missed: mbCELurkerPatchNames(), channel: "story", access: null };
 	try {
 		var access = mbCELurkerPassageAccess();
 		if (!access) { report.access = "none"; return report; }
@@ -8842,6 +8883,8 @@ function mbCELurkerPatchStory() {
 			p.text = res.text;
 			done[names[i]] = true;
 			report.hits += res.hits;
+			report.kept += res.kept;
+			report.skipped += res.skipped;
 		}
 		report.missed = names.filter(function (x) { return !done[x]; });
 		report.ok = report.hits > 0;
@@ -8850,6 +8893,8 @@ function mbCELurkerPatchStory() {
 	window.mbCELurkerPatchReport = {
 		ok: report.ok || !!(prev && prev.ok),
 		hits: (prev && prev.hits ? prev.hits : 0) + report.hits,
+		kept: (prev && prev.kept ? prev.kept : 0) + report.kept,
+		skipped: (prev && prev.skipped ? prev.skipped : 0) + report.skipped,
 		dom: prev && prev.channel === "dom" ? prev : null,
 		story: report,
 		channel: prev && prev.ok ? "dom" : report.channel,
@@ -8884,7 +8929,9 @@ function mbCELurkerRepatch() {
 	return {
 		ok: !!(r && r.ok),
 		message: r && r.ok
-			? "解限补丁已生效（累计替换 " + r.hits + " 处；未命中：" + ((r.missed && r.missed.length) ? r.missed.join(" / ") : "无") + "）"
+			? "解限补丁已生效（累计替换 " + r.hits + " 处，其中长度守恒 " + (r.kept || 0) + " 处" +
+				(r.skipped ? "；汉化在场保留 switch " + r.skipped + " 处（>5 只原版文案显示 no，真实数量见上方数值）" : "") +
+				"；未命中：" + ((r.missed && r.missed.length) ? r.missed.join(" / ") : "无") + "）"
 			: "解限补丁未命中（可能页面已启动或版本差异）——自动搬运仍可保底「无限次捕捉」；详情：" + JSON.stringify({ dom: dom.hits, story: story.hits })
 	};
 }
@@ -10835,6 +10882,7 @@ var SCENE_LOCATIONS = {
 			}
 		});
 	}
+	/* 职责：言灵页（07i）核心 —— 存档状态读写 / window.isCrossdressing 钩子装卸 / 三项存量净化 / 开关与 1s 守卫定时器。渲染见 07i-yanling-page.js，一键动作见 07i-yanling-actions.js。 */
 	/* ============ 言灵页（v2.0.0.006）：NPC 无视着装性别 / 异装残留净化 / 负面名声清零 ============
 	   诉求（好友走全正面线）：给 PC 穿好看的异性服装，不触发异装判定、不涨异装癖、不产生学校异装负面名声。
 
@@ -11061,6 +11109,7 @@ var SCENE_LOCATIONS = {
 			}
 		} catch (e) {}
 	}
+	/** @type {any} 浏览器里是 number，Node/jsdom 里是 Timeout（带 unref） */
 	var mbCEYanlingTimer = null;
 	function mbCEYanlingEnsureTimer() {
 		try {
@@ -11096,6 +11145,7 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "切换异常：" + (e && e.message ? e.message : e) }; }
 	}
 
+	/* 职责：言灵页（07i）一键动作 —— 衣物湿度与耐久 / 体液与精神 / 数值快补 / 天气 / NPC state 层（按原版语义直写）。 */
 	/* ==================== 扩容轮：一次性写入动作（对照 CheatExtend 1.1.3「快捷言灵」逐条取证后补入） ====================
 	   取证口径（DoL 0.5.12.13 原版 HTML，行号可复跑）：
 	     · 衣物湿度 $upperwet/$lowerwet/$underupperwet/$underlowerwet 初始化 182261-182267、debug 写 60670-60682
@@ -11457,6 +11507,7 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 职责：言灵页（07i）渲染 —— A/B/C 三组九个区块 + 页尾说明折叠块 + 加载即起守卫。 */
 	/* 渲染：言灵页（7 号外层页签） */
 	function renderYanling() {
 		try {
@@ -12244,6 +12295,7 @@ var MB_CE_ATTITUDE_ITEMS = [
 function mbCEAttitudeGate(gateKey) {
 	var V = null;
 	try { V = getV(); } catch (e) { V = null; }
+	/** @type {any} forEach 内赋值，TS 无法收窄，显式声明避免 "never" 误判 */
 	var item = null;
 	MB_CE_ATTITUDE_ITEMS.forEach(function (it) { if (it.gate === gateKey) { item = it; } });
 	if (!item) { return null; }
@@ -12596,14 +12648,18 @@ function renderAttitudesGroup(pane) {
 			}
 			items.slice(0, 24).forEach(function (it) {
 				var row = el("div", "mce-row");
-				row.appendChild(el("span", "mce-row-lbl", it.key.length > 58 ? it.key.slice(0, 58) + "…" : it.key));
+				/* 展示中文名（08e-undo-labels 解析），原始键留在 label 的 tooltip 里便于排障 */
+				var nm = mbCEUndoItemName(it.key, it);
+				var lbl = el("span", "mce-row-lbl", nm.length > 58 ? nm.slice(0, 58) + "…" : nm);
+				lbl.title = it.key;
+				row.appendChild(lbl);
 				row.appendChild(el("span", "mce-hint", mbCEUndoFmtTime(it.t)));
 				if (blocked) {
 					row.appendChild(el("span", "mce-badge", "不可回退"));
 				} else {
 					var b = el("button", "mce-btn", "回退");
 					b.type = "button";
-					b.title = "还原「" + it.key + "」为面板写入前状态";
+					b.title = "还原「" + nm + "」为面板写入前状态（原始键 " + it.key + "）";
 					b.addEventListener("click", function () {
 						var r = mbCEUndoOne(it.key);
 						setStatus(r.msg, r.ok ? "mce-ok" : "mce-err");
@@ -12696,6 +12752,167 @@ function renderAttitudesGroup(pane) {
 			bar.appendChild(cancelBtn);
 			root.appendChild(bar);
 		} catch (e) {}
+	}
+/* 职责：回退中心的「留痕键 → 中文名」解析层（v2.0.4）。
+   回退中心原先直接渲染原始键（cheat:player-self:p:prof.spray / place:town_projects.green /
+   maint:temple_quarters / yanling:purge_cross …），玩家看不懂。本段只做展示层翻译，不改键本身、
+   不改回退逻辑（回退仍按原始 key 精确分发）。解析顺序：专用词表 → 注册表（适配器 entry / 地点分组 /
+   世界入口分组 / 汉化键表 ZH_KEYS）→ 兜底（原键去命名空间 + 中文动作前缀）。
+   词表与数据源同源：适配器 entry 的 name 字段、07d 的 PLACE_STAGE_GROUPS.item.name、
+   PLACE_GROUPS.name、03d 的 ZH_KEYS（zhKey）。新增写入点若没中文名，兜底会退回原键，不会崩。 */
+
+	/* 写入动作（键前缀）→ 中文动作名；空串表示「路径本身就是项名」，不额外加前缀 */
+	var MB_CE_UNDO_OPS = {
+		p: "",
+		trait: "特质",
+		ability_set: "能力",
+		scene_skip: "剧情跳过",
+		scene_force: "剧情完成",
+		scene_reset: "剧情进度",
+		task_skip: "任务跳过",
+		task_complete: "任务完成",
+		stage_set: "阶段",
+		value_set: "数值",
+		fert_child_aff: "孩子好感"
+	};
+	/* 玩家自身（modId=player-self）常见写入路径的中文名：与面板行名同源，zhKey 兜不到的在此补齐 */
+	var MB_CE_UNDO_PLAYER = {
+		"speech_attitude": "说话态度",
+		"submissive": "顺从度",
+		"spraymax": "防狼喷雾容量上限",
+		"spray": "防狼喷雾余量",
+		"baton": "短棍",
+		"whip": "鞭子",
+		"net": "网",
+		"pickaxe": "镐",
+		"lurkers_held": "手持潜伏者",
+		"lurker:lurkers_held": "手持潜伏者",
+		"lurker:hookah.lurkers": "水烟馆冰箱潜伏者",
+		"lurker:hookah.juice": "水烟壶汁液",
+		"lurker:lurkers_stored": "农场蒸馏笼潜伏者",
+		"lurker:farm_stage": "农场阶段",
+		"lurker:stat_lurkers_captured": "累计捕获潜伏者"
+	};
+	/* 庄园维护写入的变量名 → 中文（03b mcMaintain* 的写入面） */
+	var MB_CE_UNDO_MAINT = {
+		temple_quarters: "神殿宿舍清洁",
+		temple_garden: "神殿花园打理",
+		edengarden: "伊甸菜地",
+		edenshrooms: "伊甸菇桶",
+		edenspring: "伊甸泉水",
+		soap: "肥皂补给",
+		salve: "药膏补给",
+		"bird.materials.wood": "鹰塔木材补给",
+		"eden.children": "伊甸孩子",
+		farm: "农场投喂"
+	};
+	/* 言灵改写 op → 中文（07i-yanling-core 的 mbCEYanlingTrace 三处） */
+	var MB_CE_UNDO_YANLING = {
+		purge_cross: "异装与校规记录清除",
+		purge_trait: "特质清除",
+		purge_fame: "名声清除"
+	};
+	/* 键拆分：<ns>:<rest> */
+	function mbCEUndoSplitKey(key) {
+		var s = String(key == null ? "" : key), i = s.indexOf(":");
+		if (i < 0) { return { ns: "", rest: s }; }
+		return { ns: s.slice(0, i), rest: s.slice(i + 1) };
+	}
+	function mbCEUndoZh(table, k) {
+		if (!table || !k) { return ""; }
+		return (typeof table[k] === "string") ? table[k] : "";
+	}
+	/* 适配器 entry 里按 itemKey / varPath / path 反查中文行名（tasks/stages/values/abilities/scenes … 全量扫） */
+	function mbCEUndoAdapterItemName(entry, itemKey, op, recPath) {
+		if (!entry || typeof entry !== "object") { return ""; }
+		var fields = Object.keys(entry), i, j, arr, it;
+		var wantOp = op ? (op + ":" + itemKey) : itemKey;
+		for (i = 0; i < fields.length; i++) {
+			arr = entry[fields[i]];
+			if (!Array.isArray(arr)) { continue; }
+			for (j = 0; j < arr.length; j++) {
+				it = arr[j];
+				if (!it || typeof it !== "object" || typeof it.name !== "string") { continue; }
+				if (it.key === wantOp || it.key === itemKey) { return it.name; }
+				if (recPath && (it.varPath === recPath || it.path === recPath || it.skipVar === recPath ||
+					it.completeVar === recPath || it.progressVar === recPath)) { return it.name; }
+			}
+		}
+		return "";
+	}
+	/* cheat:<modId>:<op|路径> */
+	function mbCEUndoCheatName(rest, rec) {
+		var i = rest.indexOf(":"), modId = (i < 0 ? rest : rest.slice(0, i)), itemKey = (i < 0 ? "" : rest.slice(i + 1));
+		var op = "", m = /^([a-z][a-z_0-9]*):(.+)$/.exec(itemKey);
+		if (m && MB_CE_UNDO_OPS[m[1]] !== undefined) { op = m[1]; itemKey = m[2]; }
+		var recPath = (rec && typeof rec.path === "string") ? rec.path : "";
+		var name = mbCEUndoAdapterItemName((typeof CHEAT_ADAPTERS === "object" && CHEAT_ADAPTERS) ? (CHEAT_ADAPTERS[modId] || {}).entry : null, itemKey, op, recPath);
+		if (!name && modId === "player-self") { name = mbCEUndoZh(MB_CE_UNDO_PLAYER, itemKey) || mbCEUndoZh(MB_CE_UNDO_PLAYER, (op ? op + ":" : "") + itemKey); }
+		if (!name) {
+			try { if (typeof zhKey === "function") { name = zhKey(recPath || itemKey); } } catch (e) { name = ""; }
+		}
+		if (!name && recPath && recPath.indexOf(".") > 0) { name = recPath; }
+		if (!name) { name = itemKey; }
+		var opName = MB_CE_UNDO_OPS[op];
+		return opName ? (opName + " · " + name) : name;
+	}
+	/* place:<path> → 「分组 · 项名」（07d PLACE_STAGE_GROUPS 同源） */
+	function mbCEUndoPlaceName(rest) {
+		try {
+			if (typeof PLACE_STAGE_GROUPS === "object" && Array.isArray(PLACE_STAGE_GROUPS)) {
+				for (var gi = 0; gi < PLACE_STAGE_GROUPS.length; gi++) {
+					var g = PLACE_STAGE_GROUPS[gi];
+					if (!g || !Array.isArray(g.items)) { continue; }
+					for (var ii = 0; ii < g.items.length; ii++) {
+						var it = g.items[ii];
+						if (it && it.path === rest) { return (g.name ? String(g.name).replace(/（.*?）/g, "") + " · " : "") + it.name; }
+					}
+				}
+			}
+		} catch (e) { /* 数据表未加载时走兜底 */ }
+		return "";
+	}
+	/* world:<gid>:<path> → 「地点分组名 · 路径中文」 */
+	function mbCEUndoWorldName(rest, rec) {
+		var gid = rest, path = (rec && typeof rec.path === "string") ? rec.path : "";
+		var cut = rest.indexOf(":");
+		if (cut >= 0) { gid = rest.slice(0, cut); path = rest.slice(cut + 1); }
+		var gname = "";
+		try {
+			if (typeof PLACE_GROUPS === "object" && Array.isArray(PLACE_GROUPS)) {
+				for (var i = 0; i < PLACE_GROUPS.length; i++) {
+					if (PLACE_GROUPS[i] && PLACE_GROUPS[i].id === gid) { gname = PLACE_GROUPS[i].name || ""; }
+				}
+			}
+			if (!gname && typeof WORLD_UNLOCKS === "object" && WORLD_UNLOCKS && WORLD_UNLOCKS[gid] && WORLD_UNLOCKS[gid].name) {
+				gname = WORLD_UNLOCKS[gid].name;
+			}
+		} catch (e) { gname = ""; }
+		if (!path) { return gname || gid; }
+		var pn = mbCEUndoZh(MB_CE_UNDO_MAINT, path) || path;
+		return gname ? (gname + " · " + pn) : pn;
+	}
+	/* 统一入口：返回展示用中文名（解析不出时原样退回键体，绝不返回空串） */
+	function mbCEUndoItemName(key, rec) {
+		var sp = mbCEUndoSplitKey(key), ns = sp.ns, rest = sp.rest, name = "";
+		try {
+			if (ns === "cheat") { name = mbCEUndoCheatName(rest, rec); }
+			else if (ns === "place") { name = mbCEUndoPlaceName(rest); }
+			else if (ns === "maint") { name = mbCEUndoZh(MB_CE_UNDO_MAINT, rest); }
+			else if (ns === "yanling") { name = mbCEUndoZh(MB_CE_UNDO_YANLING, rest); }
+			else if (ns === "world") { name = mbCEUndoWorldName(rest, rec); }
+			else if (ns === "romance" || ns === "vanilla" || ns === "native") {
+				var tail = rest.replace(/^native:/, "");
+				try { if (typeof displayName === "function") { name = displayName(tail); } } catch (e) { name = ""; }
+				if (!name || name === tail) {
+					try { if (typeof zhKey === "function") { name = zhKey(tail) === tail ? "" : zhKey(tail); } } catch (e2) { name = ""; }
+				}
+				if (!name) { name = tail; }
+			}
+		} catch (e) { name = ""; }
+		name = String(name || "").trim();
+		if (!name) { name = rest || String(key); }
+		return name;
 	}
 /* 职责：面板 API 与页签注册表 —— render / open / close / toggle、names / panes / paneRenders 七页签、setup.mbStageCE 导出 */
 
@@ -13053,6 +13270,8 @@ function renderAttitudesGroup(pane) {
 				undoOne: mbCEUndoOne,
 				undoGroup: mbCEUndoGroup,
 				undoAll: mbCEUndoAll,
+				undoLabel: mbCEUndoLabel,
+				undoItemName: mbCEUndoItemName,
 				readTransformState: readTransformState,
 				adjustTransform: adjustTransform,
 				completeTransformStage: completeTransformStage,
@@ -13137,6 +13356,8 @@ function renderAttitudesGroup(pane) {
 				toggleCheatAbility: toggleCheatAbility,
 				cheatSceneAction: cheatSceneAction,
 				cheatWriteValue: cheatWriteValue,
+				/* v2.0.4 治理：列表型写入导出，供声明矩阵测试走真实数组通道（内部实现未改） */
+				cheatWriteListValue: cheatWriteListValue,
 				/* v2.0.0.002 快速面板：数值锁定（复用 07f-lock）+ 武器直接获得 */
 				quickTargetValue: quickTargetValue,
 				grantWeapon: grantWeapon,
