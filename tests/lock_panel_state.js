@@ -192,6 +192,83 @@ assert(!api.mbCELockHas("purity"), "点「取消」→ 解除锁定");
 cancel2.click();
 assert(/未锁定|无锁定记录/.test(document.body.textContent), "同一按钮再点一次 → 明确提示锁已不在（不静默）");
 
+/* ================= 7. v2.0.8 回归：凌晨三项改动的异常路径（留痕裁剪 / 形态兜底 / 只读接口 / 类型漂移） ================= */
+section("7 v2.0.8 回归：留痕裁剪 / 形态兜底 / 只读接口 / 类型漂移");
+const undoOneFn = api.mbCEUndoOne || api.undoOne;
+
+/* 7.1 400 条窗口裁剪不得删掉 lock 留痕 —— 否则 before 被回填成「已被锁定覆盖后的值」，回退等于失效 */
+V.mbCE_wrote = {};
+V.purity = 1500;
+api.mbCELockSet("purity", 2000);
+assert(V.purity === 2000 && !!V.mbCE_wrote["lock:purity"], "7.1 锁定 purity=2000 → 立即写回并落 lock 留痕");
+assert(V.mbCE_wrote["lock:purity"].before === 1500, "7.1 留痕 before 记录锁定前真值 1500");
+const tBulk = Date.now();
+for (let i = 0; i < 460; i++) { V.mbCE_wrote["cheat:bulk" + i] = { type: "cheat", path: "bulk" + i, before: 0, after: 1, t: tBulk + i }; }
+V.purity = 1500;
+api.mbCELockTick(); /* 值≠目标 → 写回 → 触发 mbCEWroteTrim */
+assert(Object.keys(V.mbCE_wrote).length < 461, "7.1 留痕总量 >400 触发裁剪（窗口确实在收缩）");
+assert(!!V.mbCE_wrote["lock:purity"], "7.1 裁剪后 lock 留痕仍保留（不参与按 t 升序淘汰）");
+assert(V.mbCE_wrote["lock:purity"].before === 1500, "7.1 裁剪后 before 仍是真值 1500（不会回填成 2000）");
+const uL = undoOneFn("lock:purity");
+assert(uL.ok === true && V.purity === 1500, "7.1 回退该条 → 还原锁定前真值 1500（" + uL.msg + "）");
+
+/* 7.2 只读接口不得产生存档写入（旧链路 mbCELurkerState → mbCELockHas → mbCELockData 会就地建空表） */
+V.mbCE_lock = undefined;
+V.mbCE_lurkerAuto = false;
+const st0 = api.mbCELurkerState();
+assert(st0.ok === true, "7.2 mbCELurkerState 正常返回");
+assert(V.mbCE_lock === undefined, "7.2 只读查询不创建 V.mbCE_lock（查询不产生存档副作用）");
+
+/* 7.3 形态兜底：null / 数值字符串 / 不可解析字符串 */
+V.mbCE_lock = [];
+V.demoNull = null;
+api.mbCELockSet("demoNull", 0);
+assert(V.demoNull === 0, "7.3 当前 null + 锁 0 → 写回数字 0（旧判据 Number(null)===0 会永不写回）");
+V.demoStr = "2000";
+api.mbCELockSet("demoStr", 2000);
+assert(V.demoStr === 2000 && typeof V.demoStr === "number", "7.3 数值字符串 \"2000\" → 归一为数字 2000（模组 is 判据才成立）");
+V.demoWord = "wine";
+api.mbCELockSet("demoWord", 5);
+assert(V.demoWord === "wine", "7.3 不可解析字符串 \"wine\" → 不覆盖成数字/NaN，原值保住");
+assert(isFinite(V.demoWord) === false || typeof V.demoWord === "string", "7.3 且不会写进 NaN");
+
+/* 7.4 存档类型漂移：hookah.lurkers / lurkers_stored 为字符串时不得丢库存 */
+V.mbCE_lock = [];
+V.mbCE_lurkerAuto = true;
+V.hookah = { lurkers: "5" };
+V.lurkers_held = 3;
+V.lurkers_stored = 0;
+const mvS = api.mbCELurkerAutoTick();
+assert(mvS === 3 && V.hookah.lurkers === 8, "7.4 字符串保鲜柜 \"5\" + 手持 3 → 8（不再按 0 起算覆盖）");
+V.hookah = { lurkers: "7" };
+V.lurkers_held = 2;
+V.lurkers_stored = "4";
+V.mbCE_lock = [{ path: "hookah.lurkers", target: 7 }];
+const mvS2 = api.mbCELurkerAutoTick();
+assert(mvS2 === 2 && V.lurkers_stored === 6, "7.4 冰箱被锁 → 进笼；字符串笼 \"4\" + 2 = 6");
+
+/* 7.5 玩家真实路径：全局页「统一回退中心」行级「回退」→ 还原锁定前真值 + 解除锁定 */
+V.purity = 1500;
+V.mbCE_wrote = {};
+V.mbCE_lock = [];
+api.mbCELockSet("purity", 2000);
+V.purity = 1500;
+api.mbCELockTick();
+tab("mods"); tab("global");
+const lockRowBtn = Array.prototype.slice.call(gpane().querySelectorAll("button")).filter(function (b) {
+  return /^回退$/.test(b.textContent) && b.title && b.title.indexOf("还原「纯洁」") === 0;
+})[0];
+assert(!!lockRowBtn, "7.5 回退中心列出锁定写回条目，行级「回退」按钮存在（" + (lockRowBtn ? lockRowBtn.title : "-") + "）");
+if (lockRowBtn) { lockRowBtn.click(); }
+assert(V.purity === 1500 && !api.mbCELockHas("purity"), "7.5 点行级回退 → 纯度还原 1500 且锁定已解除");
+
+/* 清理第 7 节痕迹 */
+["demoNull", "demoStr", "demoWord"].forEach(function (k) { try { delete V[k]; } catch (e) {} });
+api.mbCELockRemove("demoNull");
+api.mbCELockRemove("demoStr");
+api.mbCELockRemove("demoWord");
+V.mbCE_wrote = {};
+
 /* 清理：移除全部锁定，避免定时器在进程里空转 */
 api.mbCELockRemove("demo.flag");
 api.mbCELockRemove("demo.extra");

@@ -5799,8 +5799,12 @@ try {
     "62.5 冰箱字段不是对象时跳过冰箱这站，直接进蒸馏笼");
   V62.lurkers_held = "5"; V62.hookah = { lurkers: 1 }; V62.lurkers_stored = 0;
   const mv626 = api62.mbCELurkerAutoTick();
-  assert(mv626 === 0 && V62.hookah.lurkers === 1 && V62.lurkers_stored === 0,
-    "62.6 held 非数字时按 0 处理（不搬运、不写档）");
+  assert(mv626 === 5 && V62.hookah.lurkers === 6 && V62.lurkers_held === 0,
+    "62.6 手持是字符串数值 \"5\" 时按 5 搬运（v2.0.8：旧写法按 0 起算会整轮不动）");
+  V62.lurkers_held = "abc"; V62.hookah = { lurkers: 1 }; V62.lurkers_stored = 0;
+  const mv626b = api62.mbCELurkerAutoTick();
+  assert(mv626b === 0 && V62.hookah.lurkers === 1,
+    "62.6b 手持不可解析（\"abc\"）→ 按 0 处理，不搬运不写档");
   delete V62.lurkers_held; V62.hookah = { lurkers: 2 };
   const st627 = api62.mbCELurkerState();
   assert(st627.ok === true && st627.held === null && st627.fridge === 2,
@@ -5829,8 +5833,8 @@ try {
   V62.mbCE_lock = []; V62.mbCE_lurkerAuto = true;
   V62.lurkers_held = 4; V62.hookah = { lurkers: "2" }; V62.lurkers_stored = 0;
   const mv6212 = api62.mbCELurkerAutoTick();
-  assert(mv6212 === 4 && V62.hookah.lurkers === 4,
-    "62.12 冰箱计数非数字时按 0 处理（held 全进冰箱，不写 NaN）");
+  assert(mv6212 === 4 && V62.hookah.lurkers === 6,
+    "62.12 冰箱计数是字符串 \"2\" 时按 2 累加 → 6（v2.0.8：旧写法按 0 覆盖会丢掉原有的 2）");
   delete V62.lurkers_stored; delete V62.mbCE_lurkerMoved;
   V62.lurkers_held = 3; V62.hookah = { lurkers: 1 };
   api62.mbCELockSet("hookah.lurkers", 1); /* 锁冰箱 → 跳过冰箱这站，held 只能进笼 */

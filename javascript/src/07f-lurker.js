@@ -14,16 +14,28 @@ var MB_CE_LURKER_FRIDGE_MAX = MB_CE_LURKER_MAX; /* 兼容旧符号：冰箱不�
 function mbCELurkerV() {
 	try { return (typeof getV === "function") ? getV() : null; } catch (e) { return null; }
 }
+/* v2.0.8：存档类型漂移兜底——hookah.lurkers / lurkers_stored 若是字符串 "5"（导入存档、模组直接 <<set>> 常见），
+   旧写法 `typeof === "number" ? v : 0` 会把「0 + held」写上去，原有的 5 只直接消失。凡能解析成有限数的都按数用。
+   读值给面板用（非数值形态返回 null，「—」比伪造成 0 更诚实）；累加用 mbCELurkerNum（无法解析才按 0 起算）。 */
+function mbCELurkerReadable(v) {
+	if (typeof v === "number" && isFinite(v)) { return v; }
+	if (typeof v === "string" && v.trim() !== "" && isFinite(Number(v))) { return Number(v); }
+	return null;
+}
+function mbCELurkerNum(v) {
+	var n = mbCELurkerReadable(v);
+	return (n === null) ? 0 : n;
+}
 function mbCELurkerState() {
 	var V = mbCELurkerV();
 	if (!V) { return { ok: false, message: "存档变量不可用" }; }
 	var patch = (typeof mbCELurkerPatchReport === "function") ? mbCELurkerPatchReport() : null;
 	return {
 		ok: true,
-		held: (typeof V.lurkers_held === "number") ? V.lurkers_held : null,
-		fridge: (V.hookah && typeof V.hookah === "object" && typeof V.hookah.lurkers === "number") ? V.hookah.lurkers : null,
+		held: mbCELurkerReadable(V.lurkers_held),
+		fridge: (V.hookah && typeof V.hookah === "object") ? mbCELurkerReadable(V.hookah.lurkers) : null,
 		juice: (V.hookah && typeof V.hookah === "object" && typeof V.hookah.juice === "number") ? V.hookah.juice : null,
-		stored: (typeof V.lurkers_stored === "number") ? V.lurkers_stored : null,
+		stored: mbCELurkerReadable(V.lurkers_stored),
 		captured: (typeof V.stat_lurkers_captured === "number") ? V.stat_lurkers_captured : null,
 		farmStage: (typeof V.farm_stage === "number") ? V.farm_stage : null,
 		auto: !!(V.mbCE_lurkerAuto),
@@ -48,18 +60,18 @@ function mbCELurkerAutoTick() {
 	try {
 		var V = mbCELurkerV();
 		if (!V || !V.mbCE_lurkerAuto) { return 0; }
-		var held = (typeof V.lurkers_held === "number") ? V.lurkers_held : 0;
+		var held = mbCELurkerNum(V.lurkers_held);
 		if (held < 1) { return 0; }
 		if (mbCELurkerLocked("lurkers_held")) { return 0; }
 		var moved = 0;
 		if (V.hookah && typeof V.hookah === "object" && !mbCELurkerLocked("hookah.lurkers")) {
-			var hl = (typeof V.hookah.lurkers === "number") ? V.hookah.lurkers : 0;
+			var hl = mbCELurkerNum(V.hookah.lurkers);
 			/* 补丁生效后冰箱无上限，直接全搬；未生效时也照搬（消耗/pluralise 按真实值走，仅文案显示降级） */
 			V.hookah.lurkers = hl + held;
 			moved += held; held = 0;
 		}
 		if (held > 0 && !mbCELurkerLocked("lurkers_stored")) {
-			V.lurkers_stored = ((typeof V.lurkers_stored === "number") ? V.lurkers_stored : 0) + held;
+			V.lurkers_stored = mbCELurkerNum(V.lurkers_stored) + held;
 			moved += held; held = 0;
 		}
 		V.lurkers_held = held;

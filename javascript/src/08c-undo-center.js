@@ -91,7 +91,7 @@
 				var lp = String(rec.path || key.replace(/^lock:/, ""));
 				var hadLock = false;
 				try { if (typeof mbCELockHas === "function") { hadLock = !!mbCELockHas(lp); } } catch (eL0) {}
-				var offOk = true;
+				var offOk = !hadLock;
 				if (hadLock && typeof mbCELockRemove === "function") {
 					var lr3 = /** @type {any} */ (mbCELockRemove(lp));
 					offOk = !!(lr3 && lr3.ok);
@@ -100,7 +100,8 @@
 				if (rec.before !== undefined) {
 					try { setPathVal(V, lp, rec.before); } catch (eL1) { restored = false; }
 				}
-				try { delete V.mbCE_wrote[key]; } catch (eL2) {}
+				/* 还原异常时保留留痕，玩家可以再点一次重试；只有真还原成功才删记录 */
+				if (restored) { try { delete V.mbCE_wrote[key]; } catch (eL2) {} }
 				var lName = (typeof mbCELockLabel === "function") ? mbCELockLabel(lp) : lp;
 				var head = hadLock ? (offOk ? "已取消锁定 " : "已还原原值，但锁定未能解除 ") : "锁定已不在，仅还原 ";
 				return {
