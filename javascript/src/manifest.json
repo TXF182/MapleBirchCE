@@ -111,6 +111,10 @@
       "layer": "adapter"
     },
     {
+      "file": "04a-17-dolonline.js",
+      "layer": "adapter"
+    },
+    {
       "file": "04b-modcheat-write.js",
       "layer": "write"
     },
@@ -255,6 +259,15 @@
       "layer": "ui"
     },
     {
+      "file": "07l-vanilla-ext.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07l-vanilla-ext-view.js",
+      "layer": "ui",
+      "note": "全局页 ⑧ 统计与区块渲染（07l 视图层，结构门禁拆段）"
+    },
+    {
       "file": "08-npc-traits.js",
       "layer": "ui"
     },
@@ -281,6 +294,11 @@
     {
       "file": "09-exports.js",
       "layer": "export"
+    },
+    {
+      "file": "09-exports-vcore.js",
+      "layer": "export",
+      "note": "v2.0.9 原版档案 / 收藏 / 头衔 6 键导出（mountApi 后补齐，结构门禁拆段）"
     },
     {
       "file": "09-exports2.js",

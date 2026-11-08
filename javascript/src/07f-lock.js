@@ -196,6 +196,29 @@ function mbCELockEnsureTimer() {
 	} catch (e) {}
 }
 
+/* v2.0.10：锁定恢复统一入口——翻页（:passagedisplay）、初始化、外部刷新时调用。
+   修「明明已经锁定，数值却会变化」：脚本注入阶段 State 尚未就绪，模块加载期的 ensure 拿到空 V、
+   定时器根本没起；此后原先只有打开 CE 面板（mbCERenderLock）才补，玩家不打开面板就全程不写回
+   （实测：意志被游戏 V.willpower *= 0.99 衰减到 99 就一直停在 99）。
+   这里 ensure + 立即 tick 一轮，游戏刚改的值当场纠回，不必等 1s 间隔。 */
+function mbCELockResume() {
+	try { mbCELockEnsureTimer(); } catch (e0) {}
+	try { mbCELockTick(); } catch (e1) {}
+}
+
+/* v2.0.10：所有「按需 1s 定时器」的统一恢复入口。
+   同一类缺陷不止锁定一处：潜伏者自动搬运（mbCELurkerEnsureTimer）、转化隐藏校验（mbCEHideEnsureTimer）、
+   态度维持（mbCEAttitudeEnsureTimer）原先都只在「点过开关 / 打开对应页」时起表，而脚本注入早于读档，
+   注入期 ensure 一律拿不到 V → 刷新后不打开对应页面就全程不生效（与言灵页 v2.0.0.006 修法同构）。
+   翻页（:passagedisplay）与 init() 都走这里，保证「不打开面板也生效」。 */
+function mbCEResumeTimers() {
+	try { mbCELockResume(); } catch (eA) {}
+	try { mbCELurkerEnsureTimer(); } catch (eB) {}
+	try { mbCEHideEnsureTimer(); } catch (eC) {}
+	try { mbCEAttitudeEnsureTimer(); } catch (eD) {}
+	try { mbCEYanlingEnsureTimer(); } catch (eE) {}
+}
+
 /* 锁定来源判定（P1：自定义锁定项默认收进折叠组，这里给每行标出「谁锁的」）：
    ① 命中快速面板索引 → 角色页锁的；② 留痕里同 path 的 cheat 记录 → Mod作弊页锁的；③ 其余 → 手动自由添加 */
 function mbCELockSource(path) {
@@ -222,7 +245,7 @@ function mbCELockSource(path) {
 function mbCERenderLock(pane) {
 	if (!pane) { return; }
 	mbCELockEnsureTimer(); /* 开面板兜底：读档后已有锁定向时恢复写回 */
-	var sec = mceNewSec(pane, 8, "数值固定", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。");
+	var sec = mceNewSec(pane, 8, "数值固定", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。注意软上限：意志/体能/容貌等属性在原版受 $willpowermax / $physiquemax / $beautymax 约束（游戏每次结算走 Math.clamp 钳到上限），锁超过上限的值会被拉回；要真突破上限，把对应 *max 键一起锁定。");
 	var Vg = getV();
 	var presetPaths = {};
 	MB_CE_LOCK_PRESETS.forEach(function (p) { presetPaths[p.path] = true; });

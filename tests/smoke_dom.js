@@ -865,6 +865,89 @@ const lockRowsSm = [].slice.call(globalPane.querySelectorAll('.mce-row[data-lock
 assert(lockRowsSm.length === api.MB_CE_LOCK_PRESETS.length, "数值固定预设行渲染 " + api.MB_CE_LOCK_PRESETS.length + " 项, 实际 " + lockRowsSm.length);
 assert(lockTxtSm.indexOf("自由添加") !== -1, "数值固定区含自由添加 varPath 输入行");
 delete V.mbCE_lock;
+/* v2.0.9 全局页 ⑧ 区块：原版档案 · 收藏 · 头衔（需求②③④：犯罪不留案底 / 古董只收集+成就 / 雷米疤面）
+   直测区块渲染函数本体（不经 api.refresh，避免节流重建导致断言作用在旧 pane 上） */
+function vcBtn(scope, txt) {
+  const list = [].slice.call(scope.querySelectorAll("button"));
+  for (let i = 0; i < list.length; i++) {
+    if ((list[i].textContent || "").indexOf(txt) !== -1) { return list[i]; }
+  }
+  return null;
+}
+function vcRender() {
+  const pane = document.createElement("div");
+  document.body.appendChild(pane);
+  api.mbCERenderVanillaExt(pane);
+  return pane;
+}
+const vcBk = { crime: V.crime, ma: V.museumAntiques, feats: V.feats, npc: V.NPCName, fate: V.avery_fate, wrote: V.mbCE_wrote, list: global.setup.NPCNameList };
+V.crime = { events: { assault: [{ type: "assault", severity: 1, date: 1 }] } };
+["assault", "thievery", "trespassing"].forEach(function (t) {
+  V.crime[t] = { current: 3, history: 40, daily: 1, count: 1, countHistory: 2 };
+});
+let vcPane = vcRender();
+assert(vcPane.textContent.indexOf("原版档案 · 收藏 · 头衔") !== -1 && vcPane.textContent.indexOf("犯罪档案") !== -1
+  && vcPane.textContent.indexOf("博物馆收藏") !== -1 && vcPane.textContent.indexOf("NPC 头衔") !== -1,
+  "⑧ 区块三组齐全（犯罪档案 / 博物馆收藏 / NPC 头衔）");
+assert(vcPane.textContent.indexOf("现存罪值合计 9") !== -1 && vcPane.textContent.indexOf("案底合计 120") !== -1,
+  "⑧ 犯罪组回读当前值（现存 9 / 案底 120 / 案底次数 6 / 事件 1 条）");
+const bCrime = vcBtn(vcPane, "一键清空全部犯罪记录");
+assert(!!bCrime, "⑧ 犯罪档案组含「一键清空全部犯罪记录（含案底）」按钮");
+bCrime.click();
+assert(V.crime.assault.current === 0 && V.crime.assault.history === 0 && V.crime.assault.countHistory === 0
+  && Object.keys(V.crime.events).length === 0,
+  "点「一键清空」→ current / history / countHistory / 事件日志全归零（只剩原版能清的，等于没清），实际 history=" + V.crime.assault.history);
+assert(!!(V.mbCE_wrote && V.mbCE_wrote["vcore:crime"]), "⑧ 犯罪清空写入 vcore:crime 留痕（回退中心可见）");
+const uCrime = vcBtn(vcPane, "回退");
+assert(!!uCrime, "⑧ 清空后组内出现「回退」按钮（有留痕才显示）");
+uCrime.click();
+assert(V.crime.assault.history === 40 && V.crime.assault.countHistory === 2 && !V.mbCE_wrote["vcore:crime"],
+  "点「回退」→ 案底还原 40 / 2 并删除留痕");
+vcPane.remove();
+
+V.museumAntiques = { antiques: { a1: "notFound", a2: "notFound" }, paintings: { p1: "notFound" }, museumCount: 0 };
+V.feats = { currentSave: {} };
+vcPane = vcRender();
+const bAnt = vcBtn(vcPane, "一键收齐古董");
+assert(!!bAnt, "⑧ 博物馆收藏组含「一键收齐古董（只收集，不上交）」按钮");
+bAnt.click();
+assert(V.museumAntiques.antiques.a1 === "found" && V.museumAntiques.paintings.p1 === "found",
+  "点「一键收齐」→ 古董与画作全写 found（已发现未上交）");
+assert(V.museumAntiques.museumCount === 0, "⑧ 不上交：museumCount 保持 0（不占柜位、不结算奖金），实际 " + V.museumAntiques.museumCount);
+assert(V.feats.currentSave["It Belongs in a Museum"] !== undefined, "⑧ 成就「It Belongs in a Museum」直写解锁（绕开 earnFeat 的 cheatsEnabled 门控）");
+assert(!!V.mbCE_wrote["vcore:antique"], "⑧ 古董写入 vcore:antique 留痕");
+const uAnt = vcBtn(vcPane, "回退");
+assert(!!uAnt, "⑧ 收藏组出现「回退」按钮");
+uAnt.click();
+assert(V.museumAntiques.antiques.a1 === "notFound" && V.feats.currentSave["It Belongs in a Museum"] === undefined,
+  "点「回退」→ 古董状态机与本次解锁的成就一并还原");
+vcPane.remove();
+
+V.NPCName = [{ nam: "Avery", title: "high elk" }, { nam: "Harper", title: "high elk" }, { nam: "Remy", title: "high elk" }];
+global.setup.NPCNameList = ["Avery", "Harper", "Remy"];
+V.avery_fate = "ascended";
+vcPane = vcRender();
+const bTitle = vcBtn(vcPane, "雷米头衔");
+assert(!!bTitle, "⑧ NPC 头衔组含「雷米头衔 → 疤面」按钮");
+bTitle.click();
+assert(V.NPCName[2].title === "scarred", "点「雷米头衔 → 疤面」→ Remy.title = scarred（飞升线也拿到）");
+assert(V.NPCName[1].title === "silver fox" && V.NPCName[0].title === "crimson hound",
+  "⑧ 飞升线同步补 Harper=silver fox / Avery=crimson hound（让原版幂等守卫不成立，防覆盖回 high elk）");
+assert(!!V.mbCE_wrote["vcore:title"], "⑧ 头衔写入 vcore:title 留痕");
+const uTitle = vcBtn(vcPane, "回退");
+assert(!!uTitle, "⑧ 头衔组出现「回退」按钮");
+uTitle.click();
+assert(V.NPCName[2].title === "high elk" && V.NPCName[1].title === "high elk", "点「回退」→ Remy / Harper 头衔还原");
+vcPane.remove();
+
+/* 收尾还原（避免污染后续用例） */
+if (vcBk.crime === undefined) { delete V.crime; } else { V.crime = vcBk.crime; }
+if (vcBk.ma === undefined) { delete V.museumAntiques; } else { V.museumAntiques = vcBk.ma; }
+if (vcBk.feats === undefined) { delete V.feats; } else { V.feats = vcBk.feats; }
+if (vcBk.npc === undefined) { delete V.NPCName; } else { V.NPCName = vcBk.npc; }
+if (vcBk.fate === undefined) { delete V.avery_fate; } else { V.avery_fate = vcBk.fate; }
+if (vcBk.wrote === undefined) { delete V.mbCE_wrote; } else { V.mbCE_wrote = vcBk.wrote; }
+global.setup.NPCNameList = vcBk.list;
 /* v1.8.8 三个新适配器：注入探测 mock 后 Mod作弊 页出现 */
 window.DolOptimization = {};
 window.MirrorHypnoVariableRefresh = function () {};

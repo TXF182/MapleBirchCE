@@ -1,6 +1,6 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**13 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**14 个第三方模组适配器**（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / Dolonline 联机&地下城（仅单机状态键） / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
@@ -77,6 +77,7 @@
 - **NPC 特质获取**：6 项逐项获取（同舟共济—罗宾 / 斯德哥尔摩综合征：伊甸·凯拉尔·狼群·巨鹰 / 艾弗里的救星），条件自动改满足，已拥有项置灰。
 - **数值固定（v1.9.15）**：防游戏机制改值——8 个预设推荐（渡鸦转化点数：未戴羽毛项链每日衰减；马/鲸转化；亡灵等级：锁 0 解除诅咒；天使：无三位一体成长点减少；堕天使：每日纯洁流失；恶魔；纯洁 0-2000 内部）+ **自由添加任意 varPath**。锁定后每 1 秒强制写回目标值（锁定/更新即时生效），锁表存存档 `V.mbCE_lock` 读档自动恢复；不存在的值不凭空创建，非法路径拒绝；取消即停写。
 - **世界腐化（v1.9.12）**：原版世界硬/软腐化数值调整（`world_corruption_hard/soft`），直接填数不钳制原版上限，留痕可回退。
+- **原版档案 · 收藏 · 头衔（v2.0.9，好友三条需求）**：②**犯罪不留历史记录**——10 类犯罪的 `current` / `count` / `daily` / `history` / `countHistory` 连同 `$crime.events` 一次清空（原版自带的清犯罪 widget 只清前四项与事件，**案底清不掉**）；③**一键收集古董**——64 件古董与 2 幅画全写 `found`（已发现未上交，**不上交、不占柜位、不结算奖金**），并直写 `It Belongs in a Museum` 成就（`earnFeat` 在作弊模式下被门控，等不到原版结算）；④**飞升线拿「雷米 疤面」**——`Remy.title = scarred`，飞升线（`$avery_fate is "ascended"`）下同步补 Harper=`silver fox` / Avery=`crimson hound`，否则原版幂等守卫会把 Remy 覆盖回 `high elk`。三项各带独立回退（统一回退中心新增 `vcore` 分组）。
 - **时间调节（v1.9.13）**：当前时间/日期显示 + 前进 1 小时/6 小时/1 天 + 跳转指定时刻（只用游戏时钟，不碰行动点）。
 - **统一回退中心（v2.0.3）**：把散落在各页的 `V.mbCE_wrote` 留痕汇总成一处——按 type 分组（cheat / world / maint / place / native / vanilla / …）、按时间倒序、每组可「回退本组」、顶部可「全部回退（N 项可回退）」与「刷新清单」。三条**明确不可回退**的类型各有原因：`batch`（仅审计记录）、`yanling`（言灵页开关处自带撤销）、`state`（关系状态由原版实时判定），面板会打「不可回退」标记而不是假装能撤。
 - **写入前 diff 预览（v2.0.3）**：开关默认**关闭**（不打断现有操作习惯）；开启后每次写入前弹确认条「待确认写入：<路径>　<旧值> → <新值>」，确认才落档、取消则不动；同值写入不触发确认（幂等写入不重复打扰）。
@@ -177,7 +178,7 @@
 - **潜伏者搬运不再丢库存**：`hookah.lurkers` / `lurkers_stored` 为字符串时（导入存档、模组直接 `<<set>>` 常见），旧写法按 0 起算会把 `0+held` 覆盖上去（`"5"` + 手持 3 → 变 3，原有 5 只消失）。新增 `mbCELurkerReadable / mbCELurkerNum`：能解析成有限数的一律按数用，不可解析才按 0；状态回读同口径（非数值仍显示「—」，不伪造成 0）。
 - **只读接口不再写存档**：`mbCELurkerState()` 经 `mbCELockHas → mbCELockData` 会就地创建 `V.mbCE_lock`。新增 `mbCELockListRO()` 只读视图，`mbCELockHas / mbCELockTarget / 渲染取表` 全走它，建表只留 `mbCELockSet`。另修回退分支 `offOk` 预置 `true`（`hadLock` 真但解除失败时仍报「已取消锁定」）与还原异常时误删留痕（改为保留可重试）。
 
-## Mod作弊 适配器一览（当前版本 2.0.8）
+## Mod作弊 适配器一览（当前版本 2.0.9）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -194,8 +195,9 @@
 | 人物附加与生活质量提升 DolMod-（MyFirstMod，阿电/电脑/银行/网课/转化/NG+/伊洛） | 0.1.990 | 阶段 1 / 能力 12 / 数值 18（告白状态机/斯德哥尔摩/囚禁信任（未囚禁写入不生效但无害，先勾「已囚禁」或先写再勾均可）/拒绝日/活期/网课 8 键/转化/NG+/伊洛圣化） | `window.ComputerMod/BankMod/NgPlus`（V 兜底：computer/computerApps/ngplusCycle 或 adian 双键） |
 | maplebirch 框架本体 | 5.6.2 | 兼容性核对（API 8 项） | `window.maplebirch` |
 | FertilityExpansion · 伊甸生育/子女扩展 | 1.7.0 | 阶段 1（schemaVersion 0–8）/ 能力 11 / 数值 2 + **模组自带 10 项动作等价**（生育/劳动/寄生虫/身份/先天/技能/重置/删除等）+ **孩子页**（每个孩子：好感爱意 / 养育四项（知识·体能·社交·意识）/ 先天四项（外貌·体质·智力·性格）/ 定向发送含自定义地点 / 随叫随到 / 一键长大 / 立刻成年结算 / 删除） | `window.EdenChildData` / `window.EdenCheats`（`V.eden` 兜底） |
+| DoL 联机&地下城 Dolonline（**仅单机状态键，不做联机交互**） | 5.27 | 阶段 2 / 数值 17 / 动作 2（入口解锁·职业·地下城&日常等级经验·技能点·猫猫币·敏捷·层数·体力法力法力上限·金币·击杀·宝箱门槛档位·灰好感章节 + 一键补运行态键 + 一键解锁 9 法术） | `V.mpCat` / `V.mpDgLv` / `V.mpSkillPts` / `V.dgFloor`（任一） |
 
-> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**自动检测 12 渠道 + 适配 13 面**：12 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade/人物附加与生活质量提升/框架本体，全部已纳入每日检测——其中 DolMod 走资产名版本提取，框架走 check_framework_api.js API 兼容核对）+ FertilityExpansion（已适配但**尚未登记进 `check_mod_updates.js` 的 `CHANNELS`**，故暂不随每日检测自动跟进版本）。
+> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**自动检测 13 渠道 + 13 个适配器**：12 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade/人物附加与生活质量提升/框架本体，全部已纳入每日检测——其中 DolMod 走资产名版本提取，框架走 check_framework_api.js API 兼容核对）+ **Dolonline 5.27（2026-11-08 已登记 CHANNELS；按用户口径只做单机状态键，不含任何联机交互）**；FertilityExpansion 已适配但**尚未登记 CHANNELS**，暂不随每日检测跟进版本。
 > **自动替换旧模组包**：`tools/check_mod_updates.js --apply` 检测到适配模组有新版时，自动下载官方最新包（api.github.com assets 端点 + 302 跟随）并替换 `game` 内旧模组包（按 gameGlob 匹配删除旧包后放入新包）；框架渠道不自动替换（升版前必须人工跑 `check_framework_api.js` 核对 API 兼容）。GitHub API 未认证有速率限制（403）时，设置 `GITHUB_TOKEN` 环境变量（仅内存使用）即可。已装模组包即官方最新版时，替换为幂等覆盖。
 
 ## 工程文档索引

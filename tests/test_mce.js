@@ -5857,5 +5857,248 @@ try {
   console.error("FAIL: 62 P3/P4 防御分支测试异常: " + (e62 && e62.message ? e62.message : e62));
 }
 
+// ===== 63 v2.0.9 需求②③④：原版档案 / 收藏 / 头衔（07l-vanilla-ext.js）=====
+try {
+  const api63 = setup.mbStageCE;
+  const V63 = global.V;
+  const bk63 = {
+    crime: V63.crime, ma: V63.museumAntiques, hints: V63.museumAntiqueJournalHints,
+    feats: V63.feats, wrote: V63.mbCE_wrote, npc: V63.NPCName, fate: V63.avery_fate,
+    list: global.setup.NPCNameList, dgLv: V63.mpDgLv, mpCat: V63.mpCat, npcAff: V63.npcAff, chestReq: V63.dgChestReq
+  };
+  const CRIME63 = ["assault", "coercion", "destruction", "exposure", "obstruction",
+    "prostitution", "resisting", "thievery", "petty", "trespassing"];
+
+  // 63.1~63.7 犯罪记录全清（原版作弊页只清 current/count/daily/事件，history 与 countHistory 清不掉）
+  V63.crime = { events: { assault: [{ type: "assault", severity: 2, date: 1 }], thievery: [{ type: "thievery", severity: 1, date: 2 }] } };
+  CRIME63.forEach((t, i) => {
+    V63.crime[t] = { current: 10 + i, history: 100 + i, daily: 3, count: 2, countHistory: 7 };
+  });
+  const r631 = api63.mbCEVanillaCrimeClear();
+  assert(r631.ok === true && r631.touched === 10, "63.1 犯罪全清覆盖 10 类（touched=10）");
+  assert(V63.crime.assault.current === 0 && V63.crime.trespassing.history === 0 && V63.crime.trespassing.countHistory === 0,
+    "63.2 current / history / countHistory 全部归零（案底一并清掉）");
+  assert(Object.keys(V63.crime.events).length === 0, "63.3 事件日志 $crime.events 清空");
+  assert(!!(V63.mbCE_wrote && V63.mbCE_wrote["vcore:crime"]), "63.4 写入留痕 vcore:crime 落地（回退中心可见）");
+  assert(V63.mbCE_wrote["vcore:crime"].before.crime.assault.history === 100,
+    "63.5 留痕 before 保留首次写入前案底（100）");
+  const u631 = api63.mbCEVanillaExtUndo("crime");
+  assert(u631.ok === true && V63.crime.assault.history === 100 && V63.crime.trespassing.count === 2,
+    "63.6 回退还原 current / history / count / countHistory");
+  assert(!!(V63.crime.events.assault && V63.crime.events.assault.length === 1) && !V63.mbCE_wrote["vcore:crime"],
+    "63.7 回退同时还原事件日志并删除留痕");
+
+  // 63.8~63.10 犯罪：结构缺失时补零值（不因脏档报错）
+  V63.crime = { events: {} };
+
+  // 63.46~63.47 回退的结构缺失与「快照后新增项」两条反向路径
+  V63.feats = { currentSave: {} };
+  V63.museumAntiques = { antiques: { a1: "notFound" }, paintings: { p1: "notFound" }, museumCount: 2 };
+  api63.mbCEVanillaAntiqueCollect();
+  delete V63.museumAntiques;
+  const u6346 = api63.mbCEVanillaExtUndo("antique");
+  assert(u6346.ok === false && u6346.message.indexOf("博物馆结构已不在") !== -1,
+    "63.46 回退前 $museumAntiques 已消失 → 显式拒绝（不留半截状态）");
+  delete V63.mbCE_wrote["vcore:antique"];
+  V63.museumAntiques = { antiques: { a1: "notFound" }, paintings: { p1: "notFound" }, museumCount: 2 };
+  api63.mbCEVanillaAntiqueCollect();
+  V63.museumAntiques.paintings.p3 = "found";
+  const u6347 = api63.mbCEVanillaExtUndo("antique");
+  assert(u6347.ok === true && V63.museumAntiques.paintings.p1 === "notFound"
+    && V63.museumAntiques.paintings.p3 === "found",
+    "63.47 快照里没有的新画不作还原（只回滚自己写过的键，不动玩家后来的进度）");
+  const r631b = api63.mbCEVanillaCrimeClear();
+  assert(r631b.ok === true && V63.crime.petty && V63.crime.petty.history === 0 && V63.crime.petty.countHistory === 0,
+    "63.8 某类犯罪结构缺失时补零值（10 类全建，避免后续读到 undefined）");
+  const u631b = api63.mbCEVanillaExtUndo("crime");
+  assert(u631b.ok === true && V63.crime.petty === undefined,
+    "63.9 回退把首次写入前不存在的类型删除（不留空壳）");
+
+  // 63.10~63.15 博物馆古董：只收集（found）不上交（museum），成就直写
+  V63.museumAntiques = {
+    antiques: { antiquebox: "found", antiquesilverring: "notFound", antiquecrystal: "talk" },
+    paintings: { paintingward: "notFound", paintingsnake: "notFound" },
+    museumCount: 1, stolenCount: 0, recoveredCount: 0
+  };
+  V63.museumAntiqueJournalHints = [{ k: "antiquebox" }];
+  V63.feats = { currentSave: {}, soft: false, locked: false };
+  const r632 = api63.mbCEVanillaAntiqueCollect();
+  assert(r632.ok === true && r632.got === 4, "63.10 收齐：2 件古董 + 2 幅画（原已 found 的不重复计数）");
+  assert(V63.museumAntiques.antiques.antiquesilverring === "found" && V63.museumAntiques.paintings.paintingward === "found",
+    "63.11 全部写 found（已发现未上交），不是 museum（不上交、不计入柜位）");
+  assert(V63.museumAntiques.museumCount === 1,
+    "63.12 不动 museumCount（不结算奖金；museum→museumCount++ 只在原版 widget 里发生）");
+  assert(V63.museumAntiques.maxCount === 3, "63.13 maxCount 缺失时按实际古董键数补齐（3）");
+  assert(r632.feat === true && V63.feats.currentSave["It Belongs in a Museum"] !== undefined,
+    "63.14 成就直写 V.feats.currentSave（earnFeat 在 cheatsEnabled 下被门控，等不到原版结算）");
+  assert(Array.isArray(V63.museumAntiqueJournalHints) && V63.museumAntiqueJournalHints.length === 0,
+    "63.15 期刊提示清空（全部 found 后不再指向「未发现位置」）");
+  const u632 = api63.mbCEVanillaExtUndo("antique");
+  assert(u632.ok === true && V63.museumAntiques.antiques.antiquesilverring === "notFound"
+    && V63.museumAntiques.paintings.paintingward === "notFound",
+    "63.16 回退还原古董状态机");
+  assert(V63.museumAntiques.museumCount === 1 && V63.feats.currentSave["It Belongs in a Museum"] === undefined,
+    "63.17 回退删除本次解锁的成就（before 记 hadFeat=false），并还原 museumCount");
+
+  // 63.18~63.21 雷米头衔：飞升线写疤面 + 补 Harper/Avery 关掉幂等回滚
+  global.setup.NPCNameList = ["Avery", "Harper", "Remy"];
+  V63.NPCName = [
+    { nam: "Avery", title: "high elk" },
+    { nam: "Harper", title: "high elk" },
+    { nam: "Remy", title: "high elk" }
+  ];
+  V63.avery_fate = "ascended";
+  const r633 = api63.mbCEVanillaRemyScar();
+  assert(r633.ok === true && V63.NPCName[2].title === "scarred", "63.18 Remy 头衔写 scarred（飞升线也能拿）");
+  assert(V63.NPCName[1].title === "silver fox" && V63.NPCName[0].title === "crimson hound" && r633.guard === true,
+    "63.19 飞升线同步补 Harper=silver fox / Avery=crimson hound（让原版幂等守卫不成立，防回滚）");
+  const st633 = api63.mbCEVanillaExtState();
+  assert(st633.title.remy === "scarred" && st633.title.remyZh === "疤面" && st633.title.fate === "ascended",
+    "63.20 状态回读：headlem 英文 key + 中文「疤面」映射 + $avery_fate");
+  const u633 = api63.mbCEVanillaExtUndo("title");
+  assert(u633.ok === true && V63.NPCName[2].title === "high elk" && V63.NPCName[1].title === "high elk",
+    "63.21 回退还原 Remy / Harper / Avery 三个头衔");
+
+  // 63.22 非飞升线：只写 Remy，不动 Harper/Avery
+  V63.avery_fate = "saved";
+  const r634 = api63.mbCEVanillaRemyScar();
+  assert(r634.ok === true && r634.guard === false && V63.NPCName[2].title === "scarred"
+    && V63.NPCName[0].title === "high elk",
+    "63.22 非飞升线只写 Remy，不改 Harper/Avery（原版本就写疤面）");
+  api63.mbCEVanillaExtUndo("title");
+
+  // 63.23~63.27 Dolonline 5.27 单机状态键（只写本地 $ 变量，不涉联机交互）
+  V63.mpDgLv = 1; V63.mpCat = 0; V63.npcAff = 3;
+  const w6323 = api63.cheatWriteValue("dolonline", "dl_dglv", "value_set", "mpDgLv", "9", "number", 1, 99);
+  assert(w6323.ok === true && V63.mpDgLv === 9,
+    "63.23 mpDgLv 写 9（法术解锁门槛 3/5/7/9/12 中的「雷暴」档）");
+  const w6324 = api63.cheatWriteValue("dolonline", "dl_chestreq", "value_set", "dgChestReq", "0", "number", 0, 500);
+  assert(w6324.ok === true && V63.dgChestReq === 0,
+    "63.24 dgChestReq 写 0 = 任何诡术都能撬箱（原版 `skulduggery >= dgChestReq`）");
+  const w6325 = api63.cheatWriteValue("dolonline", "dl_npcaff", "value_set", "npcAff", "99", "number", 0, 15);
+  assert(w6325.ok === true && V63.npcAff === 99,
+    "63.25 写入器下限钳 0、上限不钳（npcAff 写 99 保留，模组侧自己 Math.min(15, ...)）");
+  assert(typeof api63.mbCERenderVanillaExt === "function", "63.26 ⑧ 区块渲染函数已导出（页签分发可调用）");
+  assert(api63.mbCEVanillaExtState().crime.types === 10, "63.27 状态回读：犯罪类型数 10（缺 setup.crimeNames 时走兜底清单）");
+
+  // 63.28~63.41 v2.0.9 拆段轮补测：脏档 / 二次写入 / 结构缺失 / 已解锁 / 缺角色等反向路径
+  /* 犯罪：二次点击不覆盖首次 before；结构被清掉后回退显式拒绝 */
+  V63.crime = { events: {}, assault: { current: 5, history: 50, daily: 1, count: 1, countHistory: 3 } };
+  api63.mbCEVanillaCrimeClear();
+  api63.mbCEVanillaCrimeClear();
+  assert(V63.mbCE_wrote["vcore:crime"].before.crime.assault.history === 50,
+    "63.28 同块二次清空不覆盖首次 before（回退仍能还原到最初的 50，而不是被第二次的 0 顶掉）");
+  V63.crime = null;
+  const u6328 = api63.mbCEVanillaExtUndo("crime");
+  assert(u6328.ok === false && u6328.message.indexOf("犯罪结构已不在") !== -1,
+    "63.29 $crime 结构被清掉时回退显式拒绝（不静默写回 undefined）");
+  delete V63.mbCE_wrote["vcore:crime"];
+  V63.crime = { events: {} };
+
+
+  /* 古董：feats 缺失 / feats 无 currentSave / 成就早已解锁 / paintings 缺失 / 结构缺失 */
+  delete V63.feats;
+  V63.museumAntiques = { antiques: { a1: "notFound" }, museumCount: 0 };
+  const r6329 = api63.mbCEVanillaAntiqueCollect();
+  assert(r6329.ok === true && r6329.feat === false && r6329.message.indexOf("成就写入失败") !== -1,
+    "63.30 存档缺 $feats → 古董照收，成就写不进去要在文案里明说（不假报成功）");
+  V63.feats = {};
+  const r6330 = api63.mbCEVanillaAntiqueCollect();
+  assert(r6330.feat === true && V63.feats.currentSave && V63.feats.currentSave["It Belongs in a Museum"] !== undefined,
+    "63.31 $feats 存在但缺 currentSave 时自动建表再写成就");
+  api63.mbCEVanillaExtUndo("antique");
+  V63.feats = { currentSave: { "It Belongs in a Museum": new Date() } };
+  V63.museumAntiques = { antiques: { a1: "notFound" }, museumCount: 0 };
+  const r6331 = api63.mbCEVanillaAntiqueCollect();
+  assert(r6331.feat === false && r6331.message.indexOf("此前已解锁") !== -1,
+    "63.32 成就早已解锁时如实回「此前已解锁」（不重复写、不谎报本次解锁）");
+  assert(V63.museumAntiques.paintings === undefined,
+    "63.33 存档无 $paintings 字段时不代建（只处理实际存在的古董表）");
+  api63.mbCEVanillaExtUndo("antique");
+  assert(api63.mbCEVanillaExtState().antique.has === true && V63.museumAntiques.antiques.a1 === "notFound",
+    "63.34 已解锁状态下回退不删成就、古董状态照还原（hadFeat=true 分支）");
+  delete V63.museumAntiques;
+  const r6332 = api63.mbCEVanillaAntiqueCollect();
+  assert(r6332.ok === false && r6332.message.indexOf("未找到 $museumAntiques") !== -1,
+    "63.35 未进博物馆线（$museumAntiques 不存在）时拒绝并给原因");
+
+  /* 头衔：缺 Harper→守卫提示；Harper/Avery 已在位；缺 Remy→拒绝；回退时 Remy 消失→拒绝 */
+  global.setup.NPCNameList = ["Avery", "Remy"];
+  V63.NPCName = [{ nam: "Avery", title: "high elk" }, { nam: "Remy", title: "high elk" }];
+  V63.avery_fate = "ascended";
+  const r6333 = api63.mbCEVanillaRemyScar();
+  assert(r6333.ok === true && r6333.guard === true && r6333.message.indexOf("回滚守卫可能失效") !== -1
+    && V63.NPCName[0].title === "crimson hound",
+    "63.36 飞升线缺 Harper 时仍写疤面 + 补 Avery，并在文案里提示守卫可能失效");
+  api63.mbCEVanillaExtUndo("title");
+  global.setup.NPCNameList = ["Avery", "Harper", "Remy"];
+  V63.NPCName = [{ nam: "Avery", title: "crimson hound" }, { nam: "Harper", title: "silver fox" }, { nam: "Remy", title: "high elk" }];
+  const r6334 = api63.mbCEVanillaRemyScar();
+  assert(r6334.ok === true && r6334.guard === false && r6334.message.indexOf("已在位") !== -1,
+    "63.37 飞升线 Harper/Avery 已是目标头衔时只写 Remy（guard=false，不重复写）");
+  api63.mbCEVanillaExtUndo("title");
+  global.setup.NPCNameList = ["Avery"];
+  V63.NPCName = [{ nam: "Avery", title: "high elk" }];
+  const r6335 = api63.mbCEVanillaRemyScar();
+  assert(r6335.ok === false && r6335.message.indexOf("未找到 Remy") !== -1,
+    "63.38 $NPCName 里没有 Remy 时拒绝（不往别的角色身上糊头衔）");
+  assert(api63.mbCEVanillaExtState().title.exists === false,
+    "63.39 头衔状态回读：缺 Remy 时 exists=false（面板据此给提示而不是崩）");
+  global.setup.NPCNameList = ["Avery", "Harper", "Remy"];
+  V63.NPCName = [{ nam: "Avery", title: "high elk" }, { nam: "Harper", title: "high elk" }, { nam: "Remy", title: "high elk" }];
+  api63.mbCEVanillaRemyScar();
+  V63.NPCName = [];
+  const u6337 = api63.mbCEVanillaExtUndo("title");
+  assert(u6337.ok === false && u6337.message.indexOf("Remy 已不在") !== -1,
+    "63.40 回退时 Remy 已不在 $NPCName → 显式拒绝");
+  delete V63.mbCE_wrote["vcore:title"];
+
+  /* 未知留痕类型：不落到默认写入，直接拒绝 */
+  V63.mbCE_wrote["vcore:bogus"] = { type: "vcore", before: { kind: "bogus" } };
+  const u6338 = api63.mbCEVanillaExtUndo("bogus");
+  assert(u6338.ok === false && u6338.message.indexOf("未知的留痕类型") !== -1,
+    "63.41 未知留痕类型拒绝回退（不猜语义、不误写别的键）");
+  delete V63.mbCE_wrote["vcore:bogus"];
+  // 63.42~63.45 统计快照降级分支（面板读脏档不崩）
+  V63.crime = null;
+  const st6342 = api63.mbCEVanillaExtState().crime;
+  assert(st6342.has === false && st6342.ok === false && st6342.types === 0,
+    "63.42 $crime 缺失时统计快照返回 has=false（面板显示「无档案」而不是崩）");
+  V63.crime = { events: { assault: "corrupt" }, assault: { current: 3, history: 30, countHistory: 1 } };
+  const st6343 = api63.mbCEVanillaExtState().crime;
+  assert(st6343.events === 0 && st6343.history === 30,
+    "63.43 事件日志值不是数组时不计条数（脏档不抛、其余统计照常）");
+  global.setup.NPCNameList = ["Remy"];
+  V63.NPCName = [{ nam: "Remy" }];
+  const st6344 = api63.mbCEVanillaExtState().title;
+  assert(st6344.exists === true && st6344.remy === "" && st6344.harper === "" && st6344.avery === ""
+    && st6344.remyZh === "（空）",
+    "63.44 Remy 无 title / 缺 Harper、Avery 时统计给空串（不显示 undefined）");
+  V63.museumAntiques = { antiques: { a1: "found" }, museumCount: 0 };
+  const st6345 = api63.mbCEVanillaExtState().antique;
+  assert(st6345.has === true && st6345.paintings === 0 && st6345.found === 1,
+    "63.45 存档无 $paintings 时画作计数为 0（不代建、不崩）");
+  V63.feats = { currentSave: {} };
+  V63.museumAntiques = { antiques: { a1: "notFound" }, museumCount: 0 };
+  V63.crime = { events: {} };
+
+  // 收尾还原
+  if (bk63.crime === undefined) { delete V63.crime; } else { V63.crime = bk63.crime; }
+  if (bk63.ma === undefined) { delete V63.museumAntiques; } else { V63.museumAntiques = bk63.ma; }
+  if (bk63.hints === undefined) { delete V63.museumAntiqueJournalHints; } else { V63.museumAntiqueJournalHints = bk63.hints; }
+  if (bk63.feats === undefined) { delete V63.feats; } else { V63.feats = bk63.feats; }
+  if (bk63.wrote === undefined) { delete V63.mbCE_wrote; } else { V63.mbCE_wrote = bk63.wrote; }
+  if (bk63.npc === undefined) { delete V63.NPCName; } else { V63.NPCName = bk63.npc; }
+  if (bk63.fate === undefined) { delete V63.avery_fate; } else { V63.avery_fate = bk63.fate; }
+  if (bk63.list === undefined) { delete global.setup.NPCNameList; } else { global.setup.NPCNameList = bk63.list; }
+  if (bk63.dgLv === undefined) { delete V63.mpDgLv; } else { V63.mpDgLv = bk63.dgLv; }
+  if (bk63.mpCat === undefined) { delete V63.mpCat; } else { V63.mpCat = bk63.mpCat; }
+  if (bk63.npcAff === undefined) { delete V63.npcAff; } else { V63.npcAff = bk63.npcAff; }
+  if (bk63.chestReq === undefined) { delete V63.dgChestReq; } else { V63.dgChestReq = bk63.chestReq; }
+} catch (e63) {
+  failures++;
+  console.error("FAIL: 63 原版档案/收藏/头衔测试异常: " + (e63 && e63.stack ? e63.stack : e63));
+}
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

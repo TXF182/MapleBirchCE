@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.8";
+	var MCE_VERSION = "2.0.9";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -9,6 +9,13 @@
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
 		return {};
+	}
+	/* v2.0.10：存档变量是否**真实**就绪。getV() 在未读档时返回 {} 兜底，truthy 但不可写；
+	   适配器若用 `!v` 判空会永远不成立（分支不可达），写进 {} 也只落在临时对象上。 */
+	/* hasV：存档是否真的可写。getV() 未读档时返回 {}（truthy），不能靠 !v 判；这里看引擎挂在
+	   window 上的两处来源（V 与 State.variables），既不会误判空对象，也不会被同名作用域变量遮蔽。 */
+	function hasV() {
+		return !!(typeof window !== "undefined" && (window.V && typeof window.V === "object" || window.State && window.State.variables));
 	}
 	function getSetup() {
 		try { if (typeof setup !== "undefined" && setup) { return setup; } } catch (e) {}

@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.8";
+	var MCE_VERSION = "2.0.9";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -123,6 +123,13 @@
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
 		return {};
+	}
+	/* v2.0.10：存档变量是否**真实**就绪。getV() 在未读档时返回 {} 兜底，truthy 但不可写；
+	   适配器若用 `!v` 判空会永远不成立（分支不可达），写进 {} 也只落在临时对象上。 */
+	/* hasV：存档是否真的可写。getV() 未读档时返回 {}（truthy），不能靠 !v 判；这里看引擎挂在
+	   window 上的两处来源（V 与 State.variables），既不会误判空对象，也不会被同名作用域变量遮蔽。 */
+	function hasV() {
+		return !!(typeof window !== "undefined" && (window.V && typeof window.V === "object" || window.State && window.State.variables));
 	}
 	function getSetup() {
 		try { if (typeof setup !== "undefined" && setup) { return setup; } } catch (e) {}
@@ -1866,7 +1873,7 @@
 	function zhKey(k) { return ZH_KEYS[k] || String(k); }
 	function zhPath(p) { return String(p).split(".").map(zhKey).join("."); }
 	function zhType(t) { return ZH_TYPES[t] || t; }
-	/** @type {Record<string, any>} */ var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
+	/* CHEAT_ADAPTERS 容器声明在 04a-00-core.js（v1.9.13 拆分时迁走，此处不再重复声明，避免后声明重置前者） */
 	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
 	var curCheatModId = "";
 
@@ -4017,6 +4024,135 @@ function mbCEFertRenderChildren(container) {
 		ad.entry.actionPanel.__mbCEHasKids = true;
 	} catch (e) { /* 适配器未注册时静默 */ }
 })();
+/* 职责：DoL 联机&地下城（Dolonline 5.27）适配器 —— **只做单机状态键**。
+   用户口径（2026-11-08）：Dolonline 仅本地单机状态，不做联机交互（不碰 WebSocket / auth / 服务器共享血量）。
+
+   源码实证（tools\_modcache\dolonline527\unpacked\，10 文件 / index.js 447,621 B）：
+   - boot.json：nickName「DoLOnline」、version 5.27、scriptFileList ["index.js"]、dependenceInfo []、addonPlugin []
+     → 零依赖、无补丁注入，CE 侧只需读写存档变量，不调模组函数。
+   - index.js 用 WebSocket 定向消息（auth L96 / cp_accept L159），**不上传整档**；只有共享怪物血量以服务器为准
+     → 单机状态全部落在本地 $ 变量，本地直写成立。
+   - 入口解锁：index.js L4157 `if (v.mpDgUnlocked) return true`；L4161 `if ((Number(v.mpDgLv) || 1) > 1) return true`；
+     L4170–4171 `dgUnlocked()` 成立时自动 `v.mpDgUnlocked = 1`。
+   - 等级/经验条：index.js L4663–4669 —— 日常 `mpDLv` / `mpDExp` need=80+(lv-1)*40；地下城 `mpDgLv` / `mpDgExp` need=100+(lv-1)*50。
+   - 法术解锁（dungeon.twee:84–88 与 index.js）：`mpDgLv` ≥3/≥5/≥7/≥9/≥12 分别解锁 火墙/冰锥/暗影箭/雷暴/陨石；
+     每次 5 层 +1 `mpSkillPts`（index.js L1805–1806）。
+   - 进本初始化（dungeon.twee:3–5、:884）：`dgFloor=1`、`dgHp=dolStaminaMax()`、`dgGold=0`、`dgMana=100`、`dgManaMax=100`；
+     `mpCat` 顶部 `<<set $mpCat to ($mpCat or 0)>>` 兜底 → 直写前不必保证存在，但运行态键必须先有。
+   - 宝箱（dungeon.twee:891–905）：`_tier = min(5, max(1, ceil(floor/4)))`，10% +1 档；`_reqs = [100,200,300,400,500]`；
+     `skulduggery >= dgChestReq` 才能撬（+100 为无损判据 `_clean`，倍率 1.5）。
+   - 灰（npc.twee）：`npcAff` 上限 15（`Math.min(15, ...)`）；`npcCh` 0→3；`npcQ` 0/1/2 剧情阶段；
+     `mpEquip.*` 读取前一律 `<<if $mpEquip and $mpEquip.helmet>>` 存在性守卫 → 装备对象缺失时模组自己会跳过，CE 不代建。 */
+
+	CHEAT_ADAPTERS["dolonline"] = {
+		detect: function () {
+			try {
+				var v = getV();
+				if (!hasV()) { return false; }
+				/* mpCat / mpDgLv / mpSkillPts / mpDgUnlocked / dgFloor / npcAff 都是 Dolonline 独有键；
+				   任一组出现即认定模组在场（未进过本的新档也可能只有 mpDgLv） */
+				return (v.mpCat !== undefined || v.mpDgLv !== undefined || v.mpSkillPts !== undefined
+					|| v.mpDgUnlocked !== undefined || v.dgFloor !== undefined
+					|| v.npcAff !== undefined || v.npcCh !== undefined);
+			} catch (e) { return false; }
+		},
+		entry: {
+			modId: "dolonline",
+			modName: "DoL 联机&地下城 v5.27（单机状态键）",
+			tasks: [],
+			stages: [
+				{ key: "dl_unlocked", name: "地下城 · 入口解锁", varPath: "mpDgUnlocked",
+				  levels: [0, 1], labels: ["未解锁", "已解锁"],
+				  note: "模组判据 index.js:4157 `if (v.mpDgUnlocked) return true`；L4170–4171 在 dgUnlocked() 成立时自动置 1（等级 >1 也会解锁）" },
+				{ key: "dl_class", name: "地下城 · 职业", varPath: "mpClass",
+				  levels: ["", "warrior", "mage", "ranger", "priest"],
+				  labels: ["未选", "剑士", "法师", "游侠", "祭司"],
+				  note: "职业专属技能在 dungeon.twee:90–93 判定；空串 = 未选职业" }
+			],
+			abilities: [],
+			scenes: [],
+			values: [
+				{ key: "dl_dglv", name: "地下城等级 mpDgLv", varPath: "mpDgLv", type: "number", min: 1, max: 99,
+				  note: "≥3/5/7/9/12 解锁 火墙/冰锥/暗影箭/雷暴/陨石；升级阈值 need=100+(lv-1)*50（index.js:4669）" },
+				{ key: "dl_dgexp", name: "地下城经验 mpDgExp", varPath: "mpDgExp", type: "number", min: 0, max: 999999,
+				  note: "写 need-1（=100+(lv-1)*50-1）再打一只怪即可自然升级" },
+				{ key: "dl_dailylv", name: "日常挑战等级 mpDLv", varPath: "mpDLv", type: "number", min: 1, max: 99,
+				  note: "升级阈值 need=80+(lv-1)*40（index.js:4664）" },
+				{ key: "dl_dailyexp", name: "日常经验 mpDExp", varPath: "mpDExp", type: "number", min: 0, max: 999999,
+				  note: "注意键名是 mpDExp（不是 mpDgExp），index.js:4436/4663 实证" },
+				{ key: "dl_skillpts", name: "技能点 mpSkillPts", varPath: "mpSkillPts", type: "number", min: 0, max: 999,
+				  note: "每下 5 层 +1（index.js:1805–1806）" },
+				{ key: "dl_mpcat", name: "猫猫币 mpCat", varPath: "mpCat", type: "number", min: 0, max: 999999,
+				  note: "地下城专属货币：30 换满体力 / 25 换满法力 / 120 掉道具 / 150 特殊（dungeon.twee:299–323）" },
+				{ key: "dl_agi", name: "敏捷加成 mpDgAgi", varPath: "mpDgAgi", type: "number", min: 0, max: 999,
+				  note: "命中/闪避公式 `3 + floor(min(100,physique)/15) + Number($mpDgAgi)`（dungeon.twee:65/213）" },
+				{ key: "dl_floor", name: "当前层 dgFloor", varPath: "dgFloor", type: "number", min: 1, max: 30,
+				  note: "层数门控 index.js:4091/4128/4159；开箱档位按 ceil(floor/4) 推导（dungeon.twee:891）" },
+				{ key: "dl_hp", name: "地下城体力 dgHp", varPath: "dgHp", type: "number", min: 0, max: 99999,
+				  note: "进本初始化 = dolStaminaMax()；写超上限即无敌（模组只做 <=0 判死）" },
+				{ key: "dl_mana", name: "法力 dgMana", varPath: "dgMana", type: "number", min: 0, max: 99999,
+				  note: "进本 100；低于技能消耗则无法施法" },
+				{ key: "dl_manamax", name: "法力上限 dgManaMax", varPath: "dgManaMax", type: "number", min: 1, max: 99999,
+				  note: "进本 100；`$mpCat gte 25` 时置回该值（dungeon.twee:307）" },
+				{ key: "dl_gold", name: "地下城金币 dgGold", varPath: "dgGold", type: "number", min: 0, max: 999999,
+				  note: "只是本局显示用的战利品计数；真实加钱走 $money（dungeon.twee:342 起）" },
+				{ key: "dl_kills", name: "本局击杀 dgKills", varPath: "dgKills", type: "number", min: 0, max: 99999,
+				  note: "灰的委托进度按 `dgKills - npcQStart >= 3` 判定（npc.twee:23/25）" },
+				{ key: "dl_chestreq", name: "宝箱诡术门槛 dgChestReq", varPath: "dgChestReq", type: "number", min: 0, max: 500,
+				  note: "原值 ∈ {100,200,300,400,500}；写 0 = 任何诡术都能撬（`skulduggery >= dgChestReq`，+100 判定无损）" },
+				{ key: "dl_chesttier", name: "宝箱档位 dgChestTier", varPath: "dgChestTier", type: "number", min: 1, max: 5,
+				  note: "1–5 档；原版由 min(5,max(1,ceil(floor/4))) 推导，10% 概率 +1（dungeon.twee:891–905）" },
+				{ key: "dl_npcaff", name: "灰 · 好感 npcAff", varPath: "npcAff", type: "number", min: 0, max: 15,
+				  note: "上限 15（模组处处 Math.min(15, ...)）；影响 npc.twee 剧情分支" },
+				{ key: "dl_npcch", name: "灰 · 章节 npcCh", varPath: "npcCh", type: "number", min: 0, max: 3,
+				  note: "npc.twee:225 置 2 / :242 置 3 —— 直写会跳过对应的剧情场景，仅在重复剧情时使用" }
+			],
+			actions: [
+				{
+					key: "dl_init_run",
+					name: "初始化地下城运行态键",
+					note: "未进过地下城时 dgFloor/dgHp/dgMana 等键还不存在，数值栏会拒绝写入。本动作按 dungeon.twee:3–5 的原版初值补齐（已有的不覆盖），并补 mpSkill 空对象。",
+					run: function () {
+						var v = getV();
+						if (!hasV()) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+						var added = 0;
+						if (v.dgFloor === undefined) { v.dgFloor = 1; added++; }
+						if (v.dgHp === undefined) {
+							var hp = 100;
+							try { if (typeof window !== "undefined" && typeof window.dolStaminaMax === "function") { hp = Number(window.dolStaminaMax()) || 100; } } catch (eHp) {}
+							v.dgHp = hp; added++;
+						}
+						if (v.dgGold === undefined) { v.dgGold = 0; added++; }
+						if (v.dgMana === undefined) { v.dgMana = 100; added++; }
+						if (v.dgManaMax === undefined) { v.dgManaMax = 100; added++; }
+						if (v.dgKills === undefined) { v.dgKills = 0; added++; }
+						if (!v.mpSkill || typeof v.mpSkill !== "object") { v.mpSkill = {}; added++; }
+						if (v.mpCat === undefined) { v.mpCat = 0; added++; }
+						return {
+							ok: true,
+							message: added
+								? "已补齐 " + added + " 个运行态键，已有值未覆盖（明细见下方数值栏）"
+								: "运行态键已齐全，未做改动"
+						};
+					}
+				},
+				{
+					key: "dl_all_spells",
+					name: "解锁全部法术（含职业技能）",
+					note: "mpSkill 9 键置 1：通用 fireWall/iceSpike/shadowBolt/thunderStorm/meteor + 职业 uDesp/uBurst/uChain/uBlood（dungeon.twee:84–97）。原版本靠 mpDgLv 3/5/7/9/12 逐档解锁，本动作直接写入等价。",
+					run: function () {
+						var v = getV();
+						if (!hasV()) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+						if (!v.mpSkill || typeof v.mpSkill !== "object") { v.mpSkill = {}; }
+						var keys = ["fireWall", "iceSpike", "shadowBolt", "thunderStorm", "meteor", "uDesp", "uBurst", "uChain", "uBlood"];
+						var n = 0;
+						keys.forEach(function (k) { if (v.mpSkill[k] !== 1) { v.mpSkill[k] = 1; n++; } });
+						return { ok: true, message: n ? "已解锁 " + n + " 个法术（其余此前已解锁）" : "全部法术此前已解锁" };
+					}
+				}
+			]
+		}
+	};
 /* 职责：作弊写入执行器 —— 原版根拦截、适配器路径解析、按类型写入与回退（applyCheatSync） */
 
 	function cheatIsVanillaRoot(root) {
@@ -4897,6 +5033,39 @@ function mbCEFertRenderChildren(container) {
    首个使用者是 FertilityExpansion：它自带 eden-cheats-ui.js（10 项作弊），CE 直接调用其
    window.EdenCheats 复刻同一套能力（04a-14-fert-cheats.js），不重写模组的 sync/回滚链。
    行构建沿用模组页既有懒渲染协议：grpFor 建组 → g.pending 存返回节点的函数 → 展开时 buildModGrpRows 补建。 */
+
+/* 适配器动作的两种声明形态：直接挂在注册项上，或包在 entry 里（04a-*.js 现行写法把 actions 放 entry 内）。 */
+function mbCEAdapterList(m) {
+	if (!m || typeof m !== "object") { return []; }
+	if (Array.isArray(m.actions)) { return m.actions; }
+	if (m.entry && Array.isArray(m.entry.actions)) { return m.entry.actions; }
+	return [];
+}
+
+/* 单条执行路径：面板按钮、直调通道、测试都走这里，错误文案只在这一处产生。 */
+function mbCEAdapterRun(m, actionKey, args) {
+	var list = mbCEAdapterList(m);
+	for (var i = 0; i < list.length; i++) {
+		if (list[i] && list[i].key === actionKey) {
+			if (typeof list[i].run !== "function") { return { ok: false, message: "该动作未实现：" + actionKey }; }
+			try { return list[i].run(args || {}); }
+			catch (e) { return { ok: false, message: "动作抛出异常：" + mbCEErr(e) }; }
+		}
+	}
+	return { ok: false, message: "无此动作：" + actionKey };
+}
+
+/* 直调通道（面板按钮之外的第二条入口）：按 adapterId + actionKey 从注册表取适配器再执行。
+   此前 a.run({}) 只在点击回调里内联调用，测试与外部脚本没有入口，动作分支无法被覆盖。 */
+function mbCEAdapterAction(adapterId, actionKey, args) {
+	if (!adapterId) { return { ok: false, message: "未指定适配器" }; }
+	var reg = (typeof CHEAT_ADAPTERS === "object" && CHEAT_ADAPTERS) ? CHEAT_ADAPTERS : null;
+	if (!reg) { return { ok: false, message: "适配器注册表不可用" }; }
+	var m = reg[adapterId];
+	if (!m) { return { ok: false, message: "未找到适配器：" + adapterId }; }
+	return mbCEAdapterRun(m, actionKey, args);
+}
+
 function mbCEActionRow(m, a) {
 	var row = el("div", "mce-row");
 	row.setAttribute("data-mce-key", "action:" + a.key);
@@ -4905,18 +5074,16 @@ function mbCEActionRow(m, a) {
 	b.type = "button";
 	b.title = a.note || "";
 	b.addEventListener("click", function () {
-		var res;
-		try {
-			res = (typeof a.run === "function") ? a.run({}) : { ok: false, message: "该动作未实现" };
-		} catch (e) { res = { ok: false, message: "动作抛出异常：" + mbCEErr(e) }; }
+		var res = mbCEAdapterRun(m, a.key, {});
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
 	});
 	row.appendChild(b);
 	if (a.note) { row.appendChild(el("span", "mce-hint", a.note)); }
 	return row;
 }
+
 function renderCheatActions(m, grpFor, buildModGrpRows) {
-	var list = Array.isArray(m.actions) ? m.actions : [];
+	var list = mbCEAdapterList(m);
 	if (!list.length && typeof m.actionPanel !== "function") { return; }
 	var g = grpFor("actions", "命令式动作（模组自带作弊等价）");
 	if (typeof m.actionPanel === "function") {
@@ -8634,6 +8801,29 @@ function mbCELockEnsureTimer() {
 	} catch (e) {}
 }
 
+/* v2.0.10：锁定恢复统一入口——翻页（:passagedisplay）、初始化、外部刷新时调用。
+   修「明明已经锁定，数值却会变化」：脚本注入阶段 State 尚未就绪，模块加载期的 ensure 拿到空 V、
+   定时器根本没起；此后原先只有打开 CE 面板（mbCERenderLock）才补，玩家不打开面板就全程不写回
+   （实测：意志被游戏 V.willpower *= 0.99 衰减到 99 就一直停在 99）。
+   这里 ensure + 立即 tick 一轮，游戏刚改的值当场纠回，不必等 1s 间隔。 */
+function mbCELockResume() {
+	try { mbCELockEnsureTimer(); } catch (e0) {}
+	try { mbCELockTick(); } catch (e1) {}
+}
+
+/* v2.0.10：所有「按需 1s 定时器」的统一恢复入口。
+   同一类缺陷不止锁定一处：潜伏者自动搬运（mbCELurkerEnsureTimer）、转化隐藏校验（mbCEHideEnsureTimer）、
+   态度维持（mbCEAttitudeEnsureTimer）原先都只在「点过开关 / 打开对应页」时起表，而脚本注入早于读档，
+   注入期 ensure 一律拿不到 V → 刷新后不打开对应页面就全程不生效（与言灵页 v2.0.0.006 修法同构）。
+   翻页（:passagedisplay）与 init() 都走这里，保证「不打开面板也生效」。 */
+function mbCEResumeTimers() {
+	try { mbCELockResume(); } catch (eA) {}
+	try { mbCELurkerEnsureTimer(); } catch (eB) {}
+	try { mbCEHideEnsureTimer(); } catch (eC) {}
+	try { mbCEAttitudeEnsureTimer(); } catch (eD) {}
+	try { mbCEYanlingEnsureTimer(); } catch (eE) {}
+}
+
 /* 锁定来源判定（P1：自定义锁定项默认收进折叠组，这里给每行标出「谁锁的」）：
    ① 命中快速面板索引 → 角色页锁的；② 留痕里同 path 的 cheat 记录 → Mod作弊页锁的；③ 其余 → 手动自由添加 */
 function mbCELockSource(path) {
@@ -8660,7 +8850,7 @@ function mbCELockSource(path) {
 function mbCERenderLock(pane) {
 	if (!pane) { return; }
 	mbCELockEnsureTimer(); /* 开面板兜底：读档后已有锁定向时恢复写回 */
-	var sec = mceNewSec(pane, 8, "数值固定", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。");
+	var sec = mceNewSec(pane, 8, "数值固定", "锁定后每 1 秒强制写回目标值，直到手动取消；锁定表存于存档 V.mbCE_lock，读档自动恢复。预设为模组实证键：渡鸦转化未戴羽毛项链会每日衰减、天使无三位一体成长点会减少、堕天使每日纯洁流失、亡灵诅咒每秒扣 Psyche/涨压力——锁目标值即可防这些机制改值。注意软上限：意志/体能/容貌等属性在原版受 $willpowermax / $physiquemax / $beautymax 约束（游戏每次结算走 Math.clamp 钳到上限），锁超过上限的值会被拉回；要真突破上限，把对应 *max 键一起锁定。");
 	var Vg = getV();
 	var presetPaths = {};
 	MB_CE_LOCK_PRESETS.forEach(function (p) { presetPaths[p.path] = true; });
@@ -12579,6 +12769,534 @@ function renderNpcUndergroundSec(pane) {
 	gUb.appendChild(rowEsc);
 	gUb.appendChild(el("div", "mce-hint", "「关进去」只写 robin 槽：游戏内进入地下牢房还需要从 Bailey 的出售/抓捕剧情走；本功能用于补测地下线剧情与套装条件。"));
 }
+/* 职责：全局页 ⑧「原版档案 · 收藏 · 头衔」——朋友要的三项原版作弊直写通道
+   （②犯罪不留历史记录 ③一键收集古董（只收集不上交，成就一并解锁）④飞升线也能拿「雷米 疤面」）。
+
+   原版事实（实测行号，DoL 0.5.12.13 单行 HTML）：
+   - 原版自己的清犯罪 widget（L342350–L342366）写 C.crime[type] / [type+"Count"] / [type+"Daily"] + clearEvents(type)，
+     **不动 history / countHistory** —— 这两项才是「案底/历史记录」，也正是本功能要补的缺口。
+   - C.crime[type+"History"] / [type+"CountHistory"] 是无 clamp 的纯赋值访问器（L55598–L55650），可直接写。
+   - `Count` 的 setter 带联动（count===0 且 current>0 → count=1），所以**必须直改 $crime[type] 对象字段**而不是走访问器，
+     否则先置 count 再置 current 会被联动改回 1。
+   - 古董状态机 museumAntiqueStatus（L608803–L608813）只接受 notFound→found / found→talk / talk→museum / 任意→stolen|recovered /
+     found|talk→notFound；**只有 museum 才 museumCount++**。成就判定是 museumCount == maxCount（L104893）。
+   - earnFeat（L104772–L104782）在 `V.cheatsEnabled === true` / V.debug / soft 模式 / statFreeze / allureModifier<1 时**直接 return**
+     —— 作弊模式下 by design 不记成就。所以「成就一并解锁」必须直写 `V.feats.currentSave[feat] = new Date()`。
+   - 头衔：飞升线写 high elk；疤面只在 `$avery_fate isnot "ascended"` 分支（L190871–L190873）。
+     该段的幂等守卫是 `C.npc.Harper.title isnot "silver fox"`，所以只写 Remy 会被下一次执行覆盖回 high elk
+     —— 写入时按需补 Harper / Avery 关掉回滚分支。
+   - `C.npc.X` 与 `V.NPCName[setup.NPCNameList.indexOf(X)]` 是同一对象引用（initCNPC，L55584–L55590）。 */
+
+	var MCE_VANILLA_FEAT_MUSEUM = "It Belongs in a Museum";
+	/* 头衔英文 key → 中文展示（与汉化层同口径；未收录的原样输出） */
+	var MCE_VANILLA_TITLE_ZH = {
+		"scarred": "疤面",
+		"high elk": "高麋鹿",
+		"crimson hound": "猩红猎犬",
+		"silver fox": "银狐狸",
+		"priest": "神父",
+		"priestess": "修女",
+		"headmaster": "校长",
+		"headmistress": "女校长",
+		"hunter": "猎手",
+		"huntress": "女猎手",
+		"businessman": "商人",
+		"businesswoman": "女商人"
+	};
+	/* setup.crimeNames 缺失时的兜底清单（原版 setup.crimeNames 实证 10 类） */
+	var MCE_VANILLA_CRIME_FALLBACK = [
+		"assault", "coercion", "destruction", "exposure", "obstruction",
+		"prostitution", "resisting", "thievery", "petty", "trespassing"
+	];
+
+	function mbCEVanillaTitleZh(t) {
+		if (t === undefined || t === null || t === "") { return "（空）"; }
+		return MCE_VANILLA_TITLE_ZH[String(t)] || String(t);
+	}
+
+	function mbCEVanillaClone(o) {
+		try {
+			if (o === undefined) { return undefined; }
+			return JSON.parse(JSON.stringify(o));
+		} catch (e) { return undefined; }
+	}
+
+	/* 留痕：type "vcore"，key = vcore:<id>，before 为「首次写入前」整块快照（与 04b 的 before 语义一致） */
+	function mbCEVanillaTrace(id, before, path, note) {
+		try {
+			var V = getV();
+			if (!V) { return; }
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			var key = "vcore:" + id;
+			var prev = V.mbCE_wrote[key];
+			if (!prev || !("before" in prev)) {
+				V.mbCE_wrote[key] = { type: "vcore", id: id, path: path || "", before: before, t: Date.now(), note: note || "" };
+			} else {
+				prev.t = Date.now();
+			}
+			if (typeof mbCEWroteTrim === "function") { mbCEWroteTrim(V); }
+		} catch (e) {}
+	}
+
+	function mbCEVanillaCrimeTypes() {
+		var names = [];
+		try {
+			if (typeof setup !== "undefined" && setup && setup.crimeNames) { names = Object.keys(setup.crimeNames); }
+		} catch (e) {}
+		if (!names.length) { names = MCE_VANILLA_CRIME_FALLBACK.slice(); }
+		return names;
+	}
+
+
+	/* ① 犯罪记录全清：current / count / daily / history / countHistory + 事件日志
+	   直改 $crime[type] 字段，绕开 C.crime[type+"Count"] 的 setter 联动（先清 count 会被联动置 1）。 */
+	function mbCEVanillaCrimeClear() {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		if (!V.crime || typeof V.crime !== "object") { return { ok: false, message: "未找到 $crime（该存档没有犯罪记录结构）" }; }
+		var before = {
+			kind: "crime",
+			crime: {},
+			events: mbCEVanillaClone(V.crime.events)
+		};
+		var types = mbCEVanillaCrimeTypes();
+		types.forEach(function (t) {
+			var c = V.crime[t];
+			if (c && typeof c === "object") {
+				before.crime[t] = {
+					current: c.current, history: c.history, daily: c.daily, count: c.count, countHistory: c.countHistory
+				};
+			}
+		});
+		var touched = 0;
+		types.forEach(function (t) {
+			var c = V.crime[t];
+			if (!c || typeof c !== "object") {
+				/* 结构缺失时补一份零值，避免后续读取 undefined 崩 */
+				V.crime[t] = { current: 0, history: 0, daily: 0, count: 0, countHistory: 0 };
+			} else {
+				c.current = 0;
+				c.count = 0;
+				c.daily = 0;
+				c.history = 0;
+				c.countHistory = 0;
+			}
+			touched++;
+		});
+		V.crime.events = {};
+		mbCEVanillaTrace("crime", before, "crime", "清空全部犯罪记录（含 history / countHistory / 事件日志）");
+		return {
+			ok: true,
+			touched: touched,
+			message: "已清空 " + touched + " 类犯罪记录：current / count / daily / history / countHistory 全归零，事件日志清空（原版作弊页只能清前四项，案底清不掉）"
+		};
+	}
+
+	function mbCEVanillaAntiqueState() {
+		var V = getV();
+		var ma = V && V.museumAntiques;
+		if (!ma || typeof ma !== "object" || !ma.antiques || typeof ma.antiques !== "object") { return null; }
+		return ma;
+	}
+
+
+	/* ② 古董：一次性「收集」（状态写 found = 已找到未上交），不写 museum（不结算奖金、不动 museumCount）；
+	   成就直写 V.feats.currentSave（earnFeat 在作弊模式被门控，等不到原版结算）。 */
+	function mbCEVanillaAntiqueCollect() {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		var ma = mbCEVanillaAntiqueState();
+		if (!ma) { return { ok: false, message: "未找到 $museumAntiques（该存档还没进入博物馆线）" }; }
+		var before = {
+			kind: "antique",
+			antiques: mbCEVanillaClone(ma.antiques),
+			paintings: mbCEVanillaClone(ma.paintings),
+			museumCount: ma.museumCount,
+			stolenCount: ma.stolenCount,
+			recoveredCount: ma.recoveredCount,
+			maxCount: ma.maxCount,
+			hints: mbCEVanillaClone(V.museumAntiqueJournalHints),
+			hadFeat: false
+		};
+		try {
+			before.hadFeat = !!(V.feats && V.feats.currentSave && V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM] !== undefined);
+		} catch (eB) {}
+
+		var got = 0;
+		Object.keys(ma.antiques).forEach(function (k) {
+			if (ma.antiques[k] !== "found") { ma.antiques[k] = "found"; got++; }
+		});
+		/* 画作：museumPaintingGet 只认 notFound→found，写 found 即「已发现未上交」 */
+		if (ma.paintings && typeof ma.paintings === "object") {
+			Object.keys(ma.paintings).forEach(function (k) {
+				if (ma.paintings[k] !== "found") { ma.paintings[k] = "found"; got++; }
+			});
+		}
+		/* maxCount 兜底：原版由一个 always-run widget 每次补，存档里可能还没跑过 */
+		if (!(Number(ma.maxCount) > 0)) { ma.maxCount = Object.keys(ma.antiques).length; }
+		/* 期刊提示指向「未发现位置」，全部 found 后失去意义（原版 found 迁移时也会逐条清） */
+		try { V.museumAntiqueJournalHints = []; } catch (eH) {}
+
+		var featOk = false;
+		var featNew = false;
+		try {
+			if (V.feats && typeof V.feats === "object") {
+				if (!V.feats.currentSave || typeof V.feats.currentSave !== "object") { V.feats.currentSave = {}; }
+				if (V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM] === undefined) {
+					V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM] = new Date();
+					featNew = true;
+				}
+				featOk = true;
+			}
+		} catch (eFeat) { featOk = false; }
+
+		mbCEVanillaTrace("antique", before, "museumAntiques", "博物馆古董一次性收集（found，不上交）+ 成就直写");
+		var msg = got > 0
+			? "已收齐 " + got + " 件（古董 " + Object.keys(ma.antiques).length + " + 画作 " + (before.paintings ? Object.keys(before.paintings).length : 0) + "），状态为「已发现未上交」——不会结算博物馆奖金。"
+			: "古董已是全部「已发现未上交」状态，未重复写入。";
+		if (featNew) { msg += " 成就「It Belongs in a Museum」已解锁。"; }
+		else if (featOk) { msg += " 成就「It Belongs in a Museum」此前已解锁。" ; }
+		else { msg += " 成就写入失败：该存档缺少 $feats 结构。"; }
+		return { ok: true, got: got, feat: featNew, message: msg };
+	}
+
+	function mbCEVanillaNpcIdx(name) {
+		try {
+			if (typeof setup !== "undefined" && setup && Array.isArray(setup.NPCNameList)) { return setup.NPCNameList.indexOf(name); }
+		} catch (e) {}
+		return -1;
+	}
+
+	function mbCEVanillaNpcObj(V, name) {
+		try {
+			var i = mbCEVanillaNpcIdx(name);
+			if (i < 0 || !Array.isArray(V.NPCName) || !V.NPCName[i] || typeof V.NPCName[i] !== "object") { return null; }
+			return V.NPCName[i];
+			/* 说明：C.npc.X 与 V.NPCName[idx] 是同一引用（initCNPC L55584–L55590），改一处即落档 */
+		} catch (e) { return null; }
+	}
+
+
+	/* ③ 雷米头衔写「疤面」；飞升线按需补 Harper / Avery，关掉原版幂等回滚分支 */
+	function mbCEVanillaRemyScar() {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		var remy = mbCEVanillaNpcObj(V, "Remy");
+		if (!remy) { return { ok: false, message: "未找到 Remy（$NPCName 缺少该角色，可能不是标准存档）" }; }
+		var harper = mbCEVanillaNpcObj(V, "Harper");
+		var avery = mbCEVanillaNpcObj(V, "Avery");
+		var before = {
+			kind: "title",
+			remy: remy.title,
+			harper: harper ? harper.title : undefined,
+			avery: avery ? avery.title : undefined,
+			fate: V.avery_fate
+		};
+		remy.title = "scarred";
+		var guard = false;
+		var guardMiss = false;
+		if (V.avery_fate === "ascended") {
+			if (harper && harper.title !== "silver fox") { harper.title = "silver fox"; guard = true; }
+			if (avery && avery.title !== "crimson hound") { avery.title = "crimson hound"; guard = true; }
+			if (!harper || !avery) { guardMiss = true; }
+		}
+		mbCEVanillaTrace("title", before, "NPCName", "雷米头衔改为疤面（scarred）");
+		var msg = "雷米头衔已写为「疤面」（scarred）";
+		if (V.avery_fate === "ascended") {
+			msg += guard
+				? "；飞升线：已同步补 Harper=银狐狸、Avery=猩红猎犬，原版结算不会再把它改回高麋鹿"
+				: "；飞升线：Harper/Avery 已在位，原版结算不会覆盖";
+			if (guardMiss) { msg += "（注意：Harper 或 Avery 不在 $NPCName 中，回滚守卫可能失效）"; }
+		} else {
+			msg += "；当前不是飞升线（$avery_fate=" + (V.avery_fate || "空") + "），原版本就写疤面";
+		}
+		return { ok: true, guard: guard, message: msg };
+	}
+
+	function mbCEVanillaExtState() {
+		return {
+			crime: mbCEVanillaCrimeStats(),
+			antique: mbCEVanillaAntiqueStats(),
+			title: mbCEVanillaTitleStats()
+		};
+	}
+
+	/* 回退：按 id 还原整块快照（vcore 类型由 08c 统一回退中心分发） */
+	function mbCEVanillaExtUndo(id) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var key = "vcore:" + id;
+		var rec = V.mbCE_wrote && V.mbCE_wrote[key];
+		if (!rec || !rec.before || typeof rec.before !== "object") {
+			return { ok: false, message: "该留痕已不存在（可能已回退或超出保留窗口）" };
+		}
+		var b = rec.before;
+		try {
+			if (b.kind === "crime") {
+				if (!V.crime || typeof V.crime !== "object") { return { ok: false, message: "犯罪结构已不在，无法回退" }; }
+				var types = mbCEVanillaCrimeTypes();
+				types.forEach(function (t) {
+					var snap = b.crime ? b.crime[t] : undefined;
+					if (!snap) {
+						/* 首次写入前该类型不存在 → 回退即删除 */
+						try { delete V.crime[t]; } catch (eD) {}
+						return;
+					}
+					var c = V.crime[t];
+					if (!c || typeof c !== "object") { c = {}; V.crime[t] = c; }
+					c.current = snap.current;
+					c.history = snap.history;
+					c.daily = snap.daily;
+					c.count = snap.count;
+					c.countHistory = snap.countHistory;
+				});
+				V.crime.events = b.events || {};
+				delete V.mbCE_wrote[key];
+				return { ok: true, message: "已还原犯罪记录（current / history / daily / count / countHistory 与事件日志）" };
+			}
+			if (b.kind === "antique") {
+				var ma = mbCEVanillaAntiqueState();
+				if (!ma) { return { ok: false, message: "博物馆结构已不在，无法回退" }; }
+				if (b.antiques && typeof b.antiques === "object") {
+					Object.keys(ma.antiques).forEach(function (k) {
+						ma.antiques[k] = (b.antiques[k] !== undefined) ? b.antiques[k] : "notFound";
+					});
+				}
+				if (ma.paintings && typeof ma.paintings === "object") {
+					Object.keys(ma.paintings).forEach(function (k) {
+						if (b.paintings && b.paintings[k] !== undefined) { ma.paintings[k] = b.paintings[k]; }
+					});
+				}
+				ma.museumCount = b.museumCount;
+				ma.stolenCount = b.stolenCount;
+				ma.recoveredCount = b.recoveredCount;
+				if (b.maxCount !== undefined) { ma.maxCount = b.maxCount; }
+				try { V.museumAntiqueJournalHints = b.hints || []; } catch (eH2) {}
+				try {
+					if (V.feats && V.feats.currentSave) {
+						if (b.hadFeat) {
+							if (V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM] === undefined) { V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM] = new Date(); }
+						} else {
+							delete V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM];
+						}
+					}
+				} catch (eF2) {}
+				delete V.mbCE_wrote[key];
+				return { ok: true, message: "已还原古董状态与成就标记" };
+			}
+			if (b.kind === "title") {
+				var remy = mbCEVanillaNpcObj(V, "Remy");
+				if (!remy) { return { ok: false, message: "Remy 已不在 $NPCName，无法回退" }; }
+				remy.title = b.remy;
+				var harper2 = mbCEVanillaNpcObj(V, "Harper");
+				if (harper2 && b.harper !== undefined) { harper2.title = b.harper; }
+				var avery2 = mbCEVanillaNpcObj(V, "Avery");
+				if (avery2 && b.avery !== undefined) { avery2.title = b.avery; }
+				delete V.mbCE_wrote[key];
+				return { ok: true, message: "已还原 Remy 头衔为「" + mbCEVanillaTitleZh(b.remy) + "」" };
+			}
+			return { ok: false, message: "未知的留痕类型：" + String(b.kind) };
+		} catch (eUndo) {
+			var eMsg = String(eUndo);
+			if (eUndo && typeof eUndo === "object" && "message" in eUndo) { eMsg = String(eUndo.message); }
+			return { ok: false, message: "回退异常：" + eMsg };
+		}
+	}
+
+	function mbCEVanillaHasTrace(id) {
+		try {
+			var V = getV();
+			return !!(V && V.mbCE_wrote && V.mbCE_wrote["vcore:" + id]);
+		} catch (e) { return false; }
+	}
+
+/* 职责：全局页 ⑧「原版档案 · 收藏 · 头衔」的统计快照与区块渲染（07l-vanilla-ext.js 的视图层）。
+   数据层（清犯罪 / 收古董 / 写头衔 / 回退）在同名主段；本段只读状态、不写存档。
+   拆段原因：结构门禁 S1（单段 400 行上限）。 */
+
+	/* 犯罪统计：各类 current / history / countHistory 合计 + 事件日志条数 */
+	function mbCEVanillaCrimeStats() {
+		var V = getV();
+		var out = { ok: false, types: 0, current: 0, history: 0, countHistory: 0, events: 0, has: false };
+		if (!V || !V.crime || typeof V.crime !== "object") { return out; }
+		out.has = true;
+		var types = mbCEVanillaCrimeTypes();
+		out.types = types.length;
+		types.forEach(function (t) {
+			var c = V.crime[t];
+			if (!c || typeof c !== "object") { return; }
+			out.current += Number(c.current) || 0;
+			out.history += Number(c.history) || 0;
+			out.countHistory += Number(c.countHistory) || 0;
+		});
+		try {
+			if (V.crime.events && typeof V.crime.events === "object") {
+				Object.keys(V.crime.events).forEach(function (k) {
+					var arr = V.crime.events[k];
+					out.events += Array.isArray(arr) ? arr.length : 0;
+				});
+			}
+		} catch (eEv) {}
+		out.ok = true;
+		return out;
+	}
+	function mbCEVanillaAntiqueStats() {
+		var V = getV();
+		var out = { ok: false, total: 0, found: 0, museum: 0, maxCount: 0, paintings: 0, paintingsFound: 0, feat: false, has: false };
+		var ma = mbCEVanillaAntiqueState();
+		if (!ma) { return out; }
+		out.has = true;
+		var keys = Object.keys(ma.antiques);
+		out.total = keys.length;
+		keys.forEach(function (k) { if (ma.antiques[k] === "found") { out.found++; } });
+		out.museum = Number(ma.museumCount) || 0;
+		out.maxCount = Number(ma.maxCount) || 0;
+		if (ma.paintings && typeof ma.paintings === "object") {
+			Object.keys(ma.paintings).forEach(function (k) {
+				out.paintings++;
+				if (ma.paintings[k] === "found") { out.paintingsFound++; }
+			});
+		}
+		try {
+			out.feat = !!(V && V.feats && V.feats.currentSave && V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM] !== undefined);
+		} catch (eF) {}
+		out.ok = true;
+		return out;
+	}
+	function mbCEVanillaTitleStats() {
+		var V = getV();
+		var out = { ok: false, exists: false, remy: "", remyZh: "", harper: "", avery: "", fate: "" };
+		if (!V) { return out; }
+		var remy = mbCEVanillaNpcObj(V, "Remy");
+		if (!remy) { return out; }
+		out.exists = true;
+		out.remy = String(remy.title === undefined ? "" : remy.title);
+		out.remyZh = mbCEVanillaTitleZh(out.remy);
+		var harper = mbCEVanillaNpcObj(V, "Harper");
+		var avery = mbCEVanillaNpcObj(V, "Avery");
+		out.harper = harper ? String(harper.title === undefined ? "" : harper.title) : "";
+		out.avery = avery ? String(avery.title === undefined ? "" : avery.title) : "";
+		out.fate = String(V.avery_fate === undefined ? "" : V.avery_fate);
+		out.ok = true;
+		return out;
+	}
+	/* 全局页 ⑧ 区块 */
+	function mbCERenderVanillaExt(pane) {
+		var sec = mceNewSec(pane, 8, "原版档案 · 收藏 · 头衔",
+			"朋友三项原版作弊的直写通道：① 犯罪记录连案底一起清；② 博物馆古董一次性收齐（只收集不上交，成就同步解锁）；③ 雷米头衔写「疤面」。全部写入留痕可在「统一回退中心」逐条还原。");
+		var V = getV();
+		if (!V) {
+			sec.appendChild(el("div", "mce-hint", "游戏尚未就绪，暂不可写。"));
+			return;
+		}
+
+		function makeBody(groupTitle, subTitle) {
+			var g = mceNewGroup(sec, groupTitle, subTitle);
+			var body = el("div", "mce-vcore-body");
+			g.appendChild(body);
+			return body;
+		}
+
+		function clearBody(body) {
+			while (body.firstChild) { body.removeChild(body.firstChild); }
+		}
+
+		function undoBtn(body, id, redraw) {
+			if (!mbCEVanillaHasTrace(id)) { return; }
+			var ub = el("button", "mce-btn mce-red", "回退");
+			ub.type = "button";
+			ub.title = "还原到首次写入前状态";
+			ub.addEventListener("click", function () {
+				var ru = mbCEVanillaExtUndo(id);
+				setStatus(ru.message, ru.ok ? "mce-ok" : "mce-err");
+				if (ru.ok) { redraw(); }
+			});
+			body.appendChild(ub);
+		}
+
+		/* ⑧-1 犯罪档案 */
+		var cBody = makeBody("犯罪档案", "原版 $crime：10 类 × current / count / daily / history / countHistory + 事件日志（$crime.events）");
+		var redrawCrime = function () {
+			clearBody(cBody);
+			var st = mbCEVanillaCrimeStats();
+			if (!st.has) {
+				cBody.appendChild(el("div", "mce-hint", "未找到 $crime（该存档没有犯罪记录结构）。"));
+				return;
+			}
+			cBody.appendChild(el("div", "mce-hint",
+				"当前：现存罪值合计 " + st.current + " · 案底合计 " + st.history + " · 案底次数合计 " + st.countHistory + " · 事件日志 " + st.events + " 条"));
+			var grid = mceBtnGrid(cBody);
+			var b = el("button", "mce-btn mce-gold", "一键清空全部犯罪记录（含案底）");
+			b.type = "button";
+			b.title = "current / count / daily / history / countHistory 全归零，事件日志清空";
+			b.addEventListener("click", function () {
+				var r = mbCEVanillaCrimeClear();
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				if (r.ok) { redrawCrime(); }
+			});
+			grid.appendChild(b);
+			cBody.appendChild(mceFoldHint("原版自己的清犯罪按钮只写 current / count / daily + clearEvents，history 与 countHistory 清不掉——那两项就是警方看到的「案底」。本项补齐后，犯罪界面与案底判定都归零。"));
+			undoBtn(cBody, "crime", redrawCrime);
+		};
+		redrawCrime();
+
+		/* ⑧-2 博物馆收藏 */
+		var aBody = makeBody("博物馆收藏", "原版 $museumAntiques：64 件古董 + 2 幅画作；写成「已发现未上交」不结算奖金");
+		var redrawAntique = function () {
+			clearBody(aBody);
+			var st = mbCEVanillaAntiqueStats();
+			if (!st.has) {
+				aBody.appendChild(el("div", "mce-hint", "未找到 $museumAntiques（该存档还没进入博物馆线）。"));
+				return;
+			}
+			aBody.appendChild(el("div", "mce-hint",
+				"当前：古董已发现 " + st.found + "/" + st.total + " · 已上交 " + st.museum + "/" + st.maxCount
+				+ " · 画作已发现 " + st.paintingsFound + "/" + st.paintings
+				+ " · 成就「It Belongs in a Museum」" + (st.feat ? "已解锁" : "未解锁")));
+			var grid2 = mceBtnGrid(aBody);
+			var b2 = el("button", "mce-btn mce-gold", "一键收齐古董（只收集，不上交）");
+			b2.type = "button";
+			b2.title = "全部写成 found 态；不动 museumCount、不结算奖金；同时直写「It Belongs in a Museum」成就";
+			b2.addEventListener("click", function () {
+				var r = mbCEVanillaAntiqueCollect();
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				if (r.ok) { redrawAntique(); }
+			});
+			grid2.appendChild(b2);
+			aBody.appendChild(mceFoldHint("写成 found = 已发现未上交：博物馆柜子仍空、不结算金币，之后你愿意上交时再逐件走「上交」流程即可。成就在作弊模式下会被原版 earnFeat 门控拦掉（V.cheatsEnabled === true 直接 return），所以这里直接写进成就表。"));
+			undoBtn(aBody, "antique", redrawAntique);
+		};
+		redrawAntique();
+
+		/* ⑧-3 NPC 头衔 */
+		var tBody = makeBody("NPC 头衔", "雷米 Remy · 疤面（scarred）；飞升线会连带补 Harper / Avery 防回滚");
+		var redrawTitle = function () {
+			clearBody(tBody);
+			var st = mbCEVanillaTitleStats();
+			if (!st.exists) {
+				tBody.appendChild(el("div", "mce-hint", "未找到 Remy（$NPCName 缺少该角色）。"));
+				return;
+			}
+			tBody.appendChild(el("div", "mce-hint",
+				"当前：雷米「" + st.remyZh + "」（" + (st.remy || "空") + "）"
+				+ (st.fate ? " · $avery_fate=" + st.fate : "")
+				+ (st.harper ? " · Harper「" + mbCEVanillaTitleZh(st.harper) + "」" : "")
+				+ (st.avery ? " · Avery「" + mbCEVanillaTitleZh(st.avery) + "」" : "")));
+			var grid3 = mceBtnGrid(tBody);
+			var b3 = el("button", "mce-btn mce-gold", "雷米头衔 → 疤面");
+			b3.type = "button";
+			b3.title = "写 C.npc.Remy.title = \"scarred\"；飞升线同时补 Harper=silver fox、Avery=crimson hound";
+			b3.addEventListener("click", function () {
+				var r = mbCEVanillaRemyScar();
+				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				if (r.ok) { redrawTitle(); }
+			});
+			grid3.appendChild(b3);
+			tBody.appendChild(mceFoldHint("原版飞升线给 Remy 写 high elk，疤面只在「非飞升」分支。而且那段结算是幂等守卫（Harper 不是银狐狸就重跑），所以只写 Remy 会在下次结算被改回去——本项按需连 Harper / Avery 一起补齐，让守卫条件不成立。"));
+			undoBtn(tBody, "title", redrawTitle);
+		};
+		redrawTitle();
+	}
 	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
 	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
 	var NPC_TRAITS = [
@@ -13093,6 +13811,10 @@ function renderNpcUndergroundSec(pane) {
 			wcsec.appendChild(row);
 		});
 
+		/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js）
+		   犯罪连案底一起清 / 古董只收集 + 成就 / 雷米疤面头衔 —— 三项各走独立 vcore 留痕，可在回退中心逐条还原 */
+		mbCERenderVanillaExt(pane);
+
 		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
 		mbCERenderLock(pane);
 		/* v2.0.0.002 潜伏者（07f-lurker.js）：捕捉上限等价解除 + 水烟馆冰箱（0–5）+ 农场蒸馏笼 */
@@ -13259,7 +13981,7 @@ function renderAttitudesGroup(pane) {
 }
 /* 职责：统一回退中心（v2.0.3 P4-1）——把散落各处的回退入口收敛为「全局」页一个区块。
    数据源唯一：存档内 V.mbCE_wrote 留痕。类型覆盖 cheat / world / maint / place / native / vanilla /
-   set / clear / append / state / batch / yanling / part / lock；回退业务逻辑复用既有实现（undoCheatModValue /
+   set / clear / append / state / batch / yanling / part / vcore / lock；回退业务逻辑复用既有实现（undoCheatModValue /
    mbCEWorldUndo / mbCEMaintUndo / placeStageUndo / undoRomanceStage / undoVanillaStage），本文件只做
    归一化分发与展示。不可逐条回退的类型（batch 审计 / yanling 页内撤销 / state 关系状态）显式禁用按钮并说明原因。 */
 
@@ -13276,6 +13998,7 @@ function renderAttitudesGroup(pane) {
 		batch: "批量操作（仅审计）",
 		yanling: "言灵改写（页内撤销）",
 		part: "外观隐藏（转化部件）",
+		vcore: "原版档案 · 收藏 · 头衔",
 		lock: "数值锁定写回"
 	};
 	function mbCEUndoLabel(type) {
@@ -13392,6 +14115,13 @@ function renderAttitudesGroup(pane) {
 				var vk = rec.key || key.replace(/^vanilla:/, "");
 				var r5 = /** @type {any} */ (undoVanillaStage(rec.npc || "Gwylan", vk));
 				return { ok: !!(r5 && r5.ok), msg: (r5 && (r5.message || r5.msg)) || "原版阶段回退失败" };
+			}
+			/* v2.0.9 需求②③④：原版档案 / 收藏 / 头衔三项整块写入（07l-vanilla-ext.js）
+			   id in {crime, antique, title}；before 为「首次写入前」整块快照，由 mbCEVanillaExtUndo 按 kind 还原 */
+			if (type === "vcore") {
+				var vid = String(rec.id || key.replace(/^vcore:/, ""));
+				var rv = /** @type {any} */ (mbCEVanillaExtUndo(vid));
+				return { ok: !!(rv && rv.ok), msg: (rv && (rv.message || rv.msg)) || "原版档案回退失败" };
 			}
 			/* 框架恋爱条件三类：留痕里已存 path / value，可直接还原（与 undoRomanceStage 同口径） */
 			if (type === "set") {
@@ -14159,6 +14889,22 @@ function renderAttitudesGroup(pane) {
 		}, ms || 60);
 		if (bucket === "search") { mceSearchTimer = t; } else { mceRenderTimer = t; }
 	}
+/* 职责：v2.0.9 原版档案 / 收藏 / 头衔（vcore 六键）导出。
+   09-exports2.js 的 mountApi() 会把主导出表挂到 setup.mbStageCE；此处在 mountApi 之后补齐 vcore 键
+   （拆段原因：结构门禁 S1 单段 400 行上限；语义化文件名，不用 X2/X3 挤排序）。 */
+	function mbCEExportVcore() {
+		try {
+			var s = getSetup();
+			if (!s || !s.mbStageCE) { return; }
+			var a = s.mbStageCE;
+			a.mbCEVanillaCrimeClear = mbCEVanillaCrimeClear;
+			a.mbCEVanillaAntiqueCollect = mbCEVanillaAntiqueCollect;
+			a.mbCEVanillaRemyScar = mbCEVanillaRemyScar;
+			a.mbCEVanillaExtState = mbCEVanillaExtState;
+			a.mbCEVanillaExtUndo = mbCEVanillaExtUndo;
+			a.mbCERenderVanillaExt = mbCERenderVanillaExt;
+		} catch (e) {}
+	}
 /* 职责：初始化与刷新钩子 —— hookRefresh（:passagedisplay）、init()、mountApi() 导出 */
 	function hookRefresh() {
 		var mb = resolveMB();
@@ -14167,7 +14913,7 @@ function renderAttitudesGroup(pane) {
 				mb.on(":passagedisplay", function () {
 					/* v2.0.0.006：言灵守卫按需起表——只有存档里开关真的开着才起 1s 定时器，
 					   翻页即补齐（读档时机晚于模块加载，靠这里保证「不打开面板也生效」） */
-					try { mbCEYanlingEnsureTimer(); } catch (eY) {}
+					try { mbCEResumeTimers(); } catch (eY) {}
 					/* v1.8.12 功能13：节流合并同一帧内的多次触发，避免面板打开时每 passage 全量重建。
 					   四巡：Mod作弊 页数据只由用户点击改变——passage 自动刷新跳过该页，长时间停在该页不再被每 passage 重建拖累（第三方特效层 DOM 扫描是卡顿/闪退主因之一） */
 					if (openFlag && root && document.body.contains(root)) {
@@ -14185,6 +14931,7 @@ function renderAttitudesGroup(pane) {
 		initialized = true;
 		if (typeof document === "undefined") { return; }
 		mountApi();
+	mbCEExportVcore();
 		hookPassageOverride();
 		hookPassageInit();
 		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
@@ -14192,7 +14939,7 @@ function renderAttitudesGroup(pane) {
 		ensureFarmState(); /* 启动兜底：存档 farm_stage 已推进但 $farm 缺失 → 补空壳，社交页不再崩 */
 		ensureAveryMansion(); /* 启动兜底：$avery_mansion / $avery_tower / daily.avery.talk 缺失或残缺 → 补空壳（Mansion 段落防崩） */
 		mbCEUiLoad(); /* v1.8.12 持久化：恢复上次页签/搜索词/折叠状态 */
-		try { mbCEYanlingEnsureTimer(); } catch (eY0) {} /* v2.0.0.006：已开启言灵开关的存档，注入后即生效 */
+		try { mbCEResumeTimers(); } catch (eY0) {} /* v2.0.0.006：已开启言灵开关的存档，注入后即生效 */
 		mbCEHookErrors(); /* v1.8.12 错误收集器：window error + console.error 进面板 */
 		if (document.body) {
 			ensureDom();
@@ -14483,7 +15230,7 @@ function renderAttitudesGroup(pane) {
 				mbCELockRemove: mbCELockRemove,
 				mbCELockHas: mbCELockHas,
 				mbCELockTick: mbCELockTick,
-				mbCELockRead: mbCELockRead,
+				mbCELockRead: mbCELockRead, mbCELockResume: mbCELockResume, mbCEResumeTimers: mbCEResumeTimers,
 				MB_CE_LOCK_PRESETS: MB_CE_LOCK_PRESETS,
 				/* v2.0.1 收敛：锁定文案中文名 + 直达前原版状态兜底（供测试与外部校验） */
 				mbCELockLabel: mbCELockLabel,
@@ -14494,7 +15241,7 @@ function renderAttitudesGroup(pane) {
 				mbCEPreviewConfirm: mbCEPreviewConfirm,
 				mbCEPreviewConfirmAll: mbCEPreviewConfirmAll,
 				mbCEPreviewCancel: mbCEPreviewCancel,
-				mbCEPreviewGate: mbCEPreviewGate,
+				mbCEPreviewGate: mbCEPreviewGate, mbCEAdapterAction: mbCEAdapterAction, hasV: hasV, CHEAT_ADAPTERS: CHEAT_ADAPTERS,
 				mbCEPaneRefresh: mbCEPaneRefresh,
 				/* v2.0.7 R1/R2/R3/R4：外观隐藏 + 小岛生存 + 地下妓院（07j / 07k） */
 				mbCEHideApply: mbCEHideApply,
