@@ -10,14 +10,20 @@ Write-Host "[1/5] 全链验证（run_all.ps1 12 步：build / syntax / eslint �
 & (Join-Path $PSScriptRoot "run_all.ps1")
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: run_all" -ForegroundColor Red; exit 1 }
 
-Write-Host "[2/5] 打包 staging（boot.json + javascript + twee + README）"
+Write-Host "[2/5] 打包 staging（boot.json + javascript + twee + 简版 README.pack.md→README.md）"
 $staging = "_pack_staging"
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
 New-Item -ItemType Directory -Path "$staging\javascript", "$staging\twee" -Force | Out-Null
 Copy-Item boot.json "$staging\boot.json" -Force
 Copy-Item javascript\maplebirchce.js "$staging\javascript\maplebirchce.js" -Force
 Copy-Item twee\maplebirchce-widget.twee "$staging\twee\maplebirchce-widget.twee" -Force
-Copy-Item README.md "$staging\README.md" -Force
+# 包体治理（2026-11-07）：完整 README.md 172 KB 打进 zip 让玩家多下 170 KB，改为打包简版说明。
+# 条目名仍是 README.md（boot.json 的 additionFile 契约不变），ModLoader 侧无需任何改动。
+$packReadme = Join-Path $root "README.pack.md"
+if (-not (Test-Path -LiteralPath $packReadme)) { Write-Host "FAIL: 缺少 README.pack.md（包内简版说明），拒绝回退到 172 KB 全量 README" -ForegroundColor Red; exit 1 }
+if ((Get-Item -LiteralPath $packReadme).Length -gt 30000) { Write-Host "FAIL: README.pack.md 超过 30 KB 上限（$((Get-Item -LiteralPath $packReadme).Length) B），请精简" -ForegroundColor Red; exit 1 }
+Copy-Item $packReadme "$staging\README.md" -Force
+Write-Host "  README（包内）: $((Get-Item -LiteralPath $packReadme).Length) B（仓库全量 README.md: $((Get-Item -LiteralPath (Join-Path $root 'README.md')).Length) B，不进 zip）"
 
 $zip = Join-Path $root "MapleBirchCE.mod.zip"
 # 用 ZipArchive 手动写条目（正斜杠分隔符）：

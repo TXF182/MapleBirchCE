@@ -35,14 +35,21 @@ function extractFunc(src, name) {
   return src.slice(i, m);
 }
 
-if (!fs.existsSync(DOL_HTML)) {
-  console.log("SKIP: 原版 DoL.html 不存在（" + DOL_HTML + "）——集成测试跳过，请确认原版游戏文件路径");
-  process.exit(0);
+/* 原版取证来源：真机 HTML 优先，缺失回退 tests/fixtures/dol-gender-funcs.js
+   （由 tools/gen_test_fixture.js 从原版抽出的三个函数原文，1 KB）。
+   fixture 已入库 → 两者都缺失属仓库损坏，直接 FAIL（不再 SKIP 放过）。 */
+const GENDER_FIXTURE = path.join(__dirname, "fixtures", "dol-gender-funcs.js");
+let dol = null, dolFrom = "";
+if (fs.existsSync(DOL_HTML)) { dol = fs.readFileSync(DOL_HTML, "utf8"); dolFrom = "原版 HTML"; }
+else if (fs.existsSync(GENDER_FIXTURE)) { dol = fs.readFileSync(GENDER_FIXTURE, "utf8"); dolFrom = "fixture"; }
+if (dol === null) {
+  console.error("FAIL: 原版 HTML（" + DOL_HTML + "）与 fixture（" + GENDER_FIXTURE + "）均缺失——性别集成无法取证");
+  process.exit(1);
 }
-const dol = fs.readFileSync(DOL_HTML, "utf8");
+console.log("INFO: 性别判定函数来源 = " + dolFrom);
 if (!fs.existsSync(MCE_JS)) {
-  console.log("SKIP: 构建产物 maplebirchce.js 不存在，请先 build");
-  process.exit(0);
+  console.error("FAIL: 构建产物 maplebirchce.js 不存在，请先 build");
+  process.exit(1);
 }
 
 const isGenitalMismatch = extractFunc(dol, "isGenitalMismatch");
@@ -50,7 +57,7 @@ const isCrossdressing = extractFunc(dol, "isCrossdressing");
 const isHermOrCrossdresser = extractFunc(dol, "isHermOrCrossdresser");
 const clothesTypeFn = extractFunc(dol, "clothesTypeOf"); // 原版无此函数，用分型片段拼装
 for (const [n, f] of [["isGenitalMismatch", isGenitalMismatch], ["isCrossdressing", isCrossdressing], ["isHermOrCrossdresser", isHermOrCrossdresser]]) {
-  if (!f) { console.log("SKIP: 原版函数抽取失败 " + n); process.exit(0); }
+  if (!f) { console.error("FAIL: 原版函数抽取失败 " + n + "（来源 " + dolFrom + "）"); process.exit(1); }
 }
 /* 服装分型：从原版片段拼装（gender 三态 → clothesType） */
 const clothesTypeSrc = "function clothesTypeOf() { let clothesType; if (V.player.gender === \"m\") { clothesType = \"male\"; } else if (V.player.gender === \"f\") { clothesType = \"female\"; } else { if (V.player.gender_body === \"m\" || (V.player.gender_body === \"a\" && V.player.breastsize <= 3)) { clothesType = \"male\"; } else { clothesType = \"female\"; } } if (V.background === \"crossdresser\") { clothesType = V.player.sex === \"m\" ? \"female\" : \"male\"; } return clothesType; }";
@@ -73,8 +80,8 @@ VM.createContext(sandbox);
 VM.runInContext(mceSrc + "\n//# sourceURL=" + MCE_JS.replace(/\\/g, "/"), sandbox);
 const api = sandbox.setup.mbStageCE;
 if (!api || !api.applyPlayerGender || !api.getPlayerGender) {
-  console.log("SKIP: 构建产物未暴露性别 API（applyPlayerGender/getPlayerGender）——先 build 或检查导出");
-  process.exit(0);
+  console.error("FAIL: 构建产物未暴露性别 API（applyPlayerGender/getPlayerGender）——先 build 或检查导出");
+  process.exit(1);
 }
 
 /* —— 原版函数沙箱（真实逻辑 + 可控依赖） —— */

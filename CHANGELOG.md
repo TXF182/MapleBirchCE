@@ -2,6 +2,39 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.6（2026-11-08 工程化整改：branches 门禁 70→80、CI SKIP 缺口归零、包体 −21.5%）
+
+**触发**：模组评价里提出的三条整改，用户原样作为指令落地。三件均属工程/发布层，玩家可见行为不变（仅 06b 修掉两个真实 bug）。
+
+### 一、覆盖率 branches 门槛 70 → 80（真值 80.01%）
+
+- 真值：Branches **80.01%（4,688/5,859）**、Statements 97.13%（13,181/13,570）、Functions 98.7%（535/542）、Lines 97.13%；`c8 --check-coverage --lines 90 --branches 80 --functions 95` 实跑 `gate=0`（日志 `%TEMP%\mce_cov_gate80.log`）。起点为 73.30%（3,764/5,135）。
+- 门槛三处同步改 80：`package.json` 第 32 行 `coverage:gate`、`tools\run_all.ps1` 第 66 行文案与第 68 行参数。
+- 方法：新增 `tools\_line_probe.js`，只列 **total===1 的单向未覆盖分支**（补上后 +1 覆盖数、分母不变），这是唯一能真实抬百分比的靶点；普通补断言会把新分支同时拉进分母，净收益 ≈0。
+- 新增/扩写测试：`tests\adapters_negative_state.js`（25 断言：toggleCheatAbility / cheatSceneAction / applyCheatModValue / cheatReadSafe 四类拒绝与写入路径）、`tests\undo_center_edges_state.js` 41→63 断言（六类分发、地点阶段边界、失败汇总、delete 抛错 catch 兜底、vanilla 缺 key 回落）。`tools\run_coverage.js` TESTS 共 29 个。
+
+### 二、CI 的 SKIP 缺口归零（fixture 抽局部素材）
+
+- 结论核实：`smoke_dom.js` 的 19.5–19.8 与 19.14b **不依赖 64 MB 原版 HTML**（场景数据自构造），原 `HAS_GAME_HTML` 门是过保守遗留守卫 → 改为无条件执行，SKIP 变 FAIL（不再白跳）。
+- 新增 `tools\gen_test_fixture.js`（+ `--check`），从原版抽 `tests\fixtures\scenes-widget.twee`（68,028 B）与 `tests\fixtures\dol-gender-funcs.js`（1,089 B）；`smoke_dom.js` / `integration_gender.js` 改"原版优先 / fixture 兜底"，性别集成五处 `SKIP+exit 0` 全改 `exit 1`。
+- 验证（模拟干净克隆，`MCE_DOL_HTML=Z:\no-such\…`）：`smoke_dom.js` SKIP 0 / FAIL 0 / exit 0；`integration_gender.js` 24 passed / 0 failed / exit 0。
+
+### 三、包体治理（339,760 → 266,868 B，−21.5%）
+
+- 新建 `README.pack.md`（4,770 B）作为进包玩家版；`tools\pack.ps1` staging 改读该文件，缺失或 >30,000 B 即 `exit 1`，并打印体积对照。zip 条目结构不变（4 条，条目名仍 `README.md`）。
+- **口径修正**：上一轮预告的 340 KB → ~170 KB 不成立。zip 是压缩的，172,288 B 的仓库 README 压缩后仅约 72.9 KB，换掉它只能省这部分；剩余主体是 `javascript/maplebirchce.js`（842,345 B 源码，压缩后约 26 万），不靠代码拆分/压缩到不了 170 KB。
+
+### 四、顺带修掉的两个真实产品 bug（`06b-traits-eval.js`）
+
+- **含 `includes` 的特质恒判"未获得"**：路径替换正则把 `$backgroundTraits.includes` 的 `.includes` 当路径尾段吃掉；函数调用替换又把 `.includes(` 改成 `globalThis["includes"](`。修法：路径正则加 `(?![\w(])`，函数调用正则改 `(^|[^.\w$])([A-Za-z_]\w*)\s*\(` 并回填前缀（只加 `(?!\()` 不够——`\w*` 贪婪回退会断成 `includ`+`e`）。
+- **`traitWriteUnsatisfy` 的 `isnot` 非布尔字符串值写 `num-1` 得 NaN**：加 `isNaN(num)` 分支写回该字符串本身。
+
+### 五、版本与产物
+
+- 版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 均 **2.0.6**。
+- 产物 `javascript/maplebirchce.js`：842,345 B / 67 段 / 段序 hash `92f1bc05a461` / SHA256 `b5eaa44ef0280c3207bc21586c4c52566bab05a48e6d90cd8c2bff6025a3e451`。
+- 包 `MapleBirchCE.mod.zip`：**266,868 B / SHA256 `A33F9C7D76CC55B1E7A230950E28CED7A950B51AFC86D313072059DFA6DDFB73`**（本轮未发布；`game\` 内仍为 v2.0.5 旧包）。
+
 ## v2.0.5（2026-11-07 src strict 类型真债务清零：169 → 0，纯类型层，运行时行为不变）
 
 **触发**：用户指令「清 169 条 src strict 真债务」。判定过两条路：调基线 / 在 `tsconfig.src.json` 关 `useUnknownInCatchVariables` 都是一次性糊过去，与「不许调基线」冲突；最终只改类型层（JSDoc 注解 + 一处等价的显式比较），产物逻辑零变化。
