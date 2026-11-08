@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.9";
+	var MCE_VERSION = "2.0.11";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -6754,16 +6754,57 @@ function renderPlayerEdit() {
 		});
 		return h;
 	}
-	/* 带编号区块：返回区块容器，后续照旧 sec.appendChild(...) */
+	/* v2.0.10 折叠分组：区块标题行即开关，整块默认收起，点击展开；展开态按「序号|标题」存
+	   localStorage（不写存档）。返回 body 容器 —— 调用方 `var sec = mceNewSec(...)` 后继续
+	   appendChild，内容自动落进 body，29 处调用点零改动。玩家要求：全局页太长，按序号收在一起。 */
+	var MCE_SEC_FOLD_KEY = "mbCE_seccollapse";
+	var mceSecFoldMap = null;
+	function mceSecFold(key, open) {
+		try {
+			if (!mceSecFoldMap) {
+				var raw = window.localStorage ? window.localStorage.getItem(MCE_SEC_FOLD_KEY) : null;
+				mceSecFoldMap = raw ? (JSON.parse(raw) || {}) : {};
+			}
+		} catch (e) { mceSecFoldMap = {}; }
+		if (open === undefined) { return mceSecFoldMap[key] === 1; } /* 缺省 = 收起 */
+		mceSecFoldMap[key] = open ? 1 : 0;
+		try { if (window.localStorage) { window.localStorage.setItem(MCE_SEC_FOLD_KEY, JSON.stringify(mceSecFoldMap)); } } catch (e) {}
+		return open;
+	}
+	/* 带编号区块（可折叠）：返回区块的 body 容器，后续照旧 sec.appendChild(...) */
 	function mceNewSec(parent, idx, title, hint) {
-		var sec = el("div", "mce-block");
-		var head = el("div", "mce-sec-title");
+		var sec = el("div", "mce-block mce-blockfold"), n = Number(idx);
+		var key = (isFinite(n) ? String(n) : "0") + "|" + String(title || "");
+		var open = mceSecFold(key);
+		sec.setAttribute("data-open", open ? "1" : "0");
+		sec.setAttribute("data-secidx", isFinite(n) ? String(n) : "0");
+		var head = el("div", "mce-sec-title mce-sec-head");
+		head.setAttribute("role", "button");
+		head.setAttribute("tabindex", "0");
+		head.title = open ? "点击收起本组" : "点击展开本组";
 		head.appendChild(el("span", "mce-sec-n", mceSecMark(idx)));
-		head.appendChild(el("span", "", title));
+		head.appendChild(el("span", "mce-sec-t", title));
+		var arrow = el("span", "mce-sec-arrow", open ? "▾" : "▸");
+		head.appendChild(arrow);
+		var body = el("div", "mce-sec-body");
 		sec.appendChild(head);
-		if (hint) { sec.appendChild(mceFoldHint(hint)); }
+		sec.appendChild(body);
+		if (hint) { body.appendChild(mceFoldHint(hint)); }		function toggle() {
+			var nowOpen = sec.getAttribute("data-open") !== "1";
+			sec.setAttribute("data-open", nowOpen ? "1" : "0");
+			arrow.textContent = nowOpen ? "▾" : "▸";
+			head.title = nowOpen ? "点击收起本组" : "点击展开本组";
+			mceSecFold(key, nowOpen);
+		}
+		head.addEventListener("click", toggle);
+		head.addEventListener("keydown", function (ev) {
+			if (ev.key === "Enter" || ev.key === " " || ev.keyCode === 13 || ev.keyCode === 32) {
+				ev.preventDefault();
+				toggle();
+			}
+		});
 		if (parent) { parent.appendChild(sec); }
-		return sec;
+		return body;
 	}
 	/* 二级分组：返回组内 body 容器（组名 + 右侧副标） */
 	function mceNewGroup(parent, title, sub) {
@@ -6913,6 +6954,14 @@ function renderPlayerEdit() {
 		/* 折叠说明盒：收起时只留摘要行，展开后补出全部条目 */
 		".mce-foldbox[data-open=\"0\"] .mce-hint:not(.mce-fold){display:none}" +
 		".mce-foldbox[data-open=\"1\"] .mce-hint:not(.mce-fold){display:block;animation:mce-fade-in .2s ease-out}" +
+		/* v2.0.10 区块折叠：标题行可点、箭头右对齐；收起时 body 不占位（整组收成一行） */
+		".mce-sec-head{cursor:pointer;user-select:none;border-radius:var(--mce-radius-sm)}" +
+		".mce-sec-head:hover{background:var(--mce-bg-hover)}" +
+		".mce-sec-head:focus-visible{outline:1px solid var(--mce-accent)}" +
+		".mce-sec-arrow{margin-left:auto;color:var(--mce-accent);font-size:var(--mce-fs-sm);line-height:1;padding-left:6px}" +
+		".mce-sec-body{padding-top:2px}" +
+		".mce-blockfold[data-open=\"0\"] .mce-sec-body{display:none}" +
+		".mce-blockfold[data-open=\"1\"] .mce-sec-body{animation:mce-fade-in .2s ease-out}" +
 		/* 内层标签 */
 		".mce-inner{display:flex;gap:var(--mce-space-sm);margin:var(--mce-space) 0;border-bottom:1px solid var(--mce-border-quiet);padding-bottom:6px}" +
 		".mce-inner button{background:var(--mce-bg-ctl);color:var(--mce-txt-faint);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-sm);padding:3px 10px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
@@ -7702,6 +7751,50 @@ function renderPlayerEdit() {
 		} catch (e) {}
 		return false;
 	}
+	/* ============ v2.0.10 直达到达校验（好友实测：湖畔直达落到 Bedroom 报
+	   「The passage Bedroom has no usable links」，玩家卡在无链接页只能读档）============
+	   机理：场景直达 = 直接 Engine.play(目标段落)，绕过正常入口对运行期状态的初始化；
+	   目标段落若在 render 早期抛异常（或缺前置对象），它自身的收尾部分（含全部 <<link>>）
+	   会被吞掉 → 页面成立但无任何可点链接 → SugarCube 报 no usable links。
+	   判据只认「#passages 里一个可点链接都没有」——不猜错误面板（各版本 id 不一致），
+	   且只在直达后 250ms 检查一次，正常游玩链路完全不受影响。
+	   失败动作：退回直达前的段落（V.passage）+ 状态栏说明，玩家不会卡死。 */
+	function mbCECurrentPassage() {
+	/* 当前段落唯一真值来源：SugarCube 的 State.passage。$passage 是原版 widget 里
+	   <<set $passage to ... passage()>> 写的存档变量，语义上也是段落名，但它在段落正文渲染
+	   后才更新，直接拿它判「是否还停在目标段落」会滞后一帧；故 State 优先、$passage 兜底。 */
+	try {
+		var sc0 = (typeof window !== "undefined" && window) ? window.SugarCube : null;
+		if (sc0 && sc0.State && typeof sc0.State.passage === "string" && sc0.State.passage) { return sc0.State.passage; }
+	} catch (e) {}
+	try { if (typeof State !== "undefined" && State && typeof State.passage === "string" && State.passage) { return State.passage; } } catch (e) {}
+	try { if (typeof window !== "undefined" && window && window.State && typeof window.State.passage === "string" && window.State.passage) { return window.State.passage; } } catch (e) {}
+	try { var Vcur = getV(); if (Vcur && typeof Vcur.passage === "string") { return Vcur.passage; } } catch (e) {}
+	return "";
+}
+function mbCEHasUsableLinks() {
+		try {
+			var box = document.getElementById("passages");
+			if (!box) { return true; }
+			var n = box.querySelectorAll("a[data-passage], .link-internal, .link-broken, .mce-btn[data-passage]").length;
+			return n > 0;
+		} catch (e) { return true; }
+	}
+	function mbCEArrivalCheck(before, target) {
+		try {
+			window.setTimeout(function () {
+				try {
+					if (before === target) { return; }
+					if (mbCEHasUsableLinks()) { return; }
+					/* 只在确实停在目标段落时回退（玩家可能这 250ms 内自己点了别处） */
+					var curP = mbCECurrentPassage(); if (curP && curP !== target) { return; }
+					var ep = getEnginePlayFn();
+					if (ep && before) { ep.play.call(ep.e, before, true); }
+					setStatus("「" + target + "」直达失败：该段落没有可点链接（渲染期异常或前置状态缺失），已退回原处「" + before + "」。这个场景请从正常入口进入。", "mce-err");
+				} catch (e) {}
+			}, 250);
+		} catch (e) {}
+	}
 	function getEnginePlayFn() {
 		try { if (typeof window !== "undefined" && window && window.Engine && typeof window.Engine.play === "function") { return { e: window.Engine, play: window.Engine.play }; } } catch (e) {}
 		try { if (typeof Engine !== "undefined" && Engine && typeof Engine.play === "function") { return { e: Engine, play: Engine.play }; } } catch (e) {}
@@ -7741,6 +7834,31 @@ function ensureSceneStateFor(name) {
 			ensureFarmState(!(fs >= 1)); /* 农场线未推进也补壳（只补不覆盖）：直达后子段落会读 $farm.* */
 			return;
 		}
+		/* v2.0.10：湖畔 / 卧室的状态兜底（只补缺失、绝不覆盖进度） */
+		if (nm === "Bedroom" || nm === "Bedroom Wardrobe" || nm === "Bedroom Chest") {
+			if (typeof V2.location !== "string" || !V2.location) { V2.location = "home"; }
+			if (V2.outside === undefined) { V2.outside = 0; }
+			if (typeof V2.furniture !== "object" || V2.furniture === null) { V2.furniture = {}; }
+			if (typeof V2.furniture.bedroom !== "object" || V2.furniture.bedroom === null) { V2.furniture.bedroom = {}; }
+			/* 原版 StoryInit 的 V.furniture 结构是 bedroom:{bed,wardrobe,desk} 三件默认家具。
+			   只补空壳会让 Furniture.get('bed') 返回 null（area 存在但 area[category] 是 undefined），
+			   Bedroom 段 <<furnitureicon _bed.iconFile>> 直接空引用抛 TypeError → 整段正文不渲染，
+			   PassageFooter 的 _link 因没有任何 <<link>> 执行成功而为假 → 报 "has no usable links"。 */
+			var _br = V2.furniture.bedroom;
+			if (!_br.bed) { _br.bed = { id: "bed" }; }
+			if (!_br.wardrobe) { _br.wardrobe = { id: "wardrobe" }; }
+			if (!_br.desk) { _br.desk = { id: "desk" }; }
+			return;
+		}
+		/* 原版湖畔线读 $phase（0 湖岸 / 1 草丛 / 2 深水）；直达时若从未走过湖畔，
+		   $phase 缺失会让分支判定落在 undefined 上，段落收尾的选项整段不渲染。 */
+		if (nm === "Lake Stroll" || nm.indexOf("Lake ") === 0) {
+			if (typeof V2.location !== "string" || !V2.location) { V2.location = "lake"; }
+			if (V2.outside === undefined) { V2.outside = 1; }
+			var ph = Number(V2.phase);
+			if (!isFinite(ph) || ph < 0 || ph > 2) { V2.phase = 1; }
+			return;
+		}
 		/* v2.0.7 R3：小岛直达前补齐 $island 壳（含三处营地对象）。
 		   原版 Widgets Island 会初始化，但直达 hub 之前的部分段落已读 $island[$island.home].trap，
 		   新档直接 play("Island") 有 undefined 下标风险；这里「缺失才建、不覆盖进度」。 */
@@ -7748,6 +7866,29 @@ function ensureSceneStateFor(name) {
 			if (typeof mbCEIslandV === "function") { mbCEIslandV(); }
 		}
 	} catch (e) {}
+}
+function mbCEPassageMacroWarn(name) {
+	/* 直达前读目标段落「运行时文本」（含所有 MOD 改写与汉化插入）做宏配对预检。
+	   已定量确证的典型场景：汉化 i18n 的 pos 按原版段落算，模组把段落改长后 pos 落进
+	   <<tarkov_xxx_link>> 一类宏内部，译文（自带多个宏）被塞进宏中间 → if/elseif/else 被撕碎。
+	   这里只提示、不阻止进入：即使宏坏了，玩家也可能想先进去看看。 */
+	try {
+		var st = (typeof Story !== "undefined" && Story) ? Story : ((typeof window !== "undefined" && window) ? window.Story : null);
+		if (!st) { return ""; }
+		var pg = null;
+		try { pg = (typeof st.get === "function") ? st.get(name) : ((typeof st.passage === "function") ? st.passage(name) : null); } catch (e0) { pg = null; }
+		if (!pg || typeof pg.text !== "string") { return ""; }
+		var mText = String(pg.text).replace(/\/%[\s\S]*?%\//g, ""); /* 去 SugarCube 注释，避免注释里的示例宏假阳性 */
+		var mPairs = [["if", /<<if\b/g, /<<\/if>>/g], ["switch", /<<switch\b/g, /<<\/switch>>/g], ["link", /<<link\b/g, /<<\/link>>/g],
+			["widget", /<<widget\b/g, /<<\/widget>>/g], ["for", /<<for\b/g, /<<\/for>>/g], ["capture", /<<capture\b/g, /<<\/capture>>/g]];
+		var bad = [];
+		for (var mi = 0; mi < mPairs.length; mi++) {
+			var mo = (mText.match(mPairs[mi][1]) || []).length, mc = (mText.match(mPairs[mi][2]) || []).length;
+			if (mo !== mc) { bad.push(mPairs[mi][0] + " " + mo + "/" + mc); }
+		}
+		if (!bad.length) { return ""; }
+		return "注意：「" + name + "」宏结构不配对（" + bad.join("、") + "），进入后可能出现红字报错（常见于模组补丁把段落改长、汉化锚点随之错位）。本页「段落体检」可列出全部异常段落。";
+	} catch (e) { return ""; }
 }
 function teleportTo(name) {
 		try {
@@ -7777,10 +7918,15 @@ function teleportTo(name) {
 					Vp.replayScene = { name: "场景直达", startPassage: "Scene Viewer passages", passages: [], exitpassage: (typeof Vp.passage === "string" ? Vp.passage : "") };
 				}
 			}
+			var beforeP = "";
+			try { beforeP = mbCECurrentPassage(); } catch (e0) {}
 			ep.play.call(ep.e, name, true);
 			setStatus("已传送至「" + name + "」", "mce-ok");
+			mbCEArrivalCheck(beforeP, name); /* v2.0.10：无可用链接 → 自动退回原处，不把玩家卡死 */
 			var gidT = placeIdForPassage(name, name);
 			if (gidT) { applyWorldUnlock(gidT); setStatus("已传送至「" + name + "」并已解锁世界入口", "mce-ok"); }
+			/* v2.0.10-e：宏结构预检（只提示，不阻止；刻意放在成功文案之后，避免被覆盖） */
+			try { var mbW = mbCEPassageMacroWarn(name); if (mbW) { setStatus(mbW, "mce-err"); } } catch (e1) {}
 		} catch (e) { setStatus("传送失败：" + mbCEErr(e), "mce-err"); }
 	}
 	function listPlaceGroups() {
@@ -8082,6 +8228,112 @@ function teleportTo(name) {
 			pane.appendChild(block);
 		});
 		pane.appendChild(el("div", "mce-hint", "共枚举 " + total + " 个可直达段落（已按组精简，仅显示主场景；副场景段落计入统计不逐条列出）。点击「直达」立即跳转，不打断存档。"));
+		/* v2.0.10：原版调试报告开关 —— 好友实测「雷米农场野兽战 ERROR: Unexpected $$NPCList[0].pronoun」
+		   取证（本体 0.5.12.13 三个 widget 段落逐字核对）：
+		     Widgets State Man @rel1196、Widgets Combat Man-Combat @rel160511、Widgets Text @rel51459。
+		   原文形态是 `<<elseif $options.debugdisable is "f">> <span class="red">ERROR: Unexpected $$NPCList[0].pronoun: [$NPCList[0].pronoun]</span>`，
+		   即「只在玩家把调试报告打开（debugdisable=f）时显示」的开发向诊断行，紧跟着就是原版自己的兜底
+		   `<<if $enemytype is "beast" and $monster is 0>> <<set $pronoun to "i">> <</if>>` ——
+		   野兽战（beast）本来没有 $NPCList[0]，原版先查再兜底，所以红字必然出现一次，但**不影响结算**。
+		   这里给一个开关把它关掉（写 $options.debugdisable="t"），想排查原版逻辑时可再打开。 */
+		var dbgSec = mceNewSec(pane, 1, "原版调试报告（$options.debugdisable）",
+			"关掉后战斗/状态块不再打印原版开发向诊断（如野兽战的「ERROR: Unexpected $$NPCList[0].pronoun」）。这是设置项，不进留痕；游戏内「设置 → 调试报告」也能手动改回。");
+		var dbgRow = el("div", "mce-row");
+		var dbgNow = (V && V.options && V.options.debugdisable !== undefined) ? String(V.options.debugdisable) : "（未设置）";
+		dbgRow.appendChild(el("span", "mce-row-lbl", "当前值：" + dbgNow + "（t = 关闭诊断，f = 显示诊断）"));
+		var dbgWrite = function (val, label) {
+			var Vd = getV();
+			if (!Vd) { setStatus("尚未进入游戏，无法写入设置", "mce-err"); return; }
+			if (typeof Vd.options !== "object" || Vd.options === null) { Vd.options = {}; }
+			Vd.options.debugdisable = val;
+			setStatus("原版调试报告已" + label + "（$options.debugdisable=" + val + "）", "mce-ok");
+			renderPlaces();
+		};
+		var bDbgOff = el("button", "mce-btn mce-gold", "关闭调试报告");
+		bDbgOff.type = "button";
+		bDbgOff.addEventListener("click", function () { dbgWrite("t", "关闭"); });
+		var bDbgOn = el("button", "mce-btn", "打开（排查用）");
+		bDbgOn.type = "button";
+		bDbgOn.addEventListener("click", function () { dbgWrite("f", "打开"); });
+		dbgRow.appendChild(bDbgOff);
+		dbgRow.appendChild(bDbgOn);
+		dbgSec.appendChild(dbgRow);
+		/* v2.0.10 段落体检：好友报的「(:: Mer Street): cannot find a closing tag for macro <<if>>」三连报，
+		   离线复原（把全部包 boot.json 的 passage 规则 + replaceFile 正文逐条套到原版段落）后 Mer Street
+		   与 Bedroom 的宏计数完全平衡（Mer Street if 15/15、Bedroom 53/53、link 37/37），
+		   说明改写不在 TweeReplacer 层，而在脚本层（启动前直接改 tw-passagedata 的 textContent）。
+		   磁盘上的包文本查不出这种改写，只有运行时 Story 文本才是真值 —— 所以把体检做进面板：
+		   遍历全部段落（含所有 MOD 改写后的运行时文本），列宏不配对的段落名，供一键复制回传。 */
+	function mbCEPassageLint(text) {
+		try {
+			var s = String(text || "").replace(/\/%[\s\S]*?%\//g, ""); /* 去 SugarCube 注释，避免注释里的示例宏造成假阳性 */
+			var defs = [
+				{ k: "if", o: /<<if\b/g, c: /<<\/if>>/g },
+				{ k: "switch", o: /<<switch\b/g, c: /<<\/switch>>/g },
+				{ k: "link", o: /<<link\b/g, c: /<<\/link>>/g },
+				{ k: "widget", o: /<<widget\b/g, c: /<<\/widget>>/g },
+				{ k: "for", o: /<<for\b/g, c: /<<\/for>>/g },
+				{ k: "capture", o: /<<capture\b/g, c: /<<\/capture>>/g }
+			];
+			var bad = [];
+			for (var i = 0; i < defs.length; i++) {
+				var o = (s.match(defs[i].o) || []).length;
+				var c = (s.match(defs[i].c) || []).length;
+				if (o !== c) { bad.push(defs[i].k + " " + o + "/" + c); }
+			}
+			return bad;
+		} catch (e) { return []; }
+	}
+		var lintSec = mceNewSec(pane, 2, "段落体检（宏结构）",
+			"只读扫描：遍历全部段落（含所有 MOD 改写后的运行时文本），统计 if / switch / link / widget / for / capture 的开闭配对，列出不配对的段落。用于定位「cannot find a closing tag for macro <<if>>」「child tag <<elseif>> outside parent」「no usable links」这类只在运行时才出现的段落损坏。不改任何文本、不动存档。");
+		var lintRow = el("div", "mce-row");
+		var bLint = el("button", "mce-btn mce-gold", "开始体检");
+		bLint.type = "button";
+		var lintCopy = el("button", "mce-btn", "复制结果");
+		lintCopy.type = "button";
+		var lintDesc = el("div", "mce-stage-txt", "点「开始体检」后在此列出结果。");
+		var lintBody = el("div", "");
+		var lintCache = "";
+		bLint.addEventListener("click", function () {
+			try {
+				var ps = listAllPassages();
+				var bad = [];
+				for (var i = 0; i < ps.length; i++) {
+					var r = mbCEPassageLint(ps[i].text);
+					if (r.length) { bad.push({ name: ps[i].name, msg: r.join("；"), len: (ps[i].text || "").length }); }
+				}
+				lintBody.textContent = "";
+				lintDesc.textContent = "共扫描 " + ps.length + " 段，宏不配对 " + bad.length + " 段" + (bad.length ? "（其余段落配对正常）" : "（未发现异常）") + "。";
+				lintCache = "段落体检 " + new Date().toLocaleString() + "\n共 " + ps.length + " 段，异常 " + bad.length + " 段\n";
+				var maxShow = 60;
+				for (var j = 0; j < bad.length; j++) {
+					var line = bad[j].name + " :: " + bad[j].msg + " :: len=" + bad[j].len;
+					lintCache = lintCache + line + "\n";
+					if (j < maxShow) {
+						var row = el("div", "mce-row");
+						row.appendChild(el("span", "mce-row-lbl", line));
+						lintBody.appendChild(row);
+					}
+				}
+				if (bad.length > maxShow) {
+					lintBody.appendChild(el("div", "mce-hint", "（仅显示前 " + maxShow + " 条，完整结果请点「复制结果」）"));
+				}
+				setStatus("段落体检完成：异常 " + bad.length + " 段", bad.length ? "mce-err" : "mce-ok");
+			} catch (e) { setStatus("体检失败：" + mbCEErr(e), "mce-err"); }
+		});
+		lintCopy.addEventListener("click", function () {
+			try {
+				if (!lintCache) { setStatus("请先点「开始体检」", "mce-err"); return; }
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(lintCache).then(function () { setStatus("结果已复制到剪贴板", "mce-ok"); }, function () { setStatus("复制失败，请手动选中文本", "mce-err"); });
+				} else { setStatus("当前环境不支持剪贴板，请手动选中文本", "mce-err"); }
+			} catch (e) { setStatus("复制失败：" + mbCEErr(e), "mce-err"); }
+		});
+		lintRow.appendChild(bLint);
+		lintRow.appendChild(lintCopy);
+		lintSec.appendChild(lintRow);
+		lintSec.appendChild(lintDesc);
+		lintSec.appendChild(lintBody);
 		/* v2.0.3 回退语义补齐：世界入口解锁留痕可见 + 逐项撤回（记录 key = world:<gid>:<path>） */
 		var wRows = [];
 		if (V && V.mbCE_wrote && typeof V.mbCE_wrote === "object") {
@@ -13182,7 +13434,7 @@ function renderNpcUndergroundSec(pane) {
 	}
 	/* 全局页 ⑧ 区块 */
 	function mbCERenderVanillaExt(pane) {
-		var sec = mceNewSec(pane, 8, "原版档案 · 收藏 · 头衔",
+		var sec = mceNewSec(pane, 10, "原版档案 · 收藏 · 头衔",
 			"朋友三项原版作弊的直写通道：① 犯罪记录连案底一起清；② 博物馆古董一次性收齐（只收集不上交，成就同步解锁）；③ 雷米头衔写「疤面」。全部写入留痕可在「统一回退中心」逐条还原。");
 		var V = getV();
 		if (!V) {
@@ -15059,7 +15311,7 @@ function renderAttitudesGroup(pane) {
 				applyRolePlotAction: applyRolePlotAction,
 				listPlaceGroups: listPlaceGroups,
 				placeNameCN: placeNameCN,
-				teleportTo: teleportTo,
+				teleportTo: teleportTo, mbCECurrentPassage: mbCECurrentPassage, mbCEPassageMacroWarn: mbCEPassageMacroWarn,
 				listAllPassages: listAllPassages,
 				getPinnedScene: getPinnedScene,
 				pinQueueIndex: pinQueueIndex,

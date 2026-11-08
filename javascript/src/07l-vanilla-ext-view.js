@@ -70,7 +70,7 @@
 	}
 	/* 全局页 ⑧ 区块 */
 	function mbCERenderVanillaExt(pane) {
-		var sec = mceNewSec(pane, 8, "原版档案 · 收藏 · 头衔",
+		var sec = mceNewSec(pane, 10, "原版档案 · 收藏 · 头衔",
 			"朋友三项原版作弊的直写通道：① 犯罪记录连案底一起清；② 博物馆古董一次性收齐（只收集不上交，成就同步解锁）；③ 雷米头衔写「疤面」。全部写入留痕可在「统一回退中心」逐条还原。");
 		var V = getV();
 		if (!V) {

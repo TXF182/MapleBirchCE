@@ -199,6 +199,112 @@
 			pane.appendChild(block);
 		});
 		pane.appendChild(el("div", "mce-hint", "共枚举 " + total + " 个可直达段落（已按组精简，仅显示主场景；副场景段落计入统计不逐条列出）。点击「直达」立即跳转，不打断存档。"));
+		/* v2.0.10：原版调试报告开关 —— 好友实测「雷米农场野兽战 ERROR: Unexpected $$NPCList[0].pronoun」
+		   取证（本体 0.5.12.13 三个 widget 段落逐字核对）：
+		     Widgets State Man @rel1196、Widgets Combat Man-Combat @rel160511、Widgets Text @rel51459。
+		   原文形态是 `<<elseif $options.debugdisable is "f">> <span class="red">ERROR: Unexpected $$NPCList[0].pronoun: [$NPCList[0].pronoun]</span>`，
+		   即「只在玩家把调试报告打开（debugdisable=f）时显示」的开发向诊断行，紧跟着就是原版自己的兜底
+		   `<<if $enemytype is "beast" and $monster is 0>> <<set $pronoun to "i">> <</if>>` ——
+		   野兽战（beast）本来没有 $NPCList[0]，原版先查再兜底，所以红字必然出现一次，但**不影响结算**。
+		   这里给一个开关把它关掉（写 $options.debugdisable="t"），想排查原版逻辑时可再打开。 */
+		var dbgSec = mceNewSec(pane, 1, "原版调试报告（$options.debugdisable）",
+			"关掉后战斗/状态块不再打印原版开发向诊断（如野兽战的「ERROR: Unexpected $$NPCList[0].pronoun」）。这是设置项，不进留痕；游戏内「设置 → 调试报告」也能手动改回。");
+		var dbgRow = el("div", "mce-row");
+		var dbgNow = (V && V.options && V.options.debugdisable !== undefined) ? String(V.options.debugdisable) : "（未设置）";
+		dbgRow.appendChild(el("span", "mce-row-lbl", "当前值：" + dbgNow + "（t = 关闭诊断，f = 显示诊断）"));
+		var dbgWrite = function (val, label) {
+			var Vd = getV();
+			if (!Vd) { setStatus("尚未进入游戏，无法写入设置", "mce-err"); return; }
+			if (typeof Vd.options !== "object" || Vd.options === null) { Vd.options = {}; }
+			Vd.options.debugdisable = val;
+			setStatus("原版调试报告已" + label + "（$options.debugdisable=" + val + "）", "mce-ok");
+			renderPlaces();
+		};
+		var bDbgOff = el("button", "mce-btn mce-gold", "关闭调试报告");
+		bDbgOff.type = "button";
+		bDbgOff.addEventListener("click", function () { dbgWrite("t", "关闭"); });
+		var bDbgOn = el("button", "mce-btn", "打开（排查用）");
+		bDbgOn.type = "button";
+		bDbgOn.addEventListener("click", function () { dbgWrite("f", "打开"); });
+		dbgRow.appendChild(bDbgOff);
+		dbgRow.appendChild(bDbgOn);
+		dbgSec.appendChild(dbgRow);
+		/* v2.0.10 段落体检：好友报的「(:: Mer Street): cannot find a closing tag for macro <<if>>」三连报，
+		   离线复原（把全部包 boot.json 的 passage 规则 + replaceFile 正文逐条套到原版段落）后 Mer Street
+		   与 Bedroom 的宏计数完全平衡（Mer Street if 15/15、Bedroom 53/53、link 37/37），
+		   说明改写不在 TweeReplacer 层，而在脚本层（启动前直接改 tw-passagedata 的 textContent）。
+		   磁盘上的包文本查不出这种改写，只有运行时 Story 文本才是真值 —— 所以把体检做进面板：
+		   遍历全部段落（含所有 MOD 改写后的运行时文本），列宏不配对的段落名，供一键复制回传。 */
+	function mbCEPassageLint(text) {
+		try {
+			var s = String(text || "").replace(/\/%[\s\S]*?%\//g, ""); /* 去 SugarCube 注释，避免注释里的示例宏造成假阳性 */
+			var defs = [
+				{ k: "if", o: /<<if\b/g, c: /<<\/if>>/g },
+				{ k: "switch", o: /<<switch\b/g, c: /<<\/switch>>/g },
+				{ k: "link", o: /<<link\b/g, c: /<<\/link>>/g },
+				{ k: "widget", o: /<<widget\b/g, c: /<<\/widget>>/g },
+				{ k: "for", o: /<<for\b/g, c: /<<\/for>>/g },
+				{ k: "capture", o: /<<capture\b/g, c: /<<\/capture>>/g }
+			];
+			var bad = [];
+			for (var i = 0; i < defs.length; i++) {
+				var o = (s.match(defs[i].o) || []).length;
+				var c = (s.match(defs[i].c) || []).length;
+				if (o !== c) { bad.push(defs[i].k + " " + o + "/" + c); }
+			}
+			return bad;
+		} catch (e) { return []; }
+	}
+		var lintSec = mceNewSec(pane, 2, "段落体检（宏结构）",
+			"只读扫描：遍历全部段落（含所有 MOD 改写后的运行时文本），统计 if / switch / link / widget / for / capture 的开闭配对，列出不配对的段落。用于定位「cannot find a closing tag for macro <<if>>」「child tag <<elseif>> outside parent」「no usable links」这类只在运行时才出现的段落损坏。不改任何文本、不动存档。");
+		var lintRow = el("div", "mce-row");
+		var bLint = el("button", "mce-btn mce-gold", "开始体检");
+		bLint.type = "button";
+		var lintCopy = el("button", "mce-btn", "复制结果");
+		lintCopy.type = "button";
+		var lintDesc = el("div", "mce-stage-txt", "点「开始体检」后在此列出结果。");
+		var lintBody = el("div", "");
+		var lintCache = "";
+		bLint.addEventListener("click", function () {
+			try {
+				var ps = listAllPassages();
+				var bad = [];
+				for (var i = 0; i < ps.length; i++) {
+					var r = mbCEPassageLint(ps[i].text);
+					if (r.length) { bad.push({ name: ps[i].name, msg: r.join("；"), len: (ps[i].text || "").length }); }
+				}
+				lintBody.textContent = "";
+				lintDesc.textContent = "共扫描 " + ps.length + " 段，宏不配对 " + bad.length + " 段" + (bad.length ? "（其余段落配对正常）" : "（未发现异常）") + "。";
+				lintCache = "段落体检 " + new Date().toLocaleString() + "\n共 " + ps.length + " 段，异常 " + bad.length + " 段\n";
+				var maxShow = 60;
+				for (var j = 0; j < bad.length; j++) {
+					var line = bad[j].name + " :: " + bad[j].msg + " :: len=" + bad[j].len;
+					lintCache = lintCache + line + "\n";
+					if (j < maxShow) {
+						var row = el("div", "mce-row");
+						row.appendChild(el("span", "mce-row-lbl", line));
+						lintBody.appendChild(row);
+					}
+				}
+				if (bad.length > maxShow) {
+					lintBody.appendChild(el("div", "mce-hint", "（仅显示前 " + maxShow + " 条，完整结果请点「复制结果」）"));
+				}
+				setStatus("段落体检完成：异常 " + bad.length + " 段", bad.length ? "mce-err" : "mce-ok");
+			} catch (e) { setStatus("体检失败：" + mbCEErr(e), "mce-err"); }
+		});
+		lintCopy.addEventListener("click", function () {
+			try {
+				if (!lintCache) { setStatus("请先点「开始体检」", "mce-err"); return; }
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(lintCache).then(function () { setStatus("结果已复制到剪贴板", "mce-ok"); }, function () { setStatus("复制失败，请手动选中文本", "mce-err"); });
+				} else { setStatus("当前环境不支持剪贴板，请手动选中文本", "mce-err"); }
+			} catch (e) { setStatus("复制失败：" + mbCEErr(e), "mce-err"); }
+		});
+		lintRow.appendChild(bLint);
+		lintRow.appendChild(lintCopy);
+		lintSec.appendChild(lintRow);
+		lintSec.appendChild(lintDesc);
+		lintSec.appendChild(lintBody);
 		/* v2.0.3 回退语义补齐：世界入口解锁留痕可见 + 逐项撤回（记录 key = world:<gid>:<path>） */
 		var wRows = [];
 		if (V && V.mbCE_wrote && typeof V.mbCE_wrote === "object") {
