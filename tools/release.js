@@ -2,8 +2,9 @@
 /* ============================================================================
  * release.js — MapleBirchCE 一键发布（参数化，替代 release_v*.js 逐版复制模板）
  * 用法：
- *   node tools/release.js [--version 1.9.17] [--dry]
+ *   node tools/release.js [--version 1.9.17] [--dry] [--body <file>]
  *   --version 缺省时自动读 javascript/src/01-core.js 的 MCE_VERSION
+ *   --body 缺省时自动取 CHANGELOG 该版本章节；给文件则用该文件全文（精简正文用这个）
  *   --dry 只打印将执行的步骤与 body 预览，不调用任何 GitHub API
  * 流程：git credential fill 取 token（仅内存）→ 读 zip 的 SHA256/size →
  *       POST /releases（新 tag v<version>；中文 body 需 charset=utf-8）→
@@ -38,8 +39,17 @@ if (!fs.existsSync(ZIP)) { console.error("FAIL: 打包产物缺失 " + ZIP + "�
 const LOCAL_SIZE = fs.statSync(ZIP).size;
 const LOCAL_SHA = crypto.createHash("sha256").update(fs.readFileSync(ZIP)).digest("hex").toUpperCase();
 
-/* ---------- Release body 自动取 CHANGELOG 对应版本章节 ---------- */
+/* ---------- Release body：默认取 CHANGELOG 章节，可用 --body <file> 覆盖为精简版 ---------- */
+const BI = args.indexOf("--body");
+const BODY_FILE = BI >= 0 ? args[BI + 1] : null;
+
 function extractBody(version) {
+  if (BODY_FILE) {
+    if (!fs.existsSync(BODY_FILE)) { console.error("FAIL: --body 文件不存在 " + BODY_FILE); process.exit(2); }
+    const custom = fs.readFileSync(BODY_FILE, "utf8").trim();
+    if (!custom) { console.error("FAIL: --body 文件为空 " + BODY_FILE); process.exit(2); }
+    return custom;
+  }
   const md = fs.readFileSync(path.join(ROOT, "CHANGELOG.md"), "utf8");
     const re = new RegExp("## v" + version.replace(/\./g, "\\.") + "[^\\n]*\\n([\\s\\S]*?)(?=\\n## v|$)");
   const m = re.exec(md);
