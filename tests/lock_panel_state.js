@@ -148,6 +148,50 @@ const addPath2 = gpane().querySelector('input.mce-path');
 addPath2.value = "demo.extra";
 addPath2.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 assert(api.mbCELockHas("demo.extra"), "自由添加输入框回车也能提交");
+
+/* ================= 6. v2.0.7 P4：自定义锁定组（来源徽标 / 折叠记忆 / 自由添加拒绝路径） ================= */
+section("6 自定义锁定组与拒绝路径");
+function btns(scope, re) { return Array.prototype.slice.call(scope.querySelectorAll("button")).filter(function (b) { return re.test(b.textContent); }); }
+api.mbCELockSet("purity", 900); /* 非预设项 → 进自定义折叠组 */
+tab("mods"); tab("global");
+const badges = Array.prototype.slice.call(gpane().querySelectorAll(".mce-src")).map(function (b) { return b.textContent; });
+assert(badges.length > 0, "自定义锁定项逐行标出「谁锁的」（" + badges.join("/") + "）");
+assert(badges.some(function (s) { return s === "角色页" || s === "Mod作弊" || s === "手动"; }), "来源徽标取值在「角色页 / Mod作弊 / 手动」三档内");
+
+const head = gpane().querySelector(".mce-collapse-head");
+assert(!!head, "自定义锁定组标题建出（默认收起）");
+assert(head.parentNode.querySelector(".mce-grp-body").getAttribute("data-collapsed") === "1", "默认收起（data-collapsed=1）");
+head.click();
+assert(head.parentNode.querySelector(".mce-grp-body").getAttribute("data-collapsed") === "0", "点标题 → 展开");
+api.mbCELockSet("purity", 950); /* 成功锁定触发重渲染，验证折叠状态被记住 */
+tab("mods"); tab("global");
+const head2 = gpane().querySelector(".mce-collapse-head");
+assert(head2 && head2.parentNode.querySelector(".mce-grp-body").getAttribute("data-collapsed") === "0",
+  "重渲染后仍保持展开（折叠状态落 localStorage，不每次回弹）");
+
+/* 自由添加：空字符串 / 非法路径两条拒绝路径（都必须有可见提示） */
+const gp3 = gpane();
+const addPath3 = gp3.querySelector("input.mce-path");
+addPath3.value = "";
+btns(gp3, /^添加$/)[0].click();
+assert(/请填写要固定的 varPath/.test(document.body.textContent), "空字符串点「添加」→ 明确提示");
+tab("mods"); tab("global");
+const gp4 = gpane();
+const addPath4 = gp4.querySelector("input.mce-path");
+addPath4.value = "a..b";
+btns(gp4, /^添加$/)[0].click();
+assert(/空段/.test(document.body.textContent), "非法路径（a..b）→ 面板回显拒绝原因（不是静默失败）");
+
+/* 取消按钮二次点击（锁已解）→ 失败分支也要给提示，不能静默 */
+tab("mods"); tab("global");
+const rowP2 = gpane().querySelector('[data-lockpath="purity"]');
+const cancel2 = btns(rowP2, /^取消$/)[0];
+assert(!!cancel2, "purity 已锁定行有「取消」按钮");
+cancel2.click();
+assert(!api.mbCELockHas("purity"), "点「取消」→ 解除锁定");
+cancel2.click();
+assert(/未锁定|无锁定记录/.test(document.body.textContent), "同一按钮再点一次 → 明确提示锁已不在（不静默）");
+
 /* 清理：移除全部锁定，避免定时器在进程里空转 */
 api.mbCELockRemove("demo.flag");
 api.mbCELockRemove("demo.extra");

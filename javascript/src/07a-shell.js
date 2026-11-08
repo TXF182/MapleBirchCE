@@ -316,7 +316,24 @@
 		".mce-anchor-prompt.mce-theme-starry button{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border-color:var(--mce-border-ctl)}" +
 		".mce-anchor-prompt.mce-theme-starry button:hover{background:var(--mce-bg-hover)}" +
 		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark)}" +
-		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}";
+		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}" +
+		/* v2.0.7 P5：窄屏（≤520px，手机竖屏 / 桌面分屏）控件拥挤——面板转全屏、行内 label 独占一行、
+		   按钮网格单列、预览条说明换行，避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位 */
+		"@media (max-width:520px){" +
+		"#mce-root{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}" +
+		".mce-body{padding:8px}" +
+		".mce-tabs button{padding:8px 5px}" +
+		".mce-row{gap:var(--mce-space-sm)}" +
+		".mce-row-lbl,.mce-row-name{flex:1 1 100%;min-width:0}" +
+		".mce-inp{width:84px}" +
+		".mce-search-inp{width:100%}" +
+		".mce-inp.mce-path{width:100%}" +
+		".mce-btn-grid{grid-template-columns:1fr}" +
+		".mce-cards{grid-template-columns:1fr}" +
+		".mce-preview-bar{gap:6px}" +
+		".mce-preview-lbl{flex:1 1 100%;white-space:normal;overflow:visible}" +
+		".mce-anchor-prompt{padding:6px 8px;font-size:13px}" +
+		"}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }

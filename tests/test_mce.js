@@ -5672,5 +5672,186 @@ try {
   console.error("FAIL: 60 v2.0.7 分支覆盖测试异常: " + (e60 && e60.message ? e60.message : e60));
 }
 
+// ===== 61 v2.0.7 收尾三项（P3 潜伏者锁优先 · P4 锁定写回留痕可回退）=====
+try {
+  const api61 = setup.mbStageCE;
+  const V61 = global.V;
+  const bk61 = {
+    lock: V61.mbCE_lock, wrote: V61.mbCE_wrote, held: V61.lurkers_held, hookah: V61.hookah,
+    stored: V61.lurkers_stored, auto: V61.mbCE_lurkerAuto, moved: V61.mbCE_lurkerMoved, probe: V61.mceProbe61
+  };
+
+  // 61.1~61.4 锁定写回落留痕（同 path 复用一条，before 恒为首次覆盖前的真实值）
+  V61.mbCE_wrote = {};
+  V61.mbCE_lock = [{ path: "mceProbe61", target: 1000 }];
+  V61.mceProbe61 = 50;
+  api61.mbCELockTick();
+  const rec611 = V61.mbCE_wrote["lock:mceProbe61"];
+  assert(V61.mceProbe61 === 1000 && !!rec611 && rec611.type === "lock" && rec611.before === 50 && rec611.after === 1000,
+    "61.1 锁定写回：值固定到目标，并落 lock:<path> 留痕（before 记锁定前真实值）");
+  V61.mceProbe61 = 30; /* 模拟游戏机制把值改回去 */
+  api61.mbCELockTick();
+  assert(V61.mceProbe61 === 1000 && V61.mbCE_wrote["lock:mceProbe61"].before === 50 &&
+    Object.keys(V61.mbCE_wrote).length === 1,
+    "61.2 反复写回复用同一条留痕（before 不被二次覆盖、条数不增长）");
+  api61.mbCELockTick();
+  assert(V61.mbCE_wrote["lock:mceProbe61"].after === 1000 && V61.mbCE_wrote["lock:mceProbe61"].t > 0,
+    "61.3 值已等于目标时不再重复写，留痕保留 after/t 供回退");
+  V61.mbCE_lock = [{ path: "mceProbe61b", target: 7 }];
+  api61.mbCELockTick();
+  assert(V61.mceProbe61b === undefined && !V61.mbCE_wrote["lock:mceProbe61b"],
+    "61.4 目标键不存在时跳过：不凭空造字段、不留痕");
+
+  // 61.5~61.7 回退 lock 留痕（先解锁定再还原，标签同步）
+  assert(api61.undoLabel("lock") === "数值锁定写回", "61.5 lock 类型已登记回退中心中文标签");
+  V61.mbCE_lock = [{ path: "mceProbe61", target: 1000 }];
+  V61.mceProbe61 = 99;
+  api61.mbCELockTick();
+  const undo611 = api61.undoOne("lock:mceProbe61");
+  assert(undo611.ok === true && V61.mceProbe61 === 50 && api61.mbCELockHas("mceProbe61") === false &&
+    !V61.mbCE_wrote["lock:mceProbe61"],
+    "61.6 回退 lock 留痕：先解除锁定再还原锁定前值，留痕删除（" + undo611.msg + "）");
+  const undo612 = api61.undoOne("lock:mceProbe61");
+  assert(undo612.ok === false && undo612.msg.indexOf("已不存在") !== -1,
+    "61.7 重复回退同一条 lock 留痕：明确提示留痕已不存在（不抛错）");
+
+  // 61.8~61.13 潜伏者自动搬运：锁定优先，不抢写
+  V61.mbCE_wrote = {};
+  V61.mbCE_lock = [];
+  V61.lurkers_held = 5; V61.hookah = { lurkers: 2 }; V61.lurkers_stored = 1;
+  V61.mbCE_lurkerAuto = true; V61.mbCE_lurkerMoved = 0;
+  const mv618 = api61.mbCELurkerAutoTick();
+  assert(mv618 === 5 && V61.hookah.lurkers === 7 && V61.lurkers_stored === 1 && V61.lurkers_held === 0,
+    "61.8 无锁定时正常搬运：held 5 → 冰箱 2+5=7，笼不动");
+  V61.lurkers_held = 4; V61.hookah = { lurkers: 3 }; V61.lurkers_stored = 0;
+  V61.mbCE_lock = [{ path: "hookah.lurkers", target: 3 }];
+  const mv619 = api61.mbCELurkerAutoTick();
+  assert(mv619 === 4 && V61.hookah.lurkers === 3 && V61.lurkers_stored === 4 && V61.lurkers_held === 0,
+    "61.9 冰箱被锁定：跳过冰箱这站、直接搬进蒸馏笼（不抢写锁定值）");
+  V61.lurkers_held = 6; V61.hookah = { lurkers: 3 }; V61.lurkers_stored = 2;
+  V61.mbCE_lock = [{ path: "hookah.lurkers", target: 3 }, { path: "lurkers_stored", target: 2 }];
+  const mv6110 = api61.mbCELurkerAutoTick();
+  assert(mv6110 === 0 && V61.lurkers_held === 6 && V61.hookah.lurkers === 3 && V61.lurkers_stored === 2,
+    "61.10 冰箱与笼都被锁定：原地保留 held（不丢不重）");
+  V61.mbCE_lock = [{ path: "lurkers_held", target: 6 }];
+  const mv6111 = api61.mbCELurkerAutoTick();
+  assert(mv6111 === 0 && V61.lurkers_held === 6, "61.11 手持被锁定：整轮不搬运（锁定优先）");
+  const st61 = api61.mbCELurkerState();
+  assert(st61.lockHeld === true && st61.lockFridge === false && st61.lockStored === false,
+    "61.12 状态回读带锁定标志（面板据此提示哪一站被锁）");
+  V61.mbCE_lurkerAuto = false; V61.lurkers_held = 3; V61.mbCE_lock = [];
+  assert(api61.mbCELurkerAutoTick() === 0, "61.13 自动搬运关闭时直接返回 0（不写档）");
+
+  // 收尾：还原全部被触碰的存档键（不留定时器——本节从未调用 EnsureTimer）
+  if (bk61.lock === undefined) { delete V61.mbCE_lock; } else { V61.mbCE_lock = bk61.lock; }
+  if (bk61.wrote === undefined) { delete V61.mbCE_wrote; } else { V61.mbCE_wrote = bk61.wrote; }
+  if (bk61.held === undefined) { delete V61.lurkers_held; } else { V61.lurkers_held = bk61.held; }
+  if (bk61.hookah === undefined) { delete V61.hookah; } else { V61.hookah = bk61.hookah; }
+  if (bk61.stored === undefined) { delete V61.lurkers_stored; } else { V61.lurkers_stored = bk61.stored; }
+  if (bk61.auto === undefined) { delete V61.mbCE_lurkerAuto; } else { V61.mbCE_lurkerAuto = bk61.auto; }
+  if (bk61.moved === undefined) { delete V61.mbCE_lurkerMoved; } else { V61.mbCE_lurkerMoved = bk61.moved; }
+  if (bk61.probe === undefined) { delete V61.mceProbe61; } else { V61.mceProbe61 = bk61.probe; }
+  delete V61.mceProbe61b;
+} catch (e61) {
+  failures++;
+  console.error("FAIL: 61 P3/P4 收尾项测试异常: " + (e61 && e61.message ? e61.message : e61));
+}
+
+// ===== 62 v2.0.7 收尾项防御分支（P4 留痕建表/脏项/trim · P3 异常形态 · 回退锁定的边界形态）=====
+try {
+  const api62 = setup.mbStageCE;
+  const V62 = global.V;
+  const bk62 = {
+    lock: V62.mbCE_lock, wrote: V62.mbCE_wrote, probe: V62.mceProbe62, held: V62.lurkers_held,
+    hookah: V62.hookah, stored: V62.lurkers_stored, auto: V62.mbCE_lurkerAuto, moved: V62.mbCE_lurkerMoved
+  };
+
+  // 62.1 留痕表缺失时 tick 自行建表（读档后首次锁定写回不报错）
+  delete V62.mbCE_wrote;
+  V62.mbCE_lock = [{ path: "mceProbe62", target: 9 }];
+  V62.mceProbe62 = 3;
+  api62.mbCELockTick();
+  assert(V62.mceProbe62 === 9 && !!V62.mbCE_wrote && !!V62.mbCE_wrote["lock:mceProbe62"],
+    "62.1 留痕表缺失时 tick 自行建表并落痕（读档首次写回不报错）");
+
+  // 62.2 锁定表脏项（null / 缺 path / 空 path）全部跳过，只处理合法项
+  V62.mbCE_lock = [null, {}, { path: "" }, { path: "mceProbe62", target: 11 }];
+  V62.mceProbe62 = 3;
+  api62.mbCELockTick();
+  assert(V62.mceProbe62 === 11, "62.2 锁定表含 null/缺 path 脏项时跳过，只处理合法项（不抛错）");
+
+  // 62.3 写回后走同一套 400 条 trim（锁定留痕不能被自身高频写回挤出窗口）
+  V62.mbCE_wrote = {};
+  for (let i623 = 0; i623 < 401; i623++) { V62.mbCE_wrote["zz62:" + i623] = { type: "cheat", path: "x", before: 0, t: i623 }; }
+  V62.mbCE_lock = [{ path: "mceProbe62", target: 13 }];
+  V62.mceProbe62 = 3;
+  api62.mbCELockTick();
+  const n623 = Object.keys(V62.mbCE_wrote).length;
+  assert(V62.mceProbe62 === 13 && n623 <= 201 && !!V62.mbCE_wrote["lock:mceProbe62"],
+    "62.3 写回后走同一套 trim（超 400 条删最旧一半、锁定留痕保留），实际 " + n623 + " 条");
+
+  // 62.5~62.7 潜伏者异常形态（冰箱非对象 / held 非数字 / held 缺失）
+  V62.mbCE_lock = [];
+  V62.mbCE_lurkerAuto = true; V62.mbCE_lurkerMoved = 0;
+  V62.lurkers_held = 4; V62.hookah = null; V62.lurkers_stored = 1;
+  const mv625 = api62.mbCELurkerAutoTick();
+  assert(mv625 === 4 && V62.lurkers_stored === 5 && V62.lurkers_held === 0,
+    "62.5 冰箱字段不是对象时跳过冰箱这站，直接进蒸馏笼");
+  V62.lurkers_held = "5"; V62.hookah = { lurkers: 1 }; V62.lurkers_stored = 0;
+  const mv626 = api62.mbCELurkerAutoTick();
+  assert(mv626 === 0 && V62.hookah.lurkers === 1 && V62.lurkers_stored === 0,
+    "62.6 held 非数字时按 0 处理（不搬运、不写档）");
+  delete V62.lurkers_held; V62.hookah = { lurkers: 2 };
+  const st627 = api62.mbCELurkerState();
+  assert(st627.ok === true && st627.held === null && st627.fridge === 2,
+    "62.7 状态回读：held 缺失回落 null（渲染显示「—」而不是 NaN）");
+
+  // 62.8~62.11 回退锁定留痕的边界形态 + 展示名回落
+  V62.mbCE_wrote = {};
+  V62.mbCE_lock = [];
+  V62.mceProbe62 = 13;
+  V62.mbCE_wrote["lock:mceProbe62"] = { type: "lock", path: "mceProbe62", before: 5, after: 13, t: 1 };
+  const u628 = api62.undoOne("lock:mceProbe62");
+  assert(u628.ok === true && V62.mceProbe62 === 5 && u628.msg.indexOf("锁定已不在") !== -1,
+    "62.8 锁定表里已没有该 path 时只还原原值并提示（" + u628.msg + "）");
+  V62.mbCE_wrote["lock:mceProbe62"] = { type: "lock", path: "mceProbe62", after: 13, t: 1 };
+  V62.mceProbe62 = 13;
+  const u629 = api62.undoOne("lock:mceProbe62");
+  assert(u629.ok === true && !V62.mbCE_wrote["lock:mceProbe62"] && u629.msg.indexOf(" = ") === -1,
+    "62.9 留痕缺 before 时只清留痕、不写值（" + u629.msg + "）");
+  const nm6210 = api62.undoItemName("lock:mceProbe62", { type: "lock", path: "mceProbe62" });
+  assert(typeof nm6210 === "string" && nm6210.length > 0 && nm6210.indexOf("lock:") !== 0,
+    "62.10 lock 留痕展示名不吃原始键前缀（得到「" + nm6210 + "」）");
+  const lb6211 = api62.mbCELockLabel("zz.unknown.62");
+  assert(typeof lb6211 === "string", "62.11 未知锁定路径取标签不抛错（三级回落返回字符串）");
+
+  // 62.12~62.13 潜伏者数值形态兜底（冰箱计数非数字 / 笼与累计计数缺失）
+  V62.mbCE_lock = []; V62.mbCE_lurkerAuto = true;
+  V62.lurkers_held = 4; V62.hookah = { lurkers: "2" }; V62.lurkers_stored = 0;
+  const mv6212 = api62.mbCELurkerAutoTick();
+  assert(mv6212 === 4 && V62.hookah.lurkers === 4,
+    "62.12 冰箱计数非数字时按 0 处理（held 全进冰箱，不写 NaN）");
+  delete V62.lurkers_stored; delete V62.mbCE_lurkerMoved;
+  V62.lurkers_held = 3; V62.hookah = { lurkers: 1 };
+  api62.mbCELockSet("hookah.lurkers", 1); /* 锁冰箱 → 跳过冰箱这站，held 只能进笼 */
+  const mv6213 = api62.mbCELurkerAutoTick();
+  api62.mbCELockRemove("hookah.lurkers");
+  assert(mv6213 === 3 && V62.lurkers_stored === 3 && V62.mbCE_lurkerMoved === 3,
+    "62.13 蒸馏笼/累计计数缺失时按 0 起算（冰箱被锁 → 全进笼，不写 NaN）");
+
+  // 收尾
+  if (bk62.lock === undefined) { delete V62.mbCE_lock; } else { V62.mbCE_lock = bk62.lock; }
+  if (bk62.wrote === undefined) { delete V62.mbCE_wrote; } else { V62.mbCE_wrote = bk62.wrote; }
+  if (bk62.probe === undefined) { delete V62.mceProbe62; } else { V62.mceProbe62 = bk62.probe; }
+  if (bk62.held === undefined) { delete V62.lurkers_held; } else { V62.lurkers_held = bk62.held; }
+  if (bk62.hookah === undefined) { delete V62.hookah; } else { V62.hookah = bk62.hookah; }
+  if (bk62.stored === undefined) { delete V62.lurkers_stored; } else { V62.lurkers_stored = bk62.stored; }
+  if (bk62.auto === undefined) { delete V62.mbCE_lurkerAuto; } else { V62.mbCE_lurkerAuto = bk62.auto; }
+  if (bk62.moved === undefined) { delete V62.mbCE_lurkerMoved; } else { V62.mbCE_lurkerMoved = bk62.moved; }
+} catch (e62) {
+  failures++;
+  console.error("FAIL: 62 P3/P4 防御分支测试异常: " + (e62 && e62.message ? e62.message : e62));
+}
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);

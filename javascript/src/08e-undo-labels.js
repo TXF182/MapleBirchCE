@@ -146,6 +146,15 @@
 			else if (ns === "maint") { name = mbCEUndoZh(MB_CE_UNDO_MAINT, rest); }
 			else if (ns === "yanling") { name = mbCEUndoZh(MB_CE_UNDO_YANLING, rest); }
 			else if (ns === "world") { name = mbCEUndoWorldName(rest, rec); }
+			/* P4（v2.0.7）：lock:<path> 用锁定页同一套中文名（快速面板标签 → zhKey → 原 path 三级回落） */
+			else if (ns === "lock") {
+				name = "";
+				try { if (typeof mbCELockLabel === "function") { name = mbCELockLabel(rest); } } catch (eL) { name = ""; }
+				if (!name || name === rest) {
+					try { if (typeof zhKey === "function" && zhKey(rest) !== rest) { name = zhKey(rest); } } catch (eL2) { name = ""; }
+				}
+				if (!name) { name = rest; }
+			}
 			else if (ns === "romance" || ns === "vanilla" || ns === "native") {
 				var tail = rest.replace(/^native:/, "");
 				try { if (typeof displayName === "function") { name = displayName(tail); } } catch (e) { name = ""; }

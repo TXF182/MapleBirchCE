@@ -9,8 +9,9 @@
  *  - 亡灵转化 maplebirch.transformation.undead.level：诅咒每游戏小时 Psyche -2 + 压力
  *    （Undead.ts regTimeEvent onSec deadwood-undead-curse），来源为金币洞穴诅咒
  * 机制：锁定向存 V.mbCE_lock（[{path,target}]，存档内持久，读档自动恢复）；
- *      常驻 1s 定时器遍历写回（直写不留痕，复用 setPathVal；无锁定向空转直接返回）。
- *      UI 挂「全局」页 renderGlobal 末尾（mbCERenderLock）。
+ *      常驻 1s 定时器遍历写回（v2.0.7 P4：写回前先落 `lock:<path>` 留痕，回退中心可「取消锁定+还原原值」；
+ *      同 path 复用一条，before 恒为首次覆盖前的真实值，不影响 400 条留痕窗口）；
+ *      无锁定向空转直接返回。UI 挂「全局」页 renderGlobal 末尾（mbCERenderLock）。
  * ============================================================ */
 
 /* 预设推荐项：真实键名全部来自 CE 适配器声明/模组对照源码（dw257）与 DoL 原版转化键 */
@@ -114,19 +115,49 @@ function mbCELockRead(V, path) {
 	return cur;
 }
 
-/* 强制写回：当前值 ≠ 锁定目标 → 直写（不留痕，复用 setPathVal）。
+/* P4（v2.0.7）：锁定写回留痕——同 path 只留一条 `lock:<path>`，before 恒为「第一次被锁定覆盖前的真实值」，
+   之后每 1 秒只更新 after/t，不会把 400 条留痕窗口冲掉。回退中心据此可以「取消锁定 + 还原锁定前值」，
+   否则玩家在回退中心看不到任何锁定写入（旧实现是直写 setPathVal、完全不留痕）。 */
+function mbCELockTrace(Vp, path, before, after) {
+	try {
+		if (!Vp || !path) { return; }
+		if (!Vp.mbCE_wrote || typeof Vp.mbCE_wrote !== "object") { Vp.mbCE_wrote = {}; }
+		var key = "lock:" + path;
+		var prev = Vp.mbCE_wrote[key];
+		if (prev && prev.type === "lock" && typeof prev === "object") {
+			/* 原地更新：t 保留首次落痕时间（不然每秒刷新会把这条顶到回退中心最前、挤掉真的一次性写入），
+			   last 记最近一次写回，before 只在缺失时补 */
+			if (prev.before === undefined) { prev.before = before; }
+			prev.after = after;
+			prev.last = Date.now();
+			return;
+		}
+		Vp.mbCE_wrote[key] = { type: "lock", path: path, before: before, after: after, t: Date.now(), last: Date.now() };
+	} catch (e) {}
+}
+
+/* 强制写回：当前值 ≠ 锁定目标 → 先记留痕（mbCELockTrace）再写回。
    安全边界：当前值不存在（undefined）时跳过——只固定「已存在」的值，
    绝不因锁定而 setPathVal 凭空创建字段（防把未触发的转化/未开的键造出来）。 */
 function mbCELockTick() {
 	var Vp = getV();
 	var list = Vp && Vp.mbCE_lock;
 	if (!Vp || !Array.isArray(list) || !list.length) { return; }
+	var wrote = 0;
 	for (var i = 0; i < list.length; i++) {
 		var it = list[i];
 		if (!it || !it.path) { continue; }
 		var cur = mbCELockRead(Vp, it.path);
 		if (cur === undefined) { continue; }
-		if (Number(cur) !== Number(it.target)) { setPathVal(Vp, it.path, Number(it.target)); }
+		if (Number(cur) !== Number(it.target)) {
+			mbCELockTrace(Vp, it.path, cur, Number(it.target));
+			setPathVal(Vp, it.path, Number(it.target));
+			wrote++;
+		}
+	}
+	/* 锁定条数多时（每个 path 一条留痕）仍要守住 400 条窗口，走同一套 trim */
+	if (wrote && typeof mbCEWroteTrim === "function") {
+		try { mbCEWroteTrim(Vp); } catch (eTrim) {}
 	}
 }
 

@@ -2282,6 +2282,25 @@ setTimeout(function () {
     failures++;
     console.error("FAIL: 20 v2.0.7 新页面渲染异常: " + (e20 && e20.message ? e20.message : e20));
   }
+  /* §21 v2.0.7 P5：窄屏（≤520px）控件拥挤适配——面板转全屏、行内 label 独占一行、按钮网格单列、确认条说明换行 */
+  try {
+    const at21 = mceCss.indexOf("@media (max-width:520px)");
+    assert(at21 !== -1, "21.1 CSS 含 ≤520px 媒体查询（窄屏分支已注入）");
+    const seg21 = at21 === -1 ? "" : mceCss.slice(at21);
+    assert(seg21.indexOf(".mce-row-lbl,.mce-row-name{flex:1 1 100%;min-width:0}") !== -1,
+      "21.2 窄屏下行标签独占一行（min-width:120px 不再把控件挤到换行）");
+    assert(seg21.indexOf(".mce-btn-grid{grid-template-columns:1fr}") !== -1,
+      "21.3 窄屏按钮网格改单列（两列挤压消失）");
+    assert(seg21.indexOf("width:100vw") !== -1 && seg21.indexOf("border-radius:0") !== -1,
+      "21.4 窄屏面板转全屏（100vw + 去圆角，96vw 边缘留白消失）");
+    assert(seg21.indexOf(".mce-inp{width:84px}") !== -1 && seg21.indexOf(".mce-inp.mce-path{width:100%}") !== -1,
+      "21.5 窄屏输入框收窄 / 路径框占满，与按钮同排不溢出");
+    assert(seg21.indexOf(".mce-preview-lbl{flex:1 1 100%") !== -1,
+      "21.6 窄屏确认条说明换行显示（不再 ellipsis 截断关键键名）");
+  } catch (e21) {
+    failures++;
+    console.error("FAIL: 21 P5 窄屏适配断言异常: " + (e21 && e21.message ? e21.message : e21));
+  }
   console.log(failures === 0 ? "\nSMOKE ALL PASSED" : "\nSMOKE " + failures + " FAILURES");
   process.exitCode = failures === 0 ? 0 : 1;
 }, 20000);
