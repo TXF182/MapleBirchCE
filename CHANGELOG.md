@@ -2,7 +2,7 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
-## v2.0.6（2026-11-08 工程化整改：branches 门禁 70→80、CI SKIP 缺口归零、包体 −21.5%）
+## v2.0.6（2026-11-08 工程化整改 + 好友需求轮：分支门禁 70→80 / CI SKIP 归零 / 包体 −21.5% / 外观隐藏·海岛生存·地下妓院重逢·预览队列）
 
 **触发**：模组评价里提出的三条整改，用户原样作为指令落地。三件均属工程/发布层，玩家可见行为不变（仅 06b 修掉两个真实 bug）。
 
@@ -29,11 +29,49 @@
 - **含 `includes` 的特质恒判"未获得"**：路径替换正则把 `$backgroundTraits.includes` 的 `.includes` 当路径尾段吃掉；函数调用替换又把 `.includes(` 改成 `globalThis["includes"](`。修法：路径正则加 `(?![\w(])`，函数调用正则改 `(^|[^.\w$])([A-Za-z_]\w*)\s*\(` 并回填前缀（只加 `(?!\()` 不够——`\w*` 贪婪回退会断成 `includ`+`e`）。
 - **`traitWriteUnsatisfy` 的 `isnot` 非布尔字符串值写 `num-1` 得 NaN**：加 `isNaN(num)` 分支写回该字符串本身。
 
-### 五、版本与产物
+### 五、玩家需求轮（好友提的 P1–P5 / R1–R4 / D1–D7，逐条拍板后一次性落地）
+
+**触发**：QQ 好友「患者猫猫喵喵喵…」提了一批 CE 需求与 bug，用户逐条拍板（P1 走 A、P2 按建议、R1/R2 做 a + 追加「翅膀不显示」独立开关、R3 先取原版源码取证再能做的都做、R4 惠特妮 + 同类角色、D1 修 A 且支持「全部确认」并与 P1/P2 同批改）。R1–R4 全部先做原版取证再动代码。
+
+#### 1. 外观隐藏（R1 / R2，`07j-transform-hide.js` 新建 235 行）
+
+- 取证：原版 `Transformation Widgets` 里隐藏部件的惩罚是 `<<trauma 15>>`，且 `$panicattacks gte 2` 时会**强制回 `"default"`**（隐藏失效）；`_excludeWings` 在「鸟翼 + 另一系翼同时隐藏」时为 false（全部强制显形）。
+- 实装：内在部件（`traits.*`）+ **翅膀独立开关**（`bird/angel/fallenAngel/demon` 四系 `wings`）两类；只写 `hidden` 不碰 `disabled`；改动前深拷贝快照 `V.mbCE_hideSnap`，`mbCEHideUndo` 整体还原；「隐藏无惩罚」锁 `trauma=0`、「强制保持隐藏」1 秒定时器写回（`unref`）。回退中心新增 `part` 组。
+
+#### 2. 海岛生存（R3，`07k-island-npc.js` 新建，`PLACE_GROUPS` 17 → 18 组）
+
+- 取证：`dol_extract2.py` 从 `Degrees of Lewdity.html`（64,576,232 B，SugarCube 2.36.1，标签 `tw-passagedata`）提 **16,087 段**；`$island` unique 37 / total 606，`Widgets Island` 初始化 `explore_locations=[] wood=0 tide=0 tide_distance=0 hide=1 hunger=0 explore="none"`，`home` 三值 `rocky_hillock/waterfall/gulch`，`explore_locations` 六值 `bay/shore/wood/battleground/plain/castle`，建造件 `simple/basic/advanced` 三档，`Island Defeat` 里 `Math.clamp(hide,0,30)`，`expandExplored` 才出现 Escape。
+- 实装：生存数值 8 项（`hide` 0–30 钳制等）、营地三选、已探索 6 处增删、建造 5 件（`trap/curtains/camouflage/bird_feeder/chair`）写当前营地那份、岛民面具（`islander_mask=100`）。新通道 `mbCEPlaceWriteRaw`：父链校验 → 同值短路 → 预览门控 → 留痕 `place:`。
+
+#### 3. 地下妓院重逢（R4）
+
+- 取证：`$undergroundbrothel` unique 12 / total 117；**牢房只关押 Robin**（108 个 underground 段落 `npc` 只命中 Robin），Whitney / Kylar / Bailey 走 `Widgets Underground` 的 `dungeonescape` 重逢标记（`$whitneyReunionScene` / `$kylarReunionScene` / `$baileyReunionScene = "dungeon"`，惠特妮分支前置 `$whitneyromance is 1`）。
+- 实装：牢房块（robin 关/放、`escape` 拉满 19、`undergroundbrothelescaped`）+ 重逢标记四行（Whitney / Kylar / Bailey / Robin），惠特妮自动补 `whitneyromance=1` 并给提示。
+
+#### 4. 锁定项与回退中心（P1 / P2 / D4）
+
+- P1：自定义锁定项收进 `mce-grp` 折叠组（默认收起、状态持久化）；新增 `mbCELockSource(path)` 三级来源判定（角色页 / Mod作弊 / 手动）+ `.mce-badge.mce-src` 徽标。
+- P2：`cheat` 组回退成功后连带解绑该路径锁定，避免「回退成功但锁定定时器写回去」。
+- D4：`mbCELockSet` 接入预览门控。
+
+#### 5. diff 预览队列化（D1 / D7）
+
+- `08d-diff-preview.js` 整体重写（165 行）：单槽 → `mbCEPendingQueue`（上限 8 笔，`mbCEPendingPreview` 保留为队首别名）；新增「全部确认（N）」「全部取消」、中文路径名 `mbCEPreviewLabel`、按 `data-pane` 局部重渲染 `mbCEPaneRefresh`；确认条 `position:sticky;bottom:0`。
+- 门控插点扩到四处：`cheatWriteValue`、`cheatWriteListValue`（原先未接）、`placeStageWrite`、`mbCEPlaceWriteRaw`、`mbCELockSet`。
+- D7：`diffPreview` 进 `mbCEUiState` 白名单（默认 `"0"`），刷新不丢。
+
+#### 6. 验证（磁盘实测）
+
+- `tools/run_all.ps1` **12/12 ALL CHECKS PASSED**；`ADAPTER NEGATIVE: passed=25 failed=0`；键注册表 423 条 / 12 适配器；src 类型分账 0 条 strict 债务；`codegraph sync` 已同步。
+- 覆盖率门禁（lines≥90 / branches≥80 / functions≥95）：**Statements 97.09%（13,997/14,416）、Branches 80.05%（5,005/6,252）、Functions 98.76%（559/566）**，exit 0。
+- 新增断言：`tests/test_mce.js` §60 共 42 条（60.1–60.42）、`tests/smoke_dom.js` §20 共 34 条 DOM 断言（20.1–20.34，含真实点击：隐蔽度钳制 30、切营地后建造组标题跟随、六处全解锁、陷阱→advanced、面具 100、robin 关/放、越狱 19、重逢标记清/设且 whitneyromance 自动置 1）。
+- 结构门禁踩坑：`09-exports2.js` 曾到 401 行超 400 上限（S1），合并导出行后回落到 398 行；S3（`CHEAT_ADAPTERS` 在 03d/04a-00 各声明一次）是既有 WARN、不阻断。
+
+### 六、版本与产物
 
 - 版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 均 **2.0.6**。
-- 产物 `javascript/maplebirchce.js`：842,345 B / 67 段 / 段序 hash `92f1bc05a461` / SHA256 `b5eaa44ef0280c3207bc21586c4c52566bab05a48e6d90cd8c2bff6025a3e451`。
-- 包 `MapleBirchCE.mod.zip`：**266,868 B / SHA256 `A33F9C7D76CC55B1E7A230950E28CED7A950B51AFC86D313072059DFA6DDFB73`**（本轮未发布；`game\` 内仍为 v2.0.5 旧包）。
+- 产物 `javascript/maplebirchce.js`：**892,777 B / 69 段 / 段序 hash `59db8940ef80` / SHA256 `E39D02FC59BF16C2951BBA4A380C26A2DE3A67EA633DDDD258B38E8535E1B142`**。
+- 包 `MapleBirchCE.mod.zip`：**282,972 B / SHA256 `E7B74B09AFD8472E6F3B8195E76DA11960AA611746226C5FCACD96D4BFB9F93D`**（本轮发布；`game\` 内仍为 v2.0.5 旧包，需按导入页流程装入 IndexedDB 才生效）。
 
 ## v2.0.5（2026-11-07 src strict 类型真债务清零：169 → 0，纯类型层，运行时行为不变）
 

@@ -2143,6 +2143,145 @@ setTimeout(function () {
     failures++;
     console.error("FAIL: 19 剧情直达触发测试异常：" + (e19 && e19.message ? e19.message : e19));
   }
+  /* ---------- 20. v2.0.7 新页面真实渲染与点击（R1/R2 外观隐藏 · R3 小岛 · R4 地下重逢） ---------- */
+  try {
+    V.transformationParts = { traits: { fangs: "default", sharpEyes: "default" }, bird: { wings: "default" }, angel: { wings: "default" }, demon: { wings: "hidden" }, fallenAngel: { wings: "default" } };
+    V.island = {
+      home: "rocky_hillock", explore_locations: ["bay"], wood: 3, hide: 8, hunger: 0, explore: "none",
+      tide: 0, tide_distance: 0, explore_count: 4, walnut: 5, walnut_dried: 2, raft: 0,
+      rocky_hillock: { trap: "simple", curtains: "", camouflage: "", bird_feeder: "", chair: "", decor: 0, decoration: "", space: 0 },
+      waterfall: { trap: "", curtains: "", camouflage: "", bird_feeder: "", chair: "", decor: 0, decoration: "", space: 0 },
+      gulch: { trap: "", curtains: "", camouflage: "", bird_feeder: "", chair: "", decor: 0, decoration: "", space: 0 }
+    };
+    V.undergroundbrothel = { escape: 3, robin: false, robinSpoke: false, robinTalk: 0, robinTopics: [], robinGone: false, time: 0, timepass: 0, water: 0, active: false };
+    V.whitneyromance = 0;
+    V.whitneyReunionScene = "dungeon";
+    api.mbCEPlaceWriteRaw("island.hide", 9, true);
+
+    const paneOf20 = function (n) { return document.querySelector('[data-pane="' + n + '"]'); };
+    const btnByTxt20 = function (scope, want) {
+      return Array.prototype.slice.call((scope || document).querySelectorAll("button")).filter(function (b) {
+        return b.textContent.indexOf(want) !== -1;
+      })[0];
+    };
+
+    /* 20.1~20.10 阶段页「外观隐藏（转化部件）」 */
+    const tabSt20 = document.querySelector('.mce-tabs button[data-tab="stage"]');
+    if (tabSt20) { tabSt20.click(); }
+    assert(!!paneOf20("stage"), "20.1 阶段页可进入");
+    const tfTab20 = btnByTxt20(paneOf20("stage"), "转化阶段");
+    if (tfTab20) { tfTab20.click(); }
+    const stTxt20 = paneOf20("stage") ? paneOf20("stage").textContent : "";
+    assert(stTxt20.indexOf("外观隐藏（转化部件") !== -1, "20.2 阶段页渲染「外观隐藏（转化部件 · 原版字段）」区块");
+    assert(stTxt20.indexOf("隐藏内在（traits") !== -1 && stTxt20.indexOf("隐藏翅膀（鸟") !== -1, "20.3 内在与翅膀两行同时渲染（翅膀独立开关）");
+    assert(stTxt20.indexOf("隐藏无惩罚") !== -1 && stTxt20.indexOf("强制保持隐藏") !== -1, "20.4 无惩罚/强制保持两行渲染");
+    const hideAll20 = btnByTxt20(paneOf20("stage"), "全部隐藏");
+    if (hideAll20) { hideAll20.click(); }
+    assert(V.transformationParts.traits.fangs === "hidden", "20.5 点「全部隐藏」→ traits.fangs=hidden（真实写入）");
+    const showAll20 = btnByTxt20(paneOf20("stage"), "全部取消隐藏");
+    if (showAll20) { showAll20.click(); }
+    assert(V.transformationParts.traits.fangs === "default", "20.6 点「全部取消隐藏」→ 还原 default");
+    const npOpen20 = btnByTxt20(paneOf20("stage"), "开启隐藏无惩罚");
+    if (npOpen20) { npOpen20.click(); }
+    assert(api.mbCELockHas("trauma") === true, "20.7 点「开启隐藏无惩罚」→ trauma 进入锁定");
+    const npClose20 = btnByTxt20(paneOf20("stage"), "无惩罚：已开启");
+    if (npClose20) { npClose20.click(); }
+    assert(api.mbCELockHas("trauma") === false, "20.8 再点关闭 → trauma 解锁（按钮文案随状态翻转）");
+    const fcOpen20 = btnByTxt20(paneOf20("stage"), "开启强制保持");
+    if (fcOpen20) { fcOpen20.click(); }
+    assert(!!V.mbCE_hide && V.mbCE_hide.force === true, "20.9 点「开启强制保持」→ force=true");
+    const fcClose20 = btnByTxt20(paneOf20("stage"), "强制保持：已开启");
+    if (fcClose20) { fcClose20.click(); }
+    assert(V.mbCE_hide.force === false, "20.10 再点关闭 → force=false（1s 定时器已清）");
+
+    /* 20.11~20.34 地点阶段页「小岛」+「地下妓院」 */
+    const tabPl20 = document.querySelector('.mce-tabs button[data-tab="places"]');
+    if (tabPl20) { tabPl20.click(); }
+    const stageTab20 = paneOf20("places") ? paneOf20("places").querySelector('.mce-inner button[data-place="stage"]') : null;
+    if (stageTab20) { stageTab20.click(); }
+    const plTxt20 = paneOf20("places").textContent;
+    assert(plTxt20.indexOf("小岛（Island）· 生存与营地") !== -1, "20.11 地点阶段页渲染小岛区块");
+    assert(plTxt20.indexOf("隐蔽度") !== -1 && plTxt20.indexOf("海岛语言") !== -1, "20.12 生存数值 8 行渲染（隐蔽度/海岛语言）");
+    assert(plTxt20.indexOf("营地位置") !== -1 && plTxt20.indexOf("岩石小丘") !== -1, "20.13 营地三选渲染且标出当前营地");
+    assert(plTxt20.indexOf("已探索地点") !== -1 && plTxt20.indexOf("已解锁（点此移除）") !== -1, "20.14 已探索地点渲染，bay 显示已解锁态");
+    assert(plTxt20.indexOf("建造物档位") !== -1 && plTxt20.indexOf("陷阱") !== -1, "20.15 五件建造物渲染");
+    assert(plTxt20.indexOf("岛民套装解锁") !== -1, "20.16 岛民面具解锁入口渲染");
+    assert(plTxt20.indexOf("地下妓院 · 角色与越狱") !== -1, "20.17 地下妓院区块渲染");
+    assert(plTxt20.indexOf("惠特妮") !== -1 && plTxt20.indexOf("凯拉尔") !== -1 && plTxt20.indexOf("贝利") !== -1 && plTxt20.indexOf("罗宾") !== -1, "20.18 四个重逢角色行渲染");
+    assert(plTxt20.indexOf("（当前 dungeon）") !== -1 && plTxt20.indexOf("已设置（点此清除）") !== -1, "20.19 已设置的重逢标记显示当前值并可清除");
+    assert(plTxt20.indexOf("不是 1") !== -1, "20.20 whitneyromance≠1 时给出提示（点按钮会自动置 1）");
+    assert(plTxt20.indexOf("回退") !== -1, "20.21 已有 place 留痕的行渲染「回退」按钮");
+
+    const hitRow20 = Array.prototype.slice.call(paneOf20("places").querySelectorAll(".mce-row")).filter(function (r) {
+      return r.getAttribute("data-islandkey") === "island.hide";
+    })[0];
+    const maxHide20 = hitRow20 ? btnByTxt20(hitRow20, "拉满") : null;
+    if (maxHide20) { maxHide20.click(); }
+    assert(V.island.hide === 30, "20.22 小岛「隐蔽度」拉满 → 30（钳制上限）");
+
+    const homeW20 = btnByTxt20(paneOf20("places"), "瀑布");
+    if (homeW20) { homeW20.click(); }
+    assert(V.island.home === "waterfall", "20.23 切营地 → $island.home=waterfall");
+    assert(paneOf20("places").textContent.indexOf("$island[瀑布]") !== -1, "20.24 切营地后建造物组标题跟随当前营地");
+
+    const shoreRow20 = Array.prototype.slice.call(paneOf20("places").querySelectorAll(".mce-row")).filter(function (r) {
+      return r.textContent.indexOf("海岸") !== -1;
+    })[0];
+    const shoreBtn20 = shoreRow20 ? btnByTxt20(shoreRow20, "解锁") : null;
+    if (shoreBtn20) { shoreBtn20.click(); }
+    assert(V.island.explore_locations.indexOf("shore") !== -1, "20.25 点「解锁」→ shore 入列");
+    const allLoc20 = btnByTxt20(paneOf20("places"), "六处全解锁");
+    if (allLoc20) { allLoc20.click(); }
+    assert(V.island.explore_locations.length === 6, "20.26 六处全解锁 → 6 项（" + V.island.explore_locations.length + "）");
+
+    const trapRow20 = Array.prototype.slice.call(paneOf20("places").querySelectorAll(".mce-row")).filter(function (r) {
+      return r.textContent.indexOf("陷阱") !== -1 && r.querySelectorAll("button").length >= 4;
+    })[0];
+    const advBtn20 = trapRow20 ? btnByTxt20(trapRow20, "高级") : null;
+    if (advBtn20) { advBtn20.click(); }
+    assert(V.island.waterfall.trap === "advanced", "20.27 建造档位写当前营地那份（waterfall.trap=advanced）");
+    const maskBtn20 = btnByTxt20(paneOf20("places"), "解锁岛民面具套装");
+    if (maskBtn20) { maskBtn20.click(); }
+    assert(V.islander_mask === 100, "20.28 岛民面具解锁 → islander_mask=100");
+
+    const robinIn20 = btnByTxt20(paneOf20("places"), "关进去");
+    if (robinIn20) { robinIn20.click(); }
+    assert(V.undergroundbrothel.robin === true, "20.29 点「关进去」→ undergroundbrothel.robin=true");
+    const robinOut20 = btnByTxt20(paneOf20("places"), "已在牢房");
+    if (robinOut20) { robinOut20.click(); }
+    assert(V.undergroundbrothel.robin === false, "20.30 再点「已在牢房」→ 放走（robin=false）");
+
+    const escRow20 = Array.prototype.slice.call(paneOf20("places").querySelectorAll(".mce-row")).filter(function (r) {
+      return r.textContent.indexOf("越狱进度") !== -1;
+    })[0];
+    const escMax20 = escRow20 ? btnByTxt20(escRow20, "拉满") : null;
+    if (escMax20) { escMax20.click(); }
+    assert(V.undergroundbrothel.escape === 19, "20.31 越狱进度拉满 → 19（Escape 选项门槛）");
+    const escFlag20 = btnByTxt20(paneOf20("places"), "置为已逃出");
+    if (escFlag20) { escFlag20.click(); }
+    assert(V.undergroundbrothelescaped === true, "20.32 置为已逃出 → undergroundbrothelescaped=true");
+
+    const clearD20 = btnByTxt20(paneOf20("places"), "已设置（点此清除）");
+    if (clearD20) { clearD20.click(); }
+    assert(V.whitneyReunionScene === "", "20.33 点「已设置（点此清除）」→ 重逢标记清空");
+    const setD20 = btnByTxt20(paneOf20("places"), "设为地下重逢");
+    if (setD20) { setD20.click(); }
+    assert(V.whitneyReunionScene === "dungeon" && V.whitneyromance === 1, "20.34 设置惠特妮重逢 → scene=dungeon 且 whitneyromance 自动置 1");
+
+    delete V.transformationParts; delete V.mbCE_hide; delete V.mbCE_hideSnap;
+    delete V.island; delete V.undergroundbrothel; delete V.undergroundbrothelescaped;
+    delete V.islander_mask; delete V.whitneyReunionScene; delete V.whitneyromance;
+    if (V.mbCE_wrote) {
+      Object.keys(V.mbCE_wrote).forEach(function (k) {
+        if (k.indexOf("place:island") === 0 || k.indexOf("place:islander") === 0 ||
+          k.indexOf("place:underground") === 0 || k.indexOf("place:whitney") === 0 || k.indexOf("part:") === 0) { delete V.mbCE_wrote[k]; }
+      });
+    }
+    try { api.mbCEHideForce(false); } catch (eH20) {}
+  } catch (e20) {
+    failures++;
+    console.error("FAIL: 20 v2.0.7 新页面渲染异常: " + (e20 && e20.message ? e20.message : e20));
+  }
   console.log(failures === 0 ? "\nSMOKE ALL PASSED" : "\nSMOKE " + failures + " FAILURES");
   process.exitCode = failures === 0 ? 0 : 1;
 }, 20000);

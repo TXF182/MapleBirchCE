@@ -149,7 +149,7 @@
 	}
 	/* 列表型写入（v1.4.0 扩展）：varPath 指向字符串数组，on=true 追加 / on=false 移除；
 	   留痕 before/after 为数组快照（before 保留首次面板写入前状态）。 */
-	function cheatWriteListValue(modId, itemKey, op, path, value, on) {
+	function cheatWriteListValue(modId, itemKey, op, path, value, on, replay) {
 		try {
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
@@ -169,6 +169,12 @@
 			if (on && idx === -1) { arr.push(value); }
 			if (!on && idx !== -1) { arr.splice(idx, 1); }
 			var before = Array.isArray(cur) ? cur.slice() : undefined;
+			/* v2.0.7 D1：列表写入（05a-modcheat-rows.js:75 的勾选项）原先完全绕过 diff 预览——现在同走门控 */
+			if (!replay && typeof mbCEPreviewGate === "function" &&
+				mbCEPreviewGate(path, Array.isArray(cur) ? cur.slice() : "（无此字段）", arr,
+					function () { return cheatWriteListValue(modId, itemKey, op, path, value, on, true); })) {
+				return { ok: false, pending: true, message: "待确认写入：" + path };
+			}
 			var prev = V.mbCE_wrote && V.mbCE_wrote["cheat:" + modId + ":" + itemKey];
 			if (prev && "before" in prev) { before = prev.before; }
 			r.parent[r.leaf] = arr;

@@ -21,7 +21,7 @@
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
 	/** @type {any} */
-	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "" };
+	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0" };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
 	function mbCEUiLoad() {
 		try {
@@ -40,6 +40,11 @@
 				/* v1.9.29 主题与角色页搜索词持久化 */
 				if (obj.theme === "starry" || obj.theme === "gold") { mbCEUiState.theme = obj.theme; }
 				if (typeof obj.charFilter === "string") { mbCEUiState.charFilter = obj.charFilter; charSearch = obj.charFilter; }
+				/* v2.0.7：diff 预览开关持久化（此前 mbCEUiLoad 无此分支，刷新页面后开关丢失 →
+				   玩家体感「预览没啥作用」）。只有明确存过 "1"/"0" 才恢复。 */
+				if (obj.diffPreview === "1" || obj.diffPreview === "0" || obj.diffPreview === "true" || obj.diffPreview === "false") {
+					mbCEUiState.diffPreview = (obj.diffPreview === "1" || obj.diffPreview === "true") ? "1" : "0";
+				}
 			}
 		} catch (e) {}
 	}
@@ -54,6 +59,11 @@
 				if (partial.placesTab === "stage" || partial.placesTab === "direct") { mbCEUiState.placesTab = partial.placesTab; }
 				if (partial.theme === "starry" || partial.theme === "gold") { mbCEUiState.theme = partial.theme; }
 				if (typeof partial.charFilter === "string") { mbCEUiState.charFilter = partial.charFilter; }
+				/* v2.0.7：diff 预览开关（"1"/"0"）与布尔入参都接受 */
+				if (partial.diffPreview === "1" || partial.diffPreview === "0" || partial.diffPreview === "true" || partial.diffPreview === "false" ||
+					partial.diffPreview === true || partial.diffPreview === false) {
+					mbCEUiState.diffPreview = (partial.diffPreview === "1" || partial.diffPreview === "true" || partial.diffPreview === true) ? "1" : "0";
+				}
 			}
 			if (typeof localStorage !== "undefined" && localStorage) {
 				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));

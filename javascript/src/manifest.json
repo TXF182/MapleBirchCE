@@ -247,6 +247,14 @@
       "layer": "ui"
     },
     {
+      "file": "07j-transform-hide.js",
+      "layer": "ui"
+    },
+    {
+      "file": "07k-island-npc.js",
+      "layer": "ui"
+    },
+    {
       "file": "08-npc-traits.js",
       "layer": "ui"
     },

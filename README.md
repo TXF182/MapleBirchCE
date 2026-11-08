@@ -68,7 +68,7 @@
 - **防崩兜底**：直达/固定触发进入艾弗里庄园、农场线、格威岚剧情前自动补缺失状态对象（`$daily.avery.talk`、`$farm`、`T.gwylanStatus/TF`），**已有进度绝不覆盖**——新存档直接传送不炸档。
 
 ### 4b. 地点页（原版地点阶段任务作弊区，双层页签「场景直达 / 地点」）
-- **17 组地点**全部「−1/+1/拉满/回退」逐步推进、全留痕可回退：市政改造（道路/潜水/灌木/桥梁/绿地）、农场（阶段/进程）、公寓区/成人用品店/阁楼升级/妓院维修、修道院回廊/街机线/精神病院评估/谜题/学校科学项目，以及 v1.9.13 追加 6 组**传送直达**——**精神病院 Asylum / 警局牢房 Police Cell / 码头 Docks / 湖畔 Lake Stroll / 狼群领地 Wolf Pack / 医院前门 Hospital front**（入口段落 `main` 名均已对照本体 HTML 实证：`Wolf Pack` pid=208 等）；v2.0.0.007 再追加 3 组**传送直达**（好友要「原版·数值」手段）：**妓院 · 含地下层 Brothel**（主场景 `Brothel Basement`＝地下妓院）/ **雷米牧场 · 牲口线 Livestock**（主场景 `Livestock Intro`）/ **雷米农场 · The Farm**（主场景 `The Farm`）；并补两组原版数值档位——「监狱（原版 Prison）」`prison.attention_level`（0-3）/ `prison.protection`（0-10）/ `prison.hours_worked`（0-12）、「雷米牧场（原版 Livestock）」`livestock.obey`（0-100）/ `livestock.milk` / `livestock.semen` / `livestock.pride`（0-1），精神病院补 `asylum_mirror`（0-5）；键名与赋值形态均按本体 0.5.12.13 HTML（16,087 段）逐条实证，`livestock.escape` 为字符串故未纳入。
+- **18 组地点**全部「−1/+1/拉满/回退」逐步推进、全留痕可回退：市政改造（道路/潜水/灌木/桥梁/绿地）、农场（阶段/进程）、公寓区/成人用品店/阁楼升级/妓院维修、修道院回廊/街机线/精神病院评估/谜题/学校科学项目，以及 v1.9.13 追加 6 组**传送直达**——**精神病院 Asylum / 警局牢房 Police Cell / 码头 Docks / 湖畔 Lake Stroll / 狼群领地 Wolf Pack / 医院前门 Hospital front**（入口段落 `main` 名均已对照本体 HTML 实证：`Wolf Pack` pid=208 等）；v2.0.0.007 再追加 3 组**传送直达**（好友要「原版·数值」手段）：**妓院 · 含地下层 Brothel**（主场景 `Brothel Basement`＝地下妓院）/ **雷米牧场 · 牲口线 Livestock**（主场景 `Livestock Intro`）/ **雷米农场 · The Farm**（主场景 `The Farm`）；并补两组原版数值档位——「监狱（原版 Prison）」`prison.attention_level`（0-3）/ `prison.protection`（0-10）/ `prison.hours_worked`（0-12）、「雷米牧场（原版 Livestock）」`livestock.obey`（0-100）/ `livestock.milk` / `livestock.semen` / `livestock.pride`（0-1），精神病院补 `asylum_mirror`（0-5）；键名与赋值形态均按本体 0.5.12.13 HTML（16,087 段）逐条实证，`livestock.escape` 为字符串故未纳入；**v2.0.6 追加第 18 组「海岛 Island」**（`$island` 生存数值 8 项 + 营地三选 + 已探索地点 6 处 + 建造档位 5 件按当前营地写 + 岛民面具，同一锚点页还挂「地下妓院」牢房/越狱/重逢标记，详见 7e）。
 
 ### 5. 全局页（批量操作）
 - **一键补齐数值**：全部角色一键补齐（实测 120 项数值写入）。
@@ -121,23 +121,50 @@
 - 世界入口写入在父对象缺失时逐层补空壳（防写 undefined）；维护写入**不补壳**——宿主对象缺失即视为模组未初始化，直接跳过（与 `cheatResolvePath` 的 parent 拒绝同义）。
 - `world` / `maint` / `batch` 三类不在通用回退白名单内，`undoCheatModValue` 等通用入口不会误撤它们，必须走各自的专用函数。
 
-### 7c. 统一回退中心与写入前 diff 预览（v2.0.3）
+### 7c. 统一回退中心与写入前 diff 预览（v2.0.3，v2.0.6 升级为队列）
 
 **统一回退中心**（`javascript/src/08c-undo-center.js`，全局页第一个区块，不参与 ①…⑯ 编号）——数据源唯一是 `V.mbCE_wrote`，不另建账本：
 
-- 分组：`cheat` / `world` / `maint` / `place` / `native` / `vanilla` / `set` / `clear` / `append` / `state` / `batch` / `yanling`，组按条数降序；每组最多列 24 条（超出只影响展示，不影响回退）。
-- 分发：`cheat`→`undoCheatModValue(modId,itemKey)`、`world`→`mbCEWorldUndo(gid)`、`maint`→`mbCEMaintUndo(rec.path)`、`place`→`placeStageUndo(rec.path)`、`native`→`undoRomanceStage(nm,{native:true})`、`vanilla`→`undoVanillaStage(rec.npc||"Gwylan", rec.key)`、`set/clear/append` 按 `rec.path` / `rec.value` 还原。
+- 分组：`cheat` / `world` / `maint` / `place` / `native` / `vanilla` / `set` / `clear` / `append` / `state` / `batch` / `yanling` / `part`，组按条数降序；每组最多列 24 条（超出只影响展示，不影响回退）。
+- 分发：`cheat`→`undoCheatModValue(modId,itemKey)`、`world`→`mbCEWorldUndo(gid)`、`maint`→`mbCEMaintUndo(rec.path)`、`place`→`placeStageUndo(rec.path)`、`native`→`undoRomanceStage(nm,{native:true})`、`vanilla`→`undoVanillaStage(rec.npc||"Gwylan", rec.key)`、`set/clear/append` 按 `rec.path` / `rec.value` 还原、`part`→`mbCEHideUndo(rec.key)`（外观隐藏按快照整体还原）。
+- **v2.0.6 连带解绑（P2）**：`cheat` 组回退成功后同步解绑该路径的数值锁定，避免「回退成功但锁定定时器又把值写回去」；解绑失败不影响回退结果。
 - 不可回退三类（`mbCEUndoBlocked`）会给出原因文本，全量回退时计入 `skip` 而不是混进成功数。
-- 顶部「diff 预览」开关：金色 = 已开启，点击写 `mbCEUiState.diffPreview` 并持久化。
+- 顶部「diff 预览」开关：金色 = 已开启，点击写 `mbCEUiState.diffPreview` 并持久化（v2.0.6 起进入 UI 状态白名单，刷新不丢）。
 
-**写入前 diff 预览**（`javascript/src/08d-diff-preview.js`）：
+**写入前 diff 预览**（`javascript/src/08d-diff-preview.js`，v2.0.6 由单槽改为队列）：
 
 - `mbCEPreviewEnabled()` 读 `mbCEUiState.diffPreview === "1"`（默认关闭）。
-- 门控插点在 `cheatWriteValue`（`04b-modcheat-write.js`）**解析出 `before` 之后、真正赋值之前**：`before === after` 直接放行；否则挂起 `mbCEPendingPreview`（内存对象，含重放闭包，刷新即失效）并弹确认条，返回 `{ok:false, pending:true, message:"待确认写入：…"}`。
-- 确认条 `#mce-preview-bar` 贴在 `root` 底部：文案「待确认写入：<path>　<旧值> → <新值>」+「确认写入」+「取消」；确认后置 `mbCEPreviewReplay=true` 重跑闭包（防二次门控），取消则不写档。
-- 已知边界：`cheatWriteListValue`（列表型写入）**未接门控**——它的写入路径与单值不同，接入需要另一套 before 解析，本轮不做，面板只对单值写入生效。
+- 门控插点四处：`cheatWriteValue` / `cheatWriteListValue`（`04b-modcheat-write.js`）、`placeStageWrite`（`07d-places2.js`）、`mbCEPlaceWriteRaw`（`07k-island-npc.js`）、`mbCELockSet`（`07f-lock.js`，D4）——都在**解析出 `before` 之后、真正赋值之前**；`before === after` 直接放行（幂等写入不重复打扰）。
+- 队列 `mbCEPendingQueue` 最多 8 笔（`MB_CE_PREVIEW_MAX`），重放闭包带 `replay` 第二参数防二次门控；确认条固定 `#mce-preview-bar`（v2.0.6 起 `position:sticky;bottom:0`，长面板滚动时不丢）。
+- 按钮三态：「确认写入」（队首一笔）、**「全部确认（N）」**（逐笔重放并统计成功/失败，失败写进汇总文案）、「全部取消」（清空队列，存档不动）；`n>1` 时额外显示「全部取消」。
+- 中文路径名走 `mbCEPreviewLabel`，`cheat:` / `place:` / `part:` 前缀已去掉；确认/取消后按 `.mce-pane.mce-active` 的 `data-pane` 局部重渲染（`mbCEPaneRefresh`，覆盖 mods/global/places/stage/scenes/char/yanling 七页）。
 
-## Mod作弊 适配器一览（当前版本 2.0.3）
+### 7d. 转化外观隐藏（v2.0.6，好友 R1/R2）
+
+**文件** `javascript/src/07j-transform-hide.js`（235 行），挂在「角色 → 转化阶段」页（`renderTransformStages` 的两处出口都调用 `renderTransformHideSec`）。
+
+- 目标：原版 `$transformationParts` 的三态 `default / hidden / disabled`。本功能只写 `hidden`，不碰 `disabled`（后者是原版「永久放弃该转化」的语义，作弊器不代玩家做不可逆决定）。
+- 两类开关：**内在部件**（`traits.*`，如 `fangs` / `sharpEyes`）+ **翅膀**（`bird/angel/fallenAngel/demon` 四系 `wings`），翅膀是 R2 追加的独立开关（只藏翅膀、不动其它部位）。
+- 改动前 `mbCEHideSnap` 把原 `$transformationParts` 深拷贝进 `V.mbCE_hideSnap`（只记首次），`mbCEHideUndo` 按快照整体还原 → 回退中心 `part` 组一条即可复原。
+- **隐藏无惩罚**（`mbCEHideNoPenalty`）：原版 `Transformation Widgets` 对隐藏部件 `<<trauma 15>>`，且 `$panicattacks gte 2` 时**强制回 `"default"`**（隐藏直接失效）。开关打开后把 `trauma` 锁 0（复用 `mbCELockSet`）并置惩罚豁免标记。
+- **强制保持隐藏**（`mbCEHideForce` + `mbCEHideTick`）：1 秒定时器把已隐藏部件写回 `hidden`，对抗原版场景把它改回 `default`；关闭时清定时器（`mbCEHideEnsureTimer` 统一管理，定时器 `unref` 不阻进程退出）。
+
+### 7e. 海岛生存 + 地下妓院重逢（v2.0.6，好友 R3/R4）
+
+**文件** `javascript/src/07k-island-npc.js`（371 行），挂在「地点 → 阶段推进」页；`PLACE_GROUPS` 第 18 组 `island`（中文名「海岛」），`ensureSceneStateFor` 增 Island 分支。
+
+- **海岛生存**（R3，按原版 0.5.12.13 的 `Widgets Island` / `Island` 段落实证）：`$island` 数值 8 项（`hide` 0–30 钳制、`tide` / `tide_distance` / `explore_count` / `wood` / `hunger` / `decoration` / `camouflage`）、营地三选（`rocky_hillock` / `waterfall` / `gulch`）、已探索地点 6 处（`bay` / `shore` / `wood` / `battleground` / `plain` / `castle`，增删 `explore_locations` 数组）、建造档位 5 件（`trap` / `curtains` / `camouflage` / `bird_feeder` / `chair`，`simple/basic/advanced` 三档写入**当前营地**那份）、岛民面具（`SPECIAL_CLOTHES_SET_COND` 的 `islander → islander_mask=100`）。
+- 写入通道 `mbCEPlaceWriteRaw(path, value, replay)`：先校验父链（宿主缺失的裸写直接拒、不进队列），同值短路，留痕前缀 `place:` 复用 `placeStageUndo`，二次写沿用首次 `before`。
+- **地下妓院重逢**（R4）：原版牢房**只关押 Robin**（108 个 underground 段落里 `npc` 只命中 Robin）；Whitney / Kylar / Bailey 走的是「越狱后的重逢场景标记」——`Widgets Underground` 的 `dungeonescape` 分支写 `$whitneyReunionScene` / `$kylarReunionScene` / `$baileyReunionScene = "dungeon"`。面板因此分两块：
+  - 牢房：`undergroundbrothel.robin` 关进去 / 放走、`escape` 拉满 19（原版 `escape gte 19` 才出现 Escape 选项，体型 18/17/16 亦可）、`undergroundbrothelescaped` 置为已逃出。
+  - 重逢标记：Whitney / Kylar / Bailey / Robin 四行，设为 `"dungeon"` 或清除；惠特妮额外自动置 `whitneyromance = 1`（原版该分支前置条件，不置则重逢不触发，面板会提示）。
+
+### 7f. 锁定项来源徽标与自定义折叠（v2.0.6，好友 P1/P2）
+
+- `07f-lock.js` 的 `mbCELockSource(path)` 三级判定来源：**角色页** / **Mod作弊** / **手动**，行尾渲染 `.mce-badge.mce-src`；`mbCELockSet` 同时接入预览门控（D4）。
+- 自定义锁定项收进 `mce-grp` 折叠组（默认收起，折叠状态经 `mbCEUiCollapsed("lock:custom")` 持久化），锁定项多时不再把面板顶长。
+
+## Mod作弊 适配器一览（当前版本 2.0.6）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|

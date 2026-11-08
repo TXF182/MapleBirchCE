@@ -50,12 +50,19 @@
 		}, main: "Livestock Intro", note: "雷米的牧场（被当作牲口的整条线：牛棚/牧场/劳动/挤奶/逃脱/冬歇）" },
 		{ id: "remy_farm", name: "雷米农场 · The Farm", match: function (n) {
 			return n === "The Farm" || n.indexOf("The Farm ") === 0 || n.indexOf("Farmland ") === 0;
-		}, main: "The Farm", note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）" }
+		}, main: "The Farm", note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）" },
+		/* v2.0.7 R3（玩家「有的地点都没了」「那小岛的作弊呢」）：原版 0.5.12.13 有 Island 海岛线
+		   （setup.majorAreas 含 "Island"，setup.addlocation("island").parent("sea")，Widgets Text Island → "the nearby island"，
+		   teleportCheater 有 case "Island" → island_end），但 CE 的 17 组地点直达里一直没有 → 玩家进不去。
+		   Island 前缀段落：Island（hub）/ Island Explore / Island Sleep / Island Defeat / Island Build <档> <件> / Island Walnut 等。 */
+		{ id: "island", name: "海岛 · Island", match: function (n) {
+			return n === "Island" || n.indexOf("Island ") === 0;
+		}, main: "Island", note: "海岛生存线（营地三选/探索六处/建造/隐蔽/语言；生存数值与营地作弊见「地点」子页签）" }
 	];
 	var PLACE_CN = {
 		/* v1.9.23-实机修复：新 6 组主场景名中文化（主场景行 placeNameCN 子串映射） */
 		"asylum": "精神病院", "police": "警局与监狱", "prison": "监狱", "docks": "码头",
-		"lake": "湖畔", "wolf": "狼群", "hospital": "医院",
+		"lake": "湖畔", "wolf": "狼群", "hospital": "医院", "island": "海岛",
 		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
 		"spray": "喷漆", "hall": "大厅", "garden": "花园", "lab": "实验室", "parents room": "父母房间",
 		"grounds": "庭院", "kylar room": "凯拉尔房间", "secret": "秘密", "bed": "卧室", "pool": "泳池",
@@ -133,6 +140,13 @@ function ensureSceneStateFor(name) {
 			if (V2.farm && typeof V2.farm === "object") { return; }
 			var fs = Number(V2.farm_stage);
 			ensureFarmState(!(fs >= 1)); /* 农场线未推进也补壳（只补不覆盖）：直达后子段落会读 $farm.* */
+			return;
+		}
+		/* v2.0.7 R3：小岛直达前补齐 $island 壳（含三处营地对象）。
+		   原版 Widgets Island 会初始化，但直达 hub 之前的部分段落已读 $island[$island.home].trap，
+		   新档直接 play("Island") 有 undefined 下标风险；这里「缺失才建、不覆盖进度」。 */
+		if (nm === "Island" || nm.indexOf("Island ") === 0) {
+			if (typeof mbCEIslandV === "function") { mbCEIslandV(); }
 		}
 	} catch (e) {}
 }
