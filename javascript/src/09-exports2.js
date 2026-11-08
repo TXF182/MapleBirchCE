@@ -152,7 +152,7 @@
 				applyRolePlotAction: applyRolePlotAction,
 				listPlaceGroups: listPlaceGroups,
 				placeNameCN: placeNameCN,
-				teleportTo: teleportTo,
+				teleportTo: teleportTo, mbCECurrentPassage: mbCECurrentPassage, mbCEPassageMacroWarn: mbCEPassageMacroWarn,
 				listAllPassages: listAllPassages,
 				getPinnedScene: getPinnedScene,
 				pinQueueIndex: pinQueueIndex,

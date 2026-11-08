@@ -167,6 +167,239 @@ assert(!!errEl && /段落不存在/.test(errEl.textContent), "未安装的段落
 api.teleportTo("");
 const errEl2 = document.querySelector("#mce-root .mce-err");
 assert(!!errEl2 && /段落不存在/.test(errEl2.textContent), "空段落名 → 同拒绝路径（不抛异常）");
+/* ================= 6. v2.0.10 场景直达健壮化（好友三处实测崩溃的回归防线） ================= */
+section("6 场景直达健壮化（折叠分组 / 调试报告开关 / 段落体检 / 状态兜底）");
+V.mbCE_unlockedPlaces = {};
+
+/* 6a 折叠分组：标题行可点、默认收起、mceNewSec 返回 body（29 处调用点靠它继续 appendChild） */
+function goDirect() {
+  const t = document.querySelector('#mce-root [data-pane="places"] [data-place="direct"]');
+  if (t) { t.click(); }
+  return document.querySelector('#mce-root [data-pane="places"]');
+}
+let dPane = goDirect();
+assert(!!dPane, "场景直达子页签可进入");
+let folds = dPane.querySelectorAll(".mce-blockfold");
+assert(folds.length >= 2, "新增折叠区块 ≥2（原版调试报告 / 段落体检），实得 " + folds.length);
+const f0 = folds[0];
+assert(f0.getAttribute("data-open") === "0", "折叠区块默认收起（data-open=0）");
+assert(!!f0.querySelector(".mce-sec-head[role='button']"), "标题行 role=button（可点 + 键盘可达）");
+assert(f0.querySelector(".mce-sec-head").getAttribute("tabindex") === "0", "标题行 tabindex=0（Enter/空格可切换）");
+assert(!!f0.querySelector(".mce-sec-body") && f0.querySelector(".mce-sec-body").parentElement === f0, "内容落在 body 容器（mceNewSec 返回 body 生效）");
+f0.querySelector(".mce-sec-head").click();
+dPane = document.querySelector('#mce-root [data-pane="places"]');
+const f1 = dPane.querySelectorAll(".mce-blockfold")[0];
+assert(f1.getAttribute("data-open") === "1", "点标题行 → 展开（data-open=1）");
+assert(f1.querySelector(".mce-sec-arrow").textContent === "▾", "展开后箭头为 ▾");
+f1.querySelector(".mce-sec-head").click();
+const f2 = document.querySelector('#mce-root [data-pane="places"]').querySelectorAll(".mce-blockfold")[0];
+assert(f2.getAttribute("data-open") === "0", "再点 → 收起（data-open=0）");
+const lsRaw = window.localStorage.getItem("mbCE_seccollapse");
+assert(!!lsRaw && lsRaw.indexOf("|") !== -1, "展开态持久化到 localStorage（mbCE_seccollapse），实得 " + String(lsRaw).slice(0, 60));
+
+/* 6b 原版调试报告开关：写 $options.debugdisable（图 3 野兽战红字的真正开关） */
+dPane = goDirect();
+function findBtn(root, text) {
+  const list = root.querySelectorAll("button");
+  for (let i = 0; i < list.length; i++) { if (list[i].textContent.indexOf(text) !== -1) { return list[i]; } }
+  return null;
+}
+const bDbgOff = findBtn(dPane, "关闭调试报告");
+assert(!!bDbgOff, "「关闭调试报告」按钮存在");
+V.options = {};
+bDbgOff.click();
+assert(V.options.debugdisable === "t", "点关闭 → $options.debugdisable='t'（调试诊断行不再打印）");
+dPane = goDirect();
+const bDbgOn = findBtn(dPane, "打开（排查用）");
+assert(!!bDbgOn, "「打开（排查用）」按钮存在（可逆）");
+bDbgOn.click();
+assert(V.options.debugdisable === "f", "点打开 → 回到 'f'");
+
+/* 6c 段落体检：只报宏不配对的段落，注释里的示例宏不算 */
+global.Story.passages = [
+  { name: "BadIf", text: "<<if $a>>一段没有闭合" },
+  { name: "GoodIf", text: "<<if $a>>ok<</if>>" },
+  { name: "CommentOnly", text: "/% <<if 示例 %/ 正常正文" }
+];
+global.Story.has = function (n) { return n === "Bedroom" || n === "Lake Stroll" || n === "BadIf"; };
+dPane = goDirect();
+const bLint = findBtn(dPane, "开始体检");
+assert(!!bLint, "「开始体检」按钮存在");
+bLint.click();
+dPane = document.querySelector('#mce-root [data-pane="places"]');
+const lintTexts = [];
+dPane.querySelectorAll(".mce-row-lbl").forEach(function (e) { lintTexts.push(e.textContent); });
+assert(lintTexts.some(function (t) { return t.indexOf("BadIf") === 0 && /if 1\/0/.test(t); }), "体检抓到 BadIf 的 if 1/0（未闭合）");
+assert(!lintTexts.some(function (t) { return t.indexOf("GoodIf") === 0; }), "配对的 GoodIf 不误报");
+assert(!lintTexts.some(function (t) { return t.indexOf("CommentOnly") === 0; }), "注释里的示例宏不误报");
+/* 汇总文案在体检区块自己的说明行里（页面另有多个 .mce-stage-txt，按文案特征匹配而非取第一个） */
+const allText = [];
+dPane.querySelectorAll(".mce-stage-txt, .mce-hint").forEach(function (e) { allText.push(e.textContent); });
+assert(allText.some(function (t) { return /共扫描 \d+ 段，宏不配对 1 段/.test(t); }), "汇总文案写明「共扫描 N 段，宏不配对 1 段」");
+
+/* 6d 直达前状态兜底：Bedroom / Lake（只补缺失、不覆盖已有进度） */
+const played = [];
+global.Engine = { play: function (name) { played.push(name); } };
+V.passage = "Room";
+V.location = undefined; V.outside = undefined; V.furniture = undefined;
+api.teleportTo("Bedroom");
+assert(played[played.length - 1] === "Bedroom", "play 了 Bedroom");
+assert(V.location === "home", "Bedroom 兜底 location=home");
+assert(V.outside === 0, "Bedroom 兜底 outside=0");
+assert(typeof V.furniture === "object" && V.furniture !== null && typeof V.furniture.bedroom === "object", "Bedroom 兜底 furniture.bedroom 壳");
+/* 原版 StoryInit 的 V.furniture 是 { bedroom: { bed, wardrobe, desk } } 三件默认家具。
+   只补空壳 {} 会让 Furniture.get('bed') 返回 null（area 存在但 area[category] 为 undefined），
+   Bedroom 段 <<furnitureicon _bed.iconFile>> 直接空引用抛 TypeError → 正文空白 + footer 报
+   "The passage Bedroom has no usable links"（实测崩溃形态）。 */
+assert(V.furniture.bedroom.bed && V.furniture.bedroom.bed.id === "bed", "Bedroom 兜底补默认家具 bed");
+assert(V.furniture.bedroom.wardrobe && V.furniture.bedroom.wardrobe.id === "wardrobe", "Bedroom 兜底补默认家具 wardrobe");
+assert(V.furniture.bedroom.desk && V.furniture.bedroom.desk.id === "desk", "Bedroom 兜底补默认家具 desk");
+/* 已有进度绝不覆盖 */
+V.furniture.bedroom.bed = { id: "luxury" };
+V.furniture.bedroom.wardrobe = undefined;
+api.teleportTo("Bedroom");
+assert(V.furniture.bedroom.bed.id === "luxury", "已有 bed 不被覆盖");
+assert(V.furniture.bedroom.wardrobe && V.furniture.bedroom.wardrobe.id === "wardrobe", "缺失的 wardrobe 单独补齐");
+V.location = "home"; V.outside = 0;
+V.phase = undefined;
+api.teleportTo("Lake Stroll");
+assert(played[played.length - 1] === "Lake Stroll", "play 了 Lake Stroll");
+assert(V.phase === 1, "Lake 兜底 phase=1（缺省草丛）");
+V.phase = 0;
+api.teleportTo("Lake Stroll");
+assert(V.phase === 0, "已走过湖畔时保留 phase=0（不覆盖进度）");
+
+/* 6e 到达校验（到达后 250ms 复查）：有可用链接不回退、零可用链接退回直达前段落 */
+section("6e 到达校验 mbCEArrivalCheck");
+const mceTimers = [];
+const origWindowSetTimeout = window.setTimeout;
+const origGlobalSetTimeout = global.setTimeout;
+window.setTimeout = function (fn) { mceTimers.push(fn); return mceTimers.length; };
+global.setTimeout = window.setTimeout;
+function mbCEFlushTimers() {
+  let guard = 0;
+  while (mceTimers.length && guard++ < 50) {
+    const fn = mceTimers.shift();
+    try { fn(); } catch (e) { console.error("timer threw: " + e.message); }
+  }
+}
+const pBox = document.createElement("div");
+pBox.id = "passages";
+document.body.appendChild(pBox);
+/* A. 目标段落有可用链接 → 视为到达成功，不回退 */
+const okLink = document.createElement("a");
+okLink.setAttribute("data-passage", "Bedroom");
+okLink.className = "link-internal";
+pBox.appendChild(okLink);
+V.passage = "Home"; global.State.passage = "Home";
+const nA = played.length;
+api.teleportTo("Bedroom");
+V.passage = "Bedroom"; global.State.passage = "Bedroom";
+mbCEFlushTimers();
+assert(played.length === nA + 1 && played[played.length - 1] === "Bedroom", "有可用链接 → 不回退（只 play 一次），实得 " + JSON.stringify(played.slice(nA)));
+/* B. 零可用链接 → 退回直达前段落，页面不再死锁 */
+while (pBox.firstChild) { pBox.removeChild(pBox.firstChild); }
+V.passage = "Home"; global.State.passage = "Home";
+const nB = played.length;
+api.teleportTo("Bedroom");
+V.passage = "Bedroom"; global.State.passage = "Bedroom";
+mbCEFlushTimers();
+assert(played.length === nB + 2 && played[played.length - 1] === "Home", "零可用链接 → 退回原段落 Home（不卡死），实得 " + JSON.stringify(played.slice(nB)));
+/* C. 判据必须取 State.passage：$passage 滞后一帧（仍 Home）但 State 已到 Bedroom → 仍要判定到达并回退 */
+V.passage = "Home"; global.State.passage = "Home";
+const nC = played.length;
+api.teleportTo("Bedroom");
+V.passage = "Home"; global.State.passage = "Bedroom";
+mbCEFlushTimers();
+assert(played.length === nC + 2 && played[played.length - 1] === "Home", "零可用链接 + $passage 滞后 → 仍按 State.passage 判定并回退（不漏判），实得 " + JSON.stringify(played.slice(nC)));
+window.setTimeout = origWindowSetTimeout;
+global.setTimeout = origGlobalSetTimeout;
+
+/* 6f. 全局页区块序号不得重号（折叠键含序号，两个 ⑧ 会让玩家分不清；0 号按实现不显示序号） */
+const globalSecIdx = [];
+["08-npc-traits2.js", "07f-lock.js", "07f-lurker.js", "07l-vanilla-ext-view.js", "08c-undo-center.js"].forEach(function (f) {
+  const src = fs.readFileSync(path.join(__dirname, "..", "javascript", "src", f), "utf8");
+  const re = /mceNewSec\(\s*pane\s*,\s*(\d+)/g;
+  let m;
+  while ((m = re.exec(src)) !== null) { globalSecIdx.push(Number(m[1])); }
+});
+const dupIdx = globalSecIdx.filter(function (v, i) { return v > 0 && globalSecIdx.indexOf(v) !== i; });
+assert(dupIdx.length === 0, "全局页区块序号无重号，实得 " + JSON.stringify(globalSecIdx) + (dupIdx.length ? "（重复 " + JSON.stringify(dupIdx) + "）" : ""));
+
+/* 6g. 直达前宏结构预检：坏宏只提示不阻止、好宏静默、取不到文本安全返回 */
+global.Story.has = function (n) { return n === "Bedroom" || n === "Lake Stroll" || n === "BadIf" || n === "GoodIf"; };
+const origStoryGet = global.Story.get;
+global.Story.get = function (n) { return n === "BadIf" ? { text: "<<if $x>>abc" } : null; };
+V.passage = "Home"; global.State.passage = "Home";
+const nG = played.length;
+api.teleportTo("BadIf");
+assert(played.length === nG + 1 && played[played.length - 1] === "BadIf", "坏宏段落仍允许进入（只提示不阻止），实得 " + JSON.stringify(played.slice(nG)));
+global.Story.get = function (n) { return n === "GoodIf" ? { text: "<<if $x>>abc<</if>>" } : null; };
+V.passage = "Home"; global.State.passage = "Home";
+const nH = played.length;
+api.teleportTo("GoodIf");
+assert(played.length === nH + 1 && played[played.length - 1] === "GoodIf", "好宏段落静默进入，实得 " + JSON.stringify(played.slice(nH)));
+global.Story.get = origStoryGet;
+V.passage = "Home"; global.State.passage = "Home";
+const nI = played.length;
+api.teleportTo("Bedroom");
+assert(played.length === nI + 1, "取不到段落文本时预检安全返回、不阻断直达，实得 " + JSON.stringify(played.slice(nI)));
+
+/* 6h. 当前段落取值四级回落（直接打导出的内部函数，逐级覆盖 + 全缺分支） */
+const stPassageBak = global.State.passage;
+dom.window.SugarCube = { State: { passage: "ScPassage" } };
+assert(api.mbCECurrentPassage() === "ScPassage", "L1 window.SugarCube.State.passage 优先");
+dom.window.SugarCube = {};
+global.State.passage = "StatePassage";
+assert(api.mbCECurrentPassage() === "StatePassage", "L2 裸 State.passage");
+delete global.State.passage;
+dom.window.State = { passage: "WinState" };
+assert(api.mbCECurrentPassage() === "WinState", "L3 window.State.passage");
+dom.window.State = {};
+V.passage = "VPassage";
+assert(api.mbCECurrentPassage() === "VPassage", "L4 $passage 兜底");
+V.passage = undefined;
+assert(api.mbCECurrentPassage() === "", "L5 四级全缺返回空串");
+delete dom.window.SugarCube; delete dom.window.State;
+global.State.passage = stPassageBak; V.passage = "Room";
+
+/* 6i. 宏预检的早退与异常分支 */
+const storyBak = global.Story, storyWinBak = dom.window.Story;
+/* 产物里 `Story` 走 window 作用域（SugarCube 挂在 window），只改 global.Story 预检会拿到空段落 */
+const setStory = function (s) { global.Story = s; dom.window.Story = s; };
+setStory({});
+assert(api.mbCEPassageMacroWarn("X") === "", "Story 无 get/passage → 空串");
+setStory({ get: function () { return null; } });
+assert(api.mbCEPassageMacroWarn("X") === "", "取到空段落 → 空串");
+setStory({ get: function () { return { text: 123 }; } });
+assert(api.mbCEPassageMacroWarn("X") === "", "text 非字符串 → 空串");
+setStory({ get: function () { throw new Error("boom"); } });
+assert(api.mbCEPassageMacroWarn("X") === "", "Story.get 抛错 → 安全返回空串");
+setStory(storyBak);
+dom.window.Story = storyWinBak;
+
+/* 6j. 四级回落各来源抛错都要安全落到下一级（覆盖 try/catch 分支） */
+const stBak2 = global.State.passage;
+Object.defineProperty(dom.window, "SugarCube", { configurable: true, get: function () { throw new Error("sc boom"); } });
+global.State.passage = "Catch1";
+assert(api.mbCECurrentPassage() === "Catch1", "SugarCube 抛错 → 回落 State.passage");
+delete dom.window.SugarCube;
+Object.defineProperty(global.State, "passage", { configurable: true, get: function () { throw new Error("st boom"); } });
+dom.window.State = { passage: "Catch2" };
+assert(api.mbCECurrentPassage() === "Catch2", "State.passage 抛错 → 回落 window.State");
+delete global.State.passage;
+Object.defineProperty(dom.window, "State", { configurable: true, get: function () { throw new Error("ws boom"); } });
+V.passage = "Catch3";
+assert(api.mbCECurrentPassage() === "Catch3", "window.State 抛错 → 回落 $passage，实得 " + JSON.stringify(api.mbCECurrentPassage()));
+delete dom.window.State;
+global.State.passage = stBak2;
+V.passage = "Room";
+/* Story 只有 passage() 没有 get() 的旧接口形态也要能预检 */
+setStory({ passage: function () { return { text: "<<if $x>>abc" }; } });
+const warnOld = api.mbCEPassageMacroWarn("X");
+assert(warnOld.indexOf("宏结构不配对") >= 0, "Story.passage 旧接口形态也能预检，实得 " + JSON.stringify(warnOld));
+global.Story = storyBak;
+
 console.log("\nPLACES STAGE STATE: passed=" + passes + " failed=" + failures);
 if (failures) process.exit(1);
 process.exit(0);

@@ -103,6 +103,50 @@
 		} catch (e) {}
 		return false;
 	}
+	/* ============ v2.0.10 直达到达校验（好友实测：湖畔直达落到 Bedroom 报
+	   「The passage Bedroom has no usable links」，玩家卡在无链接页只能读档）============
+	   机理：场景直达 = 直接 Engine.play(目标段落)，绕过正常入口对运行期状态的初始化；
+	   目标段落若在 render 早期抛异常（或缺前置对象），它自身的收尾部分（含全部 <<link>>）
+	   会被吞掉 → 页面成立但无任何可点链接 → SugarCube 报 no usable links。
+	   判据只认「#passages 里一个可点链接都没有」——不猜错误面板（各版本 id 不一致），
+	   且只在直达后 250ms 检查一次，正常游玩链路完全不受影响。
+	   失败动作：退回直达前的段落（V.passage）+ 状态栏说明，玩家不会卡死。 */
+	function mbCECurrentPassage() {
+	/* 当前段落唯一真值来源：SugarCube 的 State.passage。$passage 是原版 widget 里
+	   <<set $passage to ... passage()>> 写的存档变量，语义上也是段落名，但它在段落正文渲染
+	   后才更新，直接拿它判「是否还停在目标段落」会滞后一帧；故 State 优先、$passage 兜底。 */
+	try {
+		var sc0 = (typeof window !== "undefined" && window) ? window.SugarCube : null;
+		if (sc0 && sc0.State && typeof sc0.State.passage === "string" && sc0.State.passage) { return sc0.State.passage; }
+	} catch (e) {}
+	try { if (typeof State !== "undefined" && State && typeof State.passage === "string" && State.passage) { return State.passage; } } catch (e) {}
+	try { if (typeof window !== "undefined" && window && window.State && typeof window.State.passage === "string" && window.State.passage) { return window.State.passage; } } catch (e) {}
+	try { var Vcur = getV(); if (Vcur && typeof Vcur.passage === "string") { return Vcur.passage; } } catch (e) {}
+	return "";
+}
+function mbCEHasUsableLinks() {
+		try {
+			var box = document.getElementById("passages");
+			if (!box) { return true; }
+			var n = box.querySelectorAll("a[data-passage], .link-internal, .link-broken, .mce-btn[data-passage]").length;
+			return n > 0;
+		} catch (e) { return true; }
+	}
+	function mbCEArrivalCheck(before, target) {
+		try {
+			window.setTimeout(function () {
+				try {
+					if (before === target) { return; }
+					if (mbCEHasUsableLinks()) { return; }
+					/* 只在确实停在目标段落时回退（玩家可能这 250ms 内自己点了别处） */
+					var curP = mbCECurrentPassage(); if (curP && curP !== target) { return; }
+					var ep = getEnginePlayFn();
+					if (ep && before) { ep.play.call(ep.e, before, true); }
+					setStatus("「" + target + "」直达失败：该段落没有可点链接（渲染期异常或前置状态缺失），已退回原处「" + before + "」。这个场景请从正常入口进入。", "mce-err");
+				} catch (e) {}
+			}, 250);
+		} catch (e) {}
+	}
 	function getEnginePlayFn() {
 		try { if (typeof window !== "undefined" && window && window.Engine && typeof window.Engine.play === "function") { return { e: window.Engine, play: window.Engine.play }; } } catch (e) {}
 		try { if (typeof Engine !== "undefined" && Engine && typeof Engine.play === "function") { return { e: Engine, play: Engine.play }; } } catch (e) {}
@@ -142,6 +186,31 @@ function ensureSceneStateFor(name) {
 			ensureFarmState(!(fs >= 1)); /* 农场线未推进也补壳（只补不覆盖）：直达后子段落会读 $farm.* */
 			return;
 		}
+		/* v2.0.10：湖畔 / 卧室的状态兜底（只补缺失、绝不覆盖进度） */
+		if (nm === "Bedroom" || nm === "Bedroom Wardrobe" || nm === "Bedroom Chest") {
+			if (typeof V2.location !== "string" || !V2.location) { V2.location = "home"; }
+			if (V2.outside === undefined) { V2.outside = 0; }
+			if (typeof V2.furniture !== "object" || V2.furniture === null) { V2.furniture = {}; }
+			if (typeof V2.furniture.bedroom !== "object" || V2.furniture.bedroom === null) { V2.furniture.bedroom = {}; }
+			/* 原版 StoryInit 的 V.furniture 结构是 bedroom:{bed,wardrobe,desk} 三件默认家具。
+			   只补空壳会让 Furniture.get('bed') 返回 null（area 存在但 area[category] 是 undefined），
+			   Bedroom 段 <<furnitureicon _bed.iconFile>> 直接空引用抛 TypeError → 整段正文不渲染，
+			   PassageFooter 的 _link 因没有任何 <<link>> 执行成功而为假 → 报 "has no usable links"。 */
+			var _br = V2.furniture.bedroom;
+			if (!_br.bed) { _br.bed = { id: "bed" }; }
+			if (!_br.wardrobe) { _br.wardrobe = { id: "wardrobe" }; }
+			if (!_br.desk) { _br.desk = { id: "desk" }; }
+			return;
+		}
+		/* 原版湖畔线读 $phase（0 湖岸 / 1 草丛 / 2 深水）；直达时若从未走过湖畔，
+		   $phase 缺失会让分支判定落在 undefined 上，段落收尾的选项整段不渲染。 */
+		if (nm === "Lake Stroll" || nm.indexOf("Lake ") === 0) {
+			if (typeof V2.location !== "string" || !V2.location) { V2.location = "lake"; }
+			if (V2.outside === undefined) { V2.outside = 1; }
+			var ph = Number(V2.phase);
+			if (!isFinite(ph) || ph < 0 || ph > 2) { V2.phase = 1; }
+			return;
+		}
 		/* v2.0.7 R3：小岛直达前补齐 $island 壳（含三处营地对象）。
 		   原版 Widgets Island 会初始化，但直达 hub 之前的部分段落已读 $island[$island.home].trap，
 		   新档直接 play("Island") 有 undefined 下标风险；这里「缺失才建、不覆盖进度」。 */
@@ -149,6 +218,29 @@ function ensureSceneStateFor(name) {
 			if (typeof mbCEIslandV === "function") { mbCEIslandV(); }
 		}
 	} catch (e) {}
+}
+function mbCEPassageMacroWarn(name) {
+	/* 直达前读目标段落「运行时文本」（含所有 MOD 改写与汉化插入）做宏配对预检。
+	   已定量确证的典型场景：汉化 i18n 的 pos 按原版段落算，模组把段落改长后 pos 落进
+	   <<tarkov_xxx_link>> 一类宏内部，译文（自带多个宏）被塞进宏中间 → if/elseif/else 被撕碎。
+	   这里只提示、不阻止进入：即使宏坏了，玩家也可能想先进去看看。 */
+	try {
+		var st = (typeof Story !== "undefined" && Story) ? Story : ((typeof window !== "undefined" && window) ? window.Story : null);
+		if (!st) { return ""; }
+		var pg = null;
+		try { pg = (typeof st.get === "function") ? st.get(name) : ((typeof st.passage === "function") ? st.passage(name) : null); } catch (e0) { pg = null; }
+		if (!pg || typeof pg.text !== "string") { return ""; }
+		var mText = String(pg.text).replace(/\/%[\s\S]*?%\//g, ""); /* 去 SugarCube 注释，避免注释里的示例宏假阳性 */
+		var mPairs = [["if", /<<if\b/g, /<<\/if>>/g], ["switch", /<<switch\b/g, /<<\/switch>>/g], ["link", /<<link\b/g, /<<\/link>>/g],
+			["widget", /<<widget\b/g, /<<\/widget>>/g], ["for", /<<for\b/g, /<<\/for>>/g], ["capture", /<<capture\b/g, /<<\/capture>>/g]];
+		var bad = [];
+		for (var mi = 0; mi < mPairs.length; mi++) {
+			var mo = (mText.match(mPairs[mi][1]) || []).length, mc = (mText.match(mPairs[mi][2]) || []).length;
+			if (mo !== mc) { bad.push(mPairs[mi][0] + " " + mo + "/" + mc); }
+		}
+		if (!bad.length) { return ""; }
+		return "注意：「" + name + "」宏结构不配对（" + bad.join("、") + "），进入后可能出现红字报错（常见于模组补丁把段落改长、汉化锚点随之错位）。本页「段落体检」可列出全部异常段落。";
+	} catch (e) { return ""; }
 }
 function teleportTo(name) {
 		try {
@@ -178,10 +270,15 @@ function teleportTo(name) {
 					Vp.replayScene = { name: "场景直达", startPassage: "Scene Viewer passages", passages: [], exitpassage: (typeof Vp.passage === "string" ? Vp.passage : "") };
 				}
 			}
+			var beforeP = "";
+			try { beforeP = mbCECurrentPassage(); } catch (e0) {}
 			ep.play.call(ep.e, name, true);
 			setStatus("已传送至「" + name + "」", "mce-ok");
+			mbCEArrivalCheck(beforeP, name); /* v2.0.10：无可用链接 → 自动退回原处，不把玩家卡死 */
 			var gidT = placeIdForPassage(name, name);
 			if (gidT) { applyWorldUnlock(gidT); setStatus("已传送至「" + name + "」并已解锁世界入口", "mce-ok"); }
+			/* v2.0.10-e：宏结构预检（只提示，不阻止；刻意放在成功文案之后，避免被覆盖） */
+			try { var mbW = mbCEPassageMacroWarn(name); if (mbW) { setStatus(mbW, "mce-err"); } } catch (e1) {}
 		} catch (e) { setStatus("传送失败：" + mbCEErr(e), "mce-err"); }
 	}
 	function listPlaceGroups() {

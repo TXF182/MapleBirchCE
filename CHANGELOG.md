@@ -2,6 +2,94 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.11（2026-11-08 迭代优化：判据改 State.passage / 序号去重 / 直达预检 / Mer Street 根因定量）
+
+**触发**：v2.0.10 交付后继续收敛，重点是「Mer Street 三连报到底为什么」。
+
+### 一、Mer Street 三连报根因已定量确证（结论：上游冲突，CE 不根治）
+
+把汉化 `i18n.json` 里 `pN = "Mer Street"` 的 20 条译文，逐条按 `pos` 套到补丁后段落（2658 字符）上实测：
+
+| 条目 | pos | 实际位置 | 偏差 |
+|---|---|---|---|
+| #1–#14（纯文本，无宏） | 100…1355 | 99…1354 | **−1**（`pos` 是 1-based，正常） |
+| #15–#19（含宏） | 1772…2163 | 1865…2256 | **+93** |
+| #20 | 2327 | 2439 | **+112**（比前组又多 19） |
+
+- **+93** 来自 DoLMod / Docks 的 TweeReplacer 往该段插入 `<<tarkov_trader_link>>` / `<<tarkov_harbor_link>>` / `<<gridtac_link>>` 等；**+19** 正是 DoLSims 那条 `<<BicycleSims>>` 前置插入的字符数（与先前静态审计的 +19 完全对上）。
+- **决定性证据**：`#15 pos=1772` 落在 `<<tarkov_trader_link "和平卫士" "Peacekeeper Post">>` **内部**、`#16 pos=1800` 落在 `<<tarkov_harbor_link>>` **内部**、`#18 pos=1981` 落在 `<<merpiericon>>` **内部**。汉化按 pos 切片就会把译文（每条自带 4~5 个宏，如 `<<docksicon>><<link [[码头 (0:02)|Docks]]>><<pass 2>><</link>>`）塞进这些宏中间，撕碎周围 `<<if>>…<<elseif>>…<<else>>` → 正是玩家看到的三条红字（if 未闭合 / elseif 在外 / else 非末位）。
+- **归属**：修法要么关掉对应模组该段的三条规则，要么汉化包改成按内容匹配（均属上游）。CE 侧只做诊断与兜底，不改第三方包。
+
+### 二、直达前宏结构预检（`07d-places.js`）
+
+- 新增 `mbCEPassageMacroWarn(name)`：读目标段落**运行时文本**（含所有 MOD 改写与汉化插入），统计 `if/switch/link/widget/for/capture` 配对。
+- **自查抓到的真 bug**：初版本打算复用 `07d-places2.js` 的 `mbCEPassageLint`，但该函数在另一段的局部作用域里，`typeof mbCEPassageLint !== "function"` 实测恒成立 → 预检**永远早退返回空串**（面板一切正常，实际什么都没检查）。已改为本段自包含实现（同口径正则 + 先剥 `/%…%/` 注释），并补断言直接校验返回文案。
+- 不配对时在状态栏提示「宏结构不配对（if 5/4），进入后可能出现红字（常见于模组把段落改长、汉化锚点随之错位）」，**只提示不阻止进入**——玩家可能仍想进去看。
+- 取不到 `Story` / 段落文本时安全返回空串，不阻断直达。
+
+### 三、到达校验判据改 `State.passage` 优先（`07d-places.js`）
+
+- 新增 `mbCECurrentPassage()`：`window.SugarCube.State.passage` → `State.passage` → `window.State.passage` → `$passage`。
+- **取证**：原版确有 `<<set $passage to $passageOverride ? $passageOverride : passage()>>`（全 HTML 592 处引用），`$passage` 语义上就是段落名；但它在**段落正文渲染后**才更新，拿它判「是否还停在目标段落」会滞后一帧。改取 `State.passage` 后，即使 `$passage` 没更新也不会漏判回退。
+- `teleportTo` 记录 `beforeP` 同样改用该函数。
+
+### 四、区块序号去重（折叠键含序号，重号会让玩家分不清）
+
+- 全局页「原版档案 · 收藏 · 头衔」（`07l-vanilla-ext-view.js`）原写 **⑧**，与「数值固定」（`07f-lock.js`）重号 → 改 **⑩**，全局页顺次为 ①–⑦ / ⑧ 数值固定 / ⑨ 潜伏者 / ⑩ 原版档案。
+- 场景直达页「原版调试报告」「段落体检」原 `idx=0`（按实现不显示序号）→ 改 **①②**，与用户「按序号收在一起」的诉求一致。
+- 新增断言「全局页区块序号不得重号」，防回归。
+
+### 五、Bedroom 兜底只补空壳 → 家具取不到 → 整段渲染中断（实机崩溃真因）
+
+**现象**：场景直达卧室后正文整片空白，红条报 `(:: Bedroom): The passage Bedroom has no usable links`。
+
+**真因链（逐环实证）**：
+
+1. `PassageFooter` 是**独立段落**，正文崩了它照样渲染，所以报错出现在页脚而不是正文。触发条件是 `<<elseif !_link and !tags().includes("exitCheckBypass")>>`。
+2. `_link` 就是 `State.temporary.link`，由 SugarCube 内置 `<<link>>` 宏置位，且**只在目标段落存在时置位**：`if (Story.has(passage)) { $link.addClass("link-internal"); T.link = true; }`（@15,528,664）。一条都没置位 ⇒ Bedroom 段里 37 处 `<<link>>` 一个都没执行成功 ⇒ **段落渲染在早期就抛错中断**（截图正文全空是同一件事的两面）。
+3. 抛错点：Bedroom 段 `<<set _bed to Furniture.get('bed')>>` 之后紧跟 `<<furnitureicon _bed.iconFile>>`，**直接取属性、无判空**。`furnitureGet` 的 `const area = V.furniture[target]; const current = area[category];` 在 `area` 存在但 `area["bed"]` 为 `undefined` 时走 `else { return null; }` ⇒ `_bed = null` ⇒ `null.iconFile` 抛 TypeError。
+4. 为什么 `area.bed` 会缺失：v2.0.10 的直达兜底 `ensureSceneStateFor("Bedroom")` 只写 `V2.furniture = {}` + `V2.furniture.bedroom = {}` 两个**空壳**。原版标准结构是 `V.furniture = { bedroom: { bed: { id: "bed" }, wardrobe: { id: fromBackComp ? "organiser" : "wardrobe" }, desk: { id: "desk" } } }`（@16,503,788，`switch (versions.furniture) case 0`）——空壳与原版不兼容，属 **CE 自身的结构性错误**，不是上游模组冲突。
+
+**修法**（`07d-places.js` 的 `ensureSceneStateFor` Bedroom 分支）：空壳照建之后，按原版逐件补齐 `bed` / `wardrobe` / `desk`，每件都是 `if (!_br.x)` 只补缺失、不覆盖已有进度（玩家换过的高级家具不会被重置）。同型的 `_wardrobe`（L285/L290）走同一条 `Furniture.get` 路径，三件齐补后一并解决。
+
+### 六、验证
+
+- `tests/places_stage_state.js`：**91 passed / 0 failed**（v2.0.10 的 68 条 + v2.0.11 迭代的 18 条 + 本轮新增 5 条：三件默认家具逐个补齐、已有 bed 不被覆盖、单独缺失的 wardrobe 也能补）。
+- 全链 12 步全绿：覆盖率 Statements 97.17%（15117/15557）/ **Branches 80.07%（5454/6811）** / Functions 98.85%（605/612）/ Lines 97.17%；结构门禁 73 段上限 400 全通过；键注册表 442 条 / 13 适配器一致；`拼接 SHA c3c52950c148 == 产物 SHA`。
+- 产物：`javascript/maplebirchce.js` 956,204 B / SHA256 `C3C52950C1488FC20B3A3290E05F7305A18F0D1A4B68F623531E61C1C0158E1D`；`MapleBirchCE.mod.zip` 304,492 B / SHA256 `D4BB54C788086555C0372213D8E2D94B114FE71C9E7432836B3F2F9ADEBA6DB8`（4 条目正斜杠）。
+
+## v2.0.10（2026-11-08 场景直达三处实机崩溃 + 全局页按序号折叠）
+
+**触发**：好友用「场景直达」实测报三处崩溃，并要求全局页按序号收起。
+
+### 一、全局页 / 场景直达页按序号折叠（`07a-shell.js`）
+
+- `mceNewSec(parent, idx, title, hint)` 改为**可折叠区块**：标题行 = 开关（`role="button"`、`tabindex=0`、Enter/空格可切换），右侧箭头 `▸/▾`，整块**默认收起**，内容进 `.mce-sec-body`。
+- **返回 body 而不是区块**，29 处 `var sec = mceNewSec(...)` 调用点零改动继续 `sec.appendChild(...)`。
+- 展开态按 `序号|标题` 存 `localStorage["mbCE_seccollapse"]`（不写存档、新档不继承）。
+
+### 二、场景直达到达校验 + 状态兜底（`07d-places.js`）
+
+- **好友现象**：湖畔直达落到 `Bedroom` 报 `The passage Bedroom has no usable links`，页面无任何可点链接，只能读档。
+- **机理**：直达 = 直接 `Engine.play(目标段落)`，绕过正常入口对运行期状态的初始化；目标段落 render 早期抛异常或缺前置对象时，它自己的收尾部分（含全部 `<<link>>`）整段被吞 → 段落成立但零链接。
+- **`mbCEHasUsableLinks()` + `mbCEArrivalCheck(before, target)`**：`play` 后 250ms 检查 `#passages` 内 `a[data-passage]` / `.link-internal` / `.link-broken` 数量；为零且确实停在目标段落 → 退回原段落 + 状态栏说明。**只在直达链路生效，正常游玩零影响。**
+- **`ensureSceneStateFor` 增补**（只补缺失、不覆盖进度）：`Bedroom` / `Bedroom Wardrobe` / `Bedroom Chest` → `location="home"` / `outside=0` / `furniture.bedroom` 壳；`Lake Stroll` 及 `Lake *` → `location="lake"` / `outside=1` / `$phase` 钳到 0–2（原版湖畔线读 `$phase`，新档直达时缺失会让分支判定落在 `undefined`）。
+
+### 三、原版调试报告开关（`07d-places2.js`）
+
+- **好友现象**：雷米农场野兽战红字 `ERROR: Unexpected $$NPCList[0].pronoun`。
+- **取证**（本体 0.5.12.13 三个 widget 段落按字符偏移逐字核对）：`Widgets State Man`（rel 1196）、`Widgets Combat Man-Combat`（rel 160511）、`Widgets Text`（rel 51459），原文形态 `<<elseif $options.debugdisable is "f">> <span class="red">ERROR: Unexpected $$NPCList[0].pronoun: [$NPCList[0].pronoun]</span>`，紧跟原版自己的兜底 `<<if $enemytype is "beast" and $monster is 0>> <<set $pronoun to "i">> <</if>>`。
+- **结论**：红字是**原版刻意写的开发向诊断**，只在玩家把调试报告打开（`debugdisable="f"`）时显示；野兽战本来没有 `$NPCList[0]`，原版先查再兜底，所以必然出现一次，但**不影响伤害/剧情结算**。`$$` 双写也是原版风格（首个 `$` 表示「变量名」），不是拼错。
+- **处置**：场景直达页新增「原版调试报告」区块，一键写 `$options.debugdisable="t"` 关闭（可再打开排查用），不进留痕（设置项，游戏内「设置 → 调试报告」也能改回）。
+
+### 四、段落体检（`07d-places2.js`，回应「其他的有没有问题」）
+
+- **Mer Street 三连报的取证边界**：把全部包 `boot.json` 的 `passage` 规则连同 `replaceFile` 正文逐条套到原版段落（离线复原），`Mer Street` 最终 `if 15/15`、`elseif 7`、`link 3/3`，`Bedroom` 最终 `if 53/53`、`link 37/37` —— **宏计数完全平衡**，说明损坏不在 TweeReplacer 层，而在脚本层（启动前直接改 `tw-passagedata` 的 `textContent`），磁盘文本查不出，**只有运行时 `Story` 文本是真值**。
+- 新增「段落体检（宏结构）」区块：遍历全部段落（含所有 MOD 改写后的运行时文本），统计 `if` / `switch` / `link` / `widget` / `for` / `capture` 开闭配对，列出不配对的段落名 + 配对数 + 长度，可一键复制回传。只读，不改文本、不动存档。
+
+**验证**：结构门禁 73 段全过（`07a-shell.js` 400/400 上限内）、`node --check`、ESLint 八规则、12 步全链、覆盖率门禁 Branches 5411/6763（80.00%）、`tests/places_stage_state.js` 68/0（新增 37 断言，含到达校验有链接/零链接两态）。
+**产物**：73 段 / 952,506 B（拼接 SHA `20d08349…587939`）；`MapleBirchCE.mod.zip` 303,103 B / SHA256 `777A88C26AB276243FF6DA37C20C2158D5A2A4B739710FC2E831BEC2D04239CE`。
+
 ## v2.0.9（2026-11-08 朋友三条原版需求 + Dolonline 5.27 单机状态键 + 锁定恢复修复）
 
 **触发**：朋友通过 QQ 提出四条需求（养猫 / 犯罪没有历史记录 / 一键收集古董 / 飞升线要「雷米 疤面」头衔）。本轮按用户定档做 ②③④，「养猫」本轮不做；Dolonline 5.27 只做单机状态键，不做联机交互。

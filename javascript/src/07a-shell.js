@@ -39,16 +39,57 @@
 		});
 		return h;
 	}
-	/* 带编号区块：返回区块容器，后续照旧 sec.appendChild(...) */
+	/* v2.0.10 折叠分组：区块标题行即开关，整块默认收起，点击展开；展开态按「序号|标题」存
+	   localStorage（不写存档）。返回 body 容器 —— 调用方 `var sec = mceNewSec(...)` 后继续
+	   appendChild，内容自动落进 body，29 处调用点零改动。玩家要求：全局页太长，按序号收在一起。 */
+	var MCE_SEC_FOLD_KEY = "mbCE_seccollapse";
+	var mceSecFoldMap = null;
+	function mceSecFold(key, open) {
+		try {
+			if (!mceSecFoldMap) {
+				var raw = window.localStorage ? window.localStorage.getItem(MCE_SEC_FOLD_KEY) : null;
+				mceSecFoldMap = raw ? (JSON.parse(raw) || {}) : {};
+			}
+		} catch (e) { mceSecFoldMap = {}; }
+		if (open === undefined) { return mceSecFoldMap[key] === 1; } /* 缺省 = 收起 */
+		mceSecFoldMap[key] = open ? 1 : 0;
+		try { if (window.localStorage) { window.localStorage.setItem(MCE_SEC_FOLD_KEY, JSON.stringify(mceSecFoldMap)); } } catch (e) {}
+		return open;
+	}
+	/* 带编号区块（可折叠）：返回区块的 body 容器，后续照旧 sec.appendChild(...) */
 	function mceNewSec(parent, idx, title, hint) {
-		var sec = el("div", "mce-block");
-		var head = el("div", "mce-sec-title");
+		var sec = el("div", "mce-block mce-blockfold"), n = Number(idx);
+		var key = (isFinite(n) ? String(n) : "0") + "|" + String(title || "");
+		var open = mceSecFold(key);
+		sec.setAttribute("data-open", open ? "1" : "0");
+		sec.setAttribute("data-secidx", isFinite(n) ? String(n) : "0");
+		var head = el("div", "mce-sec-title mce-sec-head");
+		head.setAttribute("role", "button");
+		head.setAttribute("tabindex", "0");
+		head.title = open ? "点击收起本组" : "点击展开本组";
 		head.appendChild(el("span", "mce-sec-n", mceSecMark(idx)));
-		head.appendChild(el("span", "", title));
+		head.appendChild(el("span", "mce-sec-t", title));
+		var arrow = el("span", "mce-sec-arrow", open ? "▾" : "▸");
+		head.appendChild(arrow);
+		var body = el("div", "mce-sec-body");
 		sec.appendChild(head);
-		if (hint) { sec.appendChild(mceFoldHint(hint)); }
+		sec.appendChild(body);
+		if (hint) { body.appendChild(mceFoldHint(hint)); }		function toggle() {
+			var nowOpen = sec.getAttribute("data-open") !== "1";
+			sec.setAttribute("data-open", nowOpen ? "1" : "0");
+			arrow.textContent = nowOpen ? "▾" : "▸";
+			head.title = nowOpen ? "点击收起本组" : "点击展开本组";
+			mceSecFold(key, nowOpen);
+		}
+		head.addEventListener("click", toggle);
+		head.addEventListener("keydown", function (ev) {
+			if (ev.key === "Enter" || ev.key === " " || ev.keyCode === 13 || ev.keyCode === 32) {
+				ev.preventDefault();
+				toggle();
+			}
+		});
 		if (parent) { parent.appendChild(sec); }
-		return sec;
+		return body;
 	}
 	/* 二级分组：返回组内 body 容器（组名 + 右侧副标） */
 	function mceNewGroup(parent, title, sub) {
@@ -198,6 +239,14 @@
 		/* 折叠说明盒：收起时只留摘要行，展开后补出全部条目 */
 		".mce-foldbox[data-open=\"0\"] .mce-hint:not(.mce-fold){display:none}" +
 		".mce-foldbox[data-open=\"1\"] .mce-hint:not(.mce-fold){display:block;animation:mce-fade-in .2s ease-out}" +
+		/* v2.0.10 区块折叠：标题行可点、箭头右对齐；收起时 body 不占位（整组收成一行） */
+		".mce-sec-head{cursor:pointer;user-select:none;border-radius:var(--mce-radius-sm)}" +
+		".mce-sec-head:hover{background:var(--mce-bg-hover)}" +
+		".mce-sec-head:focus-visible{outline:1px solid var(--mce-accent)}" +
+		".mce-sec-arrow{margin-left:auto;color:var(--mce-accent);font-size:var(--mce-fs-sm);line-height:1;padding-left:6px}" +
+		".mce-sec-body{padding-top:2px}" +
+		".mce-blockfold[data-open=\"0\"] .mce-sec-body{display:none}" +
+		".mce-blockfold[data-open=\"1\"] .mce-sec-body{animation:mce-fade-in .2s ease-out}" +
 		/* 内层标签 */
 		".mce-inner{display:flex;gap:var(--mce-space-sm);margin:var(--mce-space) 0;border-bottom:1px solid var(--mce-border-quiet);padding-bottom:6px}" +
 		".mce-inner button{background:var(--mce-bg-ctl);color:var(--mce-txt-faint);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-sm);padding:3px 10px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
