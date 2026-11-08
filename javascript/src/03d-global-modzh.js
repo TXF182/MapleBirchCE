@@ -118,7 +118,7 @@
 	function zhKey(k) { return ZH_KEYS[k] || String(k); }
 	function zhPath(p) { return String(p).split(".").map(zhKey).join("."); }
 	function zhType(t) { return ZH_TYPES[t] || t; }
-	/** @type {Record<string, any>} */ var CHEAT_ADAPTERS = {};      /* modId -> { detect: fn, entry: {...} }（内置适配器按需填充） */
+	/* CHEAT_ADAPTERS 容器声明在 04a-00-core.js（v1.9.13 拆分时迁走，此处不再重复声明，避免后声明重置前者） */
 	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
 	var curCheatModId = "";
 

@@ -1,6 +1,6 @@
 /* 职责：统一回退中心（v2.0.3 P4-1）——把散落各处的回退入口收敛为「全局」页一个区块。
    数据源唯一：存档内 V.mbCE_wrote 留痕。类型覆盖 cheat / world / maint / place / native / vanilla /
-   set / clear / append / state / batch / yanling / part / lock；回退业务逻辑复用既有实现（undoCheatModValue /
+   set / clear / append / state / batch / yanling / part / vcore / lock；回退业务逻辑复用既有实现（undoCheatModValue /
    mbCEWorldUndo / mbCEMaintUndo / placeStageUndo / undoRomanceStage / undoVanillaStage），本文件只做
    归一化分发与展示。不可逐条回退的类型（batch 审计 / yanling 页内撤销 / state 关系状态）显式禁用按钮并说明原因。 */
 
@@ -17,6 +17,7 @@
 		batch: "批量操作（仅审计）",
 		yanling: "言灵改写（页内撤销）",
 		part: "外观隐藏（转化部件）",
+		vcore: "原版档案 · 收藏 · 头衔",
 		lock: "数值锁定写回"
 	};
 	function mbCEUndoLabel(type) {
@@ -133,6 +134,13 @@
 				var vk = rec.key || key.replace(/^vanilla:/, "");
 				var r5 = /** @type {any} */ (undoVanillaStage(rec.npc || "Gwylan", vk));
 				return { ok: !!(r5 && r5.ok), msg: (r5 && (r5.message || r5.msg)) || "原版阶段回退失败" };
+			}
+			/* v2.0.9 需求②③④：原版档案 / 收藏 / 头衔三项整块写入（07l-vanilla-ext.js）
+			   id in {crime, antique, title}；before 为「首次写入前」整块快照，由 mbCEVanillaExtUndo 按 kind 还原 */
+			if (type === "vcore") {
+				var vid = String(rec.id || key.replace(/^vcore:/, ""));
+				var rv = /** @type {any} */ (mbCEVanillaExtUndo(vid));
+				return { ok: !!(rv && rv.ok), msg: (rv && (rv.message || rv.msg)) || "原版档案回退失败" };
 			}
 			/* 框架恋爱条件三类：留痕里已存 path / value，可直接还原（与 undoRomanceStage 同口径） */
 			if (type === "set") {

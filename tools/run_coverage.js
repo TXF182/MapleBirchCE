@@ -104,7 +104,11 @@ const TESTS = [
   /* 适配器负向分支（05a）：能力切换 / 剧情操作 / 数值写入的拒绝路径（模组未注册、条目缺
      varPath|skipVar|completeVar|progressVar、未知操作码、原版根拦截、parent 缺失），以及
      list / string / boolean 三条写入通道与 cheatReadSafe 异常兜底。 */
-  "tests/adapters_negative_state.js"
+  "tests/adapters_negative_state.js",
+  /* Dolonline 适配器（04a-17）+ 动作直调通道（05a3）+ 存档就绪判据 hasV（01-core）：
+     detect 三种在场形态、两个动作的幂等与 ifMissing 语义、动作错误四分支、hasV 的
+     window.V / State 两条来源组合。补齐该适配器的覆盖率缺口，与 run_all 第 5 步同源。 */
+  "tests/adapter_actions.js"
 ];
 
 let failed = 0;

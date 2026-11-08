@@ -971,6 +971,84 @@
         "varPath": "yiluo_holy"
       }
     ],
+    "dolonline": [
+      {
+        "key": "dl_unlocked",
+        "varPath": "mpDgUnlocked"
+      },
+      {
+        "key": "dl_class",
+        "varPath": "mpClass"
+      },
+      {
+        "key": "dl_dglv",
+        "varPath": "mpDgLv"
+      },
+      {
+        "key": "dl_dgexp",
+        "varPath": "mpDgExp"
+      },
+      {
+        "key": "dl_dailylv",
+        "varPath": "mpDLv"
+      },
+      {
+        "key": "dl_dailyexp",
+        "varPath": "mpDExp"
+      },
+      {
+        "key": "dl_skillpts",
+        "varPath": "mpSkillPts"
+      },
+      {
+        "key": "dl_mpcat",
+        "varPath": "mpCat"
+      },
+      {
+        "key": "dl_agi",
+        "varPath": "mpDgAgi"
+      },
+      {
+        "key": "dl_floor",
+        "varPath": "dgFloor"
+      },
+      {
+        "key": "dl_hp",
+        "varPath": "dgHp"
+      },
+      {
+        "key": "dl_mana",
+        "varPath": "dgMana"
+      },
+      {
+        "key": "dl_manamax",
+        "varPath": "dgManaMax"
+      },
+      {
+        "key": "dl_gold",
+        "varPath": "dgGold"
+      },
+      {
+        "key": "dl_kills",
+        "varPath": "dgKills"
+      },
+      {
+        "key": "dl_chestreq",
+        "varPath": "dgChestReq"
+      },
+      {
+        "key": "dl_chesttier",
+        "varPath": "dgChestTier"
+      },
+      {
+        "key": "dl_npcaff",
+        "varPath": "npcAff"
+      },
+      {
+        "key": "dl_npcch",
+        "varPath": "npcCh"
+      }
+    ],
     "dolsims": [
       {
         "key": "ds_lib_trouble",
@@ -1722,11 +1800,12 @@
     ]
   },
   "keysWithoutVarPath": {
-    "revelation-the-book-of-return": 1
+    "revelation-the-book-of-return": 1,
+    "dolonline": 2
   },
   "totals": {
-    "adapters": 12,
-    "entries": 423,
-    "keysWithoutVarPath": 1
+    "adapters": 13,
+    "entries": 442,
+    "keysWithoutVarPath": 3
   }
 }

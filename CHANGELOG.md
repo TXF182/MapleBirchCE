@@ -2,6 +2,71 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.9（2026-11-08 朋友三条原版需求 + Dolonline 5.27 单机状态键 + 锁定恢复修复）
+
+**触发**：朋友通过 QQ 提出四条需求（养猫 / 犯罪没有历史记录 / 一键收集古董 / 飞升线要「雷米 疤面」头衔）。本轮按用户定档做 ②③④，「养猫」本轮不做；Dolonline 5.27 只做单机状态键，不做联机交互。
+
+### 一、②犯罪不留历史记录（新增 `07l-vanilla-ext.js`「原版档案」区块）
+
+- **缺口实证**：原版自己的清犯罪 widget（`Degrees of Lewdity.html` L342350–L342366）只写 `current` / `Count` / `Daily` 再 `clearEvents(type)`，**完全不动 `history` / `countHistory`** —— 所以「案底」清不掉。
+- **实现**：直写 `$crime[type]` 对象 5 个字段（`current` / `count` / `daily` / `history` / `countHistory`）+ 清空 `$crime.events`；覆盖 10 类（优先 `setup.crimeNames`，缺则用兜底清单）。
+- **为什么不走访问器**：`C.crime.count` 的 setter 带联动（`count === 0 && current > 0` 时把 count 抬回 1），走访问器清不干净。
+- **回退**：整块 `before` 快照写入 `V.mbCE_wrote["vcore:crime"]`，保留「首次写入前」状态，回退中心可一键还原。
+
+### 二、③一键收集古董（只收集不上交 + 成就一并解锁）
+
+- **口径**：写 `found`（已发现未上交）而不是 `museum` —— 不占博物馆柜位、不结算奖金、不触发 `museumCount++`；`paintings` 两幅一并 `found`。
+- **成就**：`It Belongs in a Museum`（原版判据 `museumCount == maxCount`，L104893）**必须直写 `V.feats.currentSave`**：`earnFeat`（L104772–L104782）在 `V.cheatsEnabled === true` / `V.debug` / soft / `statFreeze` / `allureModifier < 1` 时直接 return，作弊档下等原版结算永远等不到。
+- **maxCount**：缺失时按 `Object.keys(antiques).length` 补齐（原版 64 件）。
+- **期刊提示**：`museumAntiqueJournalHints` 清空（全部 found 后不再指向「未发现位置」）。
+- **回退**：古董状态机 + `museumCount` + 本次解锁的成就一并还原。
+
+### 三、④飞升线也能拿「雷米 疤面」
+
+- **原版判据**（L190868–L190872）：`$avery_fate is "ascended"` 时 Avery=`crimson hound` / Harper=`silver fox` / Remy=`high elk`；只有非飞升线才给 Remy=`scarred`。
+- **幂等守卫**：该段守卫是 `Harper.title isnot "silver fox"` —— 只写 Remy 会在下一次结算被覆盖回 `high elk`，所以飞升线下必须同步补 Harper / Avery，让守卫不成立。
+- **实现**：`Remy.title = "scarred"`；`avery_fate === "ascended"` 时按需补 `Harper` / `Avery`，并在返回文案里说明补了谁、为什么。
+- **中文「疤面」**在汉化层，面板同时显示英文 key 与中文映射。
+
+### 四、Dolonline 5.27（`04a-17-dolonline.js`，只做单机状态键）
+
+- **渠道**：`tools\_modcache\dolonline527\unpacked\`（`DoLOnline-5.27.mod.zip` 191,740 B / SHA256 `3634EE651F462A57D12732FEB8D65ABC1B0F8D23652375D7F3B7D08435D8F606`）；零依赖、无补丁注入（`boot.json` `dependenceInfo: []` / `addonPlugin: []`）。
+- **声明**：2 stages（入口解锁 / 职业）+ 17 values + 2 actions；`mpSkill` 的 9 个法术键由 action 一键置 1。
+- **键判据全部对齐源码**：地下城升级 need `100+(lv-1)*50`、日常 `80+(lv-1)*40`（index.js:4663–4669）；法术按 `mpDgLv` 3/5/7/9/12 解锁；宝箱档位 `min(5,max(1,ceil(floor/4)))`、门槛 `[100,200,300,400,500]`（dungeon.twee:891–905）；`npcAff` 上限 15。
+- **不做**：联机交互（连接 / 认证 / 共享怪物血量）一律不碰，只读写本地存档变量。
+
+### 五、接线与验证
+
+- 全局页新增 ⑧ 区块（`08-npc-traits2.js` 接线），回退中心新增 `vcore` 类型（`08c-undo-center.js`）；vcore 六键导出单独成段 `09-exports-vcore.js`（在 `mountApi()` 之后补齐），`manifest.json` 段序 69 → 73。
+- **结构门禁拆段（S1 单段 400 行）**：`07l-vanilla-ext.js` 522 行拆为数据层 **341 行** + 视图层 `07l-vanilla-ext-view.js` **187 行**（统计快照与区块渲染）；`09-exports2.js` 405 → **399 行**。`tools/structure-baseline.json` 未动（`lineAllowlist` 仍 0 项，不给自己开豁免口子）。
+- `tests/data/adapter_matrix.json` 重生成：13 适配器 / 442 条目 / 1006 探针（含 dolonline 1 条 / 2 探针）。
+- 新增断言：`tests/test_mce.js` §63 共 **47 条**（原 27 条 + 反向/降级路径 20 条：二次清空不覆盖首次 `before`、`$crime` 结构被清后回退显式拒绝、缺 `$feats` 时成就写入失败要明说、`$feats` 缺 `currentSave` 自动建表、成就早已解锁如实回「此前已解锁」、无 `$paintings` 不代建、`$museumAntiques` 缺失拒绝、`$NPCName` 缺 Remy 拒绝、飞升线守卫已在位只写 Remy、回退时 Remy 消失拒绝、未知留痕类型拒绝、统计快照脏档降级、快照后新增画作不还原）；`tests/smoke_dom.js` ⑧ 区块 20 条（三组渲染、按钮点击、留痕、回退还原，直测 `mbCERenderVanillaExt` 不经 `refresh()`，避免节流重建让断言落在旧 pane 上）。
+- 门禁补齐：src 侧 strict 类型债务清回 0（`mbCEVanillaExtUndo` 的 catch 分支改为 `in` 收窄取 `message`）；`keys.registry.json` 重生成 → **442 条 / 13 适配器**（新增 dolonline 19 键）。全链 `tools/run_all.ps1` 12/12 通过，覆盖率 **Branches 80.05%（5279/6594）** / Statements 97% / Functions 98.49% / Lines 97%；产物 **935,851 B / SHA256 `ef3b7dac2b2de23c508964ecdf44f33757cc058ec799498e0f37ce5650929c3f` / 73 段**；包 **297,202 B / SHA256 `C9FA7AB43F639124A9B8A2CBD024202A26F5DA16217799860D07FC212D3CB53E`**。
+
+### 六、⑥锁定值在刷新/读档后失效（朋友实测反馈：明明已锁定，意志却变成 99）
+
+- **现象**：QQ 反馈「不知道为什么，明明已经锁定了，数值却会变化」「我的意志莫名其妙变成了 99」。
+- **根因（jsdom 探针复现，非推测）**：只装 `window.maplebirch` 不设 V（模拟脚本注入早于读档）后 eval 产物，实测 `before passage: 99` → `after :passagedisplay: 99` → 手动 tick 后 `100`。模块加载期 `mbCELockEnsureTimer()` 拿到的是 `getV()` 的空兜底 → 判「无锁定向」→ **1 秒写回定时器从未起表**；`hookRefresh` 只恢复言灵 timer 与面板重绘，不恢复锁定。唯一补救是玩家打开 CE 面板触发 `mbCERenderLock` —— 与用户「得切换页面才生效」的旧反馈吻合。
+- **原版成因**：`Degrees of Lewdity.html` L78404 `V.willpower *= 0.99`（`V.fallenangel < 4` 分支内，100→99 正是本案例）；L165669 willpower 宏无条件 `Math.clamp(V.willpower + amount*2, 0, V.willpowermax)`。
+- **修复**：新增 `mbCELockResume()`（`ensure + tick` 一次到位，立即写回不等 1s）与 `mbCEResumeTimers()`（统一恢复 锁定/潜伏者/隐藏/态度/言灵 五个定时器，每个 catch 包裹）；接入 `hookRefresh` 的 `:passagedisplay` 与 `init()`；`09-exports2.js` 导出两键。
+- **同类缺陷（一并修）**：`mbCELurkerEnsureTimer`（`07f-lurker.js:82`，500ms）、`mbCEHideEnsureTimer`（`07j-transform-hide.js:112`）、`mbCEAttitudeEnsureTimer`（`05b2-modcheat-attitude.js:125`）都只在「点开关 / 打开对应页」时起表，注入早于读档即永不起 —— 现由 `mbCEResumeTimers()` 统一覆盖。
+- **软上限**：`willpowermax` 默认 1000 / `physiquemax` 20000 / `beautymax` 10000（HTML L182000/184691/181994），`willpower` 宏与 `V[type]` 写回都走 `Math.clamp(_, 0, *max)` → **锁定值超过软上限仍会被拉回**。面板文案已提示「把 *max 一起锁定」，不做自动 clamp（避免把玩家意图改写成别的数）。
+- **测试**：新增 `tests/lock_resume.js`（12 断言：注入早于读档 99→100 立即写回、`:passagedisplay` 翻页恢复、1.3s 后保持、潜伏者 500ms 定时器起表 held 2→冰箱 2、面板 **49 条**可锁 path 批量 tick 全等于目标值、缺字段不造脏键、源码级防回归），已纳入 `run_all.ps1` 第 5 步（fail-closed）。
+
+### 七、Dolonline 适配迭代（动作直调通道 + 存档就绪判据）
+
+- **精确性核查（四项全过）**：`audit_adapters.js dolonline` 字面覆盖 16/19，3 条 `SOURCE_MISMATCH`（`mpDgExp` / `mpDLv` / `mpDExp`）经逐行实证存活于 `index.js:4435`（三元拼键）、`4436`、`4663`、`4668`、`4692`、`4695`、`7165` —— 模组写 `v.mpDLv`（`var v = VV()` 整档别名），audit 只扫 `V.` 前缀，属**工具别名盲区**不是缺键；`resolve_missing.js` → **KEEP 19/19（100%，零删失）**；`_check_keys_mod.js` 全部存活；`_check_char_names.py` exit 0（两条动作名被切词误报）。
+- **动作直调通道**：此前适配器 `actions` 只在 UI 点击回调里 `a.run({})`，测试与外部脚本没有入口，动作分支无法覆盖。新增 `mbCEAdapterAction(adapterId, actionKey, args)`（`05a3-modcheat-actions.js`），按注册项定位（兼容 `entry.actions` 与直接 `actions` 两种声明形态）执行同一 `run`，返回同一 `{ ok, message }`；UI 按钮改走该入口，只有一条实现路径。导出 `mbCEAdapterAction` / `CHEAT_ADAPTERS`。
+- **存档就绪判据**：新增 `hasV()`（`01-core.js`）。`getV()` 未读档时返回 `{}`（truthy），所以原 `if (!v)` 分支**恒不成立**、且真未读档时写进 `{}` 只落在临时对象上静默无效。`detect` 与两个 action 的三处 `!v` 改为 `!hasV()`：未就绪 → 明确回「存档变量不可用（游戏尚未就绪）」，就绪 → 真写入。
+- **文案修正**：`dl_init_run` 返回消息原先固定列出 8 个键名（部分键本就存在、并未补齐），与「已补齐 N 个」自相矛盾 → 改为只报实际数量，明细见数值栏。
+- **测试**：新增 `tests/adapter_actions.js`（18 断言：未读档报错、空存档 detect false、mpCat/npcCh 命中、补齐不覆盖已有值、幂等、9 法术键、未知适配器/动作报错、UI 走直调通道的源码级防回归），已纳入 `run_all.ps1` 第 5 步。
+
+### 八、Dolonline 纳入每日更新检测
+
+- `tools/check_mod_updates.js` 的 `CHANNELS` **12 → 13 项**：新增 `dolonline`（repo `lmzgls/Dolonline`），因官方 release tag 形态不稳定，走 `useAssetVersion: true` 从资产名 `DoLOnline-<版本>.mod.zip` 提取版本。
+- 实测 `[dolonline] 5.27 / 5.27 → 无更新`，13 渠道全部 `UPDATES: 0`（exit 0）。
+- `README.md` 同步为「自动检测 13 渠道 + 13 个适配器」，并注明 Dolonline 已登记、FertilityExpansion 仍未登记。
+
 ## v2.0.8（2026-11-08 凌晨三项改动的 bug 复核：4 处真实缺陷修复）
 
 **触发**：v2.0.7 发布后追问「早上的改动检查过没有？万一里面有 bug 呢」。本轮不拿「全链全绿」当结论，改为独立复核：先逐行审查 `07f-lock.js` / `07f-lurker.js` / `08c-undo-center.js` / `07a-shell.js`，再写 jsdom 对抗探针实跑异常路径（T1–T7），抓到 4 处真实缺陷后改码修复，最后重跑全链并打包。

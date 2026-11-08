@@ -36,6 +36,12 @@ node tests/test_mce.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: regression" -ForegroundColor Red; exit 1 }
 node tests/test_adapter_matrix.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: adapter matrix（声明驱动的写入回读断言失败，见上方 FAIL 行；改过 04a-*.js 后须重跑 node tools/gen_adapter_matrix.js）" -ForegroundColor Red; exit 1 }
+Write-Host "    锁定恢复真实路径（注入早于读档 → 翻页写回 + 面板全部可锁 path 批量核查）"
+node tests/lock_resume.js
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: lock_resume（锁定在刷新/读档后未恢复，或某条可锁 path 写不回目标）" -ForegroundColor Red; exit 1 }
+Write-Host "    适配器动作直调通道 + 存档就绪判据（未读档报错 / 就绪真写入 / detect 命中）"
+node tests/adapter_actions.js
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: adapter_actions（动作直调通道或 hasV 判据回归）" -ForegroundColor Red; exit 1 }
 
 Write-Host "[6/12] 功能级 E2E（8 适配器全命中 + 模组特质获取/移除 + 全局页按钮真实点击）"
 node tests/functional_e2e.js

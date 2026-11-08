@@ -2,9 +2,9 @@
   "version": 1,
   "note": "由 tools/gen_adapter_matrix.js 从声明自动生成，勿手改；改声明后重跑生成器。",
   "source": "javascript/src/04a-*.js（段序取自 manifest.json）",
-  "adapterCount": 12,
-  "itemCount": 423,
-  "probeCount": 965,
+  "adapterCount": 13,
+  "itemCount": 442,
+  "probeCount": 1006,
   "items": [
     {
       "modId": "revelation-the-book-of-return",
@@ -11942,6 +11942,505 @@
           "label": "max(365)",
           "write": 365,
           "expect": 365
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "stages",
+      "index": 0,
+      "key": "dl_unlocked",
+      "varPath": "mpDgUnlocked",
+      "kind": "stage-number",
+      "type": "string",
+      "min": null,
+      "max": null,
+      "levels": [
+        0,
+        1
+      ],
+      "probes": [
+        {
+          "label": "level0 (0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "level1 (1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "stages",
+      "index": 1,
+      "key": "dl_class",
+      "varPath": "mpClass",
+      "kind": "stage-string",
+      "type": "string",
+      "min": null,
+      "max": null,
+      "levels": [
+        "",
+        "warrior",
+        "mage",
+        "ranger",
+        "priest"
+      ],
+      "probes": [
+        {
+          "label": "level0 ()",
+          "write": "",
+          "expect": ""
+        },
+        {
+          "label": "level1 (warrior)",
+          "write": "warrior",
+          "expect": "warrior"
+        },
+        {
+          "label": "level2 (mage)",
+          "write": "mage",
+          "expect": "mage"
+        },
+        {
+          "label": "level3 (ranger)",
+          "write": "ranger",
+          "expect": "ranger"
+        },
+        {
+          "label": "level4 (priest)",
+          "write": "priest",
+          "expect": "priest"
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 0,
+      "key": "dl_dglv",
+      "varPath": "mpDgLv",
+      "kind": "number",
+      "type": "number",
+      "min": 1,
+      "max": 99,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(1)",
+          "write": 1,
+          "expect": 1
+        },
+        {
+          "label": "max(99)",
+          "write": 99,
+          "expect": 99
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 1,
+      "key": "dl_dgexp",
+      "varPath": "mpDgExp",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 999999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(999999)",
+          "write": 999999,
+          "expect": 999999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 2,
+      "key": "dl_dailylv",
+      "varPath": "mpDLv",
+      "kind": "number",
+      "type": "number",
+      "min": 1,
+      "max": 99,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(1)",
+          "write": 1,
+          "expect": 1
+        },
+        {
+          "label": "max(99)",
+          "write": 99,
+          "expect": 99
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 3,
+      "key": "dl_dailyexp",
+      "varPath": "mpDExp",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 999999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(999999)",
+          "write": 999999,
+          "expect": 999999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 4,
+      "key": "dl_skillpts",
+      "varPath": "mpSkillPts",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(999)",
+          "write": 999,
+          "expect": 999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 5,
+      "key": "dl_mpcat",
+      "varPath": "mpCat",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 999999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(999999)",
+          "write": 999999,
+          "expect": 999999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 6,
+      "key": "dl_agi",
+      "varPath": "mpDgAgi",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(999)",
+          "write": 999,
+          "expect": 999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 7,
+      "key": "dl_floor",
+      "varPath": "dgFloor",
+      "kind": "number",
+      "type": "number",
+      "min": 1,
+      "max": 30,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(1)",
+          "write": 1,
+          "expect": 1
+        },
+        {
+          "label": "max(30)",
+          "write": 30,
+          "expect": 30
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 8,
+      "key": "dl_hp",
+      "varPath": "dgHp",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 99999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(99999)",
+          "write": 99999,
+          "expect": 99999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 9,
+      "key": "dl_mana",
+      "varPath": "dgMana",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 99999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(99999)",
+          "write": 99999,
+          "expect": 99999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 10,
+      "key": "dl_manamax",
+      "varPath": "dgManaMax",
+      "kind": "number",
+      "type": "number",
+      "min": 1,
+      "max": 99999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(1)",
+          "write": 1,
+          "expect": 1
+        },
+        {
+          "label": "max(99999)",
+          "write": 99999,
+          "expect": 99999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 11,
+      "key": "dl_gold",
+      "varPath": "dgGold",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 999999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(999999)",
+          "write": 999999,
+          "expect": 999999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 12,
+      "key": "dl_kills",
+      "varPath": "dgKills",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 99999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(99999)",
+          "write": 99999,
+          "expect": 99999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 13,
+      "key": "dl_chestreq",
+      "varPath": "dgChestReq",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 500,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(500)",
+          "write": 500,
+          "expect": 500
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 14,
+      "key": "dl_chesttier",
+      "varPath": "dgChestTier",
+      "kind": "number",
+      "type": "number",
+      "min": 1,
+      "max": 5,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(1)",
+          "write": 1,
+          "expect": 1
+        },
+        {
+          "label": "max(5)",
+          "write": 5,
+          "expect": 5
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 15,
+      "key": "dl_npcaff",
+      "varPath": "npcAff",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 15,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(15)",
+          "write": 15,
+          "expect": 15
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 16,
+      "key": "dl_npcch",
+      "varPath": "npcCh",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 3,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(3)",
+          "write": 3,
+          "expect": 3
         }
       ],
       "sync": null
