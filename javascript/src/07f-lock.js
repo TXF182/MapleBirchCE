@@ -65,7 +65,8 @@ function mbCELockTarget(path) {
 	for (var i = 0; i < list.length; i++) { if (list[i] && list[i].path === path) { return list[i].target; } }
 	return undefined;
 }
-function mbCELockSet(path, target) {
+/* replay=true：由 08d 的「确认写入」回调重放，跳过预览门控（防递归） */
+function mbCELockSet(path, target, replay) {
 	var Vp = getV();
 	if (!Vp || !path) { return { ok: false, message: "存档变量不可用或路径为空" }; }
 	/* 路径段校验：拒绝空段（"a..b"）与纯点串，防建脏键 */
@@ -73,6 +74,15 @@ function mbCELockSet(path, target) {
 	for (var pi = 0; pi < pParts.length; pi++) { if (!pParts[pi]) { return { ok: false, message: "路径格式无效（存在空段）：" + path }; } }
 	var num = Number(target);
 	if (!isFinite(num)) { return { ok: false, message: "锁定目标必须是有限数值" }; }
+	/* v2.0.7（D4）：锁定同样走 diff 预览——此前 mbCELockSet 直写 setPathVal + 写锁表，完全绕过 gate，
+	   导致「锁定」这类最常在面板里做的写入，开预览时反而看不到确认条。 */
+	if (!replay && typeof mbCEPreviewGate === "function") {
+		var curNow = mbCELockRead(Vp, path);
+		if (mbCEPreviewGate(path, curNow === undefined ? "（无此字段）" : curNow, num,
+			function () { return mbCELockSet(path, target, true); })) {
+			return { ok: false, pending: true, message: "待确认锁定：" + mbCELockLabel(path) + " = " + num };
+		}
+	}
 	var list = mbCELockData();
 	if (!list) { return { ok: false, message: "存档变量不可用" }; }
 	for (var i = 0; i < list.length; i++) {
@@ -137,6 +147,28 @@ function mbCELockEnsureTimer() {
 	} catch (e) {}
 }
 
+/* 锁定来源判定（P1：自定义锁定项默认收进折叠组，这里给每行标出「谁锁的」）：
+   ① 命中快速面板索引 → 角色页锁的；② 留痕里同 path 的 cheat 记录 → Mod作弊页锁的；③ 其余 → 手动自由添加 */
+function mbCELockSource(path) {
+	try {
+		if (typeof ensureQuickIndex === "function") {
+			var idx = ensureQuickIndex();
+			if (idx && idx[path]) { return "角色页"; }
+		}
+	} catch (e) {}
+	try {
+		var w = getV() && getV().mbCE_wrote;
+		if (w) {
+			var ks = Object.keys(w);
+			for (var i = 0; i < ks.length; i++) {
+				var rec = w[ks[i]];
+				if (rec && rec.type === "cheat" && rec.path === path) { return "Mod作弊"; }
+			}
+		}
+	} catch (e2) {}
+	return "手动";
+}
+
 /* 全局页区块渲染（由 renderGlobal 在末尾调用；pane = [data-pane="global"] 容器） */
 function mbCERenderLock(pane) {
 	if (!pane) { return; }
@@ -145,7 +177,7 @@ function mbCERenderLock(pane) {
 	var Vg = getV();
 	var presetPaths = {};
 	MB_CE_LOCK_PRESETS.forEach(function (p) { presetPaths[p.path] = true; });
-	var makeRow = function (it, locked) {
+	var makeRow = function (it, locked, parent) {
 		var row = el("div", "mce-row");
 		row.setAttribute("data-lockpath", it.path);
 		var lbl = el("span", "mce-row-lbl", it.name + "（" + it.path + "）当前 ");
@@ -153,6 +185,8 @@ function mbCERenderLock(pane) {
 		lbl.appendChild(val);
 		if (it.note) { lbl.appendChild(el("span", "mce-ab-note", " " + it.note)); }
 		row.appendChild(lbl);
+		/* P1：自定义项标注来源，让玩家一眼看出这条不是预设、是被哪个页面锁上的 */
+		if (it.source) { row.appendChild(el("span", "mce-badge mce-src", it.source)); }
 		var inp = el("input", "mce-inp");
 		inp.type = "number";
 		inp.value = String(locked ? it.target : (Number(mbCELockRead(Vg, it.path)) || 0));
@@ -178,18 +212,43 @@ function mbCERenderLock(pane) {
 			});
 			row.appendChild(ub);
 		}
-		sec.appendChild(row);
+		(parent || sec).appendChild(row);
 	};
 	/* 预设行：未锁定 → 「锁定」；已锁定 → 「更新目标/取消」 */
 	MB_CE_LOCK_PRESETS.forEach(function (p) { makeRow(p, mbCELockHas(p.path)); });
-	/* 已锁定的自定义项（不在预设列表）也显示，便于取消 */
+	/* P1（玩家图 3/图 4）：自定义锁定项**不再平铺在「⑧数值固定」列表里**——
+	   属性页能锁的 beauty/physique/willpower/skulduggery/danceskill/swimmingskill/athletics
+	   全不是预设，原先会被无条件追加成 7 行，把全局页撑成一张「锁定数值清单」。
+	   现在收进默认收起的折叠组，并逐行标注来源（角色页 / Mod作弊 / 手动）。 */
 	var list = mbCELockData();
+	var customs = [];
 	if (list) {
 		for (var i = 0; i < list.length; i++) {
 			var li = list[i];
 			if (!li || !li.path || presetPaths[li.path]) { continue; }
-			makeRow({ path: li.path, name: mbCELockLabel(li.path), note: "" }, true);
+			customs.push(li);
 		}
+	}
+	if (customs.length) {
+		var ckey = "lock:custom";
+		var openC = !!(typeof mbCEUiState !== "undefined" && mbCEUiState && mbCEUiState.collapsed && mbCEUiState.collapsed[ckey] === 0);
+		var grp = el("div", "mce-grp");
+		var head = el("div", "mce-grp-t mce-collapse-head", (openC ? "▾ " : "▸ ") + "其他已锁定（来自角色页 / Mod作弊页）　" + customs.length + " 条");
+		var body = el("div", "mce-grp-body");
+		body.setAttribute("data-collapsed", openC ? "0" : "1");
+		head.addEventListener("click", function () {
+			var open = body.getAttribute("data-collapsed") !== "1";
+			body.setAttribute("data-collapsed", open ? "1" : "0");
+			head.textContent = (open ? "▸ " : "▾ ") + "其他已锁定（来自角色页 / Mod作弊页）　" + customs.length + " 条";
+			if (typeof mbCEUiCollapsed === "function") { mbCEUiCollapsed(ckey, !open); }
+		});
+		grp.appendChild(head);
+		grp.appendChild(body);
+		body.appendChild(el("div", "mce-hint", "这些不是预设项，是你在角色页（快速面板 / 转化）或 Mod 作弊页点过「锁定」后落到 $V.mbCE_lock 的；默认收起，展开可改目标值或取消。"));
+		customs.forEach(function (li) {
+			makeRow({ path: li.path, name: mbCELockLabel(li.path), note: "", source: mbCELockSource(li.path) }, true, body);
+		});
+		sec.appendChild(grp);
 	}
 	/* 自由添加 */
 	var addRow = el("div", "mce-row");

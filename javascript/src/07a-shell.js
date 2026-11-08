@@ -222,9 +222,13 @@
 		".mce-err{color:var(--mce-red);font-size:var(--mce-fs-base)}" +
 		".mce-ok{color:var(--mce-green);font-size:var(--mce-fs-base)}" +
 		".mce-status{min-height:18px;padding:6px 10px;border-top:1px solid var(--mce-border-quiet);background:var(--mce-bg-deep);color:var(--mce-txt-muted);font-size:var(--mce-fs-btn)}" +
-		/* v2.0.3 P4-2：写入前 diff 预览确认条（吸在面板底部，不遮挡列表） */
-		".mce-preview-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--mce-accent);background:var(--mce-gold-bg);color:var(--mce-gold-txt);font-size:var(--mce-fs-btn)}" +
+		/* v2.0.3 P4-2：写入前 diff 预览确认条（吸在面板底部，不遮挡列表）
+		   v2.0.7 D3：原先只有注释说「吸底」、CSS 无 sticky，实际挂在滚动内容最末尾 → 玩家永远看不到。
+		   现改为 position:sticky + bottom:0（挂在当前活动 pane 内，滚动容器为 .mce-body），并加顶部分隔阴影。 */
+		".mce-preview-bar{position:sticky;bottom:0;z-index:12;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--mce-accent);background:var(--mce-gold-bg);color:var(--mce-gold-txt);font-size:var(--mce-fs-btn);box-shadow:0 -6px 14px rgba(0,0,0,.45)}" +
 		".mce-preview-lbl{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+		/* P1：自定义锁定项的来源徽标（角色页 / Mod作弊 / 手动） */
+		".mce-badge.mce-src{background:var(--mce-bg-ctl);color:var(--mce-txt-faint);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-sm);padding:1px 6px;font-size:11px;white-space:nowrap}" +
 		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:var(--mce-space-sm) 0}" +
 		/* v1.4.0 Mod作弊页面 */
 		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，

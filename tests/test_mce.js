@@ -501,7 +501,7 @@ global.Story = { has: (n) => PLACE_NAMES.indexOf(n) !== -1, lookupWith: (fn) => 
 let lap10 = api.listAllPassages();
 assert(lap10.length === PLACE_NAMES.length, "listPlaceGroups 经 lookupWith 枚举全部段落, 实际 " + lap10.length);
 let pGroups = api.listPlaceGroups();
-assert(pGroups.length === 17, "场景分组 17 组（14 + v2.0.0.007 新增 妓院含地下层/雷米牧场牲口线/雷米农场）, 实际 " + pGroups.length);
+assert(pGroups.length === 18, "场景分组 18 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island）, 实际 " + pGroups.length);
 let brV7 = pGroups.find(x => x.group.id === "brothel");
 assert(!!brV7 && brV7.group.main === "Brothel Basement" && brV7.items.length === 0 && brV7.group.name.indexOf("妓院") === 0, "v2.0.0.007 妓院组存在（主场景 Brothel Basement=地下妓院；模拟段落表无 Brothel 段 → items 空）, 实际 " + JSON.stringify(brV7 && brV7.group.main));
 let lvV7 = pGroups.find(x => x.group.id === "remy_livestock");
@@ -5247,6 +5247,60 @@ try {
   assert(typeof api58.mbCELockLabel("history") === "string" && api58.mbCELockLabel("history").length > 0,
     "58.45 锁定文案走中文名/falback（history → " + api58.mbCELockLabel("history") + "）");
 
+  // 58.46~58.62 v2.0.7（玩家拍板 P1/P2/R1–R4/D1–D6）：海岛组 · 锁定来源 · 岛屿直写 · 预览队列 · 锁定走预览 · 回退连带解锁 · 外观回退
+  const g18 = api58.listPlaceGroups().filter(function (x) { return x.group.id === "island"; })[0];
+  assert(!!g18 && g18.group.main === "Island" && g18.group.name.indexOf("海岛") === 0,
+    "58.46 R3 海岛场景组存在（主场景 Island）, 实际 " + JSON.stringify(g18 && g18.group.main));
+
+  assert(api58.mbCELockSource("zz.v207.src") === "手动", "58.47 P1 无来源线索时锁定来源判定「手动」");
+  V8.mbCE_wrote = V8.mbCE_wrote || {};
+  V8.mbCE_wrote["cheat:player-self:p:zz.v207.src"] = { type: "cheat", modId: "player-self", op: "value_set", path: "zz.v207.src", before: 0, after: 5, t: 900 };
+  assert(api58.mbCELockSource("zz.v207.src") === "Mod作弊", "58.48 P1 命中 cheat 留痕时来源判定「Mod作弊」");
+
+  delete V8.island;
+  const sh = api58.mbCEIslandV();
+  assert(!!sh && sh.island.home === "rocky_hillock" && Array.isArray(sh.island.explore_locations) &&
+    !!sh.island.rocky_hillock && !!sh.island.waterfall && !!sh.island.gulch,
+    "58.49 R3 无 $island 时建壳（home=rocky_hillock + 三处营地对象 + explore_locations 数组）");
+  const wIsl = api58.mbCEPlaceWriteRaw("island.hide", 12, true);
+  assert(wIsl.ok === true && V8.island.hide === 12, "58.50 R3 岛屿数值直写生效（hide=12）");
+  assert(!!V8.mbCE_wrote["place:island.hide"] && V8.mbCE_wrote["place:island.hide"].before === 1,
+    "58.51 R3 岛屿写入留痕保留首次旧值（before=1）");
+  const ltA = api58.mbCEIslandLocToggle("bay", true);
+  assert(ltA.ok === true && V8.island.explore_locations.indexOf("bay") !== -1, "58.52 R3 探索地点解锁入列（bay）");
+  const ltB = api58.mbCEIslandLocToggle("bay", false);
+  assert(ltB.ok === true && V8.island.explore_locations.indexOf("bay") === -1, "58.53 R3 探索地点可撤销出列（bay）");
+  const sh2 = api58.mbCEIslandV();
+  assert(!!sh2 && sh2.island.hide === 12, "58.54 R3 建壳幂等（已存在不覆盖进度）");
+
+  const hu = api58.mbCEHideUndo("part:zz.v207");
+  assert(!!hu && hu.ok === false, "58.55 R1/R2 无隐藏快照时外观回退如实拒绝");
+
+  api58.mbCEUiSave({ diffPreview: "1" });
+  assert(api58.mbCEPreviewCount() === 0, "58.56 D2 初始预览队列为空");
+  let rA = 0; let rB = 0;
+  const gA = api58.mbCEPreviewGate("zz.v207.a", 0, 1, function () { rA++; return { ok: true, message: "a" }; });
+  const gB = api58.mbCEPreviewGate("zz.v207.b", 10, 20, function () { rB++; return { ok: true, message: "b" }; });
+  assert(gA === true && gB === true && api58.mbCEPreviewCount() === 2,
+    "58.57 D2 连续两次写入都入队（不再单槽覆盖）, 实际 " + api58.mbCEPreviewCount());
+  const allR = api58.mbCEPreviewConfirmAll();
+  assert(allR.ok === true && api58.mbCEPreviewCount() === 0 && rA === 1 && rB === 1,
+    "58.58 D2「全部确认」一次落两笔（A/B 各重放一次）");
+  assert(typeof api58.mbCEPaneRefresh === "function", "58.59 D5 提供按当前页签重渲染的分发器");
+
+  V8.zzv207lock = 3;
+  const gl = api58.mbCELockSet("zzv207lock", 8);
+  assert(gl.ok === false && gl.pending === true && V8.zzv207lock === 3 && api58.mbCEPreviewCount() === 1,
+    "58.60 D4 锁定同样走预览（未确认前不改值、不写锁表）");
+  api58.mbCEPreviewCancel();
+  api58.mbCEUiSave({ diffPreview: "0" });
+
+  api58.mbCELockSet("zzv207lock", 5);
+  V8.mbCE_wrote["cheat:player-self:p:zzv207lock"] = { type: "cheat", modId: "player-self", op: "value_set", path: "zzv207lock", before: 3, after: 5, t: 901 };
+  const u207 = api58.undoOne("cheat:player-self:p:zzv207lock");
+  assert(u207.ok === true && V8.zzv207lock === 3 && api58.mbCELockHas("zzv207lock") === false,
+    "58.61 P2 回退作弊项时连带解除锁定（值回到 before=3 且锁表清空）");
+
   // 收尾：恢复全部被改动的既有状态
   V8.NPCName = bk58.NPCName;
   if (bk58.gwylanSeen === undefined) { delete V8.gwylanSeen; } else { V8.gwylanSeen = bk58.gwylanSeen; }
@@ -5264,6 +5318,8 @@ try {
   delete V8.specialClothes; delete V8.gwylanTalked;
   delete V8.lurkers_held; delete V8.lurkers_stored; delete V8.hookah; delete V8.mbCE_lurkerAuto; delete V8.mbCE_lurkerMoved;
   delete V8.timer; delete V8.vorestage; delete V8.swimdistance;
+  /* v2.0.7 新断言用到的临时键/壳（海岛壳 / 临时锁定路径 / 外观隐藏快照） */
+  delete V8.zzv207lock; delete V8.island; delete V8.mbCE_hideSnap;
 } catch (e58) {
   failures++;
   console.error("FAIL: 58 覆盖率补盲测试异常: " + (e58 && e58.message ? e58.message : e58));
@@ -5434,6 +5490,186 @@ try {
 } catch (e59) {
   failures++;
   console.error("FAIL: 59 覆盖率补盲测试异常: " + (e59 && e59.message ? e59.message : e59));
+}
+
+// ===== 60 v2.0.7 新增分支覆盖（R1/R2 外观隐藏 · R3 小岛直写 · D1 裸写走预览）=====
+try {
+  const api60 = setup.mbStageCE;
+  const V60 = global.V;
+  const bk60 = {
+    tp: V60.transformationParts, hide: V60.mbCE_hide, snap: V60.mbCE_hideSnap,
+    island: V60.island, ub: V60.undergroundbrothel, trauma: V60.trauma, wrote: V60.mbCE_wrote
+  };
+
+  // 60.1~60.9 目标枚举与拒绝分支
+  V60.transformationParts = {
+    traits: { fangs: "default", sharpEyes: "hidden", chase: "disabled", fakeN: 5 },
+    bird: { wings: "default" }, demon: { wings: "hidden" }, angel: {}, wolf: { ears: "hidden" }
+  };
+  assert(api60.MB_CE_HIDE_WINGS_SPECIES.length === 4, "60.1 翅膀物种清单 4 项（bird/angel/fallenAngel/demon）");
+  const innerOn = api60.mbCEHideApply("inner", true);
+  assert(innerOn.ok === true && V60.transformationParts.traits.fangs === "hidden" &&
+    V60.transformationParts.traits.sharpEyes === "hidden" && V60.transformationParts.traits.chase === "disabled",
+    "60.2 隐藏内在：default→hidden，已隐藏跳过，disabled 不动");
+  assert(V60.transformationParts.traits.fakeN === 5, "60.3 非字符串部件值被跳过（不强行改成 hidden）");
+  const wingsOn = api60.mbCEHideApply("wings", true);
+  assert(wingsOn.ok === true && V60.transformationParts.bird.wings === "hidden" &&
+    V60.transformationParts.demon.wings === "hidden" && !V60.transformationParts.angel.wings,
+    "60.4 隐藏翅膀：只命中有 wings 字符串的物种（不凭空造字段）");
+  const wingsOff = api60.mbCEHideApply("wings", false);
+  assert(wingsOff.ok === true && V60.transformationParts.bird.wings === "default",
+    "60.5 取消隐藏翅膀：hidden→default");
+  const innerOff = api60.mbCEHideApply("inner", false);
+  assert(innerOff.ok === true && V60.transformationParts.traits.fangs === "default" &&
+    V60.transformationParts.traits.chase === "disabled",
+    "60.6 取消隐藏内在：只还原 hidden，disabled 保持不动");
+  V60.transformationParts = { bird: { wings: "" } };
+  const noTraits = api60.mbCEHideApply("inner", true);
+  assert(noTraits.ok === false && noTraits.message.indexOf("traits") !== -1, "60.7 无 traits 时拒绝（文案点明 traits）");
+  V60.transformationParts = { bird: {}, demon: {} };
+  const noWings = api60.mbCEHideApply("wings", true);
+  assert(noWings.ok === false && noWings.message.indexOf("四系翅膀") !== -1, "60.8 四系翅膀字段全空时拒绝（wings 分支文案）");
+  delete V60.transformationParts;
+  const noParts = api60.mbCEHideApply("inner", true);
+  assert(noParts.ok === false && noParts.message.indexOf("转化数据尚未建立") !== -1,
+    "60.9 无转化部件表时拒绝并给出引导");
+
+  // 60.10~60.11 快照语义
+  V60.transformationParts = { traits: { fangs: "default" } };
+  delete V60.mbCE_hideSnap; delete V60.mbCE_hide;
+  api60.mbCEHideApply("inner", true);
+  assert(!!V60.mbCE_hideSnap && V60.mbCE_hideSnap.traits.fangs === "default",
+    "60.10 首次改动前存快照（记录隐藏前原值 default）");
+  const snapRef = V60.mbCE_hideSnap;
+  V60.transformationParts.traits.fangs = "default";
+  api60.mbCEHideApply("inner", true);
+  assert(V60.mbCE_hideSnap === snapRef, "60.11 二次改动复用同一份快照（不重复深拷贝）");
+
+  // 60.12~60.16 强制保持隐藏 tick / 开关
+  assert(api60.mbCEHideTick() === 0, "60.12 force 未开启时 tick 空转返回 0");
+  const fcOn60 = api60.mbCEHideForce(true);
+  assert(fcOn60.ok === true && fcOn60.message.indexOf("已开启") !== -1, "60.13 强制保持可开启");
+  V60.transformationParts.traits.fangs = "default";
+  const fixedN = api60.mbCEHideTick();
+  assert(fixedN >= 1 && V60.transformationParts.traits.fangs === "hidden",
+    "60.14 被原版打回 default 的部件立即复位 hidden, fixed=" + fixedN);
+  V60.mbCE_hide.force = false;
+  V60.transformationParts.traits.fangs = "default";
+  assert(api60.mbCEHideTick() === 0 && V60.transformationParts.traits.fangs === "default",
+    "60.15 force 关掉后 tick 不再干预");
+  V60.mbCE_hide.force = true;
+  V60.mbCE_hide.inner = false; V60.mbCE_hide.wings = false;
+  V60.transformationParts = { traits: { fangs: "default" } };
+  assert(api60.mbCEHideTick() === 0, "60.16 类别未开启时 tick 不写（hs[kind] 假分支）");
+  const fcOff60 = api60.mbCEHideForce(false);
+  assert(fcOff60.ok === true && fcOff60.message.indexOf("已关闭") !== -1, "60.17 强制保持可关闭");
+
+  // 60.18~60.21 隐藏无惩罚（锁 trauma=0）
+  delete V60.trauma;
+  const npOn60 = api60.mbCEHideNoPenalty(true);
+  assert(npOn60.ok === true && api60.mbCELockHas("trauma") === true, "60.18 隐藏无惩罚：锁定 trauma=0");
+  const npDup60 = api60.mbCEHideNoPenalty(true);
+  assert(npDup60.ok === true && npDup60.message.indexOf("已处于锁定") !== -1, "60.19 重复开启幂等（不重复建锁定）");
+  const npOff60 = api60.mbCEHideNoPenalty(false);
+  assert(npOff60.ok === true && api60.mbCELockHas("trauma") === false, "60.20 关闭无惩罚：解除 trauma 锁定");
+  const npIdle60 = api60.mbCEHideNoPenalty(false);
+  assert(npIdle60.ok === true && npIdle60.message.indexOf("未锁定") !== -1, "60.21 已是关闭态时幂等");
+
+  // 60.22 外观整体回退
+  V60.transformationParts = { traits: { fangs: "default" } };
+  delete V60.mbCE_hideSnap; V60.mbCE_wrote = {};
+  api60.mbCEHideApply("inner", true);
+  const undo60 = api60.mbCEHideUndo("part:inner");
+  assert(undo60.ok === true && V60.transformationParts.traits.fangs === "default" && !V60.mbCE_wrote["part:inner"],
+    "60.22 外观回退：整体还原快照并清掉留痕条目");
+
+  // 60.23~60.25 裸写路径校验
+  const badPath60 = api60.mbCEPlaceWriteRaw("", 1);
+  assert(badPath60.ok === false && badPath60.message.indexOf("路径无效") !== -1, "60.23 空路径拒绝");
+  const badHost60 = api60.mbCEPlaceWriteRaw("zz.nope.deep", 1);
+  assert(badHost60.ok === false && badHost60.message.indexOf("宿主不存在") !== -1, "60.24 父链不存在拒绝（不造中间对象）");
+
+  // 60.25~60.27 壳自修复
+  delete V60.island;
+  api60.mbCEIslandV();
+  V60.island.home = "undefined";
+  V60.island.explore_locations = "broken";
+  delete V60.island.gulch;
+  const fixedIsl = api60.mbCEIslandV();
+  assert(fixedIsl.island.home === "rocky_hillock" && Array.isArray(fixedIsl.island.explore_locations) &&
+    !!fixedIsl.island.gulch && typeof fixedIsl.island.gulch === "object",
+    "60.25 壳自修复：home=\"undefined\" / 非数组地点 / 缺失营子对象全部补回");
+  V60.island.hide = 1;
+  const firstW60 = api60.mbCEPlaceWriteRaw("island.hide", 12, true);
+  assert(firstW60.ok === true && V60.island.hide === 12 && V60.mbCE_wrote["place:island.hide"].before === 1,
+    "60.26 首次写入留痕记录写入前旧值（before=1）");
+  const sameW60 = api60.mbCEPlaceWriteRaw("island.hide", 12, true);
+  assert(sameW60.ok === true && sameW60.message.indexOf("值未变化") !== -1, "60.27 同值写入短路（不产生新留痕）");
+  const chgW60 = api60.mbCEPlaceWriteRaw("island.hide", 5, true);
+  assert(chgW60.ok === true && V60.island.hide === 5 && V60.mbCE_wrote["place:island.hide"].before === 1,
+    "60.28 二次写入沿用首次 before（before 保持 1，回退仍回到最初值）");
+
+  // 60.28~60.30 地点开关幂等
+  const locOn60 = api60.mbCEIslandLocToggle("bay", true);
+  assert(locOn60.ok === true && V60.island.explore_locations.indexOf("bay") !== -1, "60.29 地点解锁入列");
+  const locDup60 = api60.mbCEIslandLocToggle("bay", true);
+  assert(locDup60.ok === true && locDup60.message.indexOf("未变化") !== -1, "60.30 重复解锁幂等（不重复 push）");
+  const locIdle60 = api60.mbCEIslandLocToggle("castle", false);
+  assert(locIdle60.ok === true && locIdle60.message.indexOf("未变化") !== -1, "60.31 移除未解锁项幂等");
+
+  // 60.31~60.32 数值钳制 + 裸写走预览
+  const numW60 = api60.mbCEIslandNumWrite({ path: "island.hide", max: 30 }, 20);
+  assert(numW60.ok === true && V60.island.hide === 20, "60.32 岛屿数值写入走地点阶段通道（钳制 [0, max]）");
+  const numClamp60 = api60.mbCEIslandNumWrite({ path: "island.hide", max: 30 }, 999);
+  assert(numClamp60.ok === true && V60.island.hide === 30, "60.33 超上限钳制到 max=30");
+  api60.mbCEUiSave({ diffPreview: "1" });
+  const gated60 = api60.mbCEPlaceWriteRaw("island.walnut", 7, false);
+  assert(gated60.ok === false && gated60.pending === true && V60.island.walnut === 0,
+    "60.34 D1 裸写（岛屿/地下字符串）同样受预览门控");
+  api60.mbCEPreviewCancel();
+  api60.mbCEUiSave({ diffPreview: "0" });
+
+  // 60.35~60.36 目标枚举的空输入 / 空物种字段
+  assert(api60.mbCEHideTargets(null, "inner").length === 0 && api60.mbCEHideTargets(null, "wings").length === 0,
+    "60.35 目标枚举对空 parts 返回空数组（走 !parts 早退）");
+  V60.transformationParts = { bird: null, demon: { wings: "default" }, fallenAngel: { wings: 5 } };
+  const wingsNull60 = api60.mbCEHideApply("wings", true);
+  assert(wingsNull60.ok === true && V60.transformationParts.demon.wings === "hidden",
+    "60.36 物种字段为 null / wings 非字符串时跳过（只命中合法项）");
+
+  // 60.37~60.40 渲染入口无 pane 安全早退 + 队列空态
+  let paneGuard60 = 0;
+  try {
+    api60.renderTransformHideSec(undefined); paneGuard60++;
+    api60.renderIslandSec(undefined); paneGuard60++;
+    api60.renderNpcUndergroundSec(undefined); paneGuard60++;
+  } catch (eR60) { paneGuard60 = -1; }
+  assert(paneGuard60 === 3, "60.37 三个渲染入口传空 pane 均安全早退（不抛错）");
+  assert(api60.mbCEPreviewConfirmAll().ok === false, "60.38 队列空时「全部确认」返回失败文案（不写档）");
+  const failPrev60 = api60.mbCEPlaceWriteRaw("zz.missing.host", 5);
+  assert(failPrev60.ok === false && failPrev60.pending !== true, "60.39 父链缺失的裸写直接被拒（不进预览队列）");
+  api60.mbCEUiSave({ diffPreview: "1" });
+  const pendFail60 = api60.mbCEPlaceWriteRaw("island.hide", 4);
+  assert(pendFail60.pending === true && api60.mbCEPreviewCount() === 1, "60.40 开启预览后写入进待确认队列（1 笔，值未落档）");
+  assert(V60.island.hide === 30, "60.41 待确认期间原值不动（仍为 30）");
+  delete V60.island;
+  const allFail60 = api60.mbCEPreviewConfirmAll();
+  assert(allFail60.ok === false && allFail60.message.indexOf("失败 1 项") !== -1,
+    "60.42 确认时宿主已消失 → 计入失败项（" + allFail60.message + "）");
+  api60.mbCEUiSave({ diffPreview: "0" });
+
+  // 收尾（force 必须关，否则 1s 定时器挂住进程）
+  try { api60.mbCEHideForce(false); api60.mbCEHideTick(); } catch (eC60) {}
+  if (bk60.tp === undefined) { delete V60.transformationParts; } else { V60.transformationParts = bk60.tp; }
+  if (bk60.hide === undefined) { delete V60.mbCE_hide; } else { V60.mbCE_hide = bk60.hide; }
+  if (bk60.snap === undefined) { delete V60.mbCE_hideSnap; } else { V60.mbCE_hideSnap = bk60.snap; }
+  if (bk60.island === undefined) { delete V60.island; } else { V60.island = bk60.island; }
+  if (bk60.ub === undefined) { delete V60.undergroundbrothel; } else { V60.undergroundbrothel = bk60.ub; }
+  if (bk60.trauma === undefined) { delete V60.trauma; } else { V60.trauma = bk60.trauma; }
+  if (bk60.wrote === undefined) { delete V60.mbCE_wrote; } else { V60.mbCE_wrote = bk60.wrote; }
+} catch (e60) {
+  failures++;
+  console.error("FAIL: 60 v2.0.7 分支覆盖测试异常: " + (e60 && e60.message ? e60.message : e60));
 }
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");

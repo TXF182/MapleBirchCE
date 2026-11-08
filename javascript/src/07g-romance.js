@@ -104,6 +104,8 @@
 		var exts = listExtTransforms();
 		if (!types.size && !exts.length) {
 			pane.appendChild(el("div", "mce-hint", "该角色未注册转化阶段。"));
+			/* v2.0.7：外观隐藏是 PC 全局部件，不依赖选中角色是否注册转化阶段 */
+			if (typeof renderTransformHideSec === "function") { renderTransformHideSec(pane); }
 			return;
 		}
 		/* v2.0.3：转化页统一编号（原为无标题卡片堆） */
@@ -197,5 +199,7 @@
 			block.appendChild(srow);
 			sTr.appendChild(block);
 		});
+		/* v2.0.7：R1/R2 外观隐藏区块（07j-transform-hide.js）——三项开关 + 无惩罚 + 强制保持 */
+		if (typeof renderTransformHideSec === "function") { renderTransformHideSec(pane); }
 	}
 

@@ -14,7 +14,7 @@
 	}
 	/* 地点阶段写入：绕过原版变量黑名单直接写（五面板专用通道），保留 before 留痕可回退。
 	   嵌套宿主：仅 town_projects 允许自动建壳（原版事件直接读写各字段）；其余缺失宿主拒绝。 */
-	function placeStageWrite(path, target, min, max) {
+	function placeStageWrite(path, target, min, max, replay) {
 		try {
 			var Vp = getV();
 			if (!Vp) { return { ok: false, message: "存档变量不可用" }; }
@@ -38,6 +38,12 @@
 			var hi = Number.isFinite(Number(max)) ? Number(max) : Infinity;
 			/* 地点页是阶段/档位语义：钳制到 [lo, hi]（用户澄清：仅"直接填数值"放开上限，阶段保留） */
 			var final = Math.max(lo, Math.min(hi, Math.round(Number(target) || 0)));
+			/* v2.0.7 D1：地点阶段 / 世界入口（阶段表 + 岛屿 + 地下）写入原先完全绕过 diff 预览 */
+			if (!replay && typeof mbCEPreviewGate === "function" &&
+				mbCEPreviewGate(path, cur[leaf], final,
+					function () { return placeStageWrite(path, target, min, max, true); })) {
+				return { ok: false, pending: true, message: "待确认写入：" + path };
+			}
 			cur[leaf] = final;
 			if (!Vp.mbCE_wrote || typeof Vp.mbCE_wrote !== "object") { Vp.mbCE_wrote = {}; }
 			Vp.mbCE_wrote["place:" + path] = { type: "place", path: path, before: before, after: final, t: Date.now() };
@@ -135,6 +141,9 @@
 			pane.appendChild(block);
 		});
 		pane.appendChild(el("div", "mce-hint", "拉满 = 置为原版上限值；「−1/+1」逐步推进；写入记录在 V.mbCE_wrote（place: 前缀）可回退。"));
+		/* v2.0.7：R3 小岛生存作弊 + R4 地下妓院角色（07k-island-npc.js）挂在本子页签末尾 */
+		if (typeof renderIslandSec === "function") { renderIslandSec(pane); }
+		if (typeof renderNpcUndergroundSec === "function") { renderNpcUndergroundSec(pane); }
 	}
 
 	function renderPlacesDirect(pane) {

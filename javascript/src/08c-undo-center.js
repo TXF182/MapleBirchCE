@@ -15,7 +15,8 @@
 		append: "框架恋爱条件·追加",
 		state: "框架恋爱条件·关系状态",
 		batch: "批量操作（仅审计）",
-		yanling: "言灵改写（页内撤销）"
+		yanling: "言灵改写（页内撤销）",
+		part: "外观隐藏（转化部件）"
 	};
 	function mbCEUndoLabel(type) {
 		if (!type) { return "未知类型"; }
@@ -57,7 +58,31 @@
 				var modId = sep === -1 ? rest : rest.slice(0, sep);
 				var itemKey = sep === -1 ? "" : rest.slice(sep + 1);
 				var r1 = /** @type {any} */ (undoCheatModValue(modId, itemKey));
-				return { ok: !!(r1 && r1.ok), msg: (r1 && (r1.message || r1.msg)) || "作弊项回退失败" };
+				/* P2（玩家图 7「回退无效且仍显示已锁定」）：留痕里就带 rec.path，
+				   回退必须**连带解除该路径的锁定** —— 否则 07f-lock 的 1s tick 立刻把值写回，
+				   留痕没了、值还锁着，玩家再点回退只会看到「没有留痕」。分组回退 / 全部回退都走本函数，同口生效。 */
+				var lockPath = String(rec.path || "");
+				var lockOff = false;
+				var lockedNow = false;
+				try {
+					if (lockPath && typeof mbCELockHas === "function") { lockedNow = !!mbCELockHas(lockPath); }
+					if (lockedNow && typeof mbCELockRemove === "function") {
+						var lr = /** @type {any} */ (mbCELockRemove(lockPath));
+						lockOff = !!(lr && lr.ok);
+					}
+				} catch (eLock) { lockOff = false; }
+				var baseMsg = /** @type {any} */ (r1 && (r1.message || r1.msg)) || "作弊项回退失败";
+				if (r1 && r1.ok && lockOff) {
+					var lockName = (typeof mbCELockLabel === "function") ? mbCELockLabel(lockPath) : lockPath;
+					baseMsg = "已回退 " + lockName + "，并已同步解除锁定";
+				} else if (r1 && r1.ok && lockedNow && !lockOff) {
+					baseMsg = baseMsg + "（注意：该路径仍在锁定，值会被 1 秒写回，请到「全局 → 数值固定」手动取消）";
+				}
+				return { ok: !!(r1 && r1.ok), msg: baseMsg, unlocked: lockOff, locked: lockedNow };
+			}
+			if (type === "part") {
+				var r6 = /** @type {any} */ (mbCEHideUndo(key));
+				return { ok: !!(r6 && r6.ok), msg: (r6 && r6.msg) || "外观回退失败" };
 			}
 			if (type === "world") {
 				var gid = key.indexOf("world:") === 0 ? key.slice(6) : key;
