@@ -2,6 +2,41 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.8（2026-11-08 凌晨三项改动的 bug 复核：4 处真实缺陷修复）
+
+**触发**：v2.0.7 发布后追问「早上的改动检查过没有？万一里面有 bug 呢」。本轮不拿「全链全绿」当结论，改为独立复核：先逐行审查 `07f-lock.js` / `07f-lurker.js` / `08c-undo-center.js` / `07a-shell.js`，再写 jsdom 对抗探针实跑异常路径（T1–T7），抓到 4 处真实缺陷后改码修复，最后重跑全链并打包。
+
+### 一、锁定留痕被 400 条窗口裁掉 → 回退把错值当真值（`01-core.js` + `07f-lock.js`）
+
+- **实测（探针 T2）**：锁定 `purity=2000`（before=1500）→ 灌 460 条 `cheat:` 留痕 → 复位 1500 再 tick（写回触发 `mbCEWroteTrim`）→ `lock:purity` 被整条删除（总条数 231）→ 再 tick 重建时 `before` 回填为 777 → 回退返回「已取消锁定 纯洁 = 777」，**原始真值 1500 永久丢失**。
+- **根因**：`mbCEWroteTrim` 按 `t` 升序删最旧一半，而 lock 留痕的 `t` 是「首次落痕时间」，越早建立的锁定越先被淘汰；重建时无法回填真值。
+- **修复**：裁剪循环跳过 `type === "lock"`（每锁定 key 仅一条，是「取消锁定 + 还原原值」的唯一依据），其余条目照旧删够一半。
+
+### 二、数值锁定形态判据两个漏洞（`07f-lock.js`）
+
+- **实测（探针 T4 + 代码审查）**：`Number(null) === 0` 使「空值 + 锁 0」被判为已达标、永不写回；字符串键（如 `"wine"`）被 `Number()` 成 `NaN` 后仍走写回，会把原值写成数字。
+- **修复**：判据改为——number 严格比较 / `null` 视为空值写回 / 可解析有限数的字符串（`"5"`）**形态归一为数字**（模组 `<<if $X is 5>>` 对字符串恒假）/ 布尔·对象·不可解析字符串·空白串跳过不覆盖。
+- **面板**：已锁定但当前值非数值时，行内追加「当前值非数值，锁定不会写回」，不静默失效。
+
+### 三、潜伏者搬运的类型漂移丢库存（`07f-lurker.js`）
+
+- **实测（探针 T5）**：`V.hookah = { lurkers: "5" }` + 手持 3 → `typeof !== "number"` 使 `hl=0` → 写入 `0+3=3`，**原有 5 只被覆盖**（fridge=3 / stored=0 / held=0）。`lurkers_stored` 同理。
+- **修复**：新增 `mbCELurkerReadable`（number 原样 / 可解析字符串转数 / 否则 null）与 `mbCELurkerNum`（不可解析才按 0）；`mbCELurkerState` 三字段改可读口径（非数值仍显示「—」，不伪造 0）；`mbCELurkerAutoTick` 的 held / 冰箱 / 笼三处累加全改 `mbCELurkerNum`。
+
+### 四、只读接口写存档 + 回退分支谎报（`07f-lock.js` + `08c-undo-center.js`）
+
+- **实测（探针 T3）**：`mbCELurkerState()`（本应只读）经 `mbCELurkerLocked → mbCELockHas → mbCELockData` 触发 `V.mbCE_lock = []` 写进存档（原本 undefined，查一次就建表）。
+- **修复**：新增 `mbCELockListRO()` 只读取值（非数组返回 null、不建表），`mbCELockHas` / `mbCELockTarget` / `mbCERenderLock` 取表全改它；`mbCELockData`（建表）只留 `mbCELockSet` 使用。
+- `mbCEUndoOne` 的 lock 分支 `offOk` 原预置 `true`：`hadLock` 为真但 `mbCELockRemove` 不可用时仍返回「已取消锁定」（锁定实际还在，下一秒 tick 又写回）→ 改 `offOk = !hadLock`；另「还原异常」时保留留痕（原实现失败也删记录，玩家无法重试）。
+
+### 五、验证
+
+- **新增断言**：`tests/lock_panel_state.js` 第 7 节 16 条（裁剪后留痕保留 + before 仍 1500 + 回退得 1500；只读查询不建 `V.mbCE_lock`；`null` + 锁 0 写回 0、`"2000"` 归一为数字、`"wine"` 不被覆盖；`"5"` + 3 = 8、冰箱锁时 `"4"` + 2 = 6）；`tests/test_mce.js` §62.6 按新语义重写并新增 62.6b（不可解析字符串按 0）、§62.12 改口径（`"2"` 按 2 累加 → 6）。`LOCK PANEL STATE: passed=63 failed=0`。
+- **全链 12/12 全绿**：`tools\run_all.ps1` exit 0（日志 `%TEMP%\mce_runall_208.log`），含 ESLint 八规则、DOM 冒烟、全量回归、E2E、性别集成、适配器声明一致性、tsc 类型检查、键注册表一致性。
+- **覆盖率**：Branches **80.07%（5,077/6,340）**、Statements 97.14%（14,143/14,558）、Functions 98.77%（564/571）、Lines 97.14%（门禁 lines 90 / branches 80 / functions 95）。
+- **产物**：69 段 / 901,242 B / SHA256 `cc181070bf3a8cc61476546121e08fd7132c1ef9a3829e1710352a1161ad8752`（v2.0.7 为 898,385 B / `C1B64D15…5E3870`）。
+- **包**：286,204 B / SHA256 `015C0DE59F6A0127806B1C9A4F4D0FC19746C40CC185C191B83497100C7D3F92`（4 条目正斜杠，verifier-fallback 等价核对通过）。
+
 ## v2.0.7（2026-11-08 收尾三项：潜伏者锁优先 / 锁定写回留痕可回退 / 窄屏适配）
 
 **触发**：v2.0.6 交付时按「其余按推荐」搁置的 P3/P4/P5，本轮补齐后迭代到全链收敛。

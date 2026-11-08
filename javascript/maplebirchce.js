@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.7";
+	var MCE_VERSION = "2.0.8";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -140,9 +140,15 @@
 				var tb = (V.mbCE_wrote[b] && typeof V.mbCE_wrote[b].t === "number") ? V.mbCE_wrote[b].t : 0;
 				return ta - tb;
 			});
+			/* v2.0.8：锁定写回留痕（type:"lock"）不参与裁剪——每个被锁 key 只有一条，是「取消锁定 + 还原原值」的
+			   唯一依据；被裁掉后再次写回会把 before 记成「已被锁定覆盖后的值」，回退就退化成原样还原、等于失效。 */
 			var drop = Math.floor(keys.length / 2);
-			for (var i = 0; i < drop; i++) {
-				try { delete V.mbCE_wrote[keys[i]]; } catch (e) { V.mbCE_wrote[keys[i]] = undefined; }
+			var rm = 0, vi = 0;
+			while (rm < drop && vi < keys.length) {
+				var vLock = V.mbCE_wrote[keys[vi]];
+				if (vLock && vLock.type === "lock") { vi++; continue; }
+				try { delete V.mbCE_wrote[keys[vi]]; } catch (e) { V.mbCE_wrote[keys[vi]] = undefined; }
+				rm++; vi++;
 			}
 		} catch (e) {}
 	}
@@ -8486,14 +8492,23 @@ function mbCELockLabel(path) {
 	} catch (e2) {}
 	return String(path);
 }
+/* v2.0.8：判定类接口一律**只读**，不经 mbCELockData 建空表——
+   此前 mbCELurkerState（只读查询）经 mbCELockHas → mbCELockData 会把 V.mbCE_lock 就地创建出来，
+   等于「查一次就改存档」。建表只留给 mbCELockSet/mbCERenderLock 这类明确要写的地方。 */
+function mbCELockListRO() {
+	try {
+		var Vp = getV();
+		return (Vp && Array.isArray(Vp.mbCE_lock)) ? Vp.mbCE_lock : null;
+	} catch (e) { return null; }
+}
 function mbCELockHas(path) {
-	var list = mbCELockData();
+	var list = mbCELockListRO();
 	if (!list) { return false; }
 	for (var i = 0; i < list.length; i++) { if (list[i] && list[i].path === path) { return true; } }
 	return false;
 }
 function mbCELockTarget(path) {
-	var list = mbCELockData();
+	var list = mbCELockListRO();
 	if (!list) { return undefined; }
 	for (var i = 0; i < list.length; i++) { if (list[i] && list[i].path === path) { return list[i].target; } }
 	return undefined;
@@ -8581,11 +8596,20 @@ function mbCELockTick() {
 		if (!it || !it.path) { continue; }
 		var cur = mbCELockRead(Vp, it.path);
 		if (cur === undefined) { continue; }
-		if (Number(cur) !== Number(it.target)) {
-			mbCELockTrace(Vp, it.path, cur, Number(it.target));
-			setPathVal(Vp, it.path, Number(it.target));
-			wrote++;
-		}
+		var tgt = Number(it.target);
+		/* v2.0.8 形态兜底：旧判据 `Number(cur) !== Number(it.target)` 有两个真缺陷——
+		   ① Number(null)===0，让「空值 + 锁 0」被判为已达标、永不写回；
+		   ② 字符串键（如 hookah.drink="wine"）被 Number() 成 NaN 后仍走写回，把原值写成数字。
+		   现判据：number 严格比；null 视为空值写回；可解析有限数的字符串（"5"）形态归一为数字
+		   （模组按 `<<if $X is 5>>` 判，字符串恒假）；其余（布尔 / 对象 / 不可解析字符串 / 空白串）跳过不覆盖。 */
+		var need = false;
+		if (typeof cur === "number") { need = (cur !== tgt); }
+		else if (cur === null) { need = true; }
+		else if (typeof cur === "string" && cur.trim() !== "" && isFinite(Number(cur))) { need = true; }
+		if (!need) { continue; }
+		mbCELockTrace(Vp, it.path, cur, tgt);
+		setPathVal(Vp, it.path, tgt);
+		wrote++;
 	}
 	/* 锁定条数多时（每个 path 一条留痕）仍要守住 400 条窗口，走同一套 trim */
 	if (wrote && typeof mbCEWroteTrim === "function") {
@@ -8647,6 +8671,13 @@ function mbCERenderLock(pane) {
 		var val = el("span", "mce-value", String(mbCELockRead(Vg, it.path) === undefined ? "—" : mbCELockRead(Vg, it.path)));
 		lbl.appendChild(val);
 		if (it.note) { lbl.appendChild(el("span", "mce-ab-note", " " + it.note)); }
+		/* v2.0.8：锁了但当前值不是数值形态 → tick 会跳过（不覆盖原值），这里必须明示，不能静默失效 */
+		if (locked) {
+			var cv0 = mbCELockRead(Vg, it.path);
+			var cvNumOk = (cv0 === null) || (typeof cv0 === "number")
+				|| (typeof cv0 === "string" && cv0.trim() !== "" && isFinite(Number(cv0)));
+			if (!cvNumOk && cv0 !== undefined) { lbl.appendChild(el("span", "mce-ab-note", " 当前值非数值，锁定不会写回")); }
+		}
 		row.appendChild(lbl);
 		/* P1：自定义项标注来源，让玩家一眼看出这条不是预设、是被哪个页面锁上的 */
 		if (it.source) { row.appendChild(el("span", "mce-badge mce-src", it.source)); }
@@ -8683,7 +8714,7 @@ function mbCERenderLock(pane) {
 	   属性页能锁的 beauty/physique/willpower/skulduggery/danceskill/swimmingskill/athletics
 	   全不是预设，原先会被无条件追加成 7 行，把全局页撑成一张「锁定数值清单」。
 	   现在收进默认收起的折叠组，并逐行标注来源（角色页 / Mod作弊 / 手动）。 */
-	var list = mbCELockData();
+	var list = mbCELockListRO();
 	var customs = [];
 	if (list) {
 		for (var i = 0; i < list.length; i++) {
@@ -8761,16 +8792,28 @@ var MB_CE_LURKER_FRIDGE_MAX = MB_CE_LURKER_MAX; /* 兼容旧符号：冰箱不�
 function mbCELurkerV() {
 	try { return (typeof getV === "function") ? getV() : null; } catch (e) { return null; }
 }
+/* v2.0.8：存档类型漂移兜底——hookah.lurkers / lurkers_stored 若是字符串 "5"（导入存档、模组直接 <<set>> 常见），
+   旧写法 `typeof === "number" ? v : 0` 会把「0 + held」写上去，原有的 5 只直接消失。凡能解析成有限数的都按数用。
+   读值给面板用（非数值形态返回 null，「—」比伪造成 0 更诚实）；累加用 mbCELurkerNum（无法解析才按 0 起算）。 */
+function mbCELurkerReadable(v) {
+	if (typeof v === "number" && isFinite(v)) { return v; }
+	if (typeof v === "string" && v.trim() !== "" && isFinite(Number(v))) { return Number(v); }
+	return null;
+}
+function mbCELurkerNum(v) {
+	var n = mbCELurkerReadable(v);
+	return (n === null) ? 0 : n;
+}
 function mbCELurkerState() {
 	var V = mbCELurkerV();
 	if (!V) { return { ok: false, message: "存档变量不可用" }; }
 	var patch = (typeof mbCELurkerPatchReport === "function") ? mbCELurkerPatchReport() : null;
 	return {
 		ok: true,
-		held: (typeof V.lurkers_held === "number") ? V.lurkers_held : null,
-		fridge: (V.hookah && typeof V.hookah === "object" && typeof V.hookah.lurkers === "number") ? V.hookah.lurkers : null,
+		held: mbCELurkerReadable(V.lurkers_held),
+		fridge: (V.hookah && typeof V.hookah === "object") ? mbCELurkerReadable(V.hookah.lurkers) : null,
 		juice: (V.hookah && typeof V.hookah === "object" && typeof V.hookah.juice === "number") ? V.hookah.juice : null,
-		stored: (typeof V.lurkers_stored === "number") ? V.lurkers_stored : null,
+		stored: mbCELurkerReadable(V.lurkers_stored),
 		captured: (typeof V.stat_lurkers_captured === "number") ? V.stat_lurkers_captured : null,
 		farmStage: (typeof V.farm_stage === "number") ? V.farm_stage : null,
 		auto: !!(V.mbCE_lurkerAuto),
@@ -8795,18 +8838,18 @@ function mbCELurkerAutoTick() {
 	try {
 		var V = mbCELurkerV();
 		if (!V || !V.mbCE_lurkerAuto) { return 0; }
-		var held = (typeof V.lurkers_held === "number") ? V.lurkers_held : 0;
+		var held = mbCELurkerNum(V.lurkers_held);
 		if (held < 1) { return 0; }
 		if (mbCELurkerLocked("lurkers_held")) { return 0; }
 		var moved = 0;
 		if (V.hookah && typeof V.hookah === "object" && !mbCELurkerLocked("hookah.lurkers")) {
-			var hl = (typeof V.hookah.lurkers === "number") ? V.hookah.lurkers : 0;
+			var hl = mbCELurkerNum(V.hookah.lurkers);
 			/* 补丁生效后冰箱无上限，直接全搬；未生效时也照搬（消耗/pluralise 按真实值走，仅文案显示降级） */
 			V.hookah.lurkers = hl + held;
 			moved += held; held = 0;
 		}
 		if (held > 0 && !mbCELurkerLocked("lurkers_stored")) {
-			V.lurkers_stored = ((typeof V.lurkers_stored === "number") ? V.lurkers_stored : 0) + held;
+			V.lurkers_stored = mbCELurkerNum(V.lurkers_stored) + held;
 			moved += held; held = 0;
 		}
 		V.lurkers_held = held;
@@ -13307,7 +13350,7 @@ function renderAttitudesGroup(pane) {
 				var lp = String(rec.path || key.replace(/^lock:/, ""));
 				var hadLock = false;
 				try { if (typeof mbCELockHas === "function") { hadLock = !!mbCELockHas(lp); } } catch (eL0) {}
-				var offOk = true;
+				var offOk = !hadLock;
 				if (hadLock && typeof mbCELockRemove === "function") {
 					var lr3 = /** @type {any} */ (mbCELockRemove(lp));
 					offOk = !!(lr3 && lr3.ok);
@@ -13316,7 +13359,8 @@ function renderAttitudesGroup(pane) {
 				if (rec.before !== undefined) {
 					try { setPathVal(V, lp, rec.before); } catch (eL1) { restored = false; }
 				}
-				try { delete V.mbCE_wrote[key]; } catch (eL2) {}
+				/* 还原异常时保留留痕，玩家可以再点一次重试；只有真还原成功才删记录 */
+				if (restored) { try { delete V.mbCE_wrote[key]; } catch (eL2) {} }
 				var lName = (typeof mbCELockLabel === "function") ? mbCELockLabel(lp) : lp;
 				var head = hadLock ? (offOk ? "已取消锁定 " : "已还原原值，但锁定未能解除 ") : "锁定已不在，仅还原 ";
 				return {

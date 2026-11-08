@@ -54,14 +54,23 @@ function mbCELockLabel(path) {
 	} catch (e2) {}
 	return String(path);
 }
+/* v2.0.8：判定类接口一律**只读**，不经 mbCELockData 建空表——
+   此前 mbCELurkerState（只读查询）经 mbCELockHas → mbCELockData 会把 V.mbCE_lock 就地创建出来，
+   等于「查一次就改存档」。建表只留给 mbCELockSet/mbCERenderLock 这类明确要写的地方。 */
+function mbCELockListRO() {
+	try {
+		var Vp = getV();
+		return (Vp && Array.isArray(Vp.mbCE_lock)) ? Vp.mbCE_lock : null;
+	} catch (e) { return null; }
+}
 function mbCELockHas(path) {
-	var list = mbCELockData();
+	var list = mbCELockListRO();
 	if (!list) { return false; }
 	for (var i = 0; i < list.length; i++) { if (list[i] && list[i].path === path) { return true; } }
 	return false;
 }
 function mbCELockTarget(path) {
-	var list = mbCELockData();
+	var list = mbCELockListRO();
 	if (!list) { return undefined; }
 	for (var i = 0; i < list.length; i++) { if (list[i] && list[i].path === path) { return list[i].target; } }
 	return undefined;
@@ -149,11 +158,20 @@ function mbCELockTick() {
 		if (!it || !it.path) { continue; }
 		var cur = mbCELockRead(Vp, it.path);
 		if (cur === undefined) { continue; }
-		if (Number(cur) !== Number(it.target)) {
-			mbCELockTrace(Vp, it.path, cur, Number(it.target));
-			setPathVal(Vp, it.path, Number(it.target));
-			wrote++;
-		}
+		var tgt = Number(it.target);
+		/* v2.0.8 形态兜底：旧判据 `Number(cur) !== Number(it.target)` 有两个真缺陷——
+		   ① Number(null)===0，让「空值 + 锁 0」被判为已达标、永不写回；
+		   ② 字符串键（如 hookah.drink="wine"）被 Number() 成 NaN 后仍走写回，把原值写成数字。
+		   现判据：number 严格比；null 视为空值写回；可解析有限数的字符串（"5"）形态归一为数字
+		   （模组按 `<<if $X is 5>>` 判，字符串恒假）；其余（布尔 / 对象 / 不可解析字符串 / 空白串）跳过不覆盖。 */
+		var need = false;
+		if (typeof cur === "number") { need = (cur !== tgt); }
+		else if (cur === null) { need = true; }
+		else if (typeof cur === "string" && cur.trim() !== "" && isFinite(Number(cur))) { need = true; }
+		if (!need) { continue; }
+		mbCELockTrace(Vp, it.path, cur, tgt);
+		setPathVal(Vp, it.path, tgt);
+		wrote++;
 	}
 	/* 锁定条数多时（每个 path 一条留痕）仍要守住 400 条窗口，走同一套 trim */
 	if (wrote && typeof mbCEWroteTrim === "function") {
@@ -215,6 +233,13 @@ function mbCERenderLock(pane) {
 		var val = el("span", "mce-value", String(mbCELockRead(Vg, it.path) === undefined ? "—" : mbCELockRead(Vg, it.path)));
 		lbl.appendChild(val);
 		if (it.note) { lbl.appendChild(el("span", "mce-ab-note", " " + it.note)); }
+		/* v2.0.8：锁了但当前值不是数值形态 → tick 会跳过（不覆盖原值），这里必须明示，不能静默失效 */
+		if (locked) {
+			var cv0 = mbCELockRead(Vg, it.path);
+			var cvNumOk = (cv0 === null) || (typeof cv0 === "number")
+				|| (typeof cv0 === "string" && cv0.trim() !== "" && isFinite(Number(cv0)));
+			if (!cvNumOk && cv0 !== undefined) { lbl.appendChild(el("span", "mce-ab-note", " 当前值非数值，锁定不会写回")); }
+		}
 		row.appendChild(lbl);
 		/* P1：自定义项标注来源，让玩家一眼看出这条不是预设、是被哪个页面锁上的 */
 		if (it.source) { row.appendChild(el("span", "mce-badge mce-src", it.source)); }
@@ -251,7 +276,7 @@ function mbCERenderLock(pane) {
 	   属性页能锁的 beauty/physique/willpower/skulduggery/danceskill/swimmingskill/athletics
 	   全不是预设，原先会被无条件追加成 7 行，把全局页撑成一张「锁定数值清单」。
 	   现在收进默认收起的折叠组，并逐行标注来源（角色页 / Mod作弊 / 手动）。 */
-	var list = mbCELockData();
+	var list = mbCELockListRO();
 	var customs = [];
 	if (list) {
 		for (var i = 0; i < list.length; i++) {

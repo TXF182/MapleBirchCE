@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.7";
+	var MCE_VERSION = "2.0.8";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -26,9 +26,15 @@
 				var tb = (V.mbCE_wrote[b] && typeof V.mbCE_wrote[b].t === "number") ? V.mbCE_wrote[b].t : 0;
 				return ta - tb;
 			});
+			/* v2.0.8：锁定写回留痕（type:"lock"）不参与裁剪——每个被锁 key 只有一条，是「取消锁定 + 还原原值」的
+			   唯一依据；被裁掉后再次写回会把 before 记成「已被锁定覆盖后的值」，回退就退化成原样还原、等于失效。 */
 			var drop = Math.floor(keys.length / 2);
-			for (var i = 0; i < drop; i++) {
-				try { delete V.mbCE_wrote[keys[i]]; } catch (e) { V.mbCE_wrote[keys[i]] = undefined; }
+			var rm = 0, vi = 0;
+			while (rm < drop && vi < keys.length) {
+				var vLock = V.mbCE_wrote[keys[vi]];
+				if (vLock && vLock.type === "lock") { vi++; continue; }
+				try { delete V.mbCE_wrote[keys[vi]]; } catch (e) { V.mbCE_wrote[keys[vi]] = undefined; }
+				rm++; vi++;
 			}
 		} catch (e) {}
 	}
