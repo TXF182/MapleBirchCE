@@ -1,6 +1,6 @@
 /* 职责：统一回退中心（v2.0.3 P4-1）——把散落各处的回退入口收敛为「全局」页一个区块。
    数据源唯一：存档内 V.mbCE_wrote 留痕。类型覆盖 cheat / world / maint / place / native / vanilla /
-   set / clear / append / state / batch / yanling；回退业务逻辑复用既有实现（undoCheatModValue /
+   set / clear / append / state / batch / yanling / part / lock；回退业务逻辑复用既有实现（undoCheatModValue /
    mbCEWorldUndo / mbCEMaintUndo / placeStageUndo / undoRomanceStage / undoVanillaStage），本文件只做
    归一化分发与展示。不可逐条回退的类型（batch 审计 / yanling 页内撤销 / state 关系状态）显式禁用按钮并说明原因。 */
 
@@ -16,7 +16,8 @@
 		state: "框架恋爱条件·关系状态",
 		batch: "批量操作（仅审计）",
 		yanling: "言灵改写（页内撤销）",
-		part: "外观隐藏（转化部件）"
+		part: "外观隐藏（转化部件）",
+		lock: "数值锁定写回"
 	};
 	function mbCEUndoLabel(type) {
 		if (!type) { return "未知类型"; }
@@ -83,6 +84,29 @@
 			if (type === "part") {
 				var r6 = /** @type {any} */ (mbCEHideUndo(key));
 				return { ok: !!(r6 && r6.ok), msg: (r6 && r6.msg) || "外观回退失败" };
+			}
+			/* P4（v2.0.7）：锁定写回留痕。顺序必须是「先解除锁定、再还原原值」——
+			   反过来的话 07f-lock 下一秒 tick 又会把值写回目标，玩家以为回退没生效。 */
+			if (type === "lock") {
+				var lp = String(rec.path || key.replace(/^lock:/, ""));
+				var hadLock = false;
+				try { if (typeof mbCELockHas === "function") { hadLock = !!mbCELockHas(lp); } } catch (eL0) {}
+				var offOk = true;
+				if (hadLock && typeof mbCELockRemove === "function") {
+					var lr3 = /** @type {any} */ (mbCELockRemove(lp));
+					offOk = !!(lr3 && lr3.ok);
+				}
+				var restored = true;
+				if (rec.before !== undefined) {
+					try { setPathVal(V, lp, rec.before); } catch (eL1) { restored = false; }
+				}
+				try { delete V.mbCE_wrote[key]; } catch (eL2) {}
+				var lName = (typeof mbCELockLabel === "function") ? mbCELockLabel(lp) : lp;
+				var head = hadLock ? (offOk ? "已取消锁定 " : "已还原原值，但锁定未能解除 ") : "锁定已不在，仅还原 ";
+				return {
+					ok: restored && (!hadLock || offOk),
+					msg: head + lName + (rec.before !== undefined ? " = " + String(rec.before) : "") + (restored ? "" : "（还原异常，见状态栏）")
+				};
 			}
 			if (type === "world") {
 				var gid = key.indexOf("world:") === 0 ? key.slice(6) : key;
@@ -241,6 +265,9 @@
 			if (blocked) {
 				body.appendChild(el("div", "mce-hint", blocked));
 			} else {
+				if (type === "lock") {
+					body.appendChild(el("div", "mce-hint", "回退 = 取消该数值的锁定 + 还原锁定前原值（只还原值不解除锁定，1 秒 tick 会立刻写回目标）。"));
+				}
 				var gBtn = el("button", "mce-btn", "回退本组 " + items.length + " 项");
 				gBtn.type = "button";
 				gBtn.addEventListener("click", function () {

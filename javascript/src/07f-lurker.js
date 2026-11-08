@@ -27,33 +27,43 @@ function mbCELurkerState() {
 		captured: (typeof V.stat_lurkers_captured === "number") ? V.stat_lurkers_captured : null,
 		farmStage: (typeof V.farm_stage === "number") ? V.farm_stage : null,
 		auto: !!(V.mbCE_lurkerAuto),
+		lockHeld: mbCELurkerLocked("lurkers_held"),
+		lockFridge: mbCELurkerLocked("hookah.lurkers"),
+		lockStored: mbCELurkerLocked("lurkers_stored"),
 		patch: patch
 	};
 }
 function mbCELurkerSet(path, val) {
 	return cheatWriteValue("player-self", "p:lurker:" + path, "value_set", path, val, "number", 0, MB_CE_LURKER_MAX);
 }
-/* 自动搬运一轮：held → 冰箱 → 农场笼；返回搬运只数（仅在补丁未生效时由玩家手动开启） */
+/* P3（v2.0.7）：三处写入目标都可能被「数值固定」锁住。锁定优先——被锁的键不由自动搬运抢写，
+   否则 1 秒 tick 立刻把值写回目标，搬运结果玩家根本看不到，还会来回抖动。 */
+function mbCELurkerLocked(path) {
+	try { return (typeof mbCELockHas === "function") && !!mbCELockHas(path); } catch (e) { return false; }
+}
+/* 自动搬运一轮：held → 冰箱 → 农场笼；返回搬运只数（仅在补丁未生效时由玩家手动开启）
+   锁优先细则：held 被锁 → 整轮不搬；冰箱被锁 → 跳过冰箱这站（继续尝试笼）；笼被锁 → 跳过笼；
+   两站都被锁则原地保留 held（等价「只搬运到还有空位的目标」），不丢不重。 */
 function mbCELurkerAutoTick() {
 	try {
 		var V = mbCELurkerV();
 		if (!V || !V.mbCE_lurkerAuto) { return 0; }
 		var held = (typeof V.lurkers_held === "number") ? V.lurkers_held : 0;
 		if (held < 1) { return 0; }
-		if (typeof mbCELockHas === "function" && mbCELockHas("lurkers_held")) { return 0; } /* 锁定优先，不抢写 */
+		if (mbCELurkerLocked("lurkers_held")) { return 0; }
 		var moved = 0;
-		if (V.hookah && typeof V.hookah === "object") {
+		if (V.hookah && typeof V.hookah === "object" && !mbCELurkerLocked("hookah.lurkers")) {
 			var hl = (typeof V.hookah.lurkers === "number") ? V.hookah.lurkers : 0;
 			/* 补丁生效后冰箱无上限，直接全搬；未生效时也照搬（消耗/pluralise 按真实值走，仅文案显示降级） */
 			V.hookah.lurkers = hl + held;
 			moved += held; held = 0;
 		}
-		if (held > 0) {
+		if (held > 0 && !mbCELurkerLocked("lurkers_stored")) {
 			V.lurkers_stored = ((typeof V.lurkers_stored === "number") ? V.lurkers_stored : 0) + held;
 			moved += held; held = 0;
 		}
 		V.lurkers_held = held;
-		V.mbCE_lurkerMoved = ((typeof V.mbCE_lurkerMoved === "number") ? V.mbCE_lurkerMoved : 0) + moved;
+		if (moved) { V.mbCE_lurkerMoved = ((typeof V.mbCE_lurkerMoved === "number") ? V.mbCE_lurkerMoved : 0) + moved; }
 		return moved;
 	} catch (e) { return 0; }
 }
@@ -144,8 +154,12 @@ function mbCERenderLurker(pane) {
 	});
 	actRow.appendChild(rep); actRow.appendChild(sw);
 	sec.appendChild(actRow);
+	var lockNote = "";
+	if (st.lockHeld) { lockNote += " · 手持已锁定（自动搬运整轮暂停）"; }
+	if (st.lockFridge) { lockNote += " · 冰箱已锁定（跳过冰箱这站）"; }
+	if (st.lockStored) { lockNote += " · 蒸馏笼已锁定（跳过笼这站）"; }
 	sec.appendChild(el("div", "mce-hint",
-		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只"));
+		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只" + lockNote));
 }
 /* v2.0.0.005 清理：原 mbCELurkerAutoLabel() 删除（拆分期遗留死代码）——上方「自动搬运：开/关」
    按钮渲染一直用内联三元，该函数全仓零引用。 */

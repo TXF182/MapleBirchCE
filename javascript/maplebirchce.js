@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.6";
+	var MCE_VERSION = "2.0.7";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -6858,7 +6858,24 @@ function renderPlayerEdit() {
 		".mce-anchor-prompt.mce-theme-starry button{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border-color:var(--mce-border-ctl)}" +
 		".mce-anchor-prompt.mce-theme-starry button:hover{background:var(--mce-bg-hover)}" +
 		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark)}" +
-		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}";
+		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}" +
+		/* v2.0.7 P5：窄屏（≤520px，手机竖屏 / 桌面分屏）控件拥挤——面板转全屏、行内 label 独占一行、
+		   按钮网格单列、预览条说明换行，避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位 */
+		"@media (max-width:520px){" +
+		"#mce-root{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}" +
+		".mce-body{padding:8px}" +
+		".mce-tabs button{padding:8px 5px}" +
+		".mce-row{gap:var(--mce-space-sm)}" +
+		".mce-row-lbl,.mce-row-name{flex:1 1 100%;min-width:0}" +
+		".mce-inp{width:84px}" +
+		".mce-search-inp{width:100%}" +
+		".mce-inp.mce-path{width:100%}" +
+		".mce-btn-grid{grid-template-columns:1fr}" +
+		".mce-cards{grid-template-columns:1fr}" +
+		".mce-preview-bar{gap:6px}" +
+		".mce-preview-lbl{flex:1 1 100%;white-space:normal;overflow:visible}" +
+		".mce-anchor-prompt{padding:6px 8px;font-size:13px}" +
+		"}";
 
 	function injectCSS() {
 		if (document.getElementById("mce-style")) { return; }
@@ -8424,8 +8441,9 @@ function teleportTo(name) {
  *  - 亡灵转化 maplebirch.transformation.undead.level：诅咒每游戏小时 Psyche -2 + 压力
  *    （Undead.ts regTimeEvent onSec deadwood-undead-curse），来源为金币洞穴诅咒
  * 机制：锁定向存 V.mbCE_lock（[{path,target}]，存档内持久，读档自动恢复）；
- *      常驻 1s 定时器遍历写回（直写不留痕，复用 setPathVal；无锁定向空转直接返回）。
- *      UI 挂「全局」页 renderGlobal 末尾（mbCERenderLock）。
+ *      常驻 1s 定时器遍历写回（v2.0.7 P4：写回前先落 `lock:<path>` 留痕，回退中心可「取消锁定+还原原值」；
+ *      同 path 复用一条，before 恒为首次覆盖前的真实值，不影响 400 条留痕窗口）；
+ *      无锁定向空转直接返回。UI 挂「全局」页 renderGlobal 末尾（mbCERenderLock）。
  * ============================================================ */
 
 /* 预设推荐项：真实键名全部来自 CE 适配器声明/模组对照源码（dw257）与 DoL 原版转化键 */
@@ -8529,19 +8547,49 @@ function mbCELockRead(V, path) {
 	return cur;
 }
 
-/* 强制写回：当前值 ≠ 锁定目标 → 直写（不留痕，复用 setPathVal）。
+/* P4（v2.0.7）：锁定写回留痕——同 path 只留一条 `lock:<path>`，before 恒为「第一次被锁定覆盖前的真实值」，
+   之后每 1 秒只更新 after/t，不会把 400 条留痕窗口冲掉。回退中心据此可以「取消锁定 + 还原锁定前值」，
+   否则玩家在回退中心看不到任何锁定写入（旧实现是直写 setPathVal、完全不留痕）。 */
+function mbCELockTrace(Vp, path, before, after) {
+	try {
+		if (!Vp || !path) { return; }
+		if (!Vp.mbCE_wrote || typeof Vp.mbCE_wrote !== "object") { Vp.mbCE_wrote = {}; }
+		var key = "lock:" + path;
+		var prev = Vp.mbCE_wrote[key];
+		if (prev && prev.type === "lock" && typeof prev === "object") {
+			/* 原地更新：t 保留首次落痕时间（不然每秒刷新会把这条顶到回退中心最前、挤掉真的一次性写入），
+			   last 记最近一次写回，before 只在缺失时补 */
+			if (prev.before === undefined) { prev.before = before; }
+			prev.after = after;
+			prev.last = Date.now();
+			return;
+		}
+		Vp.mbCE_wrote[key] = { type: "lock", path: path, before: before, after: after, t: Date.now(), last: Date.now() };
+	} catch (e) {}
+}
+
+/* 强制写回：当前值 ≠ 锁定目标 → 先记留痕（mbCELockTrace）再写回。
    安全边界：当前值不存在（undefined）时跳过——只固定「已存在」的值，
    绝不因锁定而 setPathVal 凭空创建字段（防把未触发的转化/未开的键造出来）。 */
 function mbCELockTick() {
 	var Vp = getV();
 	var list = Vp && Vp.mbCE_lock;
 	if (!Vp || !Array.isArray(list) || !list.length) { return; }
+	var wrote = 0;
 	for (var i = 0; i < list.length; i++) {
 		var it = list[i];
 		if (!it || !it.path) { continue; }
 		var cur = mbCELockRead(Vp, it.path);
 		if (cur === undefined) { continue; }
-		if (Number(cur) !== Number(it.target)) { setPathVal(Vp, it.path, Number(it.target)); }
+		if (Number(cur) !== Number(it.target)) {
+			mbCELockTrace(Vp, it.path, cur, Number(it.target));
+			setPathVal(Vp, it.path, Number(it.target));
+			wrote++;
+		}
+	}
+	/* 锁定条数多时（每个 path 一条留痕）仍要守住 400 条窗口，走同一套 trim */
+	if (wrote && typeof mbCEWroteTrim === "function") {
+		try { mbCEWroteTrim(Vp); } catch (eTrim) {}
 	}
 }
 
@@ -8726,33 +8774,43 @@ function mbCELurkerState() {
 		captured: (typeof V.stat_lurkers_captured === "number") ? V.stat_lurkers_captured : null,
 		farmStage: (typeof V.farm_stage === "number") ? V.farm_stage : null,
 		auto: !!(V.mbCE_lurkerAuto),
+		lockHeld: mbCELurkerLocked("lurkers_held"),
+		lockFridge: mbCELurkerLocked("hookah.lurkers"),
+		lockStored: mbCELurkerLocked("lurkers_stored"),
 		patch: patch
 	};
 }
 function mbCELurkerSet(path, val) {
 	return cheatWriteValue("player-self", "p:lurker:" + path, "value_set", path, val, "number", 0, MB_CE_LURKER_MAX);
 }
-/* 自动搬运一轮：held → 冰箱 → 农场笼；返回搬运只数（仅在补丁未生效时由玩家手动开启） */
+/* P3（v2.0.7）：三处写入目标都可能被「数值固定」锁住。锁定优先——被锁的键不由自动搬运抢写，
+   否则 1 秒 tick 立刻把值写回目标，搬运结果玩家根本看不到，还会来回抖动。 */
+function mbCELurkerLocked(path) {
+	try { return (typeof mbCELockHas === "function") && !!mbCELockHas(path); } catch (e) { return false; }
+}
+/* 自动搬运一轮：held → 冰箱 → 农场笼；返回搬运只数（仅在补丁未生效时由玩家手动开启）
+   锁优先细则：held 被锁 → 整轮不搬；冰箱被锁 → 跳过冰箱这站（继续尝试笼）；笼被锁 → 跳过笼；
+   两站都被锁则原地保留 held（等价「只搬运到还有空位的目标」），不丢不重。 */
 function mbCELurkerAutoTick() {
 	try {
 		var V = mbCELurkerV();
 		if (!V || !V.mbCE_lurkerAuto) { return 0; }
 		var held = (typeof V.lurkers_held === "number") ? V.lurkers_held : 0;
 		if (held < 1) { return 0; }
-		if (typeof mbCELockHas === "function" && mbCELockHas("lurkers_held")) { return 0; } /* 锁定优先，不抢写 */
+		if (mbCELurkerLocked("lurkers_held")) { return 0; }
 		var moved = 0;
-		if (V.hookah && typeof V.hookah === "object") {
+		if (V.hookah && typeof V.hookah === "object" && !mbCELurkerLocked("hookah.lurkers")) {
 			var hl = (typeof V.hookah.lurkers === "number") ? V.hookah.lurkers : 0;
 			/* 补丁生效后冰箱无上限，直接全搬；未生效时也照搬（消耗/pluralise 按真实值走，仅文案显示降级） */
 			V.hookah.lurkers = hl + held;
 			moved += held; held = 0;
 		}
-		if (held > 0) {
+		if (held > 0 && !mbCELurkerLocked("lurkers_stored")) {
 			V.lurkers_stored = ((typeof V.lurkers_stored === "number") ? V.lurkers_stored : 0) + held;
 			moved += held; held = 0;
 		}
 		V.lurkers_held = held;
-		V.mbCE_lurkerMoved = ((typeof V.mbCE_lurkerMoved === "number") ? V.mbCE_lurkerMoved : 0) + moved;
+		if (moved) { V.mbCE_lurkerMoved = ((typeof V.mbCE_lurkerMoved === "number") ? V.mbCE_lurkerMoved : 0) + moved; }
 		return moved;
 	} catch (e) { return 0; }
 }
@@ -8843,8 +8901,12 @@ function mbCERenderLurker(pane) {
 	});
 	actRow.appendChild(rep); actRow.appendChild(sw);
 	sec.appendChild(actRow);
+	var lockNote = "";
+	if (st.lockHeld) { lockNote += " · 手持已锁定（自动搬运整轮暂停）"; }
+	if (st.lockFridge) { lockNote += " · 冰箱已锁定（跳过冰箱这站）"; }
+	if (st.lockStored) { lockNote += " · 蒸馏笼已锁定（跳过笼这站）"; }
 	sec.appendChild(el("div", "mce-hint",
-		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只"));
+		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只" + lockNote));
 }
 /* v2.0.0.005 清理：原 mbCELurkerAutoLabel() 删除（拆分期遗留死代码）——上方「自动搬运：开/关」
    按钮渲染一直用内联三元，该函数全仓零引用。 */
@@ -13154,7 +13216,7 @@ function renderAttitudesGroup(pane) {
 }
 /* 职责：统一回退中心（v2.0.3 P4-1）——把散落各处的回退入口收敛为「全局」页一个区块。
    数据源唯一：存档内 V.mbCE_wrote 留痕。类型覆盖 cheat / world / maint / place / native / vanilla /
-   set / clear / append / state / batch / yanling；回退业务逻辑复用既有实现（undoCheatModValue /
+   set / clear / append / state / batch / yanling / part / lock；回退业务逻辑复用既有实现（undoCheatModValue /
    mbCEWorldUndo / mbCEMaintUndo / placeStageUndo / undoRomanceStage / undoVanillaStage），本文件只做
    归一化分发与展示。不可逐条回退的类型（batch 审计 / yanling 页内撤销 / state 关系状态）显式禁用按钮并说明原因。 */
 
@@ -13170,7 +13232,8 @@ function renderAttitudesGroup(pane) {
 		state: "框架恋爱条件·关系状态",
 		batch: "批量操作（仅审计）",
 		yanling: "言灵改写（页内撤销）",
-		part: "外观隐藏（转化部件）"
+		part: "外观隐藏（转化部件）",
+		lock: "数值锁定写回"
 	};
 	function mbCEUndoLabel(type) {
 		if (!type) { return "未知类型"; }
@@ -13237,6 +13300,29 @@ function renderAttitudesGroup(pane) {
 			if (type === "part") {
 				var r6 = /** @type {any} */ (mbCEHideUndo(key));
 				return { ok: !!(r6 && r6.ok), msg: (r6 && r6.msg) || "外观回退失败" };
+			}
+			/* P4（v2.0.7）：锁定写回留痕。顺序必须是「先解除锁定、再还原原值」——
+			   反过来的话 07f-lock 下一秒 tick 又会把值写回目标，玩家以为回退没生效。 */
+			if (type === "lock") {
+				var lp = String(rec.path || key.replace(/^lock:/, ""));
+				var hadLock = false;
+				try { if (typeof mbCELockHas === "function") { hadLock = !!mbCELockHas(lp); } } catch (eL0) {}
+				var offOk = true;
+				if (hadLock && typeof mbCELockRemove === "function") {
+					var lr3 = /** @type {any} */ (mbCELockRemove(lp));
+					offOk = !!(lr3 && lr3.ok);
+				}
+				var restored = true;
+				if (rec.before !== undefined) {
+					try { setPathVal(V, lp, rec.before); } catch (eL1) { restored = false; }
+				}
+				try { delete V.mbCE_wrote[key]; } catch (eL2) {}
+				var lName = (typeof mbCELockLabel === "function") ? mbCELockLabel(lp) : lp;
+				var head = hadLock ? (offOk ? "已取消锁定 " : "已还原原值，但锁定未能解除 ") : "锁定已不在，仅还原 ";
+				return {
+					ok: restored && (!hadLock || offOk),
+					msg: head + lName + (rec.before !== undefined ? " = " + String(rec.before) : "") + (restored ? "" : "（还原异常，见状态栏）")
+				};
 			}
 			if (type === "world") {
 				var gid = key.indexOf("world:") === 0 ? key.slice(6) : key;
@@ -13395,6 +13481,9 @@ function renderAttitudesGroup(pane) {
 			if (blocked) {
 				body.appendChild(el("div", "mce-hint", blocked));
 			} else {
+				if (type === "lock") {
+					body.appendChild(el("div", "mce-hint", "回退 = 取消该数值的锁定 + 还原锁定前原值（只还原值不解除锁定，1 秒 tick 会立刻写回目标）。"));
+				}
 				var gBtn = el("button", "mce-btn", "回退本组 " + items.length + " 项");
 				gBtn.type = "button";
 				gBtn.addEventListener("click", function () {
@@ -13744,6 +13833,15 @@ function renderAttitudesGroup(pane) {
 			else if (ns === "maint") { name = mbCEUndoZh(MB_CE_UNDO_MAINT, rest); }
 			else if (ns === "yanling") { name = mbCEUndoZh(MB_CE_UNDO_YANLING, rest); }
 			else if (ns === "world") { name = mbCEUndoWorldName(rest, rec); }
+			/* P4（v2.0.7）：lock:<path> 用锁定页同一套中文名（快速面板标签 → zhKey → 原 path 三级回落） */
+			else if (ns === "lock") {
+				name = "";
+				try { if (typeof mbCELockLabel === "function") { name = mbCELockLabel(rest); } } catch (eL) { name = ""; }
+				if (!name || name === rest) {
+					try { if (typeof zhKey === "function" && zhKey(rest) !== rest) { name = zhKey(rest); } } catch (eL2) { name = ""; }
+				}
+				if (!name) { name = rest; }
+			}
 			else if (ns === "romance" || ns === "vanilla" || ns === "native") {
 				var tail = rest.replace(/^native:/, "");
 				try { if (typeof displayName === "function") { name = displayName(tail); } } catch (e) { name = ""; }
