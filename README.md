@@ -207,7 +207,8 @@
 | 文档 | 内容 | 何时看 |
 |---|---|---|
 | [docs/modpack-inventory.md](docs/modpack-inventory.md) | 18 个模组包台账（名/字节/SHA 前 8）+ **第六节「mod 的真实加载通道」**（ModLoader 走浏览器 IndexedDB 而非目录、证据链、正确补装步骤、四层数字口径） | 补装/更新任何模组包、怀疑"装了没生效"时**先看这一节** |
-| [docs/key-type-evidence.md](docs/key-type-evidence.md) | `check_key_types.js` 报 `NO_EVIDENCE 171/276` 的逐项不可得性证明（为何静态源码拿不到类型证据） | 怀疑类型核查"漏检"时 |
+| [docs/key-type-evidence.md](docs/key-type-evidence.md) | `check_key_types.js` 报 `NO_EVIDENCE` 的逐项不可得性证明（为何静态源码拿不到类型证据） | 怀疑类型核查"漏检"时 |
+| [docs/benchmarks.md](docs/benchmarks.md) | 面板渲染压测：445 条声明 × 7 页签 × 13 模组全展开的实测基线、阈值、口径边界（jsdom 只测 JS+DOM，不等于真机帧率） | 改任何面板渲染段后判断是否退化 |
 | [AGENTS.md](AGENTS.md) | 分支纪律：§5 对照源码权威表与适配器键数、§6 mod 装载通道 | 改装配流程、加适配器前 |
 | [CHANGELOG.md](CHANGELOG.md) | 逐版本变更（发布 body 的来源） | 回溯某版本改了什么 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 提交流程、钩子、ESLint 八规则、全链 12 步 | 首次贡献/改工具链前 |
