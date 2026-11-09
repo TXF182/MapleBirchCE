@@ -106,6 +106,19 @@ assert(localStorage.getItem("mbCE_toggle_hidden_v1") === null, "旧隐藏键在 
 assert(tg0.style.left === "12px" && tg0.style.top === "34px" && tg0.style.right === "auto",
   "拖动位置从 localStorage 恢复并置 right/bottom:auto，实际 " + tg0.style.left + "/" + tg0.style.top + "/" + tg0.style.right);
 assert(tg0.dataset.mceLocked === "1" && tg0.title.indexOf("拖动已锁定") !== -1, "拖动锁键=1 → dataset 标记 + 锁定 title 同时生效");
+/* ---------- 3.1b v2.0.12：悬浮球越界校正（唯一入口，跑出视口 = 面板再也打不开） ----------
+   历史存的位置来自"当时那次拖拽的视口"，换窄窗口 / 缩放 / 换显示器后原坐标可能整个落在视口外；
+   面板已废除「隐藏」功能，悬浮球是唯一入口，所以恢复与 resize 都必须按当前视口钳回内区。 */
+const W0 = window.innerWidth, H0 = window.innerHeight;
+const BALL = 56; /* 未拿到真实 rect 时的兜底边长（与 #mce-toggle 52px + 边距同量级） */
+tg0.style.left = "9999px";
+tg0.style.top = "9999px";
+window.dispatchEvent(new window.Event("resize"));
+assert(parseInt(tg0.style.left, 10) === W0 - BALL - 4 && parseInt(tg0.style.top, 10) === H0 - BALL - 4,
+  "窗口缩放后悬浮球被钳回视口内（唯一入口不可跑出屏幕），期望 " + (W0 - BALL - 4) + "/" + (H0 - BALL - 4) +
+  " 实际 " + tg0.style.left + "/" + tg0.style.top);
+tg0.style.left = "12px";
+tg0.style.top = "34px";
 
 /* ---------- 3.5 v1.9.18 排版 token 化 + 容器自适应断言 ---------- */
 const mceCss = (document.getElementById("mce-style") || {}).textContent || "";
@@ -118,6 +131,19 @@ assert(mceCss.indexOf(".mce-body{flex:1;overflow-y:auto") !== -1, "容器自适�
 assert(mceCss.indexOf("::-webkit-scrollbar-thumb") !== -1, "容器自适应：面板滚动条样式已注入");
 assert(!!document.querySelector(".mce-body"), "容器自适应：.mce-body 滚动容器存在");
 assert(!!document.querySelector(".mce-header") && !!document.querySelector(".mce-tabs"), "容器自适应：header/tabs 固定行存在（sticky 页头）");
+
+/* ---------- 3.5b v2.0.12 CSS 特异性倒挂：状态色 / 选中态曾静默失效 ----------
+   ① `.mce-status`(0,1,0) 定义在 `.mce-ok`/`.mce-err`(0,1,0) 之后 → 同特异性后者胜，
+      `setStatus(x,"mce-ok")` 的绿/红被灰色覆盖（146 处调用全部拿不到颜色区分）。
+   ② `.mce-btn-active`(0,1,0) 被 `.mce-row button`(0,1,1) 覆盖 → 性别切换按钮选中态没有金底。
+   修法是把两处改成更高特异性组合规则；下面直接断言"规则存在且形状正确"（防回归），
+   jsdom 不做 cascade 计算，所以这里验的是规则文本而不是渲染结果。 */
+assert(mceCss.indexOf(".mce-status.mce-ok{color:var(--mce-green)}") !== -1,
+  "状态栏成功色：存在高特异性组合规则 .mce-status.mce-ok（否则被 .mce-status 灰色覆盖）");
+assert(mceCss.indexOf(".mce-status.mce-err{color:var(--mce-red)}") !== -1,
+  "状态栏失败色：存在高特异性组合规则 .mce-status.mce-err（否则 146 处 mce-err 调用看不到红色）");
+assert(mceCss.indexOf("#mce-root .mce-btn-active{") !== -1,
+  "选中态：.mce-btn-active 提升到 #mce-root 层级（否则被 .mce-row button 覆盖，性别按钮无高亮）");
 
 /* ---------- 4. 玩家页冒烟（v1.8.4 select.type 崩溃路径） ---------- */
 api.renderPlayerEdit();

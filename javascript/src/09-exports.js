@@ -76,6 +76,23 @@
 		   拖动后吞掉本次 click（区分「点击开关」与「拖动挪位」）。
 		   悬浮球是面板唯一入口，废除「隐藏」功能（隐藏即死锁）——清旧键并强制恢复显示。 */
 		var tgSt = toggleBtn.style || {};
+		/* v2.0.12 悬浮球坐标钳制：坐标是「上次拖拽当时的视口」写下的，换窄窗口 / 缩放 / 换显示器后
+		   原坐标可能整个落在视口外；面板已废除「隐藏」功能，球是唯一入口，跑出去等于面板打不开。
+		   位置恢复与窗口 resize 都走这里（拖动过程中的钳位另在 pointermove 内，同一套边界）。 */
+		function tgClampPos() {
+			try {
+				var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
+				var h = (typeof window !== "undefined" && window.innerHeight) || 720;
+				var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : null;
+				var bw = (r && r.width) || 56, bh = (r && r.height) || 56;
+				var l = parseInt(tgSt.left, 10), t = parseInt(tgSt.top, 10);
+				if (!isFinite(l) || !isFinite(t)) { return; } /* 从未拖过（right/bottom 定位）→ 不动 */
+				tgSt.left = Math.max(0, Math.min(w - bw - 4, l)) + "px";
+				tgSt.top = Math.max(0, Math.min(h - bh - 4, t)) + "px";
+				tgSt.right = "auto";
+				tgSt.bottom = "auto";
+			} catch (e) {}
+		}
 		try {
 			if (typeof localStorage !== "undefined" && localStorage) {
 				if (localStorage.getItem("mbCE_toggle_hidden_v1") !== null) {
@@ -88,9 +105,9 @@
 					if (tpj && typeof tpj.left === "number" && typeof tpj.top === "number") {
 						tgSt.left = tpj.left + "px";
 						tgSt.top = tpj.top + "px";
-						tgSt.right = "auto";
-						tgSt.bottom = "auto";
 					}
+					/* v2.0.12：恢复后立即按当前视口钳回内区（历史坐标可能来自更宽的窗口，原样照写会把唯一入口送出屏幕） */
+					tgClampPos();
 				}
 				/* 拖动锁：mbCE_toggle_lock_v1 = "1" 时禁拖动（点击仍正常开关面板） */
 				toggleBtn.dataset.mceLocked = (localStorage.getItem("mbCE_toggle_lock_v1") === "1") ? "1" : "0";
@@ -162,6 +179,10 @@
 			if (drag.moved) { drag.moved = false; return; }
 			toggle();
 		});
+		/* v2.0.12：窗口缩放 / 屏幕旋转后重新钳位——拖拽只在那一次 move 内钳，之后窗口变小球就留在视口外 */
+		if (!toggleBtn.__mbCEPosBound) {
+			try { window.addEventListener("resize", tgClampPos); toggleBtn.__mbCEPosBound = true; } catch (e2) {}
+		}
 		try { toggleBtn.__mbCEBound = true; } catch (e2) {}
 		}
 
