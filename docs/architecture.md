@@ -60,11 +60,18 @@
 
 ## 7. 实机链路（本轮 moli 实测，含两个旧口径的推翻）
 
-- IDB 以 `scheme+host+port` 为键：**http origin 同样能导入 mod**，决定成败的是「与游戏同源」，不是页面自述的 `file://`。用 `game/mce-mod-import.html` 把 CE 与框架包都写入同一 origin 后，store 内 3 键、列表 2 项。
-- 未装框架时：CE 半载（三件套已建、导出不挂、无玩家可见提示，console 仅一行 `DependenceChecker.check() not found`）→ 真实产品风险 P1，不是测试环境噪音。
-- 装框架后仍报 `TypeError: i.ctx.createGainNode is not a function`：该标识符在 CE 源码 **0 命中**，唯一来源是框架包 `dist/inject_early.js` 内 Howler 音效库的旧 API 兜底 → **框架侧问题，不计入 CE 缺陷**。
-- **moli 的硬边界**：本轮把 `setup` 也测了——`typeof window.setup === "undefined"`、`State.passage === null`、`V` 仅 3 键。即 mod 侧全部就绪而 **SugarCube 引擎未进入剧情**；因此 `setup.mbStageCE` 在 moli 下不可验证，面板只能是空壳（27 节点）。
-- 对应地，`real_smoke.ps1` 的 E 判据（在 `document.body.innerText` 找 `inject end`）与 F 判据（`typeof window.mbCE === "object"`）**都测错了对象**：前者日志走 console 捕获窗，后者该全局名在源码中不存在。可作为 CE 存活信号的候选是 `#mce-toggle` / `#mce-root` / `#mce-style` 与 `setup.mbStageCE`。
+- IDB 以 `scheme+host+port` 为键：**http origin 同样能导入 mod**，决定成败的是「与游戏同源」，不是页面自述的 `file://`。用 `game/mce-mod-import.html` 把包写进同一 origin 后，store 内出现 `modDataIndexDBZip:<文件名>` 若干键 + 一个列表键 `modDataIndexDBZipList`。
+- **列表键才是加载目录，包键只是存储**：实测把框架包 blob 写进 store（388,498 B 在库）但列表键仍是 `["MapleBirchCE.mod.zip"]` 时，ModLoader 只认列表里的项——`IndexDBLoader load() list MapleBirchCE.mod.zip` 之后再无框架相关记录。判「包装上了没有」必须同时看 `modDataIndexDBZip:<名>` 键存在 **与** 列表键 JSON 里含该包名，只看 store 键数会得出错误结论。
+- **依赖阻断的真实链路（2026-11-09 第二次实测，推翻上一轮「已装框架」的记录）**：
+  1. `IndexDBLoader load() list MapleBirchCE.mod.zip` —— IDB 列表被读到；
+  2. `error: DependenceChecker.checkFor() not found mod before MapleBirchCE` —— CE 声明依赖 `maplebirch>=5.4.2`，框架不在可用集合；
+  3. 框架依赖的那批插件被 ModLoaderGui **SafeMode** 拦下：`canLoadThisMod() mod [TweeReplacer] be banned by [ModLoaderGui SafeMode]`，同批还有 `BeautySelectorAddon` / `ImageLoaderHook2BeautySelectorAddon` / `TweeReplacerLinker`；
+  4. 结果：CE **完全未注入**——`#mce-style` / `#mce-toggle` / `#mce-root` 三件套全为 false，面板 0 节点，`inject start/end` 只覆盖内嵌的 ModLoaderGui / ConflictChecker / ModSubUiAngularJs。
+- 因此上一轮记的「装框架后 `pluginCount 23 / injectCE true / 三件套齐 / 27 节点`」与本次可复现结果不一致：该轮框架包**没有进列表键**，三件套来源无法用当前证据链复现。本次结论以「列表 + 依赖检查 + SafeMode」三处日志为准。
+- 未装框架时（含框架被 SafeMode 禁用时）：CE 完全不出现，玩家侧只看到一个没有金按钮的正常游戏，console 仅一行 `DependenceChecker.checkFor() not found mod before MapleBirchCE` → **真实产品风险 P1（静默无提示），不是测试环境噪音**。
+- 装框架并真正加载后仍报 `TypeError: i.ctx.createGainNode is not a function`：该标识符在 CE 源码 **0 命中**，唯一来源是框架包 `dist/inject_early.js` 内 Howler 音效库的旧 API 兜底 → **框架侧问题，不计入 CE 缺陷**。
+- **moli 的硬边界（两层，缺一不可）**：① ModLoaderGui 的 SafeMode 在 moli 新 profile 下会禁用框架依赖插件集，框架起不来；② 即使 mod 侧全部就绪，`typeof window.setup === "undefined"`、`State.passage === null`、`V` 仅 3 键——**SugarCube 引擎未进入剧情**。两层叠加意味着 `setup.mbStageCE` 在 moli 通道结构上不可验证，面板只能是空壳。
+- 对应地，`real_smoke.ps1` 的 E 判据（在 `document.body.innerText` 找 `inject end`）与 F 判据（`typeof window.mbCE === "object"`）**都测错了对象**：前者日志走 console 捕获窗（`window.__logs`），后者该全局名在源码中不存在。两处已按本节证据改写：E 改读 `__logs` 命中数，F 改判 `setup.mbStageCE`，并新增 `mceDom`（三件套计数，区分「没注入」与「注入了但导出丢失」）、`depBlocked`、`idbListed`、`safeBanned` 四个诊断字段。
 
 ## 8. 门禁清单（改完必须全绿）
 
