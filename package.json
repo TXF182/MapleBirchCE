@@ -14,6 +14,7 @@
     "test:gender": "node tests/integration_gender.js",
     "test:keycheck": "node tests/test_keycheck.js",
     "test:unit-core": "node tests/unit_core.js",
+    "test:unit-modcheat": "node tests/unit_modcheat_write.js",
     "test:stability": "node tests/stability_loop.js",
     "test:matrix": "node tests/test_adapter_matrix.js",
     "check:adapters": "node tools/validate_adapters.js",

@@ -30,9 +30,17 @@ if (Test-Path -LiteralPath "node_modules\.bin\eslint.cmd") {
 # 3b（并入第 3 步，不新增编号）：纯函数层隔离单测 —— 用 vm 直跑 src/01-core.js 片段，与产物无关。
 # 改坏 01-core 的中文映射 / 原版清单判定 / 数值读写（writeStat 上限不钳制等语义）会在这里立刻红，
 # 不必等到第 10 步面板级路径才发现（面板层兜底会把异常吞成「未就绪」，异常在 UI 上看不出来）。
+# 3b（并入第 3 步，不新增编号）：函数级隔离单测 —— 用 vm 直跑 src 片段，与产物无关。
+# ① tests/unit_core.js：01-core 的中文映射 / 原版清单判定 / 数值读写（writeStat 上限不钳制等语义）；
+# ② tests/unit_modcheat_write.js：04b 的原版根拦截 + 适配器声明豁免判定（cheatIsVanillaRoot /
+#    mbCEBuildAdapterPaths / mbCEIsDeclaredAdapterPath / cheatResolvePath）。
+# 这两类一旦改坏，面板层兜底会把异常吞成「未就绪」，UI 上看不出区别，所以必须在函数级立刻红。
 Write-Host "    纯函数隔离单测（tests/unit_core.js）"
 node tests/unit_core.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: unit_core（01-core 纯函数行为回归，见上方 FAIL 行）" -ForegroundColor Red; exit 1 }
+Write-Host "    适配器路径豁免判定单测（tests/unit_modcheat_write.js）"
+node tests/unit_modcheat_write.js
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: unit_modcheat_write（原版根拦截/适配器豁免判定回归，见上方 FAIL 行）" -ForegroundColor Red; exit 1 }
 
 # 第 4–7 步：这 7 个功能测试在 c8 可用时已全部并入第 10 步的覆盖率序列
 # （序列真源 tools/coverage_tests.js，串行/并行两个入口共用），
