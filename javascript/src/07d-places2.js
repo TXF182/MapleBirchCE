@@ -135,7 +135,7 @@
 						});
 						row.appendChild(mUndo);
 					}
-				} catch (e) {}
+				} catch (e) { mbCECatch("places2:rowRender", e); }
 				block.appendChild(row);
 			});
 			pane.appendChild(block);

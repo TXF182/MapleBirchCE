@@ -114,11 +114,26 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.12";
+	var MCE_VERSION = "2.0.13";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
 	function mbCEErr(e) { return (e && e.message) ? e.message : e; }
+	/* v2.0.12 错误池：静默 catch 的兜底记录。只进内存、不进存档、上限 48 条（环形丢最旧）。
+	   接入判据见 docs/catch-policy.md：**只有「失败后玩家状态与面板显示会不一致」的路径才接入**；
+	   探测/降级类 catch（`typeof X === "function"` 这类能力嗅探）保持静默——它们失败即走降级分支，
+	   属设计意图，接入只会在缺环境时刷屏，反而淹没真错误。
+	   窗口挂载 window.__mceErrPool 供实机探针（moli）直接读取，不必进 passage 开面板。 */
+	var mbCEErrPool = [];
+	/** @param {string} where @param {any} e */
+	function mbCECatch(where, e) {
+		try {
+			if (mbCEErrPool.length >= 48) { mbCEErrPool.shift(); }
+			mbCEErrPool.push({ where: String(where), msg: String(mbCEErr(e)), t: Date.now() });
+			if (typeof window !== "undefined" && window) { window.__mceErrPool = mbCEErrPool; }
+		} catch (eIgnored) { /* 记录器自身失败必须静默，否则级联成二次错误 */ }
+	}
+	function mbCEErrPoolDump() { return mbCEErrPool.slice(); }
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -134,30 +149,6 @@
 	function getSetup() {
 		try { if (typeof setup !== "undefined" && setup) { return setup; } } catch (e) {}
 		return {};
-	}
-	/* v1.8.15 九巡：面板写入留痕 V.mbCE_wrote 有界化——条目数 > 400 时按时间戳升序删除最旧一半。
-	   防止长时间高强度操作导致留痕无限增长（每笔写入都占存档空间）；被删条目的回退窗口随之关闭（旧操作不再可回退）。 */
-	function mbCEWroteTrim(V) {
-		try {
-			if (!V || !V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { return; }
-			var keys = Object.keys(V.mbCE_wrote);
-			if (keys.length <= 400) { return; }
-			keys.sort(function (a, b) {
-				var ta = (V.mbCE_wrote[a] && typeof V.mbCE_wrote[a].t === "number") ? V.mbCE_wrote[a].t : 0;
-				var tb = (V.mbCE_wrote[b] && typeof V.mbCE_wrote[b].t === "number") ? V.mbCE_wrote[b].t : 0;
-				return ta - tb;
-			});
-			/* v2.0.8：锁定写回留痕（type:"lock"）不参与裁剪——每个被锁 key 只有一条，是「取消锁定 + 还原原值」的
-			   唯一依据；被裁掉后再次写回会把 before 记成「已被锁定覆盖后的值」，回退就退化成原样还原、等于失效。 */
-			var drop = Math.floor(keys.length / 2);
-			var rm = 0, vi = 0;
-			while (rm < drop && vi < keys.length) {
-				var vLock = V.mbCE_wrote[keys[vi]];
-				if (vLock && vLock.type === "lock") { vi++; continue; }
-				try { delete V.mbCE_wrote[keys[vi]]; } catch (e) { V.mbCE_wrote[keys[vi]] = undefined; }
-				rm++; vi++;
-			}
-		} catch (e) {}
 	}
 
 	/* ============ 框架解析（window.maplebirch 优先，setup.MapleBirch 回退） ============ */
@@ -512,6 +503,31 @@
 		return n;
 	}
 
+/* 职责：面板写入留痕 V.mbCE_wrote 有界化（v2.0.12 结构门禁拆段：01-core 因错误池涨到 415 行超 400 上限）；同一 IIFE 闭包内，函数声明提升，调用顺序不受影响 */
+	/* v1.8.15 九巡：面板写入留痕 V.mbCE_wrote 有界化——条目数 > 400 时按时间戳升序删除最旧一半。
+	   防止长时间高强度操作导致留痕无限增长（每笔写入都占存档空间）；被删条目的回退窗口随之关闭（旧操作不再可回退）。 */
+	function mbCEWroteTrim(V) {
+		try {
+			if (!V || !V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { return; }
+			var keys = Object.keys(V.mbCE_wrote);
+			if (keys.length <= 400) { return; }
+			keys.sort(function (a, b) {
+				var ta = (V.mbCE_wrote[a] && typeof V.mbCE_wrote[a].t === "number") ? V.mbCE_wrote[a].t : 0;
+				var tb = (V.mbCE_wrote[b] && typeof V.mbCE_wrote[b].t === "number") ? V.mbCE_wrote[b].t : 0;
+				return ta - tb;
+			});
+			/* v2.0.8：锁定写回留痕（type:"lock"）不参与裁剪——每个被锁 key 只有一条，是「取消锁定 + 还原原值」的
+			   唯一依据；被裁掉后再次写回会把 before 记成「已被锁定覆盖后的值」，回退就退化成原样还原、等于失效。 */
+			var drop = Math.floor(keys.length / 2);
+			var rm = 0, vi = 0;
+			while (rm < drop && vi < keys.length) {
+				var vLock = V.mbCE_wrote[keys[vi]];
+				if (vLock && vLock.type === "lock") { vi++; continue; }
+				try { delete V.mbCE_wrote[keys[vi]]; } catch (e) { V.mbCE_wrote[keys[vi]] = undefined; }
+				rm++; vi++;
+			}
+		} catch (e) { mbCECatch("mbCEWroteTrim", e); }
+	}
 	/* ============ 恋爱剧情阶段（原生条件，自动解析） ============ */
 	function getRomanceList(name) {
 		var list = null;
@@ -1466,7 +1482,7 @@
 				}
 				entry.unlocked = Math.max(Number(entry.unlocked || 0), 2);
 			});
-		} catch (e) {}
+		} catch (e) { mbCECatch("combat:forestClothesUnlock", e); }
 	}
 	function clearGwylanWary() {
 		try {
@@ -2040,7 +2056,35 @@ var CHEAT_ADAPTERS = {};
 					name: "恋人列表（模组扩容版）",
 					varPath: "loveInterestList",
 					type: "list",
-					options: ["Robin", "Whitney", "Kylar", "Eden", "Avery", "Sydney", "Alex", "Black Wolf", "Great Hawk", "Gwylan", "Remy"]
+					options: ["Robin", "Whitney", "Kylar", "Eden", "Avery", "Sydney", "Alex", "Black Wolf", "Great Hawk", "Gwylan", "Remy"],
+					/* v2.0.12 适配深度补测（mli0180 源码逐行取证）：
+					   ① 这是**唯一生效**的恋人入口。11 个 $loveInterest.<槽位>（primary..undecimal）全是本数组的派生态——
+					      more_love_interest_main.twee:173-185 的 moreLoveInterestConfirm 每次交互都从 $loveInterestList[0..10]
+					      反向覆盖全部槽位，单独写槽位会被立刻覆盖 → 不做入口（避免"面板显示写入成功、实机无效"）。
+					   ② 写入后会被模组自身条件剪裁（main.twee:164-172）：Black Wolf 需 hasSexStat("deviancy",3)、
+					      Avery 需 $auriga_artefact 且 C.npc.Avery.state isnot "dismissed"、Remy 需装 Remy Love Mod。
+					      这是模组的防误置保护，不是 CE 缺陷：面板写入后若条件不满足，下次交互会被移除。 */
+					note: "上限 11 位；槽位为派生不设入口；Black Wolf/Avery/Remy 受模组条件剪裁"
+				},
+				{
+					key: "mate_for_life_debuff",
+					name: "终生伴侣 Debuff（换恋人掉精神）",
+					/* main.twee:98 `<<checkbox "$options.mateForLifeDebuff" false true autocheck>>` 默认 false；
+					   box.twee:39/80 `<<if $transformationParts.traits.mateForLife isnot "disabled" and $options.mateForLifeDebuff>>`
+					   → 真值判定，写 1 即开启（换恋人按终生伴侣特质加压力/创伤）。$options 由本体初始化，
+					   若该对象缺失，写入器按"父链缺失"优雅拒绝（不会凭空造 $options）。 */
+					varPath: "options.mateForLifeDebuff",
+					type: "boolean",
+					note: "1=开启（换恋人掉精神）/0=关闭；真值判定"
+				},
+				{
+					key: "drag_mode",
+					name: "恋人列表操作模式（1=拖拽 / 0=选项）",
+					/* main.twee:107-116 `<<link `$dragMode ? '拖拽模式' : '选项模式'`>>`、box.twee:9/63 `<<if $dragMode>>` → 真值判定；
+					   undefined 视为选项模式（默认）。 */
+					varPath: "dragMode",
+					type: "boolean",
+					note: "1=拖拽模式 / 0=选项模式（默认 undefined）"
 				}
 			]
 		}
@@ -3579,7 +3623,9 @@ function mbCEFertKidSetLocation(id, loc) {
 	}
 	if (!ok) { return { ok: false, message: "无法更新这个孩子的地点（模组 setLocation 拒绝，通常是还没出生/已移除）" }; }
 	try {
-		var V = getV();
+		/* v2.0.12 自查：本函数 L194 已声明 var V = mbCEFertKidVars()（等价 getV() 的空值兜底），
+		   此处再 var 属同作用域重复声明（ESLint no-redeclare）。改为赋值复用，语义不变。 */
+		V = getV();
 		if (V) {
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			var key = "cheat:fertility-expansion:fert_child_loc_" + id;
@@ -4024,25 +4070,34 @@ function mbCEFertRenderChildren(container) {
 		ad.entry.actionPanel.__mbCEHasKids = true;
 	} catch (e) { /* 适配器未注册时静默 */ }
 })();
-/* 职责：DoL 联机&地下城（Dolonline 5.27）适配器 —— **只做单机状态键**。
+/* 职责：DoL 联机&地下城（Dolonline 5.28）适配器 —— **只做单机状态键**。
    用户口径（2026-11-08）：Dolonline 仅本地单机状态，不做联机交互（不碰 WebSocket / auth / 服务器共享血量）。
 
-   源码实证（tools\_modcache\dolonline527\unpacked\，10 文件 / index.js 447,621 B）：
-   - boot.json：nickName「DoLOnline」、version 5.27、scriptFileList ["index.js"]、dependenceInfo []、addonPlugin []
-     → 零依赖、无补丁注入，CE 侧只需读写存档变量，不调模组函数。
-   - index.js 用 WebSocket 定向消息（auth L96 / cp_accept L159），**不上传整档**；只有共享怪物血量以服务器为准
+   源码实证（tools\_modcache\dolonline528\unpacked\，index.js 449,013 B + 4 个 twee + img，2026-11-09 复核 5.27→5.28）：
+   - boot.json：nickName「DoLOnline」、version 5.28、scriptFileList ["index.js"]、dependenceInfo []
+     → 零依赖；**新增 addonPlugin TweeReplacerAddon**（替换 `Harvest Street` 段落尾部追加 `<<dol-dg-entry>>`）。
+       注意：ModLoaderGui SafeMode 禁 TweeReplacer 时该补丁不生效；5.28 已自带 JS DOM 兜底
+       `ensureDgEntry()`（index.js:4305–4413，直接插 `#dol-dg-entry-link`），入口不依赖 addonPlugin。
+   - index.js 用 WebSocket 定向消息（auth / cp_accept），不上传整档；只有共享怪物血量以服务器为准
      → 单机状态全部落在本地 $ 变量，本地直写成立。
-   - 入口解锁：index.js L4157 `if (v.mpDgUnlocked) return true`；L4161 `if ((Number(v.mpDgLv) || 1) > 1) return true`；
-     L4170–4171 `dgUnlocked()` 成立时自动 `v.mpDgUnlocked = 1`。
-   - 等级/经验条：index.js L4663–4669 —— 日常 `mpDLv` / `mpDExp` need=80+(lv-1)*40；地下城 `mpDgLv` / `mpDgExp` need=100+(lv-1)*50。
-   - 法术解锁（dungeon.twee:84–88 与 index.js）：`mpDgLv` ≥3/≥5/≥7/≥9/≥12 分别解锁 火墙/冰锥/暗影箭/雷暴/陨石；
-     每次 5 层 +1 `mpSkillPts`（index.js L1805–1806）。
-   - 进本初始化（dungeon.twee:3–5、:884）：`dgFloor=1`、`dgHp=dolStaminaMax()`、`dgGold=0`、`dgMana=100`、`dgManaMax=100`；
-     `mpCat` 顶部 `<<set $mpCat to ($mpCat or 0)>>` 兜底 → 直写前不必保证存在，但运行态键必须先有。
-   - 宝箱（dungeon.twee:891–905）：`_tier = min(5, max(1, ceil(floor/4)))`，10% +1 档；`_reqs = [100,200,300,400,500]`；
-     `skulduggery >= dgChestReq` 才能撬（+100 为无损判据 `_clean`，倍率 1.5）。
-   - 灰（npc.twee）：`npcAff` 上限 15（`Math.min(15, ...)`）；`npcCh` 0→3；`npcQ` 0/1/2 剧情阶段；
-     `mpEquip.*` 读取前一律 `<<if $mpEquip and $mpEquip.helmet>>` 存在性守卫 → 装备对象缺失时模组自己会跳过，CE 不代建。 */
+   - 入口解锁 `dgUnlocked()` index.js:4189–4202：mpDgUnlocked 为真 → 解锁；另兼容 dgFloor>1（:4194）/
+     dgKills>0 / mpDgLv>1（:4196）/ mpDgAtk|Def|Agi>0（:4197）/ mpSkill 非空（:4198）/ mpSkillPts>0（:4199）
+     —— 比 5.27 多两条老档兼容。`migrateDgUnlock()` :4203–4208 在成立时把 mpDgUnlocked 置 1。
+   - 等级：`dailyNeed(lv)=80+(lv-1)*40`（:4472）、`dgNeed(lv)=100+(lv-1)*50`（:4473）；UI 侧 :4705–4711。
+   - 技能：5.28 由"法术开关"重构为**技能树** `SKILL_NODES`（:6476–6493，16 节点）——
+       5 个法术解锁节点 fireWall/iceSpike/shadowBolt/thunderStorm/meteor 的 auto 阈值仍为 3/5/7/9/12（:6484–6488，值 1 = 已解锁）；
+       新增 6 个可升级节点 atk/def/hp/crit/lifesteal/loot（max 10）与 arcane（max 3、cost 2）。
+       每下 1 层 20% +1 点、每满 5 层固定 +1 点（:1829–1830）。
+   - 进本初始化（dungeon.twee:3–12）：dgFloor=1、dgHp=dolStaminaMax()、mpCat 兜底 0、dgMana/dgManaMax=100。
+   - 宝箱（dungeon.twee:894–928）：_tier=min(5,max(1,ceil(floor/4)))，10% 概率 +1 档（:895）；
+     $dgChestTier 写入 :899、$dgChestReq 由 _reqs[_tier-1] 写入 :900；撬锁判 `skulduggery >= dgChestReq`（:908），
+     +100 为无损判据 `_clean`（:928）。
+   - 猫猫币（dungeon.twee:301/307/313）：30 换满体力 / 25 换满法力 / 120 掉道具。
+   - 敏捷加成公式：`3 + floor(min(100,physique)/15) + Number($mpDgAgi)`（dungeon.twee:67/215，index.js:2845）。
+   - 灰（npc.twee）：npcAff 上限 15（:56/:79 Math.min(15,…)）；npcCh 置 1/2/3 在 :154/:225/:242；
+     委托进度按 `dgKills - npcQStart >= 3`（:23/:25）。
+   - 职业专属技能按 $mpClass 判（dungeon.twee:92–95），四职业 warrior/mage/ranger/priest。
+   - `mpEquip.*` 读取前一律存在性守卫 → 装备对象缺失时模组自己跳过，CE 不代建。 */
 
 	CHEAT_ADAPTERS["dolonline"] = {
 		detect: function () {
@@ -4058,60 +4113,74 @@ function mbCEFertRenderChildren(container) {
 		},
 		entry: {
 			modId: "dolonline",
-			modName: "DoL 联机&地下城 v5.27（单机状态键）",
+			modName: "DoL 联机&地下城 v5.28（单机状态键）",
 			tasks: [],
 			stages: [
 				{ key: "dl_unlocked", name: "地下城 · 入口解锁", varPath: "mpDgUnlocked",
 				  levels: [0, 1], labels: ["未解锁", "已解锁"],
-				  note: "模组判据 index.js:4157 `if (v.mpDgUnlocked) return true`；L4170–4171 在 dgUnlocked() 成立时自动置 1（等级 >1 也会解锁）" },
+				  note: "模组判据 index.js:4192 `if (v.mpDgUnlocked) return true`；:4203–4208 migrate 在 dgUnlocked() 成立时置 1（老档痕迹 mpDgLv>1 / mpSkillPts>0 也算解锁，见 :4194–4199）" },
 				{ key: "dl_class", name: "地下城 · 职业", varPath: "mpClass",
 				  levels: ["", "warrior", "mage", "ranger", "priest"],
 				  labels: ["未选", "剑士", "法师", "游侠", "祭司"],
-				  note: "职业专属技能在 dungeon.twee:90–93 判定；空串 = 未选职业" }
+				  note: "职业专属技能在 dungeon.twee:92–95 判定；空串 = 未选职业" }
 			],
 			abilities: [],
 			scenes: [],
 			values: [
 				{ key: "dl_dglv", name: "地下城等级 mpDgLv", varPath: "mpDgLv", type: "number", min: 1, max: 99,
-				  note: "≥3/5/7/9/12 解锁 火墙/冰锥/暗影箭/雷暴/陨石；升级阈值 need=100+(lv-1)*50（index.js:4669）" },
+				  note: "≥3/5/7/9/12 自动解锁 火墙/冰锥/暗影箭/雷暴/陨石（SKILL_NODES auto，index.js:6484–6488）；升级阈值 need=100+(lv-1)*50（:4473）" },
 				{ key: "dl_dgexp", name: "地下城经验 mpDgExp", varPath: "mpDgExp", type: "number", min: 0, max: 999999,
 				  note: "写 need-1（=100+(lv-1)*50-1）再打一只怪即可自然升级" },
 				{ key: "dl_dailylv", name: "日常挑战等级 mpDLv", varPath: "mpDLv", type: "number", min: 1, max: 99,
-				  note: "升级阈值 need=80+(lv-1)*40（index.js:4664）" },
+				  note: "升级阈值 need=80+(lv-1)*40（index.js:4472）" },
 				{ key: "dl_dailyexp", name: "日常经验 mpDExp", varPath: "mpDExp", type: "number", min: 0, max: 999999,
-				  note: "注意键名是 mpDExp（不是 mpDgExp），index.js:4436/4663 实证" },
+				  note: "注意键名是 mpDExp（不是 mpDgExp），index.js:4705 实证" },
 				{ key: "dl_skillpts", name: "技能点 mpSkillPts", varPath: "mpSkillPts", type: "number", min: 0, max: 999,
-				  note: "每下 5 层 +1（index.js:1805–1806）" },
+				  note: "技能树货币：每层 20% +1、每满 5 层固定 +1（index.js:1829–1830）；解锁与升级节点都扣此值" },
 				{ key: "dl_mpcat", name: "猫猫币 mpCat", varPath: "mpCat", type: "number", min: 0, max: 999999,
-				  note: "地下城专属货币：30 换满体力 / 25 换满法力 / 120 掉道具 / 150 特殊（dungeon.twee:299–323）" },
+				  note: "地下城专属货币：30 换满体力 / 25 换满法力 / 120 掉道具（dungeon.twee:301–323）" },
 				{ key: "dl_agi", name: "敏捷加成 mpDgAgi", varPath: "mpDgAgi", type: "number", min: 0, max: 999,
-				  note: "命中/闪避公式 `3 + floor(min(100,physique)/15) + Number($mpDgAgi)`（dungeon.twee:65/213）" },
+				  note: "命中/闪避公式 `3 + floor(min(100,physique)/15) + Number($mpDgAgi)`（dungeon.twee:67/215）" },
 				{ key: "dl_floor", name: "当前层 dgFloor", varPath: "dgFloor", type: "number", min: 1, max: 30,
-				  note: "层数门控 index.js:4091/4128/4159；开箱档位按 ceil(floor/4) 推导（dungeon.twee:891）" },
+				  note: "层的门控在 index.js:4126/4163（step.cond.floor 比对 dgFloor）；开箱档位按 ceil(floor/4) 推导（dungeon.twee:894）" },
 				{ key: "dl_hp", name: "地下城体力 dgHp", varPath: "dgHp", type: "number", min: 0, max: 99999,
-				  note: "进本初始化 = dolStaminaMax()；写超上限即无敌（模组只做 <=0 判死）" },
+				  note: "进本初始化 = dolStaminaMax()（dungeon.twee:4）；写超上限即无敌（模组只做 <=0 判死）" },
 				{ key: "dl_mana", name: "法力 dgMana", varPath: "dgMana", type: "number", min: 0, max: 99999,
-				  note: "进本 100；低于技能消耗则无法施法" },
+				  note: "进本 100（dungeon.twee:12）；低于技能消耗则无法施法" },
 				{ key: "dl_manamax", name: "法力上限 dgManaMax", varPath: "dgManaMax", type: "number", min: 1, max: 99999,
-				  note: "进本 100；`$mpCat gte 25` 时置回该值（dungeon.twee:307）" },
+				  note: "进本 100；`$mpCat gte 25` 时置回该值（dungeon.twee:309）" },
 				{ key: "dl_gold", name: "地下城金币 dgGold", varPath: "dgGold", type: "number", min: 0, max: 999999,
-				  note: "只是本局显示用的战利品计数；真实加钱走 $money（dungeon.twee:342 起）" },
+				  note: "只是本局显示用的战利品计数；真实加钱走 $money（dungeon.twee 结算段）" },
 				{ key: "dl_kills", name: "本局击杀 dgKills", varPath: "dgKills", type: "number", min: 0, max: 99999,
 				  note: "灰的委托进度按 `dgKills - npcQStart >= 3` 判定（npc.twee:23/25）" },
 				{ key: "dl_chestreq", name: "宝箱诡术门槛 dgChestReq", varPath: "dgChestReq", type: "number", min: 0, max: 500,
-				  note: "原值 ∈ {100,200,300,400,500}；写 0 = 任何诡术都能撬（`skulduggery >= dgChestReq`，+100 判定无损）" },
+				  note: "原值 ∈ {100,200,300,400,500}（dungeon.twee:900 `_reqs[_tier-1]`）；写 0 = 任何诡术都能撬（判据 :908）" },
 				{ key: "dl_chesttier", name: "宝箱档位 dgChestTier", varPath: "dgChestTier", type: "number", min: 1, max: 5,
-				  note: "1–5 档；原版由 min(5,max(1,ceil(floor/4))) 推导，10% 概率 +1（dungeon.twee:891–905）" },
+				  note: "1–5 档；原版由 min(5,max(1,ceil(floor/4))) 推导，10% 概率 +1（dungeon.twee:894–895，写入 :899）" },
 				{ key: "dl_npcaff", name: "灰 · 好感 npcAff", varPath: "npcAff", type: "number", min: 0, max: 15,
-				  note: "上限 15（模组处处 Math.min(15, ...)）；影响 npc.twee 剧情分支" },
+				  note: "上限 15（npc.twee:56/79 均 Math.min(15,…)）；影响 npc.twee 剧情分支（阈值 2/5/8/9/10）" },
 				{ key: "dl_npcch", name: "灰 · 章节 npcCh", varPath: "npcCh", type: "number", min: 0, max: 3,
-				  note: "npc.twee:225 置 2 / :242 置 3 —— 直写会跳过对应的剧情场景，仅在重复剧情时使用" }
+				  note: "npc.twee:225 置 2 / :242 置 3 —— 直写会跳过对应的剧情场景，仅在重复剧情时使用" },
+				{ key: "dl_sk_atk", name: "技能树 · 力量训练（攻击 +2/级）", varPath: "mpSkill.atk", type: "number", min: 0, max: 10,
+				  note: "5.28 新增技能树节点（index.js:6477，max 10）；需 mpSkill 对象存在（先执行「初始化地下城运行态键」）" },
+				{ key: "dl_sk_def", name: "技能树 · 体能锻炼（防御 +2/级）", varPath: "mpSkill.def", type: "number", min: 0, max: 10,
+				  note: "index.js:6478，max 10" },
+				{ key: "dl_sk_hp", name: "技能树 · 耐力（体力上限 +10/级）", varPath: "mpSkill.hp", type: "number", min: 0, max: 10,
+				  note: "index.js:6479，max 10" },
+				{ key: "dl_sk_crit", name: "技能树 · 弱点洞察（暴击 +2%/级）", varPath: "mpSkill.crit", type: "number", min: 0, max: 10,
+				  note: "index.js:6480，max 10" },
+				{ key: "dl_sk_lifesteal", name: "技能树 · 血液掌控（吸血 +2%/级）", varPath: "mpSkill.lifesteal", type: "number", min: 0, max: 10,
+				  note: "index.js:6481，max 10" },
+				{ key: "dl_sk_loot", name: "技能树 · 寻宝直觉（掉落率 +3%/级）", varPath: "mpSkill.loot", type: "number", min: 0, max: 10,
+				  note: "index.js:6482，max 10" },
+				{ key: "dl_sk_arcane", name: "技能树 · 咒文精通（法术强度 +8/级）", varPath: "mpSkill.arcane", type: "number", min: 0, max: 3,
+				  note: "index.js:6483，max 3、每级 cost 2 点" }
 			],
 			actions: [
 				{
 					key: "dl_init_run",
 					name: "初始化地下城运行态键",
-					note: "未进过地下城时 dgFloor/dgHp/dgMana 等键还不存在，数值栏会拒绝写入。本动作按 dungeon.twee:3–5 的原版初值补齐（已有的不覆盖），并补 mpSkill 空对象。",
+					note: "未进过地下城时 dgFloor/dgHp/dgMana 等键还不存在，数值栏会拒绝写入。本动作按 dungeon.twee:3–12 的原版初值补齐（已有的不覆盖），并补 mpSkill 空对象。",
 					run: function () {
 						var v = getV();
 						if (!hasV()) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
@@ -4139,7 +4208,7 @@ function mbCEFertRenderChildren(container) {
 				{
 					key: "dl_all_spells",
 					name: "解锁全部法术（含职业技能）",
-					note: "mpSkill 9 键置 1：通用 fireWall/iceSpike/shadowBolt/thunderStorm/meteor + 职业 uDesp/uBurst/uChain/uBlood（dungeon.twee:84–97）。原版本靠 mpDgLv 3/5/7/9/12 逐档解锁，本动作直接写入等价。",
+					note: "5.28 技能树里 9 个解锁节点（max 1）置 1：通用 fireWall/iceSpike/shadowBolt/thunderStorm/meteor + 职业 uDesp/uBurst/uChain/uBlood（SKILL_NODES，index.js:6484–6492）。原版靠 mpDgLv 3/5/7/9/12 逐档自动开放，本动作直接写入等价；可升级节点（atk/def/hp/crit/lifesteal/loot/arcane）不在此动作，走数值栏逐项设置。",
 					run: function () {
 						var v = getV();
 						if (!hasV()) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
@@ -8164,7 +8233,7 @@ function teleportTo(name) {
 						});
 						row.appendChild(mUndo);
 					}
-				} catch (e) {}
+				} catch (e) { mbCECatch("places2:rowRender", e); }
 				block.appendChild(row);
 			});
 			pane.appendChild(block);
@@ -13891,7 +13960,9 @@ function renderNpcUndergroundSec(pane) {
 				tbox.appendChild(row);
 				return;
 			}
-			var row = el("div", "mce-row");
+			/* v2.0.12 自查：avery_saviour 分支（上文 L146）已在同一 forEach 回调内 var row，
+			   此处再 var 属重复声明（ESLint no-redeclare）；var 不受块作用域约束，改用赋值复用。 */
+			row = el("div", "mce-row");
 			row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc));
 			var btn = el("button", "mce-btn" + (t.owned ? "" : " mce-gold"), t.owned ? "已拥有" : "获取");
 			btn.type = "button";

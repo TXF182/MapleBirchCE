@@ -2,6 +2,41 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.13（2026-11-09 Dolonline 5.28 正式发布 + 适配深度核查 + SafeMode 通道）
+
+### 一、Dolonline 5.28 适配（随本版正式发布）
+
+同一批改动的完整清单见 v2.0.12 第六节（此前按「同批未升版」挂着，本版为正式发布收口）。要点：`mpSkill` 由布尔开关重构为技能树（16 节点，`index.js:6476–6493`），values 17 → 24（新增 `atk/def/hp/crit/lifesteal/loot` 0–10、`arcane` 0–3），`dl_init_run` 补 8 个运行态键；不补 `mpDgAtk/mpDgDef`（原版属性面板 `index.js:4764/4816/4853` 已可调）；核查 26/26 全 KEEP 零删失。
+
+### 二、适配深度核查（dolsims / wraiths）
+
+- **wraiths-reflection（对照 `wr134`）**：`audit_adapters` 声明 8 条，字面覆盖 **8/8（100%）**、分级存活 8/8，声明缺失 0、新增候选 0 → **已达饱和，无可补项**（源码 66 条 V 路径中，除声明根外的其余根均为原版/框架命名空间，不属本模组）。
+- **dolsims（对照源解压到 `tools\_modcache\dolsims_tmp`；`boot.json` 85,701 B，依赖 ModLoader≥2.5.2 / GameVersion≥0.5.8.9 / TweeReplacer / ReplacePatcher / ModdedFeatsAddon）**：声明 41 条，字面覆盖 **41/41（100%）**、分级存活 41/41；新增候选 6 条 —— `DisciplineSims/PopularitySims/HorninessSims/InfluenceSims.DailyValue_Show` 与 `HorninessSims/InfluenceSims.DailyValue_Show_special`。
+  - 取证结论：这 6 条是**每日结算时重算的派生展示值**（`Widgets_School_Events_Sims.twee:1619/1627/1665/1694/1712/1714/1721/1753/1772/1793/1794`），UI 只用来渲染 ↑/↓ 箭头；作弊写入次日必被重算覆盖 → **属瞬态，不补**。
+- 净结论：两个适配器在现对照源上**没有真状态键缺口**，本轮不新增声明（不为了"看起来做了"去硬凑键）。
+
+### 三、SafeMode 实机通道（本轮查清的关停点）
+
+- SafeMode **不是文件配置**，真实控制点是 localStorage 三个键：`ModLoadSwitch_safeModeAutoOn` / `ModLoadSwitch_safeModeForceOn` / `ModLoadSwitch_startBeginCount`；`ModLoaderGui` 启动时读它们决定是否整批 ban 插件（日志特征 `be banned by [ModLoaderGui SafeMode]`）。
+- 处理方式：`real_smoke.ps1` 的 document-start 段（`$startBody`）在页面任何脚本执行前清这三个键 —— 只作用于 `%TEMP%\moli_real_smoke_prof` 冒烟专用 profile，**不碰玩家 Edge 的 localStorage/IDB**；生效后 banned 列表消失，框架依赖插件得以加载，CE 才有机会真正注入。
+- 玩家侧（Edge `file://`）如需同样解除，在游戏内 ModLoader 设置页关掉安全模式开关即可，不必改任何文件。
+
+### 四、产物与写入口径修正
+
+- `javascript/maplebirchce.js`：**964,806 B / 74 段 / SHA256 `0C0EA7E753CD743508C34D81D0307249773B7FE6CD7F42656C5BC440770F41EC`**（仅版本字符串变更，段数与体积不变）
+- `MapleBirchCE.mod.zip`：**308,114 B / SHA256 `9E8E90C56FE9BDE5A5289E0962F19F75F3414294D0D33D748D88EBE982F729E3`**（4 条目全正斜杠 / VERIFIER-FALLBACK 等价核对通过）
+- **写入口径修正（消费端 `tools\unit-write-test.js`）**：该测试只加载 `01-core.js` + `04b-modcheat-write.js`，而 v2.0.12 结构门禁拆段已把 `mbCEWroteTrim` 移到 `01b-wrote-trim.js`；`04b:143/183` 调用它时无 typeof 守卫 → 写入变成「值已落档 + 留痕已写 + 返回 `ok=false` + `applyCheatSync` 未执行」，测试 8 条红灯（值断言全 PASS、ok 断言全 FAIL）。补加载 `01b-wrote-trim.js` + 新增 2 条依赖链断言后 **22 PASS / 0 FAIL**。产物侧无此问题（构建已含 01b 段），属测试依赖链漏加载。
+
+### 五、验证
+
+- `dev.ps1` 三段全绿：① 写入单测 22/0；② `run_all.ps1` **12/12 ALL CHECKS PASSED**（ESLint 十规则 / tsc 0 错误 / 覆盖率 Statements-Lines 97.47% 15254/15649、Branches 81.41% 5651/6941、Functions 98.53% 606/615 / 并行墙钟 33.1 s、串行 126.7 s、3.83x）；③ 打包 + 装机回读 SHA 一致。
+- `real_smoke.ps1`（moli 实机，origin=`http://127.0.0.1:8765`）：**`safeCleared=true` / `safeBanned=0`** —— document-start 清三键生效，ModLoader 未进入安全模式，`inject end ×23` 注入流程跑完；A/B/C/D/E/G 全 PASS。F 为 WARN 且 `idbListed=0`，是 http origin 看不见玩家 `file://` IndexedDB 的固有隔离（见 `DoL-Project/AGENTS.md` §6），不是注入失败。
+
+### 六、明确未做
+
+- 面板视觉实机走查（P0-2）仍未做：jsdom 不做 CSS cascade/布局/绘制，渲染色与选中金底必须真机看。
+- 不触碰联机（WebSocket / auth / 服务器共享血量），仍只做单机状态键。
+
 ## v2.0.12（2026-11-09 源码/UI 迭代：状态色 · 选中态 · 悬浮球视口钳制）
 
 **触发**：前两轮做的是工具链与覆盖率归因的可信度，本轮按用户指定转向**源码与 UI 层**。三条缺陷同属「class 加对了、但样式/坐标被更高位规则覆盖 → 静默失效」这一族，全部按 TDD 先补断言转红，再改码转绿。
@@ -34,6 +69,19 @@
 
 - **jsdom 不做 cascade 计算**：三条 CSS 断言只能证明「规则在、选择器形状对」，真实渲染色与选中金底需实机看（本轮未做实机截图走查）。
 - 未补 plain 分支断言、未清理 4 个遗留探针（`tools\_fn_gap_probe.js` / `_line_probe.js` / `_gap_probe.js` / `_seg_gap_probe.js`），均需单独指令。
+
+### 六、Dolonline 5.28 适配（技能树重构，同批未升版）
+
+- **上游更新**：`check_mod_updates.js --apply` 检出 dolonline 5.27 → 5.28（192,487 B，工具自动替换 `game\` 内包），对照源码落到 `tools\_modcache\dolonline528\unpacked\`（`index.js` 449,013 B + 4 个 twee + `boot.json` + `img` 3 张）。
+- **5.28 关键变化（源码实证）**：① `mpSkill` 由布尔开关重构为**技能树**（`SKILL_NODES` `index.js:6476–6493`，16 节点），新增 7 个可升级节点 `atk/def/hp/crit/lifesteal/loot`（max 10）与 `arcane`（max 3、cost 2），`mpSkill[k]` 语义变为**等级 0..max**；② `dgUnlocked()` 增两条老档兼容（`:4197` 属性>0 / `:4198` mpSkill 非空 / `:4199` 技能点>0 也判解锁）；③ 等级阈值未变（`dailyNeed=80+(lv-1)*40`、`dgNeed=100+(lv-1)*50`）；④ `boot.json` 新增 `TweeReplacerAddon`（Harvest Street 追加地下城入口），但 SafeMode 禁用该插件时 5.28 自带 `ensureDgEntry()` DOM 兜底（`:4305–4413`，插 `#dol-dg-entry-link`），**入口不再依赖插件**。
+- **适配器改动**（`04a-17-dolonline.js` 全文重写）：modName → v5.28；头注释与全部 note 的行号换成 5.28 实证值；values **17 → 24 条**（+7 技能树节点，min/max 严格按节点 max）；`dl_init_run` 补 8 个运行态键（含 `mpSkill` 空对象，`ifMissing` 不覆盖）；`dl_all_spells` 仍置 9 个 max=1 解锁节点（阈值 3/5/7/9/12 与 5.27 一致，写 1 仍等价「已解锁」）。
+- **不补的键（已定案）**：`mpDgAtk` / `mpDgDef` 属原版自带属性面板（`index.js:4764/4816/4853`，玩家常规 0–60 可调），不重复建声明。
+- **核查**：`_check_keys_mod` 19 条原 varPath 全存活；`audit_adapters` 字面覆盖 16/26（7 条 `mpSkill.*` 属动态下标盲区）；`resolve_missing` **26/26 全 KEEP、零删失**（属主归位证据：`index.js:191` hp / `index.js:3803` loot / `index.js:5740` arcane / `dungeon.twee:69` crit+lifesteal）。
+- **顺带查清「452 vs 451」这 1 条差**（此前按遗留项挂着）：`validate_adapters` 统计 stages+abilities+values+scenes+tasks = **452**；`gen_adapter_matrix` 只遍历 stages+abilities+values = **451**，少的正是 **1 条 scenes**（场景直达无赋值探针，结构上不生成矩阵行）。**不是丢条目，是口径差**；测试里那句「与 validate_adapters 的 443 同量级」的过时文案已改写为口径说明。
+- **连带修正**：`tests\bench_panel_render.js` 原把「注入声明总数 == 445」写死，加键即红 → 改为「面板重扫条目数 == 声明条数」+「声明规模下限 ≥ 400 条」，断言 16 → **17 条**，连跑 3 次全绿（首帧 4.1–4.4 ms / 最慢页签 16.9–18.0 ms / 最慢详情 3.1–4.5 ms）；`README.md`（445→452，validate 口径）与 `docs\benchmarks.md`（445→451，注入口径）同步。
+- **全链**：12 步 ALL CHECKS PASSED；声明 **452 条**（values 224→**231**）；矩阵 **451 条 / 1024 探针**；注册表 **13 / 451**；覆盖率 Statements/Lines **97.47%（15254/15649）**、Branches **81.41%（5651/6941）**、Functions **98.53%（606/615）**（并行墙钟 **30.1 s**，**3.90x**）。
+- **产物**：`javascript/maplebirchce.js` **964,806 B / 74 段 / SHA256 `2E71BB2E73F4BD9B44FD86FCF23F08F75E9FA066F5FDE118C6E78CF6B762BF41`**；`MapleBirchCE.mod.zip` **308,114 B / SHA256 `D45F43190E8D1D666EDCC683FF343F104D72960B65AE60500785C4D768491555`**（4 条目全正斜杠；本机 verifier-hub 无入口，走内置等价核对 VERIFIER-FALLBACK）。
+- **未做**：不触碰联机（WebSocket / auth / 服务器共享血量，按用户口径只做单机状态键）；`dolsims`（7 条）/ `wraiths`（8 条）适配深度、面板视觉实机走查仍未做。
 
 ## v2.0.11（2026-11-08 迭代优化：判据改 State.passage / 序号去重 / 直达预检 / Mer Street 根因定量）
 

@@ -120,7 +120,7 @@
 				}
 				entry.unlocked = Math.max(Number(entry.unlocked || 0), 2);
 			});
-		} catch (e) {}
+		} catch (e) { mbCECatch("combat:forestClothesUnlock", e); }
 	}
 	function clearGwylanWary() {
 		try {
