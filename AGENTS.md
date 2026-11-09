@@ -38,3 +38,23 @@
 - jsdom 在根 `package.json` devDependencies（`npm ci` 即装）；`tests/node_modules` 属历史残留，勿作为依赖来源。
 - `githooks/pre-commit` 为 **fail-closed**：无 `powershell.exe` 时回落 `pwsh`，两者都没有则阻止提交（不再静默跳过整条验证链）。
 - 测试路径与玩家实际路径不一致是历史最大盲区（框架恋爱播放器），自查必须覆盖玩家实走路径。
+
+## 并行执行纪律（2026-11-09 用户下发）
+
+> 规则原文：「把能并行操作的就并行。」
+
+**默认并行**：互不依赖的独立操作一次发起，不排队等。例如多个只读校验（`validate_adapters.js` / `gen_adapter_matrix.js --check` / `check_claims.js` / `check_key_types.js`）、多个互不相干的测试文件、多次只读检索与读取（Grep / 读多份源码）。
+
+**必须串行**：下列情况并行即等于破坏验证语义。
+
+1. **数据依赖链**：`build_js.js` → `node --check` / ESLint / tsc / 覆盖率（全部吃同一份 `javascript\maplebirchce.js`）→ `pack.ps1` 打包 → 装机。
+2. **语义就是「确认已完成」**：`githooks/pre-commit` 的职责是确认已验证，`pack.ps1` 的验证→打包必须读已验证产物。这两步不许并行、不许跳过。
+3. **独占同一资源**：同一个 `coverage\tmp`（c8 工作目录）、同一个 `%TEMP%` 日志文件、同一个 git 索引（并发 `git add` / `commit`）、同一个 `_modcache` 写入。
+4. **同一文件的写后立即读**：写完立刻读回校验（含 build 产物）。
+5. **依赖判定不确定**：按串行处理，先证明无依赖再并行。
+
+**并行不得降低验证强度**：断言条数、门槛（`--lines 90 --branches 80 --functions 95`）、31 项序列、fail-closed 语义一字不改；覆盖率并行必须逐 branch 证明零差异（`%TEMP%\cov_diff.js`），不能只比总数（c8 合并同机 ±2、跨机器也会抖）；每一路独立留日志（`%TEMP%\mce_cov_par_<组>.log`），失败可定位到具体哪一路。
+
+**已实测**：31 项测试 4 组并行（`run_coverage_par.js --groups auto`）使全链 116.5 s → 45.35 s（省 60.9%），覆盖率与串行逐位一致（5487/6842）；CI 上 2 组 38.9 s / 1.48x，10/10 步全绿。
+
+Source: `DoL-Project\.learnings\LEARNINGS.md#LRN-20261109-005`；平台偏好 `p1_AQrrWCJ6rDY`。
