@@ -2,6 +2,47 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.14（2026-11-09 Dolonline 5.29 声明体系补口 + 战斗中补资源）
+
+### 一、声明体系破口修复（本轮最要紧的一处）
+
+5.29 把 `mpSkill` 从布尔开关扩成 **16 节点技能树**，其中 9 个是**法术解锁节点**（`fireWall / iceSpike / shadowBolt / thunderStorm / meteor / uBurst / uChain / uDesp / uBlood`，`SKILL_NODES` `index.js:7052–7060`，max 1）。v2.0.13 只在 `dl_all_spells` 动作里直接写 `v.mpSkill[k]=1`，**这 9 个键没有任何 varPath 声明** —— 动作绕过了声明驱动体系：不进 `adapter_matrix.json`（无写入探针）、不进 `keys.registry.json`（无键登记）、audit 扫不到、面板无法单独查看或编辑。
+
+本版补齐 9 条声明（`number / min 0 / max 1`），依据两条源码实证：
+- 模组侧判据是**数值**不是布尔：`index.js:7088` `Number(v.mpSkill[nd.k]) || 0`，≥1 即已解锁；`:7106` 升级判定、`:7122` 洗点返还同源。
+- 运行期真值在 `dungeon.twee`：`:112` uDesp / `:113` uBurst / `:114` uChain / `:115` uBlood 直接以 `($mpSkill or {}).xxx` 作施法门槛；5 个 auto 节点在 `index.js:7090` 由 `mpDgLv` 自动置 1，直写 1 等价提前解锁（洗点 `:7131–7133` 会按 `dgLv` 重建，不会留下脏值）。
+
+`resolve_missing` 定案 **42/42 KEEP（100%）**，REMOVE / REVIEW / WEAK 全零。Dolonline 声明 **33 → 42 条**（stages 2 + values 40，其中技能树 16 条：7 等级 + 9 解锁）。
+
+### 二、新增动作：地下城资源补满
+
+`dl_init_run` 走 `if (v.xxx === undefined)` 语义（只补缺失、不覆盖已有值），意味着**战斗中不能回血回蓝**；而法术有法力门槛（`$dgMana gte 10/12/15/18/20`，`dungeon.twee:95–99`），法力见底就一个法术都放不出来。
+
+新增 `dl_refill_run`：
+- `dgHp` → 体力上限（`window.dolStaminaMax()`，与 `dungeon.twee:4` 进本初值同源；取不到时回落 100）；
+- `dgMana` → `dgManaMax`（**尊重玩家配置值**，不写死 100）；
+- `dgGold` → 9999（猫猫商店 `dungeon.twee:330–350` 消费额度）。
+- **只增不减**：已有更高值不回退；可重复点。Dolonline 动作 3 → 4。
+
+### 三、其余修正
+
+- **`keys.registry.json` 假键清除（生成器注释误判）**：`04a-00-core.js` 开头注释里原来写着 `CHEAT_ADAPTERS["modId"] = {...} 赋值。` 这样一句**说明文字**，而 `tools/gen_key_registry.js` 的正则 `/CHEAT_ADAPTERS\["([^"]+)"\]\s*=\s*\{/g` 不区分代码与注释，把这句注释当成一个真实适配器块，于是在 `adapters` 里多写了一个 `"modId": []` 空数组——13 个适配器却有 14 个键。虽然空数组不影响条目总数（`totals.adapters` 会按 `length > 0` 过滤），但任何「遍历 adapters 假设全是适配器」的下游代码都会踩到空值。改法是重写该注释措辞、不再出现可被正则命中的字面形态，并在注释里写明这个坑；重生成后 `adapters` 恢复 13 键（`--check` OK）。
+- 头注释 `npcCh 置 1/2/3 在 ;:154/:225/:242` 多余分号删除。
+- `tests/adapter_actions.js` 新增 `5c 地下城资源补满` 段 7 条断言：上限尊重 `dgManaMax`（180 而非 100）、`dgHp` 回落 100、金币补满、逐项前后值文案、更高金币不被回退、幂等「未改动」。该测试 38 → **45 PASS**。
+
+### 四、连带产物
+
+| 项 | 变化 |
+|---|---|
+| `tests/data/adapter_matrix.json` | 458 → **467 条** / 1056 探针 / 13 适配器（`--check` 一致） |
+| `keys.registry.json` | 458 → **467 entries** / 13 adapters（`--check` OK） |
+| `tools/_modcache/STATE.json` | 不变（`--check` 与盘上现状一致） |
+| 构建产物 `javascript/maplebirchce.js` | 970,452 → **974,675 B** / 74 段 / SHA256 `81B8F674…563ED76F`（含 2.0.14 版本号） |
+
+验证：`node --check` exit 0；`validate_adapters` 13 适配器 / 468 条目形态全通过；audit 字面覆盖 23/42 + resolve 42/42 KEEP；全链 **12/12 ALL CHECKS PASSED**（exit 0），覆盖率 Statements **97.48%（15358/15755）** / Branches **81.36%（5668/6966）** / Functions **98.54%（608/617）**。
+
+**本版只升版本号与源码改动，未打包、未发布**（打包与发布需另行确认）。
+
 ## v2.0.13（2026-11-09 Dolonline 5.28 正式发布 + 适配深度核查 + SafeMode 通道）
 
 ### 一、Dolonline 5.28 适配（随本版正式发布）

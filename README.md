@@ -1,10 +1,10 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**13 个第三方模组适配器 + 框架本体兼容记录**（validate_adapters 实测 13 适配器 / 452 条声明）（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / Dolonline 联机&地下城（仅单机状态键） / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**13 个第三方模组适配器 + 框架本体兼容记录**（validate_adapters 实测 13 适配器 / 468 条声明）（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / Dolonline 联机&地下城（仅单机状态键） / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.0.13**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.0.14**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -178,7 +178,7 @@
 - **潜伏者搬运不再丢库存**：`hookah.lurkers` / `lurkers_stored` 为字符串时（导入存档、模组直接 `<<set>>` 常见），旧写法按 0 起算会把 `0+held` 覆盖上去（`"5"` + 手持 3 → 变 3，原有 5 只消失）。新增 `mbCELurkerReadable / mbCELurkerNum`：能解析成有限数的一律按数用，不可解析才按 0；状态回读同口径（非数值仍显示「—」，不伪造成 0）。
 - **只读接口不再写存档**：`mbCELurkerState()` 经 `mbCELockHas → mbCELockData` 会就地创建 `V.mbCE_lock`。新增 `mbCELockListRO()` 只读视图，`mbCELockHas / mbCELockTarget / 渲染取表` 全走它，建表只留 `mbCELockSet`。另修回退分支 `offOk` 预置 `true`（`hadLock` 真但解除失败时仍报「已取消锁定」）与还原异常时误删留痕（改为保留可重试）。
 
-## Mod作弊 适配器一览（当前版本 2.0.9）
+## Mod作弊 适配器一览（当前版本 2.0.14）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|
@@ -195,9 +195,9 @@
 | 人物附加与生活质量提升 DolMod-（MyFirstMod，阿电/电脑/银行/网课/转化/NG+/伊洛） | 0.1.990 | 阶段 1 / 能力 12 / 数值 18（告白状态机/斯德哥尔摩/囚禁信任（未囚禁写入不生效但无害，先勾「已囚禁」或先写再勾均可）/拒绝日/活期/网课 8 键/转化/NG+/伊洛圣化） | `window.ComputerMod/BankMod/NgPlus`（V 兜底：computer/computerApps/ngplusCycle 或 adian 双键） |
 | maplebirch 框架本体 | 5.6.2 | 兼容性核对（API 8 项） | `window.maplebirch` |
 | FertilityExpansion · 伊甸生育/子女扩展 | 1.7.0 | 阶段 1（schemaVersion 0–8）/ 能力 11 / 数值 2 + **模组自带 10 项动作等价**（生育/劳动/寄生虫/身份/先天/技能/重置/删除等）+ **孩子页**（每个孩子：好感爱意 / 养育四项（知识·体能·社交·意识）/ 先天四项（外貌·体质·智力·性格）/ 定向发送含自定义地点 / 随叫随到 / 一键长大 / 立刻成年结算 / 删除） | `window.EdenChildData` / `window.EdenCheats`（`V.eden` 兜底） |
-| DoL 联机&地下城 Dolonline（**仅单机状态键，不做联机交互**） | 5.27 | 阶段 2 / 数值 17 / 动作 2（入口解锁·职业·地下城&日常等级经验·技能点·猫猫币·敏捷·层数·体力法力法力上限·金币·击杀·宝箱门槛档位·灰好感章节 + 一键补运行态键 + 一键解锁 9 法术） | `V.mpCat` / `V.mpDgLv` / `V.mpSkillPts` / `V.dgFloor`（任一） |
+| DoL 联机&地下城 Dolonline（**仅单机状态键，不做联机交互**） | 5.29 | 阶段 2 / 数值 40（含技能树 16 = 7 等级 + 9 法术解锁）/ 动作 4（入口解锁·职业·地下城&日常等级经验·技能点·猫猫币·敏捷·层数·体力法力法力上限·金币·击杀·宝箱门槛档位·灰好感章节·**地下城攻/防/体力上限加成·疲劳减免·疼痛减免·日常与地下城点数池**·**技能树 16 项（7 项等级 + 9 项解锁）** + 一键补运行态键 + **一键补资源（体力/法力/金币）** + 一键解锁 9 法术 + **一键随身物全满（材料 7·药水 7·食物 4，5.29 新增 `$dgInv` 系统）**） | `V.mpCat` / `V.mpDgLv` / `V.mpSkillPts` / `V.dgFloor`（任一） |
 
-> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**自动检测 13 渠道 + 13 个适配器**：12 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade/人物附加与生活质量提升/框架本体，全部已纳入每日检测——其中 DolMod 走资产名版本提取，框架走 check_framework_api.js API 兼容核对）+ **Dolonline 5.27（2026-11-08 已登记 CHANNELS；按用户口径只做单机状态键，不含任何联机交互）**；FertilityExpansion 已适配但**尚未登记 CHANNELS**，暂不随每日检测跟进版本。
+> 适配器随模组版本更新**每日自动检测**（21:15 定时任务）：检出新版 → 下载源码 → audit 核对 → resolve_missing 定案 → 同步声明 → 全链测试，不打包不发版（需另行确认）。**自动检测 13 渠道 + 13 个适配器**：12 个适配模组（枯木逢春/归途之书/DomRobin/MLI/SmartPhone/Dol-Optimization/Wraith'sReflection/DoLSims/Cattery/More Farm Upgrade/人物附加与生活质量提升/框架本体，全部已纳入每日检测——其中 DolMod 走资产名版本提取，框架走 check_framework_api.js API 兼容核对）+ **Dolonline 5.29（2026-11-08 已登记 CHANNELS；2026-11-09 升至 5.29，按用户口径只做单机状态键，不含任何联机交互）**；FertilityExpansion 已适配但**尚未登记 CHANNELS**，暂不随每日检测跟进版本。
 > **自动替换旧模组包**：`tools/check_mod_updates.js --apply` 检测到适配模组有新版时，自动下载官方最新包（api.github.com assets 端点 + 302 跟随）并替换 `game` 内旧模组包（按 gameGlob 匹配删除旧包后放入新包）；框架渠道不自动替换（升版前必须人工跑 `check_framework_api.js` 核对 API 兼容）。GitHub API 未认证有速率限制（403）时，设置 `GITHUB_TOKEN` 环境变量（仅内存使用）即可。已装模组包即官方最新版时，替换为幂等覆盖。
 
 ## 工程文档索引

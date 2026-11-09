@@ -47,9 +47,9 @@
 
 ## 5. 声明体系（防写穿）
 
-- `keys.registry.json`：**442 条 / 13 适配器**，每条含 varPath、类型、门控语义；`tools/validate_adapters.js` 输出 **443 条**（差 1 的口径未查明，不当作结论）。
-- varPath 分布：deadwood 140 / revelation 60 / cattery 47 / dolsims 41 / morefarm 37 / dolmod 31 / dolopt 22 / dolonline 19 / domrobin 14 / fert 14 / smartphone 8 / wraiths 8 / mli 1。
-- 三类校验器：`check_claims.js`（结构自洽，442 条命中 0）、`check_key_types.js`（声明类型 vs 模组判据，276 条 / CONFLICT 0 / NO_EVIDENCE 51）、`check_coverage.js`（候选，仅人工参考）。
+- `keys.registry.json`：**467 条 varPath / 13 适配器**（`totals.entries` 口径；另有 `keysWithoutVarPath` 5 条只登记 key、无上游 varPath —— revelation 1 / dolonline 4），每条含 varPath、类型、门控语义；`tools/validate_adapters.js` 输出 **468 条**（与注册表差 1，口径差尚未查明，不当作结论）。
+- varPath 分布（2026-11-09 v2.0.14 校准）：deadwood 140 / revelation 60 / **dolonline 42** / cattery 47 / dolsims 41 / morefarm 37 / dolmod 31 / dolopt 22 / domrobin 14 / fert 14 / smartphone 8 / wraiths 8 / mli 3。
+- 三类校验器：`check_claims.js`（结构自洽，467 条命中 0）、`check_key_types.js`（声明类型 vs 模组判据，276 条 / CONFLICT 0 / NO_EVIDENCE 51）、`check_coverage.js`（候选，仅人工参考）。
 - **动态键盲区是已知口径**：`$featsBoosts.upgrades['deadwood-'+attr]`、`$plots.farm[$i].greenhouse` 这类拼接键静态扫不到，audit 会误报「声明缺失」，必须靠 `resolve_missing.js` 定案，KEEP 严禁删。
 
 ## 6. 渲染与性能

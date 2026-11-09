@@ -3,8 +3,8 @@
   "note": "由 tools/gen_adapter_matrix.js 从声明自动生成，勿手改；改声明后重跑生成器。",
   "source": "javascript/src/04a-*.js（段序取自 manifest.json）",
   "adapterCount": 13,
-  "itemCount": 451,
-  "probeCount": 1024,
+  "itemCount": 467,
+  "probeCount": 1056,
   "items": [
     {
       "modId": "revelation-the-book-of-return",
@@ -12666,6 +12666,406 @@
           "label": "max(3)",
           "write": 3,
           "expect": 3
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 24,
+      "key": "dl_sk_firewall",
+      "varPath": "mpSkill.fireWall",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 25,
+      "key": "dl_sk_icespike",
+      "varPath": "mpSkill.iceSpike",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 26,
+      "key": "dl_sk_shadowbolt",
+      "varPath": "mpSkill.shadowBolt",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 27,
+      "key": "dl_sk_thunderstorm",
+      "varPath": "mpSkill.thunderStorm",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 28,
+      "key": "dl_sk_meteor",
+      "varPath": "mpSkill.meteor",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 29,
+      "key": "dl_sk_uburst",
+      "varPath": "mpSkill.uBurst",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 30,
+      "key": "dl_sk_uchain",
+      "varPath": "mpSkill.uChain",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 31,
+      "key": "dl_sk_udesp",
+      "varPath": "mpSkill.uDesp",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 32,
+      "key": "dl_sk_ublood",
+      "varPath": "mpSkill.uBlood",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 33,
+      "key": "dl_dgatk",
+      "varPath": "mpDgAtk",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 60,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(60)",
+          "write": 60,
+          "expect": 60
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 34,
+      "key": "dl_dgdef",
+      "varPath": "mpDgDef",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 60,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(60)",
+          "write": 60,
+          "expect": 60
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 35,
+      "key": "dl_dghpmax",
+      "varPath": "mpDgHp",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(100)",
+          "write": 100,
+          "expect": 100
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 36,
+      "key": "dl_fatiguecut",
+      "varPath": "mpFatigueCut",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 80,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(80)",
+          "write": 80,
+          "expect": 80
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 37,
+      "key": "dl_painreduce",
+      "varPath": "mpPainReduce",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 80,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(80)",
+          "write": 80,
+          "expect": 80
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 38,
+      "key": "dl_dgsp",
+      "varPath": "mpDgSP",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 9999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(9999)",
+          "write": 9999,
+          "expect": 9999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 39,
+      "key": "dl_dsp",
+      "varPath": "mpDSP",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 9999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(9999)",
+          "write": 9999,
+          "expect": 9999
         }
       ],
       "sync": null
