@@ -76,7 +76,7 @@ Write-Host "[4/5] verifier 校验（严格三项取 AND：条目精确命中 + �
 #      （实测多塞 extra/stray.txt 仍 passed=true）。打包语义是「恰好这 N 个文件」，多一个就是打错包。
 #   ③ 内联 zipfile.testzip()：verifier 的 zip-check-entries 不做 CRC，内容被篡改仍 passed=true（实测）。
 # verifier-hub 缺失时 ②③ 照常执行，仅 ① 跳过并明示 WARN —— 判据不因缺工具而放宽。
-# skill 根会换档：本机 Default 与 "Profile 1" 两套并存，verifier-hub 只装在后者，故候选必须通配 User Data\*（ERR-20261105-001）。
+# skill 根会换档：本机 Default 与 "Profile 1" 两套并存，verifier-hub 只装在后者，故候选必须通配 User Data\*（LRN-20261109-022）。
 $expectedEntries = @("boot.json", "javascript/maplebirchce.js", "twee/maplebirchce-widget.twee", "README.md")
 $verifierGlobs = @(
     (Join-Path $env:APPDATA "LarkShell\aha\users\*\doubao\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier"),
