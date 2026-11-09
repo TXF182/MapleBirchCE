@@ -277,6 +277,146 @@ assert(globalText.indexOf("手持已锁定") !== -1, "手持被锁时标注整�
 assert(globalText.indexOf("冰箱已锁定") !== -1, "冰箱被锁时标注跳过冰箱（07f-lurker L171）");
 assert(globalText.indexOf("蒸馏笼已锁定") !== -1, "蒸馏笼被锁时标注跳过笼（07f-lurker L172)");
 
+/* ---------- 5a. 07e 场景注册表解析：畸形 widget / Story 全文恢复 / live 合并（plain：L144 / L145 / L157 / L115 / L167 / L232 / L216） ---------- */
+var keepStoryObj = global.Story;
+function withStory(passages, fn) {
+  var arr = passages.map(function (p) { return { name: p.name, text: p.text }; });
+  global.Story = { size: arr.length, passages: arr };
+  try { return fn(); } finally { global.Story = keepStoryObj; }
+}
+var scenesKeep = global.V.scenes;
+global.V.scenes = {};
+/* widget 段落存在但不含 scenes 注册表 → 两级 match 都落空，L145 return null */
+var sd1 = withStory([{ name: "W1", text: '<<widget "scenes">><<set $foo to 1>>' }], function () { return api.getScenesDefs(); });
+assert("07e L144/L145 widget 无 scenes 注册表 → defs 为空", !sd1 || !sd1.defs || Object.keys(sd1.defs).length === 0);
+/* `<<set $scenes to {` 之后没有闭合大括号 → L157 end<0 return null */
+var sd2 = withStory([{ name: "W2", text: '<<widget "scenes">><<set $scenes to {"a": { name: "A"' }], function () { return api.getScenesDefs(); });
+assert("07e L157 大括号不闭合 → defs 为空", !sd2 || !sd2.defs || Object.keys(sd2.defs).length === 0);
+/* Story 全文恢复路径：key 块未闭合（L115 continue）→ recover 收不到任何键 */
+var sd3 = withStory([{ name: "P1", text: '"bad": { name: "Bad", unlocked: "$scenePassages.includes(\'bad\')"' }], function () { return api.getScenesDefs(); });
+assert("07e L115/L167 未闭合键块 → 全文恢复不产出 defs", !sd3 || !sd3.defs || Object.keys(sd3.defs).length === 0);
+/* Story 全文恢复成功 → L232 recoveredC 整份返回 {defs, live:true} */
+var sd4 = withStory([{ name: "P2", text: '"rec1": { name: "Rec1", startPassage: "Rec1Start", passages: ["Rec1Start"], unlocked: "$scenePassages.includes(\'rec1\')" }' }], function () { return api.getScenesDefs(); });
+assert("07e L232 Story 全文恢复命中 → live:true 且收到 rec1", sd4 && sd4.live === true && !!sd4.defs.rec1 && sd4.defs.rec1.name === "Rec1");
+/* widget 解析出 k1，同时 V.scenes 也有 k1 → L216 merged[k] 已存在直接跳过（保留 widget 侧解析值） */
+var sd5 = withStory([{ name: "W5", text: '<<widget "scenes">><<set $scenes to {"k1": { name: "K1", startPassage: "S1" }}}>>' }], function () {
+  global.V.scenes = { k1: { name: "运行期注入", startPassage: "S9" } };
+  return api.getScenesDefs();
+});
+assert("07e L216 live 键已存在于 widget 解析结果 → 不覆盖", sd5 && sd5.defs.k1 && sd5.defs.k1.name === "K1" && sd5.defs.k1.startPassage === "S1");
+global.V.scenes = scenesKeep;
+
+/* ---------- 5b. 跨文件零散可达分支（01-core L255 / 06c L332 / 06d L18 / 07e2 L190 / 07i-actions L334 / 07l L302+L307 / 02 L162） ---------- */
+assert("01-core L255 空 NPC 名 → null", api.findNpcEx("") === null || api.findNpc("") === null);
+assert("06c L332 isModOnlyRoot 空键 → false", api.isModOnlyRoot("") === false);
+var plKeep = global.V.player;
+global.V.player = { penisExist: false, vaginaExist: true };
+assert("06d L18 仅阴道 → 性别 f", api.getPlayerGender() === "f");
+global.V.player = plKeep;
+assert("07e-scenes2 L190 未知剧情动作 → 未知动作", api.applyRolePlotAction("zz_unknown_action") === "未知动作");
+var npcListKeep = global.V.NPCList;
+global.V.NPCList = (Array.isArray(npcListKeep) ? npcListKeep.slice() : []).concat([{ name: "Whitney", init: 0, state: "active" }]);
+var whRes = call(function () { return api.yanlingWhitney(true); });
+assert("07i-actions L334 惠特尼未初始化 → 明确拒绝", !!whRes && whRes.ok === false && /尚未初始化/.test(String(whRes.msg || whRes.message || "")));
+global.V.NPCList = npcListKeep;
+/* 07l：连续两次收集，首次写成就日期（L307）、第二次 before 快照已含 maxCount（L302） */
+var featsKeep = global.V.feats;
+global.V.feats = { currentSave: {} };
+call(function () { api.mbCEVanillaAntiqueCollect(); });
+var antKeys1 = Object.keys(global.V.feats.currentSave || {});
+call(function () { api.mbCEVanillaAntiqueCollect(); });
+assert("07l L307 首次收集写入博物馆成就日期", antKeys1.length > 0);
+global.V.feats = featsKeep;
+assert("02 L162 state !== \"x\" 反向条件可识别", !!call(function () { return api.describeCondition('V.characters.npc.Robin.state !== "drunk"'); }));
+
+/* 04b L158/L161：列表写入的路径门禁（原版根拒绝 / 宿主不存在拒绝） */
+var lvVanilla = call(function () { return api.cheatWriteListValue("zz_mod", "k", "value_set", "money", 1, true); });
+assert("04b L158 原版根路径 → 拒绝写入", !!lvVanilla && lvVanilla.ok === false && /原版变量/.test(String(lvVanilla.message || "")));
+var lvParent = call(function () { return api.cheatWriteListValue("zz_mod", "k", "value_set", "zz_no_such_host.leaf", 1, true); });
+assert("04b L161 宿主不存在 → 拒绝写入", !!lvParent && lvParent.ok === false && /宿主不存在/.test(String(lvParent.message || "")));
+
+/* ---------- 5c. 07f-pins2 队列边界（plain：L190 / L252 / L317） ---------- */
+/* L252：播放中收到 passage end → 直接返回，不动队列 */
+var qKeep252 = global.V.mbCE_queue;
+var replayKeep252 = global.V.replayScene;
+global.V.mbCE_queue = [{ key: "zzQ", startPassage: "Room", active: true }];
+var qJson252 = JSON.stringify(global.V.mbCE_queue);
+global.V.replayScene = { key: "zzProbe", startPassage: "Room" };
+call(function () { api.mbCEOnPassageEnd(); });
+assert("07f-pins2 L252 播放中 passage end → 不清理队列", JSON.stringify(global.V.mbCE_queue) === qJson252);
+global.V.replayScene = replayKeep252;
+global.V.mbCE_queue = qKeep252;
+/* L317：旧版单固定项与队列同 key → 不重复并入 */
+var pinKeep317 = global.V.mbCE_pinned;
+global.V.mbCE_queue = [{ key: "dupKey", startPassage: "Room", active: true }];
+global.V.mbCE_pinned = { active: true, startPassage: "Room", key: "dupKey" };
+var pinned317 = call(function () { return api.getPinnedScene(); });
+assert("07f-pins2 L317 旧版单固定同 key → 不重复并入队列", Array.isArray(pinned317) && pinned317.length === 1);
+global.V.mbCE_pinned = pinKeep317;
+global.V.mbCE_queue = qKeep252;
+/* L190：场景注册但入口段落不存在 → 直达失败并回传原因 */
+var sdDirect = withStory([{ name: "W", text: '<<widget "scenes">><<set $scenes to {"zzDirect": { name: "Zd", startPassage: "NoSuchPassage" }}}>>' }], function () {
+  return api.directTriggerScene("zzDirect");
+});
+assert("07f-pins2 L190 入口段落不存在 → 直达回传失败", !!sdDirect && sdDirect.ok === false);
+
+/* 05a L268：声明为可操控但四类项全空的模组 → 明细页提示「未声明可操控项」 */
+api.CHEAT_ADAPTERS.zzEmptyProbe = {
+  modId: "zzEmptyProbe", modName: "空声明探针", declared: true,
+  entry: { stages: [], abilities: [], values: [], scenes: [] }
+};
+setActivePane("mods");
+call(function () { api.renderModCheatDetail("zzEmptyProbe"); });
+assert("05a L268 声明但四类项全空 → 明细页提示", !!document.querySelector('[data-pane="mods"] .mce-hint'));
+delete api.CHEAT_ADAPTERS.zzEmptyProbe;
+
+/* ---------- 5d. 03c 原版恋爱阶段回退（plain：L110 / L190 / L194 / L195 / L196） ---------- */
+assert("03c L110 非 gwylan 角色 → 解锁返回 0", api.unlockVanillaAll("zz_not_an_npc") === 0);
+var wKeep03c = global.V.mbCE_wrote;
+var seenKeep03c = global.V.gwylanSeen;
+global.V.mbCE_wrote = global.V.mbCE_wrote || {};
+global.V.gwylanSeen = [];
+global.V.mbCE_wrote["vanilla:yearning"] = { kind: "vanilla" };
+var u1 = call(function () { return api.undoVanillaStage("gwylan", "yearning"); });
+assert("03c L190/L194 seen 未含 yearning → 撤销无效但仍回执", !!u1 && u1.ok === true && /已回退「yearning」/.test(String(u1.message || "")));
+global.V.gwylanSeen = ["partners"];
+global.V.mbCE_wrote["vanilla:partners"] = { kind: "vanilla" };
+var u2 = call(function () { return api.undoVanillaStage("gwylan", "partners"); });
+assert("03c L195 partners 分支被执行并回执", !!u2 && typeof u2.ok === "boolean");
+global.V.gwylanSeen = ["romance"];
+global.V.mbCE_wrote["vanilla:romance"] = { kind: "vanilla" };
+var u3 = call(function () { return api.undoVanillaStage("gwylan", "romance"); });
+assert("03c L196 romance 分支被执行并回执", !!u3 && typeof u3.ok === "boolean");
+global.V.mbCE_wrote = wKeep03c;
+global.V.gwylanSeen = seenKeep03c;
+
+/* ---------- 5e. 04a-15 孩子阶段/地点兜底（plain：L114 / L200 / L205） ---------- */
+var kidKids0 = global.V.children;
+var kidApi0 = window.EdenChildData;
+/* L114：模组 API 直供 child（无 phaseOf）→ 走 edenDeleted 兜底判 removed */
+window.EdenChildData = { get: function () { return { childId: 0, bornDate: 1, edenDeleted: true }; } };
+var kidDel = call(function () { return api.mbCEFertKidInfo(0); });
+assert("04a-15 L114 edenDeleted 兜底 → 阶段 removed", !!kidDel && kidDel.phase === "removed");
+window.EdenChildData = kidApi0;
+/* L200：无 development 的孩子 → 直写 child.location 兜底 */
+global.V.children = { "0": { childId: 0, bornDate: 1, location: "eden_home" } };
+var kidLocFlat = call(function () { return api.mbCEFertKidSetLocation(0, "home"); });
+assert("04a-15 L200 无 development → 直写 child.location 成功", !!kidLocFlat && kidLocFlat.ok === true && global.V.children["0"].location === "home");
+/* L205：development 只读（写入静默失效）→ 回执“无法更新地点” */
+global.V.children = { "0": { childId: 0, bornDate: 1, location: "eden_home", development: Object.freeze({}) } };
+var kidLocRo = call(function () { return api.mbCEFertKidSetLocation(0, "home"); });
+assert("04a-15 L205 只读 development 写不进 → 明确拒绝", !!kidLocRo && kidLocRo.ok === false && /无法更新这个孩子的地点/.test(String(kidLocRo.message || "")));
+global.V.children = kidKids0;
+
+/* ---------- 5f. 07f-lock 未知路径 / 09 render 早退 / 08c 回退分发（plain：07f-lock L76、09 L4、08c L85 / L140） ---------- */
+assert("07f-lock L76 路径不在任何锁定列表 → 无标签", !api.mbCELockLabel("zz_bogus_path"));
+var r9 = call(function () { api.close(); return api.render(); });
+assert("09 L4 面板已关闭（root 不存在）→ render 早退", !(r9 && r9.threw));
+var uPart = call(function () { return api.undoOne("part:zz_probe"); });
+assert("08c L85 part 分支回执", !!uPart && typeof uPart.ok === "boolean");
+var uVcore = call(function () { return api.undoOne("vcore:zz_probe"); });
+assert("08c L140 vcore 分支回执", !!uVcore && typeof uVcore.ok === "boolean");
+
 /* ---------- 6. 05a 面板容器缺失时的渲染早退（plain：L91 / L141 !pane → return） ----------
    放在最后：移走 [data-pane="mods"] 会改变面板结构，不影响前面的状态断言。 */
 const modsPane = document.querySelector('[data-pane="mods"]');
