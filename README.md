@@ -868,23 +868,24 @@ MapleBirchCE/（git 源码真相源）
 
 | 指标 | 值 | 门禁 |
 |---|---|---|
-| Statements | 97.33%（15163/15578） | ≥90 |
-| Branches | 80.87%（5570/6888） | ≥80 |
+| Statements | 97.50%（15189/15578） | ≥90 |
+| Branches | 81.41%（5651/6941） | ≥80 |
 | Functions | 98.85%（606/613） | ≥95 |
 
 （门禁原为 75/60/80，实测余量过大到"掉 13 个点仍绿"，2026-11-07 收紧到 90/80/95；CI 同阈值，缺原版 HTML 时数值以该次 Actions 日志为准。）
 
-- **68 个分片存在分支缺口**。c8 只认产物一个 key，`tools/report_branch_gaps.js` 按 `javascript/src/manifest.json` 的段序（与 `build_js.js` 同一真源，**不是文件名字典序**——两者有 3 对文件互换，按字典序会把缺口算到错的分片）与补尾换行规则重建「产物行号 → 源分片行号」映射后逐条归因：`&& / || / ?.` 短路兜底 321、防御性 `catch` 418、普通 if-else 154、不可达守卫 64、`typeof` 环境守卫 170、三元 191（合计 1318 条未覆盖分支臂）。
+- **68 个分片存在分支缺口**。c8 只认产物一个 key，`tools/report_branch_gaps.js` 按 `javascript/src/manifest.json` 的段序（与 `build_js.js` 同一真源，**不是文件名字典序**——两者有 3 对文件互换，按字典序会把缺口算到错的分片）与补尾换行规则重建「产物行号 → 源分片行号」映射后逐条归因：`&& / || / ?.` 短路兜底 320、防御性 `catch` 417、普通 if-else 131、不可达守卫 64、`typeof` 环境守卫 170、三元 188（合计 1290 条未覆盖分支臂）。
 - **测量抖动（实测，不是估算）**：同一口径两次跑得 80.19%（5487/6842）与 80.14%（5489/6849），分子 ±2、分母随新增分支变化（v2.0.12 的钳位新增 7 个分支点）；判「有没有丢覆盖」必须逐 branch 比对（`node %TEMP%\cov_diff.js A.json B.json`），只看总数会被 ±1 抖动骗过。
 - **三类已知结构性缺口（登记在此，不再算隐性欠账）**：
   1. **防御性 `catch`（417 条）**——写入/渲染链兜底异常分支，正常路径永不触发；它们的价值是"上游崩了页面也不炸"，覆盖它等于制造人为崩坏输入。
   2. **`typeof` 环境守卫（170 条）**——`CSS.escape`、`Timer.unref`、`SugarCube.State.passages` 等；jsdom 与真引擎形态不同，两端都覆盖需要真浏览器（本项目禁用浏览器路线，`real_smoke.ps1` 属被禁通道），只能保留为已知盲区。
   3. **无调用者分支**——`05a3-modcheat-actions.js` 的 `actions` 渲染（没有任何适配器声明 `actions:`，Fertility 走 `actionPanel`）。不为它伪造调用。
-- **剩余 154 条 plain 分支是"没写断言"，不是"不可测"**——这是可补测欠账，按下方 Top 表逐片补；把这类也归入"不可测"属于自我开脱，故单列。
+- **剩余 131 条 plain 分支是"没写断言"，不是"不可测"**——这是可补测欠账，按下方 Top 表逐片补；把这类也归入"不可测"属于自我开脱，故单列。逐文件行号与形态分布已导出为 **[`docs/coverage-plain-remaining.md`](docs/coverage-plain-remaining.md)**（当轮 131 条 / 45 分片，按 §口径 每条带行号与源码片段，供下一轮直接接着补）。
 - **另有 64 条「不可达守卫」（dead-guard）已从欠账里摘出**：形态是 `if (!V)` 而 `V = getV()`，而 `01-core.js` 的 `getV()` 在未读档时 `return {}`（空对象仍为 truthy），`!V` 恒 false，其 true 侧结构性走不到——把 `window.V` 与 `State.variables` 都清掉也只会落到 `{}` 兜底，不是"没测到"而是"测不到"。判定由 `report_branch_gaps.js` 的 `isDeadGuard()` 自动完成（只认 `if (!X)` 完全闭合形态，`if (!v.player)` 这类属性检查仍归于 plain）。这批原先混在 plain 254 里，口径修正后为 plain 190 → 首批补测后 181。
 - **首批可补测欠账已落地**：`tests/plain_branches.js`（21 条断言，挂在覆盖率序列末位）专打 plain 里"正常路径永远走不到拒绝侧"的分支——diff 预览队列封顶与空队列拒绝（08d）、地点中文名无匹配（07d）、未知 NPC 特质撤回（08）、按活动页签的 mods/places 重渲染分发（08d）、面板容器缺失时的渲染早退（05a）。实测把 plain 从 190 压到 181、分支覆盖 80.14% → 80.30%（5508/6859；分母 +10 是新执行到的代码块被 c8 纳入统计，不是源码改动）。
 - **第二批可补测欠账已落地（2026-11-09 第二轮，plain 181 → 154）**：同一文件扩到 **67 条断言**，新增七组——① 06b 特质写入的 `isnot true/false/undefined/N`、`is undefined` 强制获得、`is "非数字串"` 原串写回、`lt` 边界共 13 条（走的是面板「获取/移除」同一函数，原版特质表没有这些 has 组合所以从未被喂到），外加 520 次 `traitEval` 喂满 512 条判定函数缓存验证整体重建；② 04c `auditAdapters` 的拒绝面（临时注入 3 个畸形适配器，断言后立即删除还原）：缺 modId / modId 与注册键不一致 / 缺 key / 缺 name / 缺 varPath / 空适配器告警；③ 08d 预览值格式化 `null`（L29）与 `JSON.stringify` 返回 `undefined` 回落 `String(v)`（L32，**确认条只渲染队首，两次入队会让断言取错对象**），以及 stage/scenes/char/yanling/无活动页五条分发臂；④ 07d 湖畔兜底补 `V.outside=1`（L209）与 Story 全无时宏预检返回空串（L229）；⑤ 08-npc-traits 的 `V.player` / `V.player.virginity` 缺失自建（L81/L82）与 `timeStamp` 非有限数按 0 起算（L138）；⑥ 07f-lock 锁定留痕缺 `before` 时补记首次真实值（L139）；⑦ 07f-lurker 三条锁态提示（手持/冰箱/蒸馏笼，L170-172）。实测 plain 181 → 154、分支覆盖 80.30% → **80.87%（5570/6888）**，`node tests/plain_branches.js` 全断言通过、`run_all.ps1` 12 步全绿。
-- Top 缺口分片（全表可用 `npm run report:branches` 重生成；2026-11-09 05:34Z 实测，段序已对齐 manifest）：`01-core.js` 76.4%（51）/ `07f-pins2-anchor.js` 75.3%（47）/ `08c-undo-center.js` 78.0%（45）/ `04a-15-fert-children.js` 80.8%（42）/ `07d-places2.js` 73.2%（42）/ `07i-yanling-actions.js` 81.4%（42）/ `09-exports.js` 63.8%（38）/ `07h-render2.js` 73.6%（38）/ `05b-modcheat-player.js` 77.2%（37）/ `07f-pins3-queue.js` 78.7%（36）。
-- **口径提醒**：覆盖率数字随源码改动变化，本节数值对应**当前 HEAD 工作区**（2026-11-09 05:52Z 实测，分支总覆盖 80.87% = 5570/6888；同一工作区另一次为 80.83% = 5566/6886，c8 合并 ±4 属已知抖动，判"有没有丢覆盖"必须逐 branch 比对）；`coverage/coverage-final.json` 由 `npm run coverage:gate` 每轮刷新，报告会拒绝早于产物的旧数据（exit 2），不会静默给过期数字；改码后请重跑 `npm run coverage:gate` 再看，不要引用本节旧数。
+- **第三批可补测欠账已落地（2026-11-09 第三轮，plain 154 → 131）**：同一文件扩到 **102 条断言**，本轮五组——① 07e 场景注册表解析（widget 段落缺 `<<set $scenes to {`、大括号不闭合、Story 全文恢复块未闭合、`"rec1"` 定义整份返回、widget 与 V.scenes 同 key 不覆盖）；② 跨文件零散（06c `isModOnlyRoot("")`、07e-scenes2 未知动作）；③ 04b 列表写入门禁（原版根拒绝 / 宿主不存在拒绝 / 预览门控回调）；④ 07f-pins2 队列边界（播放中 passage end 不清理队列、旧版单固定同 key 去重、入口段落缺失直达回传失败）；⑤ 04a-15 孩子阶段/地点兜底（`edenDeleted` → removed、无 `development` 直写 `child.location`、只读 development 写不进 → 明确拒绝）与 03c 原版恋爱阶段回退（非 gwylan 返回 0、`seen` 未含该值仍回执、partners/romance 分支）。实测 plain 154 → **131**、分支覆盖 80.87% → **81.41%（5651/6941）**；差分工具确认消失 14 条、新增 0 条。**注意本轮分母 6888 → 6941（+53）**，净收益必须看 plain 明细差分而不是百分比。
+`01-core.js` 76.4%（51）/ `07f-pins2-anchor.js` 75.3%（47）/ `08c-undo-center.js` 78.0%（45）/ `04a-15-fert-children.js` 80.8%（42）/ `07d-places2.js` 73.2%（42）/ `07i-yanling-actions.js` 81.4%（42）/ `09-exports.js` 63.8%（38）/ `07h-render2.js` 73.6%（38）/ `05b-modcheat-player.js` 77.2%（37）/ `07f-pins3-queue.js` 78.7%（36）。
+- **口径提醒**：覆盖率数字随源码改动变化，本节数值对应**当前 HEAD 工作区**（2026-11-09 第三轮收口实测，分支总覆盖 81.41% = 5651/6941、Statements 97.50% = 15189/15578；同口径历史抖动 80.81% / 80.83% / 80.87%，分子 ±4 属已知抖动，判"有没有丢覆盖"必须逐 branch 比对）；`coverage/coverage-final.json` 由 `npm run coverage:gate` 每轮刷新，报告会拒绝早于产物的旧数据（exit 2），不会静默给过期数字；改码后请重跑 `npm run coverage:gate` 再看，不要引用本节旧数。
 
 复现：`npm run coverage` && `node tools/report_branch_gaps.js --md --top 15`
