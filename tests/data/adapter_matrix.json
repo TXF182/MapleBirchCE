@@ -3,8 +3,8 @@
   "note": "由 tools/gen_adapter_matrix.js 从声明自动生成，勿手改；改声明后重跑生成器。",
   "source": "javascript/src/04a-*.js（段序取自 manifest.json）",
   "adapterCount": 13,
-  "itemCount": 444,
-  "probeCount": 1010,
+  "itemCount": 451,
+  "probeCount": 1024,
   "items": [
     {
       "modId": "revelation-the-book-of-return",
@@ -12476,6 +12476,181 @@
       "index": 16,
       "key": "dl_npcch",
       "varPath": "npcCh",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 3,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(3)",
+          "write": 3,
+          "expect": 3
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 17,
+      "key": "dl_sk_atk",
+      "varPath": "mpSkill.atk",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 10,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(10)",
+          "write": 10,
+          "expect": 10
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 18,
+      "key": "dl_sk_def",
+      "varPath": "mpSkill.def",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 10,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(10)",
+          "write": 10,
+          "expect": 10
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 19,
+      "key": "dl_sk_hp",
+      "varPath": "mpSkill.hp",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 10,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(10)",
+          "write": 10,
+          "expect": 10
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 20,
+      "key": "dl_sk_crit",
+      "varPath": "mpSkill.crit",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 10,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(10)",
+          "write": 10,
+          "expect": 10
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 21,
+      "key": "dl_sk_lifesteal",
+      "varPath": "mpSkill.lifesteal",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 10,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(10)",
+          "write": 10,
+          "expect": 10
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 22,
+      "key": "dl_sk_loot",
+      "varPath": "mpSkill.loot",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 10,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(10)",
+          "write": 10,
+          "expect": 10
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 23,
+      "key": "dl_sk_arcane",
+      "varPath": "mpSkill.arcane",
       "kind": "number",
       "type": "number",
       "min": 0,

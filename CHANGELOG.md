@@ -35,6 +35,19 @@
 - **jsdom 不做 cascade 计算**：三条 CSS 断言只能证明「规则在、选择器形状对」，真实渲染色与选中金底需实机看（本轮未做实机截图走查）。
 - 未补 plain 分支断言、未清理 4 个遗留探针（`tools\_fn_gap_probe.js` / `_line_probe.js` / `_gap_probe.js` / `_seg_gap_probe.js`），均需单独指令。
 
+### 六、Dolonline 5.28 适配（技能树重构，同批未升版）
+
+- **上游更新**：`check_mod_updates.js --apply` 检出 dolonline 5.27 → 5.28（192,487 B，工具自动替换 `game\` 内包），对照源码落到 `tools\_modcache\dolonline528\unpacked\`（`index.js` 449,013 B + 4 个 twee + `boot.json` + `img` 3 张）。
+- **5.28 关键变化（源码实证）**：① `mpSkill` 由布尔开关重构为**技能树**（`SKILL_NODES` `index.js:6476–6493`，16 节点），新增 7 个可升级节点 `atk/def/hp/crit/lifesteal/loot`（max 10）与 `arcane`（max 3、cost 2），`mpSkill[k]` 语义变为**等级 0..max**；② `dgUnlocked()` 增两条老档兼容（`:4197` 属性>0 / `:4198` mpSkill 非空 / `:4199` 技能点>0 也判解锁）；③ 等级阈值未变（`dailyNeed=80+(lv-1)*40`、`dgNeed=100+(lv-1)*50`）；④ `boot.json` 新增 `TweeReplacerAddon`（Harvest Street 追加地下城入口），但 SafeMode 禁用该插件时 5.28 自带 `ensureDgEntry()` DOM 兜底（`:4305–4413`，插 `#dol-dg-entry-link`），**入口不再依赖插件**。
+- **适配器改动**（`04a-17-dolonline.js` 全文重写）：modName → v5.28；头注释与全部 note 的行号换成 5.28 实证值；values **17 → 24 条**（+7 技能树节点，min/max 严格按节点 max）；`dl_init_run` 补 8 个运行态键（含 `mpSkill` 空对象，`ifMissing` 不覆盖）；`dl_all_spells` 仍置 9 个 max=1 解锁节点（阈值 3/5/7/9/12 与 5.27 一致，写 1 仍等价「已解锁」）。
+- **不补的键（已定案）**：`mpDgAtk` / `mpDgDef` 属原版自带属性面板（`index.js:4764/4816/4853`，玩家常规 0–60 可调），不重复建声明。
+- **核查**：`_check_keys_mod` 19 条原 varPath 全存活；`audit_adapters` 字面覆盖 16/26（7 条 `mpSkill.*` 属动态下标盲区）；`resolve_missing` **26/26 全 KEEP、零删失**（属主归位证据：`index.js:191` hp / `index.js:3803` loot / `index.js:5740` arcane / `dungeon.twee:69` crit+lifesteal）。
+- **顺带查清「452 vs 451」这 1 条差**（此前按遗留项挂着）：`validate_adapters` 统计 stages+abilities+values+scenes+tasks = **452**；`gen_adapter_matrix` 只遍历 stages+abilities+values = **451**，少的正是 **1 条 scenes**（场景直达无赋值探针，结构上不生成矩阵行）。**不是丢条目，是口径差**；测试里那句「与 validate_adapters 的 443 同量级」的过时文案已改写为口径说明。
+- **连带修正**：`tests\bench_panel_render.js` 原把「注入声明总数 == 445」写死，加键即红 → 改为「面板重扫条目数 == 声明条数」+「声明规模下限 ≥ 400 条」，断言 16 → **17 条**，连跑 3 次全绿（首帧 4.1–4.4 ms / 最慢页签 16.9–18.0 ms / 最慢详情 3.1–4.5 ms）；`README.md`（445→452，validate 口径）与 `docs\benchmarks.md`（445→451，注入口径）同步。
+- **全链**：12 步 ALL CHECKS PASSED；声明 **452 条**（values 224→**231**）；矩阵 **451 条 / 1024 探针**；注册表 **13 / 451**；覆盖率 Statements/Lines **97.47%（15254/15649）**、Branches **81.41%（5651/6941）**、Functions **98.53%（606/615）**（并行墙钟 **30.1 s**，**3.90x**）。
+- **产物**：`javascript/maplebirchce.js` **964,806 B / 74 段 / SHA256 `2E71BB2E73F4BD9B44FD86FCF23F08F75E9FA066F5FDE118C6E78CF6B762BF41`**；`MapleBirchCE.mod.zip` **308,114 B / SHA256 `D45F43190E8D1D666EDCC683FF343F104D72960B65AE60500785C4D768491555`**（4 条目全正斜杠；本机 verifier-hub 无入口，走内置等价核对 VERIFIER-FALLBACK）。
+- **未做**：不触碰联机（WebSocket / auth / 服务器共享血量，按用户口径只做单机状态键）；`dolsims`（7 条）/ `wraiths`（8 条）适配深度、面板视觉实机走查仍未做。
+
 ## v2.0.11（2026-11-08 迭代优化：判据改 State.passage / 序号去重 / 直达预检 / Mer Street 根因定量）
 
 **触发**：v2.0.10 交付后继续收敛，重点是「Mer Street 三连报到底为什么」。

@@ -149,7 +149,7 @@ function loadWrite(opts) {
     if (m) { varPaths += m.length; }
   });
   assert(files.length >= 13, "适配器分块文件数 >=13（实际 " + files.length + "）");
-  assert(varPaths >= 430, "varPath 声明总条数 >=430（实际 " + varPaths + "，与 validate_adapters 的 443 同量级）");
+  assert(varPaths >= 430, "varPath 声明总条数 >=430（实际 " + varPaths + "；口径：与 adapter_matrix 的 451 条同为 stages+abilities+values，validate_adapters 的 452 另含 1 条 scenes 无写入探针）");
 }
 
 console.log(failures === 0 ? "\nALL PASS（适配器路径豁免判定单测）" : "\nFAILED: " + failures);

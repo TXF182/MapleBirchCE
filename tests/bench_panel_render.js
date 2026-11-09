@@ -81,7 +81,7 @@ eval(fs.readFileSync(jsPath, "utf8") + "\n//# sourceURL=" + jsPath.replace(/\\/g
 const api = setup.mbStageCE;
 window.__mbCE_forceSyncRows = true;
 
-/* ---------- 2. 注入真实声明（全量 445 条） ---------- */
+/* ---------- 2. 注入真实声明（全量，条数由 CHEAT_ADAPTERS 实算，不写死） ---------- */
 const AD = api.CHEAT_ADAPTERS;
 assert(!!AD && typeof AD === "object", "CHEAT_ADAPTERS 已从 setup.mbStageCE 导出");
 
@@ -114,7 +114,14 @@ console.log("  适配器 " + ids.length + " 个 / 声明条目 " + declaredTotal
 console.log("  面板可见模组 " + scanned.length + " 个（getCheatMods 重扫后）");
 console.log("  条目最多的模组：" + biggest.modId + "（" + biggest.n + " 条）");
 assert(scanned.length === ids.length, "重扫后模组数 == 适配器数（" + ids.length + "）");
-assert(declaredTotal === 445, "注入声明总数 445（实测 " + declaredTotal + "）");
+/* 断言口径：不写死条数。① 面板重扫后的条目数必须等于声明条数（证明压的是全量、没被过滤）；
+   ② 另设规模下限，防声明被整体清空后压测空转还能「通过」。 */
+const renderedTotal = scanned.reduce(function (a, m) {
+  return a + ((m.tasks || []).length + (m.stages || []).length + (m.abilities || []).length
+    + (m.scenes || []).length + (m.values || []).length);
+}, 0);
+assert(renderedTotal === declaredTotal, "面板重扫条目数 == 声明条数（实测 " + renderedTotal + " / " + declaredTotal + "）");
+assert(declaredTotal >= 400, "声明规模下限 400 条（实测 " + declaredTotal + "）");
 
 /* ---------- 3. 首帧 ---------- */
 section("首帧");

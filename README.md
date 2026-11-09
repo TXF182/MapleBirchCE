@@ -1,6 +1,6 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**13 个第三方模组适配器 + 框架本体兼容记录**（validate_adapters 实测 13 适配器 / 445 条声明）（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / Dolonline 联机&地下城（仅单机状态键） / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**13 个第三方模组适配器 + 框架本体兼容记录**（validate_adapters 实测 13 适配器 / 452 条声明）（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / Dolonline 联机&地下城（仅单机状态键） / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
@@ -208,7 +208,7 @@
 |---|---|---|
 | [docs/modpack-inventory.md](docs/modpack-inventory.md) | 18 个模组包台账（名/字节/SHA 前 8）+ **第六节「mod 的真实加载通道」**（ModLoader 走浏览器 IndexedDB 而非目录、证据链、正确补装步骤、四层数字口径） | 补装/更新任何模组包、怀疑"装了没生效"时**先看这一节** |
 | [docs/key-type-evidence.md](docs/key-type-evidence.md) | `check_key_types.js` 报 `NO_EVIDENCE` 的逐项不可得性证明（为何静态源码拿不到类型证据） | 怀疑类型核查"漏检"时 |
-| [docs/benchmarks.md](docs/benchmarks.md) | 面板渲染压测：445 条声明 × 7 页签 × 13 模组全展开的实测基线、阈值、口径边界（jsdom 只测 JS+DOM，不等于真机帧率） | 改任何面板渲染段后判断是否退化 |
+| [docs/benchmarks.md](docs/benchmarks.md) | 面板渲染压测：451 条声明 × 7 页签 × 13 模组全展开的实测基线、阈值、口径边界（jsdom 只测 JS+DOM，不等于真机帧率） | 改任何面板渲染段后判断是否退化 |
 | [AGENTS.md](AGENTS.md) | 分支纪律：§5 对照源码权威表与适配器键数、§6 mod 装载通道 | 改装配流程、加适配器前 |
 | [CHANGELOG.md](CHANGELOG.md) | 逐版本变更（发布 body 的来源） | 回溯某版本改了什么 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 提交流程、钩子、ESLint 八规则、全链 12 步 | 首次贡献/改工具链前 |
