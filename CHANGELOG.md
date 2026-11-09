@@ -2,6 +2,39 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.12（2026-11-09 源码/UI 迭代：状态色 · 选中态 · 悬浮球视口钳制）
+
+**触发**：前两轮做的是工具链与覆盖率归因的可信度，本轮按用户指定转向**源码与 UI 层**。三条缺陷同属「class 加对了、但样式/坐标被更高位规则覆盖 → 静默失效」这一族，全部按 TDD 先补断言转红，再改码转绿。
+
+### 一、状态栏绿/红被自己的灰色压掉（`07a-shell.js`）
+
+- `.mce-err`(L272)、`.mce-ok`(L273)、`.mce-status`(L274) 特异性同为 (0,1,0)，CSS 后者胜 → `.mce-status{color:var(--mce-txt-muted)}` 把状态色压成灰。
+- 影响面：`setStatus(` 在 src 中共 **146** 处；带 `"mce-ok"/"mce-err"` 的调用遍布 `04a-14-fert-cheats.js:144/185/196/213/215/226`、`06d-traits-gender.js:79` 等——写入成功/失败在状态栏一直看不出颜色。
+- 修：补 `.mce-status.mce-ok{color:var(--mce-green)}` + `.mce-status.mce-err{color:var(--mce-red)}` 组合选择器 (0,2,0)；面板内独立的 `.mce-ok`/`.mce-err` 文本节点不受影响。
+
+### 二、性别按钮选中态没有金底（`07a-shell.js` / `06d-traits-gender.js`）
+
+- `renderGenderBox()`（`06d-traits-gender.js:66-86`）把三个按钮建在 `.mce-row` 内、选中项 class 为 `mce-btn-active`；而 `.mce-btn-active`(0,1,0) 被后定义的 `.mce-row button`(0,1,1) 盖掉 → 全站唯一使用点（性别切换）只剩文字里的 ✓，没有选中底色。
+- 修：选择器抬到 `#mce-root .mce-btn-active`(1,1,0)，属性不变。
+
+### 三、悬浮球可能停在视口外，面板再也打不开（`09-exports.js`）
+
+- `ensureDom()` 恢复位置时直接读 `mbCE_toggle_pos_v1` 写 `left/top`，**没有任何视口钳制**；钳制只发生在拖拽的 rAF / pointerup（L124-158），且**没有 resize 监听**。「悬浮球隐藏」功能已废除，悬浮球是面板唯一入口 → 换窄窗口 / 缩放 / 换显示器后球落在视口外即死锁。
+- 修：新增 `tgClampPos()`（按 `window.innerWidth/innerHeight` 与 `getBoundingClientRect()` 真实边长钳位，缺省 56 / 1280 / 720，`Math.max(0, Math.min(w-bw-4, l))`，非数字坐标直接返回），恢复位置后调用一次；补 `resize` 监听（`__mbCEPosBound` 守卫，不动 `__mbCEBound`）。
+
+### 四、测试与验证
+
+- `tests/smoke_dom.js` 新增 2 组 4 条断言：① 把球 left/top 写成 `9999px` 后派发 `resize`，应钳到 `innerWidth-56-4 / innerHeight-56-4`（jsdom 1024×768 → **964/708**）；② 三条 CSS 规则文本存在。先红（`SMOKE 4 FAILURES`，逐条为 `9999px/9999px` 与三条规则缺失），改码后 `SMOKE ALL PASSED`。
+- 全链 12 步 ALL CHECKS PASSED：串行合计 **114.8 s** / 并行墙钟 **29.7 s**（3.87x）；`smoke_dom` 28.7 s 仍是关键路径。
+- 覆盖率：Statements/Lines **97.26%（15152/15578）**、Branches **80.14%（5489/6849）**、Functions **98.85%（606/613）**（门槛 90/80/95，余量约 10 条；新增钳位分支让分支分母 +7）。
+- 结构门禁：`07a-shell.js` 一度涨到 408 行（单段上限 400），本轮把新增注释压到单行后回到 **400 行**，未申请基线豁免。
+- 产物：`javascript/maplebirchce.js` **958,218 B / 73 段 / SHA256 `64B896FD7D857B5AC721678278F58CD74FA9CD7B8C08D556197D1E4BA392C7F7`**；zip **305,287 B / SHA256 `AE964A6FFFE2ADC058DDEE04E7C1D5E30933B24E3919712D36846C225C8C3DC2`**（verifier 4/4，4 条目全正斜杠）。
+
+### 五、明确未做
+
+- **jsdom 不做 cascade 计算**：三条 CSS 断言只能证明「规则在、选择器形状对」，真实渲染色与选中金底需实机看（本轮未做实机截图走查）。
+- 未补 plain 分支断言、未清理 4 个遗留探针（`tools\_fn_gap_probe.js` / `_line_probe.js` / `_gap_probe.js` / `_seg_gap_probe.js`），均需单独指令。
+
 ## v2.0.11（2026-11-08 迭代优化：判据改 State.passage / 序号去重 / 直达预检 / Mer Street 根因定量）
 
 **触发**：v2.0.10 交付后继续收敛，重点是「Mer Street 三连报到底为什么」。

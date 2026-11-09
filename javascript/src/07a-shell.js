@@ -74,7 +74,8 @@
 		var body = el("div", "mce-sec-body");
 		sec.appendChild(head);
 		sec.appendChild(body);
-		if (hint) { body.appendChild(mceFoldHint(hint)); }		function toggle() {
+		if (hint) { body.appendChild(mceFoldHint(hint)); }
+		function toggle() {
 			var nowOpen = sec.getAttribute("data-open") !== "1";
 			sec.setAttribute("data-open", nowOpen ? "1" : "0");
 			arrow.textContent = nowOpen ? "▾" : "▸";
@@ -110,8 +111,7 @@
 		return g;
 	}
 
-	/* v1.9.14 效果2：写入成功闪烁——目标行/按钮加 .mce-flash（金底 0.6s→透明），
-	   同一 timer 统一清理全部 flash 节点（连点不堆积；强制 reflow 保证同一节点动画重放） */
+	/* v1.9.14 效果2：写入成功闪烁——目标行/按钮加 .mce-flash（金底 0.6s→透明）；同一 timer 统一清理全部 flash 节点（连点不堆积；强制 reflow 保证同一节点动画重放） */
 	var mbCEFlashTimer = null;
 	function mbCEFlash(node) {
 		try {
@@ -271,17 +271,16 @@
 		".mce-err{color:var(--mce-red);font-size:var(--mce-fs-base)}" +
 		".mce-ok{color:var(--mce-green);font-size:var(--mce-fs-base)}" +
 		".mce-status{min-height:18px;padding:6px 10px;border-top:1px solid var(--mce-border-quiet);background:var(--mce-bg-deep);color:var(--mce-txt-muted);font-size:var(--mce-fs-btn)}" +
-		/* v2.0.3 P4-2：写入前 diff 预览确认条（吸在面板底部，不遮挡列表）
-		   v2.0.7 D3：原先只有注释说「吸底」、CSS 无 sticky，实际挂在滚动内容最末尾 → 玩家永远看不到。
-		   现改为 position:sticky + bottom:0（挂在当前活动 pane 内，滚动容器为 .mce-body），并加顶部分隔阴影。 */
+		/* v2.0.12 修特异性倒挂：.mce-ok/.mce-err 与 .mce-status 同为 (0,1,0) 且 .mce-status 定义在后 → 状态栏绿/红被灰色覆盖（146 处 setStatus 调用全无颜色）；组合选择器 (0,2,0) 拿优先权，面板内独立 .mce-ok/.mce-err 文本节点不受影响 */
+		".mce-status.mce-ok{color:var(--mce-green)}.mce-status.mce-err{color:var(--mce-red)}" +
+		/* v2.0.3 P4-2：写入前 diff 预览确认条（吸在面板底部不遮挡列表）；v2.0.7 D3：原先只有注释说「吸底」、CSS 无 sticky，实际挂在滚动内容最末尾玩家永远看不到 → 改 position:sticky + bottom:0（挂活动 pane 内，滚动容器 .mce-body）+ 顶部分隔阴影 */
 		".mce-preview-bar{position:sticky;bottom:0;z-index:12;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--mce-accent);background:var(--mce-gold-bg);color:var(--mce-gold-txt);font-size:var(--mce-fs-btn);box-shadow:0 -6px 14px rgba(0,0,0,.45)}" +
 		".mce-preview-lbl{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
 		/* P1：自定义锁定项的来源徽标（角色页 / Mod作弊 / 手动） */
 		".mce-badge.mce-src{background:var(--mce-bg-ctl);color:var(--mce-txt-faint);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-sm);padding:1px 6px;font-size:11px;white-space:nowrap}" +
 		".mce-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:var(--mce-space-sm) 0}" +
 		/* v1.4.0 Mod作弊页面 */
-		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，
-		   减少大列表下（如枯木逢春 28 数值项展开）对 DoL-Game-UI 每帧 rAF 全量扫描的主线程叠加压力 */
+		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，减少大列表（如枯木 28 数值项展开）对 DoL-Game-UI 每帧 rAF 全量扫描的主线程压力 */
 		".mce-grp{border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);margin:var(--mce-space) 0;padding:8px;background:var(--mce-bg-block);contain:content}" +
 		".mce-grp-t{color:var(--mce-txt-strong);font-weight:700;font-size:var(--mce-fs-base);margin-bottom:6px}" +
 		".mce-collapse-head{cursor:pointer;user-select:none}" +
@@ -292,7 +291,8 @@
 		".mce-row{display:flex;align-items:center;gap:var(--mce-space);flex-wrap:wrap;padding:6px 0;min-height:var(--mce-row-h);font-size:var(--mce-fs-btn)}" +
 		".mce-row:hover .mce-row-lbl,.mce-row:hover .mce-row-name{color:var(--mce-accent)}" +
 		".mce-row-lbl,.mce-row-name{color:var(--mce-txt-hi);flex:1;min-width:120px;word-break:break-all}" +
-		".mce-btn-active{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent);font-weight:700}" +
+		/* v2.0.12：.mce-btn-active (0,1,0) 被 .mce-row button (0,1,1) 盖掉 → 行内按钮（性别切换）选中金底从没显示过（只剩文字里的 ✓）；抬到 #mce-root 层级 (1,1,0) */
+		"#mce-root .mce-btn-active{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent);font-weight:700}" +
 		".mce-row button{background:var(--mce-bg-ctl);color:var(--mce-txt-mid);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius);padding:3px 8px;min-height:22px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit}" +
 		".mce-row button:hover{border-color:var(--mce-accent);color:var(--mce-accent)}" +
 		".mce-inp{background:var(--mce-bg-deep);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);border-radius:var(--mce-radius);padding:3px 6px;font-size:var(--mce-fs-btn);width:90px;font-family:Consolas,Menlo,monospace}" +
