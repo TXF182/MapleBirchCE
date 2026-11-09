@@ -56,7 +56,8 @@ const EST_MS = {
   "tests/romance_stage_state.js": 2246,
   "tests/test_mce.js": 709,
   "tests/integration_gender.js": 643,
-  "tests/test_adapter_matrix.js": 373
+  "tests/test_adapter_matrix.js": 373,
+  "tests/plain_branches.js": 2200
 };
 
 function parseArgs(argv) {

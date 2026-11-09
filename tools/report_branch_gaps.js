@@ -68,7 +68,28 @@ function classifyLine(file, srcLine) {
   if (/typeof/.test(t)) return "env-guard";
   if (/&&|\|\||\?\.|\?\?/.test(t)) return "shortcircuit";
   if (/\?/.test(t)) return "ternary";
+  /* dead-guard：`if (!V)` 而 V 来自 getV()。getV() 在未读档时返回 {} 兜底（truthy），
+     所以 `!V` 恒 false —— 该分支结构性不可达，不属"没写断言"的欠账，不能算进 plain。 */
+  if (isDeadGuard(lines, srcLine)) return "dead-guard";
   return "plain";
+}
+
+/* 只认 `if (!X)` 完全闭合的形态；`if (!v.player)` 这类属性检查不算（属性可能真的缺失）。 */
+function guardVarOf(t) {
+  const m = t.match(/if\s*\(\s*!\s*([A-Za-z_$][\w$]*)\s*\)/);
+  return m ? m[1] : null;
+}
+function isDeadGuard(lines, srcLine) {
+  const name = guardVarOf(lines[srcLine - 1] || "");
+  if (!name) return false;
+  const stop = Math.max(0, srcLine - 80);
+  for (let i = srcLine - 2; i >= stop; i--) {
+    const s = lines[i] || "";
+    if (/^\s*function\s/.test(s)) break;
+    const m = s.match(new RegExp("(?:var\\s+|let\\s+|const\\s+)?" + name + "\\s*=\\s*(.+?);"));
+    if (m) return /getV\s*\(\s*\)/.test(m[1]);
+  }
+  return false;
 }
 
 function main() {
@@ -124,7 +145,7 @@ function main() {
   console.log("数据 " + new Date(covT).toISOString() + " · 产物 " + (prodSha ? prodSha.slice(0, 12) : "(缺失)") + " · 段序取 manifest（" + rows.length + " 段）");
   console.log("分支总覆盖 " + (th * 100 / tb).toFixed(2) + "%（" + th + "/" + tb + "）· 有缺口分片 " + list.length + " 个");
   console.log("未覆盖分支按行文归因：" + Object.keys(byType).sort((a, b) => byType[b] - byType[a]).map(k => k + "=" + byType[k]).join("  ") + "（合计 " + (tb - th) + "）");
-  console.log("  catch=防御性异常分支 / env-guard=typeof 环境守卫 / shortcircuit=&& || 短路兜底 / ternary=三元 / plain=普通 if-else（可补测欠账）");
+  console.log("  catch=防御性异常分支 / dead-guard=不可达守卫（getV() 恒返回兜底对象） / env-guard=typeof 环境守卫 / shortcircuit=&& || 短路兜底 / ternary=三元 / plain=普通 if-else（可补测欠账）");
   if (md) {
     console.log("");
     console.log("| 分片 | 分支覆盖 | 未覆盖分支 | 典型行号 |");

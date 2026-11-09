@@ -107,7 +107,14 @@ const TESTS = [
   /* 锁定恢复真实路径（2026-11-09 从 run_all 第 5 步移入序列）：注入早于读档 → 翻页写回、
      面板全部可锁 path 批量核查、说话态度与言灵守卫定时器随恢复入口起表。
      原先是本序列的孤儿（只在 run_all 里单跑、不参与覆盖率），合并后一处跑全。 */
-  "tests/lock_resume.js"
+  "tests/lock_resume.js",
+  /* 2026-11-09 新增：plain 分支补测专项。report_branch_gaps.js 把未覆盖分支分为
+     catch / shortcircuit / ternary / env-guard / dead-guard / plain 六类，其中 plain 是
+     「普通 if 的拒绝侧从没被喂到」的欠账。本测试专打这类高价值分支：
+     diff 预览队列封顶与空队列拒绝、地点中文名无匹配、未知 NPC 特质撤回、按活动页签重渲染的
+     mods/places 分发、面板容器缺失时的渲染早退。
+     不覆盖 dead-guard（if (!V) 且 V=getV()，getV() 恒返回 {} 兜底，结构性不可达）。 */
+  "tests/plain_branches.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。
