@@ -41,7 +41,7 @@
 
 验证：`node --check` exit 0；`validate_adapters` 13 适配器 / 468 条目形态全通过；audit 字面覆盖 23/42 + resolve 42/42 KEEP；全链 **12/12 ALL CHECKS PASSED**（exit 0），覆盖率 Statements **97.48%（15358/15755）** / Branches **81.36%（5668/6966）** / Functions **98.54%（608/617）**。
 
-**本版只升版本号与源码改动，未打包、未发布**（打包与发布需另行确认）。
+**交付状态**：已打包（`MapleBirchCE.mod.zip` 311,724 B / SHA256 `138A6BC6…015EAC187`；verifier 走内置等价核对 FALLBACK，条目集合 + CRC 全量通过）、已装入 `game\`（旧 v2.0.13 包备份至 `tools\selfcheck\MapleBirchCE-v2.0.13.mod.zip.bak`）、已提交（commit `9a3255c`）、已发布（Release v2.0.14，Git Data API 通道，远端 commit `61e2d9b5`，资产 digest 与下载回读 SHA 均一致）。
 
 ## v2.0.13（2026-11-09 Dolonline 5.28 正式发布 + 适配深度核查 + SafeMode 通道）
 
