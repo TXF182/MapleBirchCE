@@ -84,7 +84,9 @@ if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: check_vanilla_types（声明数字�
 
 Write-Host "[10/12] 覆盖率门禁（c8：lines>=90 branches>=80 functions>=95，低于门槛即失败；分组并行跑同一套 31 项序列，--groups auto 按核数自适应）"
 if (Test-Path -LiteralPath "node_modules\.bin\c8.cmd") {
-  & "node_modules\.bin\c8.cmd" --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage_par.js --groups auto
+  # --reporter=json：门禁跑完同时刷新 coverage/coverage-final.json（report_branch_gaps.js 的唯一数据源）；
+  # 少了它，缺口报告读到的是上一次的快照，数字看着合理但已过期（静默失效）
+  & "node_modules\.bin\c8.cmd" --include=javascript/maplebirchce.js --reporter=text-summary --reporter=json --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage_par.js --groups auto
   if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: coverage gate（覆盖低于门槛，见上表）" -ForegroundColor Red; exit 1 }
 } else {
   Write-Host "    WARN: c8 未安装（npm install 后启用），覆盖门禁跳过" -ForegroundColor Yellow

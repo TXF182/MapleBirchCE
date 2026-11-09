@@ -874,14 +874,14 @@ MapleBirchCE/（git 源码真相源）
 
 （门禁原为 75/60/80，实测余量过大到"掉 13 个点仍绿"，2026-11-07 收紧到 90/70/95；CI 同阈值，缺原版 HTML 时实测 94.32% / 72.89% / 96.99% 仍过。）
 
-- **58 个分片存在分支缺口**。c8 只认产物一个 key，`tools/report_branch_gaps.js` 按 `build_js.js` 同一排序与补尾换行规则重建「产物行号 → 源分片行号」映射后逐条归因：`&& / || / ?.` 短路兜底 350、防御性 `catch` 342、普通 if-else 289、`typeof` 环境守卫 196、三元 167（合计 1344 条未覆盖分支臂）。
+- **68 个分片存在分支缺口**。c8 只认产物一个 key，`tools/report_branch_gaps.js` 按 `javascript/src/manifest.json` 的段序（与 `build_js.js` 同一真源，**不是文件名字典序**——两者有 3 对文件互换，按字典序会把缺口算到错的分片）与补尾换行规则重建「产物行号 → 源分片行号」映射后逐条归因：`&& / || / ?.` 短路兜底 322、防御性 `catch` 417、普通 if-else 254、`typeof` 环境守卫 170、三元 192（合计 1355 条未覆盖分支臂）。
 - **测量抖动（实测，不是估算）**：连续两次跑同一套测试得 73.34%（3694/5037）与 73.31%（3692/5036），差 1–2 条——定时器/异步分支的采样差异，不影响结论与门禁（≥70）。引用数字时注明是哪次跑的。
 - **三类已知结构性缺口（登记在此，不再算隐性欠账）**：
-  1. **防御性 `catch`（342 条）**——写入/渲染链兜底异常分支，正常路径永不触发；它们的价值是"上游崩了页面也不炸"，覆盖它等于制造人为崩坏输入。
-  2. **`typeof` 环境守卫（196 条）**——`CSS.escape`、`Timer.unref`、`SugarCube.State.passages` 等；jsdom 与真引擎形态不同，两端都覆盖需要真浏览器（本项目禁用浏览器路线，`real_smoke.ps1` 属被禁通道），只能保留为已知盲区。
+  1. **防御性 `catch`（417 条）**——写入/渲染链兜底异常分支，正常路径永不触发；它们的价值是"上游崩了页面也不炸"，覆盖它等于制造人为崩坏输入。
+  2. **`typeof` 环境守卫（170 条）**——`CSS.escape`、`Timer.unref`、`SugarCube.State.passages` 等；jsdom 与真引擎形态不同，两端都覆盖需要真浏览器（本项目禁用浏览器路线，`real_smoke.ps1` 属被禁通道），只能保留为已知盲区。
   3. **无调用者分支**——`05a3-modcheat-actions.js` 的 `actions` 渲染（没有任何适配器声明 `actions:`，Fertility 走 `actionPanel`）。不为它伪造调用。
-- **剩余 289 条 plain 分支是"没写断言"，不是"不可测"**——这是可补测欠账，按下方 Top 表逐片补；把这类也归入"不可测"属于自我开脱，故单列。
-- Top 缺口分片（全表可用 `npm run report:branches` 重生成；2026-11-07 07i 拆分后口径）：`04a-15-fert-children.js` 62.9%（69）/ `07f-pins2-anchor.js` 70.5%（52）/ `01-core.js` 74.5%（51）/ `07f-pins3-queue.js` 68.9%（46）/ `07i-yanling-core.js` 69.5%（46）/ `02-romance.js` 75.1%（45）/ `05a-modcheat-rows.js` 68.8%（44）/ `03b-global-maint.js` 71.0%（42）/ `07h-render2.js` 69.6%（41）/ `07d-places2.js` 65.5%（40）。
-- **口径提醒**：覆盖率数字随源码改动变化，本节数值对应**当前 HEAD 工作区**（2026-11-07 实测，分支总覆盖 73.31% = 3692/5036；`07i` 拆三片后逐片统计，不再有单一 856 行分片）；改码后请重跑 `npm run coverage` 再看，不要引用本节旧数。
+- **剩余 254 条 plain 分支是"没写断言"，不是"不可测"**——这是可补测欠账，按下方 Top 表逐片补；把这类也归入"不可测"属于自我开脱，故单列。
+- Top 缺口分片（全表可用 `npm run report:branches` 重生成；2026-11-09 实测，段序已对齐 manifest）：`01-core.js` 76.4%（51）/ `07f-pins2-anchor.js` 75.3%（47）/ `08c-undo-center.js` 78.0%（45）/ `04a-15-fert-children.js` 80.8%（42）/ `07d-places2.js` 73.2%（42）/ `07i-yanling-actions.js` 81.4%（42）/ `07h-render2.js` 73.6%（38）/ `05b-modcheat-player.js` 77.2%（37）/ `07f-pins3-queue.js` 78.7%（36）/ `09-exports.js` 64.9%（34）。
+- **口径提醒**：覆盖率数字随源码改动变化，本节数值对应**当前 HEAD 工作区**（2026-11-09 实测，分支总覆盖 80.20% = 5487/6842）；`coverage/coverage-final.json` 由 `npm run coverage:gate` 每轮刷新，报告会拒绝早于产物的旧数据（exit 2），不会静默给过期数字；改码后请重跑 `npm run coverage:gate` 再看，不要引用本节旧数。
 
 复现：`npm run coverage` && `node tools/report_branch_gaps.js --md --top 15`
