@@ -2,7 +2,14 @@
 # MapleBirchCE pre-commit 钩子：提交前自动跑一键验证链
 # 由 tools/install-hooks.ps1 安装（git config core.hooksPath githooks）
 # 验证失败时阻止提交；跳过 --no-verify 可绕过（不推荐）。
-echo "[pre-commit] 运行一键验证链（build → 语法 node --check → ESLint 八规则 → DOM冒烟 → 全量回归 → 功能级 E2E → 性别集成 → 适配器声明一致性 → 覆盖率门禁（含稳定性循环），全绿后自动 codegraph sync），约需 1-3 分钟..."
+#
+# 分流（2026-11-09）：pack.ps1 第 [1/5] 步刚跑完全链，提交时再跑一遍＝同一份代码验证两次
+# （实测全链 297.7 s，占一次「打包→提交」的一半）。先用 tools/verify_cache.ps1 判定：
+#   exit 0 = 指纹命中（产物 + 全部验证输入均未改动）→ 跳过
+#   exit 2 = 本次只改纯文档（docs/ .learnings/ CHANGELOG LICENSE CONTRIBUTING README.md）→ 跳过
+#   exit 1 = 拿不准（无缓存 / 代码有改动 / 有未暂存改动 / 异常）→ 跑全链
+# 只有明确命中才跳过；任何异常分支都落到跑全链，不会 fail-open。
+echo "[pre-commit] 检查验证缓存（tools/verify_cache.ps1 -Check）..."
 
 # fail-closed：本机无 PowerShell 时无法执行验证链，必须阻止提交而不是静默放行
 # （历史实现为 exit 0 跳过，等于整条门禁凭空失效 → 未验证代码可直接进 main）
@@ -15,6 +22,16 @@ else
   echo "[pre-commit] fail-closed：提交已阻止。请在具备 PowerShell 的环境提交；确需绕过请显式用 git commit --no-verify 并自担风险。"
   exit 1
 fi
+
+$PS_BIN -NoProfile -ExecutionPolicy Bypass -File "tools/verify_cache.ps1" -Check
+verdict=$?
+if [ "$verdict" = "0" ] || [ "$verdict" = "2" ]; then
+  echo "[pre-commit] 跳过全链（verify_cache exit=$verdict：0=已验证且未改动，2=纯文档变更）。"
+  exit 0
+fi
+
+echo "[pre-commit] 运行一键验证链（build → 语法 node --check → ESLint 八规则 → 功能测试/覆盖率门禁（含稳定性循环、锁定恢复）→ 适配器声明一致性 → tsc → 键注册表），实测约 4 分钟..."
+echo "[pre-commit] 缓存未命中（exit=$verdict）：无缓存 / 代码有改动 / 有未暂存改动，必须全链重验。"
 
 $PS_BIN -NoProfile -ExecutionPolicy Bypass -File "tools/run_all.ps1"
 status=$?

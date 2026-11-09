@@ -6,6 +6,10 @@ node_modules/
 tests/mce_script.js
 coverage/
 
+# 验证指纹缓存（pack.ps1 写入、pre-commit 比对；本机产物，不入 git）
+# 缺失即自动回退为跑全链，故 CI / 新克隆不需要它
+.mce_verify_cache.json
+
 # 安装包
 *.zip
 

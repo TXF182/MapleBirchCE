@@ -29,7 +29,8 @@
     "keys:write": "node tools/gen_key_registry.js --write",
     "report:branches": "node tools/report_branch_gaps.js --md",
     "coverage": "c8 --include=javascript/maplebirchce.js --reporter=text --reporter=text-summary --reporter=json node tools/run_coverage.js",
-    "coverage:gate": "c8 --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage.js"
+    "coverage:gate": "c8 --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage_par.js --groups auto",
+    "coverage:gate:serial": "c8 --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage.js"
   },
   "devDependencies": {
     "c8": "^12.0.0",

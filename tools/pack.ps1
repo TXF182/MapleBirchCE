@@ -106,3 +106,18 @@ $hash = Get-FileHash $zip -Algorithm SHA256
 Write-Host ("  SHA256=" + $hash.Hash)
 
 Write-Host "完成: $zip ($((Get-Item $zip).Length) B)" -ForegroundColor Green
+
+# 记录验证指纹：紧接着的 git commit 若指纹未变，pre-commit 跳过重复全链
+# （第 [1/5] 步刚跑过同一份 run_all，实测 297.7 s）。
+# 写失败不影响交付——只是失去跳过机会，pre-commit 会照旧重跑全链。
+$vcScript = Join-Path $PSScriptRoot "verify_cache.ps1"
+if (Test-Path -LiteralPath $vcScript) {
+    try {
+        & $vcScript -Write
+        if ($LASTEXITCODE -ne 0) { Write-Host "  WARN: 验证指纹写入失败（pre-commit 将重跑全链，不影响本次交付）" -ForegroundColor Yellow }
+    } catch {
+        Write-Host "  WARN: 验证指纹写入异常：$($_.Exception.Message)（pre-commit 将重跑全链）" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  WARN: tools\verify_cache.ps1 缺失，未记录验证指纹（pre-commit 将重跑全链）" -ForegroundColor Yellow
+}

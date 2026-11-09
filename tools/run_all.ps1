@@ -27,29 +27,42 @@ if (Test-Path -LiteralPath "node_modules\.bin\eslint.cmd") {
   Write-Host "    WARN: eslint 未安装（npm install 后可启用），本步跳过" -ForegroundColor Yellow
 }
 
-Write-Host "[4/12] DOM 冒烟 (jsdom)"
-node tests/smoke_dom.js
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: smoke" -ForegroundColor Red; exit 1 }
+# 第 4–7 步：这 7 个功能测试在 c8 可用时已全部并入第 10 步的覆盖率序列
+# （序列真源 tools/coverage_tests.js，串行/并行两个入口共用），
+# 同一条链里跑两遍没有意义 —— 实测 smoke_dom 单次 32.3 s，这批重复约占全链 14%（41 s）。
+# c8 缺失时覆盖率门禁只能 WARN 跳过，此处必须真跑一遍兜底，不留验证空档。
+$hasC8 = Test-Path -LiteralPath "node_modules\.bin\c8.cmd"
+if ($hasC8) {
+  Write-Host "[4-7/12] 功能测试并入第 10 步覆盖率序列，此处不再重复（smoke_dom / test_mce / test_adapter_matrix / lock_resume / adapter_actions / functional_e2e / integration_gender）"
+} else {
+  Write-Host "[4-7/12] c8 未安装 → 直接执行功能测试（覆盖率序列跑不起来时的兜底）" -ForegroundColor Yellow
 
-Write-Host "[5/12] 全量回归 + 声明矩阵回读"
-node tests/test_mce.js
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: regression" -ForegroundColor Red; exit 1 }
-node tests/test_adapter_matrix.js
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: adapter matrix（声明驱动的写入回读断言失败，见上方 FAIL 行；改过 04a-*.js 后须重跑 node tools/gen_adapter_matrix.js）" -ForegroundColor Red; exit 1 }
-Write-Host "    锁定恢复真实路径（注入早于读档 → 翻页写回 + 面板全部可锁 path 批量核查）"
-node tests/lock_resume.js
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: lock_resume（锁定在刷新/读档后未恢复，或某条可锁 path 写不回目标）" -ForegroundColor Red; exit 1 }
-Write-Host "    适配器动作直调通道 + 存档就绪判据（未读档报错 / 就绪真写入 / detect 命中）"
-node tests/adapter_actions.js
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: adapter_actions（动作直调通道或 hasV 判据回归）" -ForegroundColor Red; exit 1 }
+  Write-Host "    DOM 冒烟 (jsdom)"
+  node tests/smoke_dom.js
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: smoke" -ForegroundColor Red; exit 1 }
 
-Write-Host "[6/12] 功能级 E2E（8 适配器全命中 + 模组特质获取/移除 + 全局页按钮真实点击）"
-node tests/functional_e2e.js
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: functional e2e" -ForegroundColor Red; exit 1 }
+  Write-Host "    全量回归 + 声明矩阵回读"
+  node tests/test_mce.js
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: regression" -ForegroundColor Red; exit 1 }
+  node tests/test_adapter_matrix.js
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: adapter matrix（声明驱动的写入回读断言失败，见上方 FAIL 行；改过 04a-*.js 后须重跑 node tools/gen_adapter_matrix.js）" -ForegroundColor Red; exit 1 }
+  Write-Host "    锁定恢复真实路径（注入早于读档 → 翻页写回 + 面板全部可锁 path 批量核查）"
+  node tests/lock_resume.js
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: lock_resume（锁定在刷新/读档后未恢复，或某条可锁 path 写不回目标）" -ForegroundColor Red; exit 1 }
+  Write-Host "    适配器动作直调通道 + 存档就绪判据（未读档报错 / 就绪真写入 / detect 命中）"
+  node tests/adapter_actions.js
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: adapter_actions（动作直调通道或 hasV 判据回归）" -ForegroundColor Red; exit 1 }
 
-Write-Host "[7/12] 性别集成测试（原版引擎真实函数，原版 HTML 缺失时 SKIP 不误报）"
-node tests/integration_gender.js
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: integration_gender" -ForegroundColor Red; exit 1 }
+  Write-Host "    功能级 E2E（8 适配器全命中 + 模组特质获取/移除 + 全局页按钮真实点击）"
+  node tests/functional_e2e.js
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: functional e2e" -ForegroundColor Red; exit 1 }
+
+  Write-Host "    性别集成测试（原版引擎真实函数，原版 HTML 缺失时 SKIP 不误报）"
+  node tests/integration_gender.js
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: integration_gender" -ForegroundColor Red; exit 1 }
+
+  Write-Host "    兜底功能测试全部通过"
+}
 
 Write-Host "[8/12] 适配器声明一致性（schema 校验 + 矩阵幂等 + 结构自洽 + 类型形态）"
 node tools/validate_adapters.js
@@ -69,9 +82,9 @@ Write-Host "[9/12] 原版数字档位形态（07d-places PLACE_GROUPS 声明 vs 
 node tools/check_vanilla_types.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: check_vanilla_types（声明数字档位但原版是字符串枚举 → 面板写入会静默半失效，见工具输出）" -ForegroundColor Red; exit 1 }
 
-Write-Host "[10/12] 覆盖率门禁（c8：lines>=90 branches>=80 functions>=95，低于门槛即失败；序列含稳定性循环与键核单测）"
+Write-Host "[10/12] 覆盖率门禁（c8：lines>=90 branches>=80 functions>=95，低于门槛即失败；分组并行跑同一套 31 项序列，--groups auto 按核数自适应）"
 if (Test-Path -LiteralPath "node_modules\.bin\c8.cmd") {
-  & "node_modules\.bin\c8.cmd" --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage.js
+  & "node_modules\.bin\c8.cmd" --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage_par.js --groups auto
   if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: coverage gate（覆盖低于门槛，见上表）" -ForegroundColor Red; exit 1 }
 } else {
   Write-Host "    WARN: c8 未安装（npm install 后启用），覆盖门禁跳过" -ForegroundColor Yellow

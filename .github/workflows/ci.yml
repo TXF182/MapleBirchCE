@@ -6,11 +6,29 @@ name: CI
 # 矩阵（tests/data/direct_exit_matrix.json）随仓库走，19.17/19.19/19.20 与
 # 19.21/19.22 判据断言在 CI 上照常强制。
 #
-# 覆盖率门禁（第 11 步）与本地同阈值 90/70/95：缺原版 HTML 时实测
-# Statements 94.32% / Branches 72.89%(3630/4980) / Functions 96.99%
-# （2026-11-07 本机把 MCE_DOL_HTML 指向不存在路径复现），比本地
-# 94.65% / 73.31%(3692/5036) 低约 0.3-0.4 点，仍高于门槛。
-# 覆盖率序列（tools/run_coverage.js）含稳定性循环、键核单测与声明矩阵回读。
+# 覆盖率门禁（第 10 步）：与本地同阈值 lines 90 / branches 80 / functions 95，
+# 参数只存在于 package.json 的 coverage:gate，此处直接复用、不另写一套数字，
+# 避免两处阈值再漂移（2026-11-09 之前这里的注释写 70，与实跑的 80 不符）。
+# 缺原版 HTML 时实测 Statements 97.26% / Branches 80.06%(5479/6843) /
+# Functions 98.85% / Lines 97.26%（2026-11-09 本机把 MCE_DOL_HTML 指向不存在
+# 路径复现，exit 0）——数字与有 HTML 时完全相同：SKIP 的是断言，不是代码路径，
+# 同一段分支由其它测试走到。（旧注释里的 72.89% 是 v2.0.6 把 branches 门禁
+# 70→80 之前的读数，已作废。）
+#
+# 功能测试不再单独列 step（2026-11-09 精简）：smoke_dom / test_mce /
+# test_adapter_matrix / functional_e2e / integration_gender / stability_loop /
+# lock_resume / adapter_actions 全都编在 coverage 序列里，序列真源是
+# tools/coverage_tests.js 的 TESTS（串行入口 run_coverage.js 与分组并行入口
+# run_coverage_par.js 共用同一份），单列等于同一批测试跑两遍。失败定位靠
+# runner 打印的 `=== coverage runner: <文件名> ===` 分隔行，日志里能直接看出
+# 挂在哪个测试；本地 run_all.ps1 第 4-7 步做的是同一件事（c8 可用时跳过、
+# 不可用时兜底单跑）。
+#
+# 2026-11-09 起 coverage:gate 走分组并行：--groups auto 按逻辑核数自适应
+# （min(4, max(1, floor(cpus/2)))，本机 18 逻辑核 → 4 组，CI 2 核 → 2 组，
+# 单核退化为串行），实测 102.7 s → 31.5 s 且覆盖率分子分母与串行逐位一致。
+# 并行失败时各组输出在 %TEMP%/mce_cov_par_<组标签>.log；需要原串行口径
+# 时用 npm run coverage:gate:serial（同上阈值，走 run_coverage.js）。
 #
 # 段序真源是 javascript/src/manifest.json（不再靠文件名字典序）：构建步骤会校验
 # manifest 与目录集合一致、层序不回退，再跑 check_structure 的段长预算 / 续号命名。
@@ -46,45 +64,45 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
-      - name: "[1/11] 构建拼接产物 + 段序/结构门禁"
+      - name: "[1/10] 构建拼接产物 + 段序/结构门禁"
         run: |
           node tools/build_js.js
           node tools/check_structure.js
 
-      - name: "[2/11] 产物语法检查"
+      - name: "[2/10] 产物语法检查"
         run: node --check javascript/maplebirchce.js
 
-      - name: "[3/11] ESLint 八规则"
+      - name: "[3/10] ESLint 八规则"
         run: npx eslint javascript/maplebirchce.js
 
-      - name: "[4/11] 适配器声明门禁（schema + 矩阵幂等）"
+      - name: "[4/10] 适配器声明门禁（schema + 矩阵幂等）"
         run: |
           node tools/validate_adapters.js
           node tools/gen_adapter_matrix.js --check
 
-      - name: "[5/11] DOM 冒烟（jsdom）"
-        run: node tests/smoke_dom.js
+      - name: "[5/10] 声明结构自洽（check_claims D1~D5）"
+        run: node tools/check_claims.js
 
-      - name: "[6/11] 全量回归 + 声明矩阵回读"
+      - name: "[6/10] 声明类型形态（缺 tools/_modcache 对照源码时跳过）"
         run: |
-          node tests/test_mce.js
-          node tests/test_adapter_matrix.js
+          if [ -f tools/_modcache/STATE.json ]; then
+            node tools/check_key_types.js
+          else
+            echo "SKIP: tools/_modcache/STATE.json 缺失（对照源码不入库，只存在于开发者本机）"
+            echo "      → 本步不判定。工具在缺该文件时 readState() 直接抛异常，故在此显式分流，"
+            echo "        与本地 run_all.ps1 第 8 步的判据一致。"
+          fi
 
-      - name: "[7/11] 功能级 E2E + 性别集成"
-        run: |
-          node tests/functional_e2e.js
-          node tests/integration_gender.js
+      - name: "[7/10] 原版数字档位形态（缺原版 HTML 时由工具自身 SKIP）"
+        run: node tools/check_vanilla_types.js
 
-      - name: "[8/11] 面板开关稳定性循环"
-        run: node tests/stability_loop.js
-
-      - name: "[9/11] 类型检查（产物侧 tsc 0 错误 + src 侧 strict 债务棘轮）"
+      - name: "[8/10] 类型检查（产物侧 tsc 0 错误 + src 侧 strict 债务棘轮）"
         run: |
           npx tsc -p tsconfig.json
           node tools/check_src_types.js
 
-      - name: "[10/11] 键注册表一致性"
+      - name: "[9/10] 键注册表一致性"
         run: node tools/gen_key_registry.js
 
-      - name: "[11/11] 覆盖率门禁（lines 90 / branches 70 / functions 95）"
+      - name: "[10/10] 覆盖率门禁 + 全部功能测试（lines 90 / branches 80 / functions 95）"
         run: npm run coverage:gate

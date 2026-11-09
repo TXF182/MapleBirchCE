@@ -390,6 +390,36 @@ window.EdenCheats.labour = function () { throw new Error("模组崩了"); };
 const runThrow = api.mbCEFertRun("fert_labour", "", null);
 assert(runThrow.ok === false && /模组 API 抛出异常/.test(runThrow.message), "模组 API 抛异常 → 捕获并回报（" + runThrow.message + "）");
 
+/* ================= 11b. 模组 API 返回空值时的兜底（负向断言） =================
+   契约：源码里所有动作都写成 `api.xxx() || { ok: true, message: "已执行" }`。
+   即模组 API 没回结果（null / undefined / false）时，CE 认为动作已被接受并按
+   「已执行」回报，而不是把空值当失败。同理 reason 系列对空原因必须如实回答
+   "可以"，不能把"查不到原因"说成"不可"。这两类路径此前没有任何用例走过，
+   是 11 节只覆盖"API 正常返回对象"留下的负向缺口。 */
+section("11b 模组 API 返回空值 → 兜底");
+window.EdenCheats = {
+  available: function () { return true; },
+  labour: function () { return null; },
+  parasites: function () { return undefined; },
+  saveInnate: function () { return null; },
+  saveSkills: function () { return null; },
+  reset: function () { return null; },
+  settleAdult: function () { return null; },
+  removeChild: function () { return null; },
+  resetReason: function () { return null; },
+  adultReason: function () { return null; }
+};
+[["fert_labour", ""], ["fert_parasite_fert", ""], ["fert_parasite_ripe", ""],
+  ["fert_innate", "0"], ["fert_skills", "0"], ["fert_reset", "0"],
+  ["fert_adult", "0"], ["fert_remove", "0"]].forEach(function (c) {
+  const r = api.mbCEFertRun(c[0], c[1], null);
+  assert(r.ok === true && r.message === "已执行", c[0] + " 模组返回空值 → 兜底「已执行」（实际：" + r.message + "）");
+});
+assert(/可以重置/.test(api.mbCEFertRun("fert_reset_reason", "0", null).message),
+  "resetReason 返回空 → 如实说可以重置（不把查不到原因说成不可重置）");
+assert(/可以成年结算/.test(api.mbCEFertRun("fert_adult_reason", "0", null).message),
+  "adultReason 返回空 → 如实说可以成年结算");
+
 /* ================= 12. 孩子页渲染（有孩子 / 无孩子） ================= */
 section("12 mbCEFertRenderChildren");
 window.EdenChildData = {
