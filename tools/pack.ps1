@@ -1,4 +1,4 @@
-# 一键发布链：run_all 全链验证 → 打包 .mod.zip → verifier 校验（verifier-hub 优先；本机无该包时自动走内置等价核对：条目集合精确匹配 + CRC 全量，两条路径判据相同）→ SHA256
+# 一键发布链：run_all 全链验证 → 打包 .mod.zip → verifier 校验（严格三项取 AND：条目精确命中 + 集合相等 + CRC 全量；verifier-hub 缺失时后两项照常执行，判据不降级）→ SHA256
 # 用法：.\tools\pack.ps1
 # 说明：学习 Cheat Extended 的 pack.sh（模组根带打包脚本），把"打包"从手工命令升级为
 #       验证链的一部分；发布前跑一次，全绿即可交付。
@@ -68,37 +68,73 @@ if ($badSep.Count -gt 0) {
 }
 Write-Host "  全部 $entryCount 条正斜杠: $($entryNames -join ', ')"
 
-Write-Host "[4/5] verifier 校验（4 个条目全部命中；verifier-hub 优先，缺失走内置等价核对）"
-# verifier-hub 入口：skill root 曾迁移（AppData\Local\Doubao\... → AppData\Roaming\LarkShell\aha\users\<id>\doubao\...），
-# 此处遍历候选位置取第一个存在的 bin\verifier，避免再次硬编码失效（ERR-20261105-001）。
-# skill 被卸载/切换（本机已无 verifier-hub）时不再 fail-open 也不能 fail-shut 掉整条链：
-# 走内置等价核对（条目集合精确匹配 + CRC 全量校验），输出 VERIFIER-FALLBACK 明示降级，判据不放松。
+Write-Host "[4/5] verifier 校验（严格三项取 AND：条目精确命中 + 集合相等 + CRC 全量）"
+# 三项判据各管一件事，缺一不可（2026-11-09 实测，勿简化为单一路径）：
+#   ① verifier-hub `archive zip-check-entries --mode exact`：期望条目须以完整路径精确存在。
+#      默认 contains 是子串匹配——期望 README.md、包里只有 docs/README.md 时仍判 passed=true（实测），故必须显式 --mode exact。
+#   ② 内联集合相等 names == expected：--mode exact 只校验「期望被命中」，不禁止多余条目
+#      （实测多塞 extra/stray.txt 仍 passed=true）。打包语义是「恰好这 N 个文件」，多一个就是打错包。
+#   ③ 内联 zipfile.testzip()：verifier 的 zip-check-entries 不做 CRC，内容被篡改仍 passed=true（实测）。
+# verifier-hub 缺失时 ②③ 照常执行，仅 ① 跳过并明示 WARN —— 判据不因缺工具而放宽。
+# skill 根会换档：本机 Default 与 "Profile 1" 两套并存，verifier-hub 只装在后者，故候选必须通配 User Data\*（ERR-20261105-001）。
 $expectedEntries = @("boot.json", "javascript/maplebirchce.js", "twee/maplebirchce-widget.twee", "README.md")
+$verifierGlobs = @(
+    (Join-Path $env:APPDATA "LarkShell\aha\users\*\doubao\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier"),
+    (Join-Path $env:APPDATA "LarkShell\aha\users\*\doubao\.doubao\agent_mode\workspace\.user_skills\verifier-hub\bin\verifier"),
+    (Join-Path $env:LOCALAPPDATA "Doubao\User Data\*\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier"),
+    (Join-Path $env:LOCALAPPDATA "Doubao\User Data\*\.doubao\agent_mode\workspace\.user_skills\verifier-hub\bin\verifier")
+)
 $verifierCandidates = @()
-$roamingVerifier = Get-ChildItem -Path (Join-Path $env:APPDATA "LarkShell\aha\users\*\doubao\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier") -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($roamingVerifier) { $verifierCandidates += $roamingVerifier.FullName }
-$verifierCandidates += "C:\Users\27352\AppData\Local\Doubao\User Data\Default\.doubao\agent_mode\workspace\.skills\verifier-hub\bin\verifier"
-$verifierCandidates += "C:\Users\27352\AppData\Local\Doubao\User Data\Default\.doubao\agent_mode\workspace\.user_skills\verifier-hub\bin\verifier"
-$verifier = $verifierCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+foreach ($glob in $verifierGlobs) {
+    $hit = Get-ChildItem -Path $glob -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($hit) { $verifierCandidates += $hit.FullName }
+}
+$verifier = $verifierCandidates | Select-Object -First 1
+
+$failReason = @()
+$verifierQuote = ""
+
 if ($verifier) {
-    $check = python $verifier archive zip-check-entries $zip --expected @expectedEntries
-    if ($check -notmatch '"passed": true') {
-        Write-Host "FAIL: verifier" -ForegroundColor Red
-        Write-Host $check
-        exit 1
+    $vOut = (python $verifier archive zip-check-entries $zip --mode exact --expected @expectedEntries 2>&1) -join "`n"
+    if ($vOut -match '"passed": true') {
+        $verifierQuote = if ($vOut -match '"quote":\s*"([^"]+)"') { $matches[1] } else { "matched (exact)" }
+        Write-Host "  ① verifier(--mode exact): $verifierQuote"
+    } else {
+        $failReason += "① verifier(--mode exact) 未通过：期望条目未精确命中"
+        Write-Host "  verifier 输出：" -ForegroundColor Red
+        Write-Host $vOut
     }
-    $quote = if ($check -match '"quote":\s*"([^"]+)"') { $matches[1] } else { "entries matched" }
-    Write-Host "  verifier: $quote"
 } else {
-    Write-Host "  WARN: 未找到 verifier-hub 入口（本机 skill 已不含该包），改用内置等价核对" -ForegroundColor Yellow
-    $pyCode = "import sys,json,zipfile; z=zipfile.ZipFile(sys.argv[1]); names=sorted(z.namelist()); exp=sorted(sys.argv[2:]); bad=z.testzip(); print(json.dumps({'passed': bool(names==exp and bad is None), 'names': names, 'expected': exp, 'crc_bad': bad}))"
-    $check = python -c $pyCode $zip @expectedEntries
-    if ($check -notmatch '"passed": true') {
-        Write-Host "FAIL: 等价核对（条目集合或 CRC 不匹配）" -ForegroundColor Red
-        Write-Host $check
-        exit 1
-    }
-    Write-Host "  VERIFIER-FALLBACK（等价核对）：条目集合精确匹配 + CRC 全量校验通过，4 个条目全部命中"
+    Write-Host "  WARN: 未找到 verifier-hub 入口（已通配 AppData\Roaming\LarkShell\aha\users\* 与 AppData\Local\Doubao\User Data\*），①跳过；②③照常执行，判据不降级" -ForegroundColor Yellow
+}
+
+# ②③ 内联：条目集合精确相等 + CRC 全量（与 ① 无关，始终执行）
+$pyCode = "import sys,json,zipfile; z=zipfile.ZipFile(sys.argv[1]); names=sorted(z.namelist()); exp=sorted(sys.argv[2:]); bad=z.testzip(); print(json.dumps({'set_equal': names==exp, 'names': names, 'expected': exp, 'crc_bad': bad, 'count': len(names)}))"
+$inOut = (python -c $pyCode $zip @expectedEntries 2>&1) -join "`n"
+if ($inOut -match '"set_equal": true') {
+    if ($inOut -match '"count": (\d+)') { Write-Host "  ② 集合相等: $($matches[1]) 个条目与期望精确一致" }
+} else {
+    $failReason += "② 集合相等未通过：条目集合与期望不一致（多出或缺失）"
+    Write-Host "  内联集合核对输出：" -ForegroundColor Red
+    Write-Host $inOut
+}
+if ($inOut -match '"crc_bad": null') {
+    Write-Host "  ③ CRC: 全量校验无异常条目"
+} else {
+    $failReason += "③ CRC 校验未通过：存在损坏条目或压缩包结构异常"
+    Write-Host "  内联 CRC 核对输出：" -ForegroundColor Red
+    Write-Host $inOut
+}
+
+if ($failReason.Count -gt 0) {
+    foreach ($r in $failReason) { Write-Host "FAIL: $r" -ForegroundColor Red }
+    Write-Host "  zip: $zip" -ForegroundColor Red
+    exit 1
+}
+if ($verifier) {
+    Write-Host "  verifier 严格三项（exact + 集合相等 + CRC）全部通过"
+} else {
+    Write-Host "  VERIFIER-FALLBACK（内置 ②③）：集合精确相等 + CRC 全量通过，4 个条目全部命中"
 }
 
 Write-Host "[5/5] SHA256"
