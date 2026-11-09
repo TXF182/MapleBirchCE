@@ -1486,6 +1486,14 @@
       {
         "key": "loveInterestList",
         "varPath": "loveInterestList"
+      },
+      {
+        "key": "mate_for_life_debuff",
+        "varPath": "options.mateForLifeDebuff"
+      },
+      {
+        "key": "drag_mode",
+        "varPath": "dragMode"
       }
     ],
     "revelation-the-book-of-return": [
@@ -1805,7 +1813,7 @@
   },
   "totals": {
     "adapters": 13,
-    "entries": 442,
+    "entries": 444,
     "keysWithoutVarPath": 3
   }
 }

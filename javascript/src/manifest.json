@@ -19,6 +19,11 @@
       "layer": "core"
     },
     {
+      "file": "01b-wrote-trim.js",
+      "layer": "core",
+      "note": "v2.0.12 写入留痕有界化 mbCEWroteTrim（结构门禁拆段：01-core 加错误池后 415 行超 400 上限）"
+    },
+    {
       "file": "02-romance.js",
       "layer": "core"
     },

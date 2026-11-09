@@ -3,8 +3,8 @@
   "note": "由 tools/gen_adapter_matrix.js 从声明自动生成，勿手改；改声明后重跑生成器。",
   "source": "javascript/src/04a-*.js（段序取自 manifest.json）",
   "adapterCount": 13,
-  "itemCount": 442,
-  "probeCount": 1006,
+  "itemCount": 444,
+  "probeCount": 1010,
   "items": [
     {
       "modId": "revelation-the-book-of-return",
@@ -1954,6 +1954,56 @@
           "label": "push(Robin)",
           "write": "Robin",
           "expect": "Robin"
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "more_love_interests",
+      "section": "values",
+      "index": 1,
+      "key": "mate_for_life_debuff",
+      "varPath": "options.mateForLifeDebuff",
+      "kind": "boolean",
+      "type": "boolean",
+      "min": null,
+      "max": null,
+      "levels": null,
+      "probes": [
+        {
+          "label": "true",
+          "write": true,
+          "expect": true
+        },
+        {
+          "label": "false",
+          "write": false,
+          "expect": false
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "more_love_interests",
+      "section": "values",
+      "index": 2,
+      "key": "drag_mode",
+      "varPath": "dragMode",
+      "kind": "boolean",
+      "type": "boolean",
+      "min": null,
+      "max": null,
+      "levels": null,
+      "probes": [
+        {
+          "label": "true",
+          "write": true,
+          "expect": true
+        },
+        {
+          "label": "false",
+          "write": false,
+          "expect": false
         }
       ],
       "sync": null

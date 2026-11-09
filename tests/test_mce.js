@@ -1233,7 +1233,12 @@ assert(V.mliState.loveList.join() === "Whitney", "18.13 列表回退还原初始
 // 18.14) 内置适配器：探测 setup.foodPreference（More Love Interests Mod）→ 自动出现并可直接操控
 setup.foodPreference = { orange_juice: { name: "orange_juice", NPC: ["Black Wolf", "Great Hawk"] } };
 var mli = api.getCheatMods().filter(function (x) { return x.modId === "more_love_interests"; })[0];
-assert(mli && mli.declared === true && mli.values.length === 1 && mli.values[0].key === "loveInterestList", "18.14 适配器探测命中：MLI 自动识别并声明 loveInterestList");
+var mliValues = mli ? mli.values.map(function (v) { return v.key + "|" + v.varPath + "|" + v.type; }) : [];
+assert(mli && mli.declared === true && mliValues.length === 3
+&& mliValues[0] === "loveInterestList|loveInterestList|list"
+&& mliValues.indexOf("mate_for_life_debuff|options.mateForLifeDebuff|boolean") !== -1
+&& mliValues.indexOf("drag_mode|dragMode|boolean") !== -1,
+"18.14 适配器探测命中：MLI 声明 3 条（恋人列表 + 终生伴侣 Debuff + 拖拽模式），实际 " + JSON.stringify(mliValues));
 api.applyCheatModValue("more_love_interests", "loveInterestList", { value: "Gwylan", on: true });
 assert(Array.isArray(V.loveInterestList) && V.loveInterestList.indexOf("Gwylan") !== -1, "18.14 MLI 恋人列表写入 Gwylan, 实际 " + JSON.stringify(V.loveInterestList));
 delete V.loveInterestList; delete setup.foodPreference;

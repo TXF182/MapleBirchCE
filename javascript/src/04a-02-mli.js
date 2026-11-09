@@ -16,7 +16,35 @@
 					name: "恋人列表（模组扩容版）",
 					varPath: "loveInterestList",
 					type: "list",
-					options: ["Robin", "Whitney", "Kylar", "Eden", "Avery", "Sydney", "Alex", "Black Wolf", "Great Hawk", "Gwylan", "Remy"]
+					options: ["Robin", "Whitney", "Kylar", "Eden", "Avery", "Sydney", "Alex", "Black Wolf", "Great Hawk", "Gwylan", "Remy"],
+					/* v2.0.12 适配深度补测（mli0180 源码逐行取证）：
+					   ① 这是**唯一生效**的恋人入口。11 个 $loveInterest.<槽位>（primary..undecimal）全是本数组的派生态——
+					      more_love_interest_main.twee:173-185 的 moreLoveInterestConfirm 每次交互都从 $loveInterestList[0..10]
+					      反向覆盖全部槽位，单独写槽位会被立刻覆盖 → 不做入口（避免"面板显示写入成功、实机无效"）。
+					   ② 写入后会被模组自身条件剪裁（main.twee:164-172）：Black Wolf 需 hasSexStat("deviancy",3)、
+					      Avery 需 $auriga_artefact 且 C.npc.Avery.state isnot "dismissed"、Remy 需装 Remy Love Mod。
+					      这是模组的防误置保护，不是 CE 缺陷：面板写入后若条件不满足，下次交互会被移除。 */
+					note: "上限 11 位；槽位为派生不设入口；Black Wolf/Avery/Remy 受模组条件剪裁"
+				},
+				{
+					key: "mate_for_life_debuff",
+					name: "终生伴侣 Debuff（换恋人掉精神）",
+					/* main.twee:98 `<<checkbox "$options.mateForLifeDebuff" false true autocheck>>` 默认 false；
+					   box.twee:39/80 `<<if $transformationParts.traits.mateForLife isnot "disabled" and $options.mateForLifeDebuff>>`
+					   → 真值判定，写 1 即开启（换恋人按终生伴侣特质加压力/创伤）。$options 由本体初始化，
+					   若该对象缺失，写入器按"父链缺失"优雅拒绝（不会凭空造 $options）。 */
+					varPath: "options.mateForLifeDebuff",
+					type: "boolean",
+					note: "1=开启（换恋人掉精神）/0=关闭；真值判定"
+				},
+				{
+					key: "drag_mode",
+					name: "恋人列表操作模式（1=拖拽 / 0=选项）",
+					/* main.twee:107-116 `<<link `$dragMode ? '拖拽模式' : '选项模式'`>>`、box.twee:9/63 `<<if $dragMode>>` → 真值判定；
+					   undefined 视为选项模式（默认）。 */
+					varPath: "dragMode",
+					type: "boolean",
+					note: "1=拖拽模式 / 0=选项模式（默认 undefined）"
 				}
 			]
 		}

@@ -119,6 +119,21 @@
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
 	function mbCEErr(e) { return (e && e.message) ? e.message : e; }
+	/* v2.0.12 错误池：静默 catch 的兜底记录。只进内存、不进存档、上限 48 条（环形丢最旧）。
+	   接入判据见 docs/catch-policy.md：**只有「失败后玩家状态与面板显示会不一致」的路径才接入**；
+	   探测/降级类 catch（`typeof X === "function"` 这类能力嗅探）保持静默——它们失败即走降级分支，
+	   属设计意图，接入只会在缺环境时刷屏，反而淹没真错误。
+	   窗口挂载 window.__mceErrPool 供实机探针（moli）直接读取，不必进 passage 开面板。 */
+	var mbCEErrPool = [];
+	/** @param {string} where @param {any} e */
+	function mbCECatch(where, e) {
+		try {
+			if (mbCEErrPool.length >= 48) { mbCEErrPool.shift(); }
+			mbCEErrPool.push({ where: String(where), msg: String(mbCEErr(e)), t: Date.now() });
+			if (typeof window !== "undefined" && window) { window.__mceErrPool = mbCEErrPool; }
+		} catch (eIgnored) { /* 记录器自身失败必须静默，否则级联成二次错误 */ }
+	}
+	function mbCEErrPoolDump() { return mbCEErrPool.slice(); }
 	function getV() {
 		try { if (typeof V !== "undefined" && V && typeof V === "object") { return V; } } catch (e) {}
 		try { if (typeof State !== "undefined" && State.variables) { return State.variables; } } catch (e) {}
@@ -134,30 +149,6 @@
 	function getSetup() {
 		try { if (typeof setup !== "undefined" && setup) { return setup; } } catch (e) {}
 		return {};
-	}
-	/* v1.8.15 九巡：面板写入留痕 V.mbCE_wrote 有界化——条目数 > 400 时按时间戳升序删除最旧一半。
-	   防止长时间高强度操作导致留痕无限增长（每笔写入都占存档空间）；被删条目的回退窗口随之关闭（旧操作不再可回退）。 */
-	function mbCEWroteTrim(V) {
-		try {
-			if (!V || !V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { return; }
-			var keys = Object.keys(V.mbCE_wrote);
-			if (keys.length <= 400) { return; }
-			keys.sort(function (a, b) {
-				var ta = (V.mbCE_wrote[a] && typeof V.mbCE_wrote[a].t === "number") ? V.mbCE_wrote[a].t : 0;
-				var tb = (V.mbCE_wrote[b] && typeof V.mbCE_wrote[b].t === "number") ? V.mbCE_wrote[b].t : 0;
-				return ta - tb;
-			});
-			/* v2.0.8：锁定写回留痕（type:"lock"）不参与裁剪——每个被锁 key 只有一条，是「取消锁定 + 还原原值」的
-			   唯一依据；被裁掉后再次写回会把 before 记成「已被锁定覆盖后的值」，回退就退化成原样还原、等于失效。 */
-			var drop = Math.floor(keys.length / 2);
-			var rm = 0, vi = 0;
-			while (rm < drop && vi < keys.length) {
-				var vLock = V.mbCE_wrote[keys[vi]];
-				if (vLock && vLock.type === "lock") { vi++; continue; }
-				try { delete V.mbCE_wrote[keys[vi]]; } catch (e) { V.mbCE_wrote[keys[vi]] = undefined; }
-				rm++; vi++;
-			}
-		} catch (e) {}
 	}
 
 	/* ============ 框架解析（window.maplebirch 优先，setup.MapleBirch 回退） ============ */
@@ -512,6 +503,31 @@
 		return n;
 	}
 
+/* 职责：面板写入留痕 V.mbCE_wrote 有界化（v2.0.12 结构门禁拆段：01-core 因错误池涨到 415 行超 400 上限）；同一 IIFE 闭包内，函数声明提升，调用顺序不受影响 */
+	/* v1.8.15 九巡：面板写入留痕 V.mbCE_wrote 有界化——条目数 > 400 时按时间戳升序删除最旧一半。
+	   防止长时间高强度操作导致留痕无限增长（每笔写入都占存档空间）；被删条目的回退窗口随之关闭（旧操作不再可回退）。 */
+	function mbCEWroteTrim(V) {
+		try {
+			if (!V || !V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { return; }
+			var keys = Object.keys(V.mbCE_wrote);
+			if (keys.length <= 400) { return; }
+			keys.sort(function (a, b) {
+				var ta = (V.mbCE_wrote[a] && typeof V.mbCE_wrote[a].t === "number") ? V.mbCE_wrote[a].t : 0;
+				var tb = (V.mbCE_wrote[b] && typeof V.mbCE_wrote[b].t === "number") ? V.mbCE_wrote[b].t : 0;
+				return ta - tb;
+			});
+			/* v2.0.8：锁定写回留痕（type:"lock"）不参与裁剪——每个被锁 key 只有一条，是「取消锁定 + 还原原值」的
+			   唯一依据；被裁掉后再次写回会把 before 记成「已被锁定覆盖后的值」，回退就退化成原样还原、等于失效。 */
+			var drop = Math.floor(keys.length / 2);
+			var rm = 0, vi = 0;
+			while (rm < drop && vi < keys.length) {
+				var vLock = V.mbCE_wrote[keys[vi]];
+				if (vLock && vLock.type === "lock") { vi++; continue; }
+				try { delete V.mbCE_wrote[keys[vi]]; } catch (e) { V.mbCE_wrote[keys[vi]] = undefined; }
+				rm++; vi++;
+			}
+		} catch (e) { mbCECatch("mbCEWroteTrim", e); }
+	}
 	/* ============ 恋爱剧情阶段（原生条件，自动解析） ============ */
 	function getRomanceList(name) {
 		var list = null;
@@ -1466,7 +1482,7 @@
 				}
 				entry.unlocked = Math.max(Number(entry.unlocked || 0), 2);
 			});
-		} catch (e) {}
+		} catch (e) { mbCECatch("combat:forestClothesUnlock", e); }
 	}
 	function clearGwylanWary() {
 		try {
@@ -2040,7 +2056,35 @@ var CHEAT_ADAPTERS = {};
 					name: "恋人列表（模组扩容版）",
 					varPath: "loveInterestList",
 					type: "list",
-					options: ["Robin", "Whitney", "Kylar", "Eden", "Avery", "Sydney", "Alex", "Black Wolf", "Great Hawk", "Gwylan", "Remy"]
+					options: ["Robin", "Whitney", "Kylar", "Eden", "Avery", "Sydney", "Alex", "Black Wolf", "Great Hawk", "Gwylan", "Remy"],
+					/* v2.0.12 适配深度补测（mli0180 源码逐行取证）：
+					   ① 这是**唯一生效**的恋人入口。11 个 $loveInterest.<槽位>（primary..undecimal）全是本数组的派生态——
+					      more_love_interest_main.twee:173-185 的 moreLoveInterestConfirm 每次交互都从 $loveInterestList[0..10]
+					      反向覆盖全部槽位，单独写槽位会被立刻覆盖 → 不做入口（避免"面板显示写入成功、实机无效"）。
+					   ② 写入后会被模组自身条件剪裁（main.twee:164-172）：Black Wolf 需 hasSexStat("deviancy",3)、
+					      Avery 需 $auriga_artefact 且 C.npc.Avery.state isnot "dismissed"、Remy 需装 Remy Love Mod。
+					      这是模组的防误置保护，不是 CE 缺陷：面板写入后若条件不满足，下次交互会被移除。 */
+					note: "上限 11 位；槽位为派生不设入口；Black Wolf/Avery/Remy 受模组条件剪裁"
+				},
+				{
+					key: "mate_for_life_debuff",
+					name: "终生伴侣 Debuff（换恋人掉精神）",
+					/* main.twee:98 `<<checkbox "$options.mateForLifeDebuff" false true autocheck>>` 默认 false；
+					   box.twee:39/80 `<<if $transformationParts.traits.mateForLife isnot "disabled" and $options.mateForLifeDebuff>>`
+					   → 真值判定，写 1 即开启（换恋人按终生伴侣特质加压力/创伤）。$options 由本体初始化，
+					   若该对象缺失，写入器按"父链缺失"优雅拒绝（不会凭空造 $options）。 */
+					varPath: "options.mateForLifeDebuff",
+					type: "boolean",
+					note: "1=开启（换恋人掉精神）/0=关闭；真值判定"
+				},
+				{
+					key: "drag_mode",
+					name: "恋人列表操作模式（1=拖拽 / 0=选项）",
+					/* main.twee:107-116 `<<link `$dragMode ? '拖拽模式' : '选项模式'`>>`、box.twee:9/63 `<<if $dragMode>>` → 真值判定；
+					   undefined 视为选项模式（默认）。 */
+					varPath: "dragMode",
+					type: "boolean",
+					note: "1=拖拽模式 / 0=选项模式（默认 undefined）"
 				}
 			]
 		}
@@ -8166,7 +8210,7 @@ function teleportTo(name) {
 						});
 						row.appendChild(mUndo);
 					}
-				} catch (e) {}
+				} catch (e) { mbCECatch("places2:rowRender", e); }
 				block.appendChild(row);
 			});
 			pane.appendChild(block);
