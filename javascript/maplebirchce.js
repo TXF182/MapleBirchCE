@@ -3579,7 +3579,9 @@ function mbCEFertKidSetLocation(id, loc) {
 	}
 	if (!ok) { return { ok: false, message: "无法更新这个孩子的地点（模组 setLocation 拒绝，通常是还没出生/已移除）" }; }
 	try {
-		var V = getV();
+		/* v2.0.12 自查：本函数 L194 已声明 var V = mbCEFertKidVars()（等价 getV() 的空值兜底），
+		   此处再 var 属同作用域重复声明（ESLint no-redeclare）。改为赋值复用，语义不变。 */
+		V = getV();
 		if (V) {
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			var key = "cheat:fertility-expansion:fert_child_loc_" + id;
@@ -13891,7 +13893,9 @@ function renderNpcUndergroundSec(pane) {
 				tbox.appendChild(row);
 				return;
 			}
-			var row = el("div", "mce-row");
+			/* v2.0.12 自查：avery_saviour 分支（上文 L146）已在同一 forEach 回调内 var row，
+			   此处再 var 属重复声明（ESLint no-redeclare）；var 不受块作用域约束，改用赋值复用。 */
+			row = el("div", "mce-row");
 			row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc));
 			var btn = el("button", "mce-btn" + (t.owned ? "" : " mce-gold"), t.owned ? "已拥有" : "获取");
 			btn.type = "button";

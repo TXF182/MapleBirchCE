@@ -1,4 +1,4 @@
-# 一键验证链：build → 语法 → ESLint 八规则 → DOM 冒烟 → 全量回归 → 功能级 E2E → 性别集成测试（原版引擎真实函数）→ 适配器声明一致性 → 原版数字档位形态 → 覆盖率门禁 → tsc 类型检查 → 键注册表一致性
+# 一键验证链：build → 语法 → ESLint 十规则 + 纯函数隔离单测 → DOM 冒烟 → 全量回归 → 功能级 E2E → 性别集成测试（原版引擎真实函数）→ 适配器声明一致性 → 原版数字档位形态 → 覆盖率门禁 → tsc 类型检查 → 键注册表一致性
 # 用法：.\tools\run_all.ps1 [-Pkg <打包源目录>]    （-Pkg 提供时 build 后顺手同步 JS 到打包源）
 param(
     [string]$Pkg = ""
@@ -19,13 +19,20 @@ Write-Host "[2/12] node --check"
 node --check javascript/maplebirchce.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: syntax" -ForegroundColor Red; exit 1 }
 
-Write-Host "[3/12] ESLint 八规则（重复键/不可达/函数重赋值/松散相等/自赋值/恒定条件/不安全取反/贯穿）"
+Write-Host "[3/12] ESLint 十规则（重复键/不可达/函数重赋值/松散相等/自赋值/恒定条件/不安全取反/贯穿/重复声明/未声明标识符）"
 if (Test-Path -LiteralPath "node_modules\.bin\eslint.cmd") {
   & "node_modules\.bin\eslint.cmd" javascript/maplebirchce.js
-  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: eslint（先 npm install 后重跑；八规则见 eslint.config.js 头部）" -ForegroundColor Red; exit 1 }
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: eslint（先 npm install 后重跑；十规则见 eslint.config.js 头部，宿主导出已在 globals 声明）" -ForegroundColor Red; exit 1 }
 } else {
   Write-Host "    WARN: eslint 未安装（npm install 后可启用），本步跳过" -ForegroundColor Yellow
 }
+
+# 3b（并入第 3 步，不新增编号）：纯函数层隔离单测 —— 用 vm 直跑 src/01-core.js 片段，与产物无关。
+# 改坏 01-core 的中文映射 / 原版清单判定 / 数值读写（writeStat 上限不钳制等语义）会在这里立刻红，
+# 不必等到第 10 步面板级路径才发现（面板层兜底会把异常吞成「未就绪」，异常在 UI 上看不出来）。
+Write-Host "    纯函数隔离单测（tests/unit_core.js）"
+node tests/unit_core.js
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: unit_core（01-core 纯函数行为回归，见上方 FAIL 行）" -ForegroundColor Red; exit 1 }
 
 # 第 4–7 步：这 7 个功能测试在 c8 可用时已全部并入第 10 步的覆盖率序列
 # （序列真源 tools/coverage_tests.js，串行/并行两个入口共用），
