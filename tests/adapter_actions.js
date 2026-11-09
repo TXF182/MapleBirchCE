@@ -79,6 +79,40 @@ assert(keys.every(function (k) { return V.mpSkill[k] === 1; }), "9 个法术键�
 const r4 = api.mbCEAdapterAction("dolonline", "dl_all_spells", {});
 assert(r4 && /此前已解锁/.test(r4.message), "重复执行幂等：全部此前已解锁");
 
+/* ============ 5b. dl_fill_inv（5.29 新增随身物）：18 键补 99、不覆盖更高值、宿主缺失自建、幂等 ============ */
+section("5b 随身物全满");
+delete V.dgInv; /* 模拟 5.28 老档 / 未进过地下城：该对象尚不存在 */
+const r5 = api.mbCEAdapterAction("dolonline", "dl_fill_inv", {});
+assert(r5 && r5.ok === true, "dgInv 缺失时动作自动建对象并执行成功");
+assert(V.dgInv && typeof V.dgInv === "object", "dgInv 被建为对象（等价 ensureDgInv index.js:6109）");
+const invKeys = [
+	"fang", "hide", "herb", "ore", "dust", "ember", "slime",
+	"pot_hp1", "pot_hp2", "pot_mp1", "pot_mp2", "pot_atk", "pot_def", "pot_agi",
+	"food_soup", "food_steak", "food_stew", "food_ember_tea"
+];
+assert(invKeys.length === 18, "键清单 18 项（材料 7 + 药水 7 + 食物 4，DG_MATS/DG_POTIONS/DG_FOODS）");
+assert(invKeys.every(function (k) { return V.dgInv[k] === 99; }), "18 个物品键全部补到 99");
+assert(/已补满 18/.test(r5.message), "首次提示补满 18 类（实际：" + r5.message + "）");
+V.dgInv.fang = 999; /* 已有更高值不得被覆盖 */
+const r6 = api.mbCEAdapterAction("dolonline", "dl_fill_inv", {});
+assert(V.dgInv.fang === 999, "已有更高值 999 不被覆盖");
+assert(r6 && r6.ok === true && /未改动/.test(r6.message), "重复执行幂等：提示未改动（实际：" + r6.message + "）");
+
+/* ============ 5c. dl_refill_run（5.29 战斗中补资源）：只增不减、上限尊重 dgManaMax、幂等 ============ */
+section("5c 地下城资源补满");
+V.dgHp = 5; V.dgMana = 3; V.dgGold = 12; V.dgManaMax = 180;
+const r7 = api.mbCEAdapterAction("dolonline", "dl_refill_run", {});
+assert(r7 && r7.ok === true, "资源补满动作执行成功");
+assert(V.dgMana === 180, "dgMana 补到 dgManaMax 配置上限（180），不写死 100（实际：" + V.dgMana + "）");
+assert(V.dgHp === 100, "dgHp 补到体力上限；测试环境无 window.dolStaminaMax 时回落 100（dungeon.twee:4 同源逻辑）");
+assert(V.dgGold === 9999, "dgGold 补到 9999（猫猫商店可用额度）");
+assert(/体力 5 → 100/.test(r7.message) && /法力 3 → 180/.test(r7.message) && /金币 12 → 9999/.test(r7.message),
+	"提示逐项写前后值（实际：" + r7.message + "）");
+V.dgGold = 99999; /* 已有更高值不得被覆盖 */
+const r8 = api.mbCEAdapterAction("dolonline", "dl_refill_run", {});
+assert(V.dgGold === 99999, "已有更高金币 99999 不被回退");
+assert(r8 && r8.ok === true && /未改动/.test(r8.message), "三项均在上限时幂等未改动（实际：" + r8.message + "）");
+
 /* ============ 6. 错误通道：未知适配器/未知动作必须报错，不能静默返回 undefined ============ */
 section("6 错误通道");
 const e1 = api.mbCEAdapterAction("no-such-adapter", "x", {});
@@ -89,13 +123,14 @@ const e3 = api.mbCEAdapterAction("", "dl_init_run", {});
 assert(e3 && e3.ok === false && /未指定适配器/.test(e3.message), "空 adapterId → 明确报错（不落到注册表首项）");
 /* 临时动作：声明了 key 但没有 run / run 抛异常 —— 两条错误分支真实走一遍后清理 */
 const host = api.CHEAT_ADAPTERS.dolonline.entry.actions;
+const realActionCount = host.length; /* 真实动作条数（版本无关：新增动作后不必改断言） */
 host.push({ key: "__t_norun", name: "临时未实现" }, { key: "__t_boom", name: "临时抛异常", run: function () { throw new Error("boom"); } });
 const e4 = api.mbCEAdapterAction("dolonline", "__t_norun", {});
 assert(e4 && e4.ok === false && /该动作未实现/.test(e4.message), "run 不是函数 → 「该动作未实现」（不抛 TypeError）");
 const e5 = api.mbCEAdapterAction("dolonline", "__t_boom", {});
 assert(e5 && e5.ok === false && /动作抛出异常/.test(e5.message) && /boom/.test(e5.message), "run 抛异常 → 被 catch 成 { ok:false, message }（不冒泡）");
 host.splice(host.length - 2, 2);
-assert(host.length === 2, "临时动作已清理（注册表回到 2 条真实动作）");
+assert(host.length === realActionCount, "临时动作已清理（注册表回到 " + realActionCount + " 条真实动作）");
 
 /* ============ 7. 单一实现路径（源码级防回归）：UI 按钮不得再内联 a.run() ============ */
 section("7 单一实现路径");

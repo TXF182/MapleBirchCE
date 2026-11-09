@@ -1075,6 +1075,70 @@
       {
         "key": "dl_sk_arcane",
         "varPath": "mpSkill.arcane"
+      },
+      {
+        "key": "dl_sk_firewall",
+        "varPath": "mpSkill.fireWall"
+      },
+      {
+        "key": "dl_sk_icespike",
+        "varPath": "mpSkill.iceSpike"
+      },
+      {
+        "key": "dl_sk_shadowbolt",
+        "varPath": "mpSkill.shadowBolt"
+      },
+      {
+        "key": "dl_sk_thunderstorm",
+        "varPath": "mpSkill.thunderStorm"
+      },
+      {
+        "key": "dl_sk_meteor",
+        "varPath": "mpSkill.meteor"
+      },
+      {
+        "key": "dl_sk_uburst",
+        "varPath": "mpSkill.uBurst"
+      },
+      {
+        "key": "dl_sk_uchain",
+        "varPath": "mpSkill.uChain"
+      },
+      {
+        "key": "dl_sk_udesp",
+        "varPath": "mpSkill.uDesp"
+      },
+      {
+        "key": "dl_sk_ublood",
+        "varPath": "mpSkill.uBlood"
+      },
+      {
+        "key": "dl_dgatk",
+        "varPath": "mpDgAtk"
+      },
+      {
+        "key": "dl_dgdef",
+        "varPath": "mpDgDef"
+      },
+      {
+        "key": "dl_dghpmax",
+        "varPath": "mpDgHp"
+      },
+      {
+        "key": "dl_fatiguecut",
+        "varPath": "mpFatigueCut"
+      },
+      {
+        "key": "dl_painreduce",
+        "varPath": "mpPainReduce"
+      },
+      {
+        "key": "dl_dgsp",
+        "varPath": "mpDgSP"
+      },
+      {
+        "key": "dl_dsp",
+        "varPath": "mpDSP"
       }
     ],
     "dolsims": [
@@ -1359,7 +1423,6 @@
         "varPath": "eden.settings.maturityDays"
       }
     ],
-    "modId": [],
     "more-farm-upgrade": [
       {
         "key": "mf_gh1",
@@ -1837,11 +1900,11 @@
   },
   "keysWithoutVarPath": {
     "revelation-the-book-of-return": 1,
-    "dolonline": 2
+    "dolonline": 4
   },
   "totals": {
     "adapters": 13,
-    "entries": 451,
-    "keysWithoutVarPath": 3
+    "entries": 467,
+    "keysWithoutVarPath": 5
   }
 }
