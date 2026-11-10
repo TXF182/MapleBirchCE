@@ -200,7 +200,7 @@
 			P.used = true; /* 一次性：触发后不再重复触发 */
 			unlockPlaceForScene(P); /* 联动解锁：触发即解锁所在场景组（如凯拉尔剧情 → 庄园可直达） */
 			applyWorldUnlockForScene(P); /* 世界入口解锁：写入原版进入条件（多瑙河街→庄园等） */
-		} catch (e) {}
+		} catch (e) { /* 触发登记失败（存档只读/结构异常）→ 本次不写 used/联动解锁，不阻断段落跳转 */ }
 	}
 	function hookPassageOverride() {
 		try {
@@ -238,7 +238,7 @@
 			if (!V) { return; }
 			if (V.mbCE_replayPending) { V.mbCE_replayPending = false; return; }
 			if (V.replayScene && V.mbCE_replayOnce) { V.sceneViewSwitch = "MB_CE_END"; }
-		} catch (e) {}
+		} catch (e) { /* passage 收尾钩子失败必须静默，避免阻断原版段落流转 */ }
 	}
 	function hookPassageInit() {
 		try {
@@ -272,11 +272,11 @@
 						/* MOD 固定触发的重放中收到 unfreeze = 播放结束 → 清理已触发项 + 重放状态 */
 						cleanupUsedPins();
 						try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
-						try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+						try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) { /* 重放一次性标记清理失败 → 保留原值，不影响本次播放结束流程 */ }
 					}
-				} catch (e) {}
+				} catch (e) { /* 清理重放状态失败必须静默，避免遮蔽下方 orig 原函数调用 */ }
 				try { return orig.apply(window, arguments); } catch (e) {}
 			};
-		} catch (e) {}
+		} catch (e) { /* unfreeze 钩子安装失败不阻断面板加载（退化为不接管 unfreeze） */ }
 	}
 

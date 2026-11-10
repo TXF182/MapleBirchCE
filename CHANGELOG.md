@@ -2,6 +2,36 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.15（2026-11-10 场景直达四组精度收尾 + 不可玩段过滤）
+
+### 一、四组剧情入口（象牙怨灵 / 万圣节 / 情人节 / 圣诞节）
+
+「场景直达」顶部新增 4 组剧情入口，过滤后共 **308 个可点段落**（谓词命中 / 剔除不可玩段 / 保留：怨灵 78→13→**65**、万圣 105→7→**98**、情人节 116→4→**112**、圣诞 35→2→**33**；数字为对原版 0.5.12.13 实测计数），主场景分别是 `Wraith Test Start`（原版 Summon the Wraith 载入段）、`Lake Halloween Party`、`Avery Valentines`、`Christmas Mirror`。
+
+- **四 predicate 与入口注射逐字共用**（`mbCEIsWraithPassage` / `mbCEIsHalloweenPassage` / `mbCEIsValentinesPassage` / `mbCEIsChristmasPassage`）：列表里有的段，点进去一定有对应状态兜底，不留「列着但没保底」的裂缝。
+- **节日按时间窗口判**（`mbCETimeTravelTo`）：原版不是按段落判日期，而是 Time 每日例程按月份置 `V.halloween`（10-21~31）/ `V.valentines`（2-6~14）/ `V.christmas`（12-18~25）。所以入口先把日期推进到窗口内（万圣节 10-28 / 情人节 2-10 / 圣诞 12-22）；**已在窗口内就完全不碰日期**（旧实现只比 `day >= 目标`，10 月 25 日点万圣节反被推去 28 日、3 月点圣诞会无脑回拨）。
+- 跨月回拨到同年窗口是功能本意（不回拨就永远玩不到），已在 note 与断言里写明。
+- `Lake Halloween Party` 的 `$cool` 补 **240**（原版 `gte 240` 是「欢呼」最高档，补 0 会读到「没人理你」最差文案）；`$phase` 补 0（湖岸篝火档，湖畔默认 1 会落到草丛分支）。
+- 节日分支必须排在湖畔分支（`nm.indexOf("Lake ") === 0`）之前，否则派对段被截获。
+
+### 二、不可玩段过滤（本轮精度核心）
+
+四组 + `elk_compound` 组挂 `exclude`：**列表里不再出现点了必然空白的中继段**。实测剔除 36 段：怨灵 13、万圣 7（含 2 个 widget 段）、情人节 4、圣诞 2、麋鹿街 10（含 1 个 widget 段）。
+
+判定口径（对原版 16,087 段中四组命中 127 段逐段实测取值，不靠推断）：
+- ① 段首就是 `<<widget "xxx">>` —— widget 定义段（`Kylar Halloween Start`、`Widgets Halloween Whitney`、`Widgets Orphanage Christmas`、`Elk Compound Widgets`），play 它只会把 widget 重注册一遍，正文空白、零链接；
+- ② 段首**第一个控制宏**是 `<<if $molestationstart / $struggle_start / $fightstart / $sexstart …>>` —— 整段被「战斗/遭遇中继状态」包住，硬跳进去条件为假、正文空白、链接全灭（怨灵组 20+ 段、万圣组 `Wolf Halloween Fight*`、`Kylar Halloween Kneel/Oral/Lick`、情人节 `Avery Valentines Rape*`、`Missed Rage*`、麋鹿街 `Elk Compound Fight` 等 9 段）。
+- **不能只看「段落里出现过 $molestationstart」**：`Wolf Halloween 7`（4,415 字符）、`Avery Valentines End`、`Elk Compound Central` 首宏分别是 `$phase` / `<<avery_injury_check>>` / `<<set …>>`，属正常入口，一刀切会误杀 —— 实测已逐段枚举，断言 64.41 专门锁这一点。
+- 被剔除的段**不占 `seen`**，留给后面能匹配它的原组（例：`Kylar Halloween Start` 本属凯拉尔线）。
+- 取不到正文（`Story.get` 缺失）时不过滤、按可玩处理：**不因缺能力就少收**（断言 64.43 锁向后兼容）。
+
+### 三、note 口径修正
+
+`elk_compound` 组旧 note 写「含…怨灵线…」，实际 `Elk Compound` 前缀共 **70 段**，其中怨灵相关只有 4 段（`Wraith Give / Resist / Fight / Fight Finish`），怨灵主线其余 64 段不带该前缀。已改为实测口径并写明 9 段战斗起始段被过滤。
+
+### 四、验证
+
+`run_all.ps1` 12/12 全绿；新增断言 64.33–64.43（时间窗口 3 条 + 跨组不接管 2 条 + 可玩性过滤 5 条）；`tests/test_mce.js` 6,324 行。
 ## v2.0.14（2026-11-09 Dolonline 5.29 声明体系补口 + 战斗中补资源）
 
 ### 一、声明体系破口修复（本轮最要紧的一处）

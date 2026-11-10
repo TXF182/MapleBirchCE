@@ -142,7 +142,7 @@ function mbCELockTrace(Vp, path, before, after) {
 			return;
 		}
 		Vp.mbCE_wrote[key] = { type: "lock", path: path, before: before, after: after, t: Date.now(), last: Date.now() };
-	} catch (e) {}
+	} catch (e) { /* 留痕失败不影响锁定写回本身（trace 仅供回退预览） */ }
 }
 
 /* 强制写回：当前值 ≠ 锁定目标 → 先记留痕（mbCELockTrace）再写回。

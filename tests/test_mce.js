@@ -501,7 +501,7 @@ global.Story = { has: (n) => PLACE_NAMES.indexOf(n) !== -1, lookupWith: (fn) => 
 let lap10 = api.listAllPassages();
 assert(lap10.length === PLACE_NAMES.length, "listPlaceGroups 经 lookupWith 枚举全部段落, 实际 " + lap10.length);
 let pGroups = api.listPlaceGroups();
-assert(pGroups.length === 18, "场景分组 18 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island）, 实际 " + pGroups.length);
+assert(pGroups.length === 22, "场景分组 22 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组）, 实际 " + pGroups.length);
 let brV7 = pGroups.find(x => x.group.id === "brothel");
 assert(!!brV7 && brV7.group.main === "Brothel Basement" && brV7.items.length === 0 && brV7.group.name.indexOf("妓院") === 0, "v2.0.0.007 妓院组存在（主场景 Brothel Basement=地下妓院；模拟段落表无 Brothel 段 → items 空）, 实际 " + JSON.stringify(brV7 && brV7.group.main));
 let lvV7 = pGroups.find(x => x.group.id === "remy_livestock");
@@ -6103,6 +6103,220 @@ try {
 } catch (e63) {
   failures++;
   console.error("FAIL: 63 原版档案/收藏/头衔测试异常: " + (e63 && e63.stack ? e63.stack : e63));
+}
+
+// ===== 64 v2.0.15 剧情直达补 4 组：象牙怨灵 / 万圣节 / 情人节 / 圣诞（07d-places.js）=====
+/* 取证（本体 0.5.12.13 单行 HTML，全部实测）：
+   - 象牙怨灵：原版 $passageData 的测试直跳表里有 { link: ["Summon the Wraith","Wraith Test Start"],
+     widgets: [<<endcombat>>, <<run Time.timeTravel(new DateTime(Time.year,Time.month,Time.lastDayOfMonth,21,0))>>,
+     <<set $moonstate to "evening">>] } —— 即「Wraith Test Start」是原版自带的可直接 play 的入口，
+     且初始化三件套给出了权威前置清单。该段首行 <<set $outside to 0>><<set $location to "home">>
+     + <<generateWraith 1 true>>，自带生成与退出链接，不需要外部前置。
+   - 节日：原版不按段落判日期，而是 Time 每日例程按月份置存档旗标——
+     V.valentines=1 @2月6~14；V.halloween=1 @10月>=21；V.christmas=1 @12月18~25；
+     离开窗口会 delete V.halloween 并连带删 halloween_lake / halloweenWolves 等子旗标。
+     故 B 方案必须推进日期到窗口内让原版自己置旗标，只置标志会被次日例程清掉。 */
+try {
+  const api64 = setup.mbStageCE;
+  const V64 = global.V;
+  const bk64 = {
+    time: global.Time, dt: global.DateTime, story: global.Story,
+    wraith: V64.wraith, moonstate: V64.moonstate, wraithPrison: V64.wraithPrison,
+    phase: V64.phase, cool: V64.cool, av: V64.avery_valentines, food: V64.foodstuff
+  };
+  const FEST_NAMES = [
+    "Wraith Test Start", "Wraith Intro Pray", "Wraith Stalk",
+    "Lake Halloween Party", "Kylar Halloween", "Kylar Halloween Bed",
+    "Avery Valentines", "Avery Valentines 2", "Avery Valentines Missed",
+    "Christmas Mirror", "Christmas Mirror 2", "Eden Christmas Meal",
+    "Lake Stroll", "Lake Insect",
+    "Ivory Wraith Stalk", "Gwylan Talk Clothes Halloween", "Bedroom Robin Christmas Wrap"
+  ];
+  global.Story = {
+    has: (n) => FEST_NAMES.indexOf(n) !== -1,
+    lookupWith: (fn) => FEST_NAMES.map(n => ({ name: n, text: "" })).filter(fn)
+  };
+  const pg64 = api64.listPlaceGroups();
+
+  const gW = pg64.find(x => x.group.id === "wraith");
+  assert(!!gW, "64.1 怨灵组存在");
+  assert(gW.group.main === "Wraith Test Start", "64.2 怨灵主场景 = 原版 Summon the Wraith 载入段, 实际 " + gW.group.main);
+  assert(gW.items[0] === "Wraith Test Start" && gW.items.length === 4 && gW.items.indexOf("Ivory Wraith Stalk") !== -1,
+    "64.3 怨灵组收录 Wraith/Ivory Wraith 前缀 4 段且主场景置顶（Ivory Wraith 前缀也归本组）, 实际 " + JSON.stringify(gW.items));
+
+  const gH = pg64.find(x => x.group.id === "halloween");
+  assert(!!gH && gH.group.main === "Lake Halloween Party", "64.4 万圣节组主场景 = Lake Halloween Party, 实际 " + (gH && gH.group.main));
+  assert(gH.items.indexOf("Lake Halloween Party") !== -1 && gH.items.indexOf("Kylar Halloween") !== -1
+    && gH.items.indexOf("Gwylan Talk Clothes Halloween") === -1,
+    "64.5 万圣节组吃到派对段与凯拉尔段，但不抢格威兰换装线（Gwylan Talk 前缀留在 gwylan_garden）, 实际 " + JSON.stringify(gH.items));
+  const gL = pg64.find(x => x.group.id === "lake");
+  assert(gL.items.indexOf("Lake Halloween Party") === -1 && gL.items.indexOf("Lake Stroll") !== -1, "64.6 湖畔组不重复收录万圣节派对段（先占先得无跨组重复）, 实际 " + JSON.stringify(gL.items));
+
+  const gV = pg64.find(x => x.group.id === "valentines");
+  assert(!!gV && gV.group.main === "Avery Valentines", "64.7 情人节组主场景 = Avery Valentines, 实际 " + (gV && gV.group.main));
+  assert(gV.items[0] === "Avery Valentines" && gV.items.length === 3, "64.8 情人节组 3 段且主场景置顶, 实际 " + JSON.stringify(gV.items));
+
+  const gC = pg64.find(x => x.group.id === "christmas");
+  assert(!!gC && gC.group.main === "Christmas Mirror", "64.9 圣诞组主场景 = Christmas Mirror, 实际 " + (gC && gC.group.main));
+  assert(gC.items[0] === "Christmas Mirror" && gC.items.length === 3 && gC.items.indexOf("Bedroom Robin Christmas Wrap") === -1,
+    "64.10 圣诞组 3 段且主场景置顶，且不抢 Bedroom Robin Christmas Wrap（留在 bedroom 组）, 实际 " + JSON.stringify(gC.items));
+
+  /* 64.11~64.16 象牙怨灵：时间通道 + $wraith 八字段 + 月相 */
+  const travels64 = [];
+  global.DateTime = function (y, mo, d, h, mi) { this.y = y; this.mo = mo; this.d = d; this.h = h; this.mi = mi; };
+  global.Time = { year: 2026, month: 11, monthDay: 25, lastDayOfMonth: 30, timeTravel: function (dt) { travels64.push(dt); } };
+  delete V64.wraith; delete V64.moonstate;
+  api64.ensureSceneStateFor("Wraith Test Start");
+  assert(!!V64.wraith && V64.wraith.init === 1 && V64.wraith.hunt === 0 && V64.wraith.nightmare === 0,
+    "64.11 怨灵直达 → 补 $wraith 壳（init=1/hunt=0/nightmare=0）, 实际 " + JSON.stringify(V64.wraith));
+  assert(["init", "seen", "days", "defeated", "evaded", "nightmare", "timer", "hunt"].every(k => k in V64.wraith),
+    "64.12 $wraith 八字段齐（对齐原版 checkWraith 初始化）, 实际 " + Object.keys(V64.wraith).join(","));
+  assert(V64.moonstate === "evening", "64.13 月相补 evening（原版 Summon the Wraith 同值）, 实际 " + V64.moonstate);
+  assert(travels64.length === 1 && travels64[0].mo === 11 && travels64[0].d === 30 && travels64[0].h === 21 && travels64[0].mi === 0,
+    "64.14 时间推进到当月最后一天 21:00（原版三件套口径）, 实际 " + JSON.stringify(travels64[0]));
+  V64.wraith.hunt = 8; V64.wraith.seen = 5;
+  api64.ensureSceneStateFor("Wraith Intro Pray");
+  assert(V64.wraith.hunt === 8 && V64.wraith.seen === 5, "64.15 已有 $wraith 进度不被覆盖（hunt=8/seen=5 保留）, 实际 hunt=" + V64.wraith.hunt);
+
+  /* 64.17~64.20 万圣节 */
+  delete V64.phase; delete V64.cool;
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Lake Halloween Party");
+  assert(travels64.length === 1 && travels64[0].mo === 10 && travels64[0].d === 28,
+    "64.17 万圣节 → 时间推进到 10 月 28 日（落在 V.halloween 置 1 的 >=21 窗口）, 实际 " + JSON.stringify(travels64[0]));
+  assert(V64.phase === 0, "64.18 万圣节派对 $phase 补 0（走湖岸篝火分支，而非湖畔默认 1）, 实际 " + V64.phase);
+  assert(V64.cool === 240, "64.19 $cool 补 240（原版 gte 240 = 欢呼最高档；0 会读到「没人理你」）, 实际 " + V64.cool);
+  V64.phase = 2;
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Lake Halloween Party");
+  assert(V64.phase === 2, "64.20 已有 $phase=2 不被覆盖, 实际 " + V64.phase);
+
+  /* 64.21~64.25 情人节 */
+  delete V64.avery_valentines; delete V64.foodstuff;
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Avery Valentines");
+  assert(travels64.length === 1 && travels64[0].mo === 2 && travels64[0].d === 10,
+    "64.21 情人节 → 时间推进到 2 月 10 日（落在 V.valentines 的 6~14 窗口）, 实际 " + JSON.stringify(travels64[0]));
+  const AV64 = ["intro", "invite", "ready", "done", "reservation", "chocolate", "chocolate_asked", "opinion",
+    "confess", "food", "soften", "talk", "talk_count", "sex", "end", "end_talk", "missed_approach"];
+  assert(!!V64.avery_valentines && AV64.every(k => k in V64.avery_valentines),
+    "64.22 $avery_valentines 十七字段齐（逐字对齐原版每日例程建壳）, 实际 " + Object.keys(V64.avery_valentines || {}).join(","));
+  assert(V64.avery_valentines.invite === false && V64.avery_valentines.opinion === "none" && V64.avery_valentines.talk_count === 0,
+    "64.23 字段默认值对齐原版（invite=false / opinion=none / talk_count=0）");
+  assert(!!V64.foodstuff && !!V64.foodstuff.valentines_chocolate && typeof V64.foodstuff.valentines_chocolate.amount === "number",
+    "64.24 补 $foodstuff.valentines_chocolate.amount（段落读 .amount gte 1，缺对象会 TypeError）, 实际 " + JSON.stringify(V64.foodstuff && V64.foodstuff.valentines_chocolate));
+  V64.avery_valentines.done = true;
+  api64.ensureSceneStateFor("Avery Valentines");
+  assert(V64.avery_valentines.done === true && V64.avery_valentines.invite === false,
+    "64.25 已有情人节进度不被覆盖（done=true 保留）");
+
+  /* 64.26~64.28 圣诞 */
+  delete V64.wraith; delete V64.wraithPrison;
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Christmas Mirror");
+  assert(travels64.length === 1 && travels64[0].mo === 12 && travels64[0].d === 22,
+    "64.26 圣诞 → 时间推进到 12 月 22 日（落在 V.christmas 的 18~25 窗口）, 实际 " + JSON.stringify(travels64[0]));
+  assert(!!V64.wraith && V64.wraith.seen >= 3, "64.27 圣诞镜段落守卫 $wraith.seen gte 3 达成, 实际 seen=" + (V64.wraith && V64.wraith.seen));
+  assert(V64.wraithPrison === false, "64.28 $wraithPrison 补 false（段落读该守卫）, 实际 " + V64.wraithPrison);
+
+  /* 64.29~64.31 边界：普通湖畔段不被节日分支截获 / Time 缺 timeTravel 不崩 */
+  V64.phase = 0; V64.cool = 0;
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Lake Stroll");
+  assert(V64.phase === 0, "64.29 普通湖畔段走原湖畔分支且合法值 0 不被覆盖（末被节日分支截获）, 实际 " + V64.phase);
+  V64.phase = 9;
+  api64.ensureSceneStateFor("Lake Stroll");
+  assert(V64.phase === 1, "64.30 湖畔分支非法 $phase=9 校正到 1（0-2 才是合法档）, 实际 " + V64.phase);
+  assert(travels64.length === 0, "64.31 普通湖畔段不推进时间（原地不动）, 实际 " + travels64.length);
+  global.Time = { year: 2026, month: 11, lastDayOfMonth: 30 };
+  delete V64.wraith; delete V64.moonstate;
+  api64.ensureSceneStateFor("Wraith Test Start");
+  assert(V64.moonstate === "evening" && !!V64.wraith, "64.31 Time 无 timeTravel 时不崩，仍补状态壳");
+
+  /* 64.33~64.38 精度轮：时间窗口语义（已在窗口内不动 / 跨月回拨明示）+ 跨组不接管 */
+  global.Time = { year: 2026, month: 10, monthDay: 25, lastDayOfMonth: 31, timeTravel: function (dt) { travels64.push(dt); } };
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Lake Halloween Party");
+  assert(travels64.length === 0, "64.33 已在万圣节窗口内（10-25，窗口 21~31）→ 完全不碰日期, 实际 " + JSON.stringify(travels64));
+  global.Time = { year: 2026, month: 10, monthDay: 31, lastDayOfMonth: 31, timeTravel: function (dt) { travels64.push(dt); } };
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Lake Halloween Party");
+  assert(travels64.length === 0, "64.34 窗口右端 10-31 也不推（旧实现只比 day>=28，会误判）, 实际 " + travels64.length);
+
+  global.Time = { year: 2026, month: 2, monthDay: 6, lastDayOfMonth: 28, timeTravel: function (dt) { travels64.push(dt); } };
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Avery Valentines");
+  assert(travels64.length === 0, "64.35 情人节窗口下端 2-6 不动（原版判定 monthDay 6~14 含边界）, 实际 " + travels64.length);
+
+  global.Time = { year: 2026, month: 3, monthDay: 15, lastDayOfMonth: 31, timeTravel: function (dt) { travels64.push(dt); } };
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Christmas Mirror");
+  assert(travels64.length === 1 && travels64[0].mo === 12 && travels64[0].d === 22 && travels64[0].y === 2026,
+    "64.36 3 月点圣诞 → 回拨到同年 12-22（不回拨就永远玩不到，故为功能本意）, 实际 " + JSON.stringify(travels64[0]));
+
+  travels64.length = 0;
+  V64.phase = 0; V64.cool = 240;
+  api64.ensureSceneStateFor("Gwylan Talk Clothes Halloween");
+  assert(travels64.length === 0 && V64.phase === 0 && V64.cool === 240,
+    "64.37 格威兰换装段不被节日分支接管（不推日期、不动 phase/cool）, 实际 travels=" + travels64.length);
+  travels64.length = 0;
+  api64.ensureSceneStateFor("Bedroom Robin Christmas Wrap");
+  assert(travels64.length === 0, "64.38 Bedroom Robin Christmas Wrap 不被圣诞分支接管（不以 Christmas 前缀开头）, 实际 " + travels64.length);
+
+  /* 64.39~64.43 可玩性过滤：<<widget>> 定义段与战斗起始段不入组，正常段不被误杀
+     正文样例取自原版实测（%TEMP%\mce_playability.txt 127 段逐段扫描的首宏形态） */
+  const PLAYABLE_MOCK = {
+    "Kylar Halloween Start": '<<widget "halloweenkylar">>\n\t<<npc Kylar>>',
+    "Wraith Stalk": '<<if $molestationstart is 1>>\n\t<<set $molestationstart to 0>>',
+    "Wolf Halloween 7": '<<effects>>\n\n<<if $phase is 0>>\n\tYou creep around the unaware.\n<<if $molestationstart is 1>>',
+    "Elk Compound": '<<set $outside to 1>><<set $location to "compound">>\n\nThe compound.',
+    "Elk Compound Widgets": '<<widget "resetCompound">>\n\t<<set $compound to {}>>',
+    "Elk Compound Fight": '<<if $fightstart is 1>>\n\t<<set $fightstart to 0>>',
+    "Elk Compound Central": '<<set $outside to 1>><<set $location to "compound">>\n\nYou enter the central hall.'
+  };
+  const playNames = FEST_NAMES.concat(Object.keys(PLAYABLE_MOCK));
+  global.Story = {
+    has: (n) => playNames.indexOf(n) !== -1,
+    lookupWith: (fn) => playNames.map(n => ({ name: n, text: PLAYABLE_MOCK[n] || "" })).filter(fn),
+    get: (n) => (PLAYABLE_MOCK[n] ? { title: n, text: PLAYABLE_MOCK[n] } : undefined)
+  };
+  const pg64b = api64.listPlaceGroups();
+  const gWb = pg64b.find(x => x.group.id === "wraith");
+  const gHb = pg64b.find(x => x.group.id === "halloween");
+  const gEb = pg64b.find(x => x.group.id === "elk_compound");
+  assert(!!gWb && gWb.items.indexOf("Wraith Stalk") === -1 && gWb.items.length === 3,
+    "64.39 首宏是 <<if $molestationstart …>> 的中继段不入组（Wraith Stalk 被剔除，余 3 段）, 实际 " + JSON.stringify(gWb && gWb.items));
+  assert(!!gHb && gHb.items.indexOf("Kylar Halloween Start") === -1,
+    "64.40 <<widget>> 定义段不入组（Kylar Halloween Start 被剔除）, 实际 " + JSON.stringify(gHb && gHb.items));
+  assert(!!gHb && gHb.items.indexOf("Wolf Halloween 7") !== -1,
+    "64.41 含 $molestationstart 但首宏是 $phase 的正常段不被误杀（Wolf Halloween 7 保留）, 实际 " + JSON.stringify(gHb && gHb.items));
+  assert(!!gEb && gEb.items.indexOf("Elk Compound Widgets") === -1 && gEb.items.indexOf("Elk Compound Fight") === -1
+    && gEb.items.indexOf("Elk Compound Central") !== -1,
+    "64.42 麋鹿街大院同口径过滤（widget 定义段 + $fightstart 起始段剔除，正常段保留）, 实际 " + JSON.stringify(gEb && gEb.items));
+  global.Story = { has: (n) => FEST_NAMES.indexOf(n) !== -1, lookupWith: (fn) => FEST_NAMES.map(n => ({ name: n, text: "" })).filter(fn) };
+  const pg64c = api64.listPlaceGroups();
+  const gWc = pg64c.find(x => x.group.id === "wraith");
+  assert(gWc.items.length === 4 && gWc.items.indexOf("Wraith Stalk") !== -1,
+    "64.43 取不到正文（Story.get 缺失）时不过滤，items 回到 4 段（不因缺能力就少收）, 实际 " + JSON.stringify(gWc.items));
+  global.Story = bk64.story;
+  /* 64.32 中文词条（主场景行「★ 中文」依赖 PLACE_CN） */
+  assert(typeof api64.placeNameCN === "function" && api64.placeNameCN("Lake Halloween Party").indexOf("万圣节") !== -1,
+    "64.32 placeNameCN 含「万圣节」词条, 实际 " + (typeof api64.placeNameCN === "function" ? api64.placeNameCN("Lake Halloween Party") : "no-api"));
+
+  // 收尾还原
+  if (bk64.story === undefined) { delete global.Story; } else { global.Story = bk64.story; }
+  if (bk64.time === undefined) { delete global.Time; } else { global.Time = bk64.time; }
+  if (bk64.dt === undefined) { delete global.DateTime; } else { global.DateTime = bk64.dt; }
+  if (bk64.wraith === undefined) { delete V64.wraith; } else { V64.wraith = bk64.wraith; }
+  if (bk64.moonstate === undefined) { delete V64.moonstate; } else { V64.moonstate = bk64.moonstate; }
+  if (bk64.wraithPrison === undefined) { delete V64.wraithPrison; } else { V64.wraithPrison = bk64.wraithPrison; }
+  if (bk64.phase === undefined) { delete V64.phase; } else { V64.phase = bk64.phase; }
+  if (bk64.cool === undefined) { delete V64.cool; } else { V64.cool = bk64.cool; }
+  if (bk64.av === undefined) { delete V64.avery_valentines; } else { V64.avery_valentines = bk64.av; }
+  if (bk64.food === undefined) { delete V64.foodstuff; } else { V64.foodstuff = bk64.food; }
+} catch (e64) {
+  failures++;
+  console.error("FAIL: 64 v2.0.15 剧情直达四组测试异常: " + (e64 && e64.stack ? e64.stack : e64));
 }
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");

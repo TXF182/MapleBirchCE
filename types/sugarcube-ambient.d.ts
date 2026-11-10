@@ -8,6 +8,7 @@ declare const setup: any;
 declare const Story: any;
 declare const Engine: any;
 declare const Time: any;
+declare const DateTime: any; /* SugarCube 的日期构造器：Time.timeTravel(new DateTime(y, m, d, h, min)) 的入参类型（v2.0.15 节日时间通道） */
 declare const SugarCube: any;
 declare const Wikifier: any;
 declare const T: any;

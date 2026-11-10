@@ -53,7 +53,7 @@
 		} catch (e) { mceSecFoldMap = {}; }
 		if (open === undefined) { return mceSecFoldMap[key] === 1; } /* 缺省 = 收起 */
 		mceSecFoldMap[key] = open ? 1 : 0;
-		try { if (window.localStorage) { window.localStorage.setItem(MCE_SEC_FOLD_KEY, JSON.stringify(mceSecFoldMap)); } } catch (e) {}
+		try { if (window.localStorage) { window.localStorage.setItem(MCE_SEC_FOLD_KEY, JSON.stringify(mceSecFoldMap)); } } catch (e) { /* 持久化失败（隐私模式/配额满）→ 折叠状态本次会话内仍生效，仅刷新后丢失 */ }
 		return open;
 	}
 	/* 带编号区块（可折叠）：返回区块的 body 容器，后续照旧 sec.appendChild(...) */

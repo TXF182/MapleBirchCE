@@ -63,7 +63,7 @@
 			if (typeof st.eggs !== "number") { st.eggs = 0; }
 			if (typeof st.milk !== "number") { st.milk = 0; }
 			if (typeof st.cream !== "number") { st.cream = 0; }
-		} catch (e) {}
+		} catch (e) { /* farm/stock 结构异常时跳过补齐（不凭空造 farm 根，交由上层拒绝） */ }
 	}
 	function ensureAveryMansion() {
 		try {
@@ -140,7 +140,7 @@
 					dav.housekeeping_events = {};
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 艾弗里线结构兜底整体失败（存档只读/被冻结）→ 不阻断直达与重放，由目标段落自身兜底 */ }
 	}
 	function pinScene(it) {
 		try {

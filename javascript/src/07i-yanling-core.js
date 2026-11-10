@@ -65,7 +65,7 @@
 			if (!V) { return; }
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["yanling:" + op] = { type: "yanling", modId: "vanilla", op: op, before: before, after: after, t: Date.now() };
-		} catch (e) {}
+		} catch (e) { /* 留痕失败不影响本次言灵写入结果（留痕仅供回退参考） */ }
 	}
 
 	/* 运行期覆盖 window.isCrossdressing（幂等）：已装则跳过；被第三方重包则以新函数为上游重新包裹。
@@ -224,7 +224,7 @@
 				var arr = V.backgroundTraits;
 				if (arr && typeof arr.indexOf === "function" && arr.indexOf("crossdresser") !== -1) { arr.splice(arr.indexOf("crossdresser"), 1); }
 			}
-		} catch (e) {}
+		} catch (e) { /* 异装清理失败时保留原值不清零（避免半清理状态），下次调用重试 */ }
 	}
 	/** @type {any} 浏览器里是 number，Node/jsdom 里是 Timeout（带 unref） */
 	var mbCEYanlingTimer = null;

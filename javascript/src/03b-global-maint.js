@@ -258,13 +258,13 @@
 					}
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 本地配置缺失或解析失败 → 返回已累积的默认状态（自动维护回落为关闭） */ }
 		return st;
 	}
 	function mcAutoSave(st) {
 		try {
 			if (typeof localStorage !== "undefined") { localStorage.setItem("mbCE_auto", JSON.stringify(st)); }
-		} catch (e) {}
+		} catch (e) { /* 存储不可用（隐私模式/配额满）→ 配置不持久化，本次会话内仍生效 */ }
 	}
 	function mcAutoIsOn(key) {
 		return !!mcAutoState().items[key];

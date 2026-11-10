@@ -122,7 +122,7 @@
 							if (V[c.key][c.val.field] !== c.val.value) { V[c.key][c.val.field] = c.val.value; stories += 1; }
 						}
 					}
-				} catch (e) {}
+				} catch (e) { /* 单条解锁条件应用失败即跳过，其余条件继续（不中断整批） */ }
 			}
 			setup.specialClothes.forEach(function (item) {
 				/* v1.9.28：逐项守卫——坏条目（null/非对象/缺 name）跳过不中断，避免单条异常中止整批解锁 */
@@ -146,7 +146,7 @@
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:global:unlockClothes"] = { type: "batch", modId: "global", op: "global_unlock:clothes", count: n, stories: stories, t: Date.now() };
 			mbCEWroteTrim(V);
-		} catch (e) {}
+		} catch (e) { /* 异常不阻断统计返回：unlocked/stories 按已处理数上报 */ }
 		return { unlocked: n, stories: stories };
 	}
 	function globalUnlockRecipes() {
@@ -172,7 +172,7 @@
 				V.mbCE_wrote["cheat:global:unlockRecipes"] = { type: "batch", modId: "global", op: "global_unlock:recipes", count: n, t: Date.now() };
 				mbCEWroteTrim(V);
 			}
-		} catch (e) {}
+		} catch (e) { /* 异常不阻断统计返回：unlocked 按已处理数上报 */ }
 		return { unlocked: n };
 	}
 

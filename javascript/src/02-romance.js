@@ -130,7 +130,7 @@
 				if (wrote) { recordNativeLoveWrite(name); }
 				return wrote;
 			}
-		} catch (e) {}
+		} catch (e) { /* 写入异常（存档只读/结构异常）→ 交由下方 return false 上报，不外抛打断面板流程 */ }
 		return false;
 	}
 	function recordNativeLoveWrite(name) {
@@ -139,7 +139,7 @@
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["romance:native:" + String(name).toLowerCase()] = { type: "native", path: "loveInterest", value: name, name: name, t: Date.now() }; /* 十巡：补 t 时间戳，否则 trim 排序兜底 0 永远优先裁剪本条目 */
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
-		} catch (e) {}
+		} catch (e) { /* 留痕写失败不影响恋人写入结果（留痕仅供回退参考） */ }
 	}
 
 	/* 条件静态解析（读取函数源码，绝不 eval）：

@@ -115,7 +115,7 @@
 					toggleBtn.title = "Maplebirch CE 剧情条件解锁面板（拖动已锁定：点击开关面板，到「全局」页解锁拖动）";
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 读不到悬浮球偏好（隐私模式/配额满/JSON 损坏）→ 保留默认位置与显示状态 */ }
 		var drag = { on: false, moved: false, sx: 0, sy: 0, l: 0, t: 0, bw: 56, bh: 56, nx: 0, ny: 0, raf: 0 };
 		/* v1.9.11+ 自查：绑定守卫——ModLoader 热重载复用同一 #mce-toggle 时跳过重复 addEventListener，
 		   否则 click 监听堆叠会导致一次点击多次开关面板 */
@@ -170,7 +170,7 @@
 					if (typeof localStorage !== "undefined" && localStorage) {
 						localStorage.setItem("mbCE_toggle_pos_v1", JSON.stringify({ left: nl, top: nt }));
 					}
-				} catch (e2) {}
+				} catch (e2) { /* 位置持久化失败 → 位置本次会话仍生效，仅刷新后回到默认位 */ }
 			}
 		}
 		toggleBtn.addEventListener("pointerup", tgDragEnd);

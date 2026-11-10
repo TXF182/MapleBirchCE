@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.14";
+	var MCE_VERSION = "2.0.15";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -660,7 +660,7 @@
 				if (wrote) { recordNativeLoveWrite(name); }
 				return wrote;
 			}
-		} catch (e) {}
+		} catch (e) { /* 写入异常（存档只读/结构异常）→ 交由下方 return false 上报，不外抛打断面板流程 */ }
 		return false;
 	}
 	function recordNativeLoveWrite(name) {
@@ -669,7 +669,7 @@
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["romance:native:" + String(name).toLowerCase()] = { type: "native", path: "loveInterest", value: name, name: name, t: Date.now() }; /* 十巡：补 t 时间戳，否则 trim 排序兜底 0 永远优先裁剪本条目 */
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
-		} catch (e) {}
+		} catch (e) { /* 留痕写失败不影响恋人写入结果（留痕仅供回退参考） */ }
 	}
 
 	/* 条件静态解析（读取函数源码，绝不 eval）：
@@ -995,7 +995,7 @@
 							if (V[c.key][c.val.field] !== c.val.value) { V[c.key][c.val.field] = c.val.value; stories += 1; }
 						}
 					}
-				} catch (e) {}
+				} catch (e) { /* 单条解锁条件应用失败即跳过，其余条件继续（不中断整批） */ }
 			}
 			setup.specialClothes.forEach(function (item) {
 				/* v1.9.28：逐项守卫——坏条目（null/非对象/缺 name）跳过不中断，避免单条异常中止整批解锁 */
@@ -1019,7 +1019,7 @@
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["cheat:global:unlockClothes"] = { type: "batch", modId: "global", op: "global_unlock:clothes", count: n, stories: stories, t: Date.now() };
 			mbCEWroteTrim(V);
-		} catch (e) {}
+		} catch (e) { /* 异常不阻断统计返回：unlocked/stories 按已处理数上报 */ }
 		return { unlocked: n, stories: stories };
 	}
 	function globalUnlockRecipes() {
@@ -1045,7 +1045,7 @@
 				V.mbCE_wrote["cheat:global:unlockRecipes"] = { type: "batch", modId: "global", op: "global_unlock:recipes", count: n, t: Date.now() };
 				mbCEWroteTrim(V);
 			}
-		} catch (e) {}
+		} catch (e) { /* 异常不阻断统计返回：unlocked 按已处理数上报 */ }
 		return { unlocked: n };
 	}
 
@@ -1309,13 +1309,13 @@
 					}
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 本地配置缺失或解析失败 → 返回已累积的默认状态（自动维护回落为关闭） */ }
 		return st;
 	}
 	function mcAutoSave(st) {
 		try {
 			if (typeof localStorage !== "undefined") { localStorage.setItem("mbCE_auto", JSON.stringify(st)); }
-		} catch (e) {}
+		} catch (e) { /* 存储不可用（隐私模式/配额满）→ 配置不持久化，本次会话内仍生效 */ }
 	}
 	function mcAutoIsOn(key) {
 		return !!mcAutoState().items[key];
@@ -1445,7 +1445,7 @@
 			var key = parsed.type + ":" + (parsed.path || npcName) + ":" + (parsed.value || "");
 			V.mbCE_wrote[key] = { type: parsed.type, path: parsed.path || "", value: parsed.value || "", npc: npcName, t: Date.now() };
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
-		} catch (e) {}
+		} catch (e) { /* 留痕失败不影响本次恋爱写入结果（留痕仅供回退） */ }
 	}
 	function recordVanillaWrite(key) {
 		try {
@@ -1454,7 +1454,7 @@
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["vanilla:" + key] = { type: "vanilla", key: key, npc: "Gwylan", t: Date.now() };
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
-		} catch (e) {}
+		} catch (e) { /* 留痕失败不影响原版写入结果（留痕仅供回退） */ }
 	}
 	function fillGwylanLoveMax() {
 		try {
@@ -1489,7 +1489,7 @@
 			var V = getV();
 			if (V.gwylan && typeof V.gwylan === "object") { V.gwylan.wary = 0; }
 			else { V.gwylan = { wary: 0 }; }
-		} catch (e) {}
+		} catch (e) { /* 写入失败时保持原值不清零，下次调用重试 */ }
 	}
 	function vanillaNpcPregnant(name) {
 		try { if (typeof npcIsPregnant === "function") { return !!npcIsPregnant(name); } } catch (e) {}
@@ -4712,13 +4712,14 @@ function mbCEFertRenderChildren(container) {
 			top.appendChild(el("span", "mce-card-name", "▶ " + m.modName));
 			top.appendChild(el("span", "mce-badge " + (m.declared ? "mce-on" : "mce-off"), m.declared ? "可操控" : "未声明"));
 			row.appendChild(top);
-			if (!m.declared) {
-				row.appendChild(el("div", "mce-hint", "该模组未按注册协议声明可操控项，仅识别展示（不提供操控）。"));
-			} else {
-				row.addEventListener("click", (function (mod) {
-					return function () { curCheatModId = mod.modId; renderModCheatDetail(mod.modId); };
-				})(m));
-			}
+			/* 已删去「未声明模组」守卫（原 if (!m.declared) 提示 / else 绑点击）：m.declared 在当前
+			   输入域恒为 true —— 注册表项经 normalizeCheatMod 强制 declared:true（04c-modcheat-util.js:4），
+			   唯一写 declared:false 的 CHEAT_PASSIVE_PROBES 在 03d-global-modzh.js:122 建空数组后全仓无 push，
+			   故该守卫无可达输入。若将来被动探针被填充或新增 declared:false 来源，必须在此恢复
+			   「未声明项不绑点击、只展示提示」的守卫（否则未声明模组会被误开子页）。 */
+			row.addEventListener("click", (function (mod) {
+				return function () { curCheatModId = mod.modId; renderModCheatDetail(mod.modId); };
+			})(m));
 			list.appendChild(row);
 		});
 		pane.appendChild(list);
@@ -4844,16 +4845,13 @@ function mbCEFertRenderChildren(container) {
 				}
 				return;
 			}
-			/* 分片：先同步建首批 BATCH 行（点击展开立刻可见内容），剩余入队逐帧排空 */
+			/* 分片：先同步建首批 BATCH 行（点击展开立刻可见内容），剩余入队逐帧排空。
+			   注：本路径入口已保证 pend.length > MOD_ROW_BATCH_LIMIT(60) > MOD_ROW_BATCH(40)，
+			   故不存在「首批已排空剩余」的分支（已删去恒假的 <=40 判定）；首批失败与
+			   后续分片失败统一由 modRowStep 收尾按 t.failed 提示，提示语义不变。 */
 			var first = Math.min(MOD_ROW_BATCH, pend.length);
 			for (var fi = 0; fi < first; fi++) {
 				try { appendRowNodes(grp.body, pend[fi]()); } catch (e) { failed++; }
-			}
-			if (pend.length <= MOD_ROW_BATCH) {
-				if (failed) {
-					grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
-				}
-				return;
 			}
 			var task = { body: grp.body, fns: pend.slice(first), i: 0, failed: failed };
 			modRowQueue.push(task);
@@ -4881,19 +4879,23 @@ function mbCEFertRenderChildren(container) {
 	function actCheat(res, modId, key) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
 		/* 五巡：操作后局部刷新目标行（不再全量重建整个模组页——高频操作下 DOM churn 是卡顿/闪退累积源之一） */
-		if (modId && key) {
-			var pane = root.querySelector('[data-pane="mods"]');
-			if (pane && refreshModRow(pane, modId, key)) {
-				/* v1.9.14 效果2：写入成功 → 刷新回显后的目标行金底闪烁（反馈落在可见新值上） */
-				if (res && res.ok) {
-					var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
-					var newRow = pane.querySelector('[data-mce-key="' + esc + '"]');
-					if (newRow) { mbCEFlash(newRow); }
-				}
-				return;
+		/* 已删两层恒真判定（原 `if (modId && key)` 包住整块、其后再 `if (modId)` 包 renderModCheatDetail）：
+		   13 个调用点（05a2-modcheat-rows-build.js）全部传 m.modId 与 "tasks:"+t.key 这类字面拼接（至少含前缀故
+		   恒非空）；m.modId 由 getCheatMods 三源过滤空 id 保证（05a2:8 注册项 / 05a2:22 被动探针 / 适配器 entry
+		   经 04c normalizeCheatMod 透传）⇒ modId 与 key 均为真值。
+		   化简后行为等价：pane 取不到或局部刷新落空即落到 renderModCheatDetail（与原 else 分支同一行、同一结果）。
+		   若将来出现「无 modId」或「无 key」的调用形态，必须在此恢复这两层判定。 */
+		var pane = root.querySelector('[data-pane="mods"]');
+		if (pane && refreshModRow(pane, modId, key)) {
+			/* v1.9.14 效果2：写入成功 → 刷新回显后的目标行金底闪烁（反馈落在可见新值上） */
+			if (res && res.ok) {
+				var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
+				var newRow = pane.querySelector('[data-mce-key="' + esc + '"]');
+				if (newRow) { mbCEFlash(newRow); }
 			}
+			return;
 		}
-		if (modId) { renderModCheatDetail(modId); }
+		renderModCheatDetail(modId);
 	}
 	/* 阶段下拉回显公共（渲染与局部刷新共用，v1.4.4 行为保持） */
 	function reflectStageSelect(sel, s, modId) {
@@ -6943,7 +6945,7 @@ function renderPlayerEdit() {
 		} catch (e) { mceSecFoldMap = {}; }
 		if (open === undefined) { return mceSecFoldMap[key] === 1; } /* 缺省 = 收起 */
 		mceSecFoldMap[key] = open ? 1 : 0;
-		try { if (window.localStorage) { window.localStorage.setItem(MCE_SEC_FOLD_KEY, JSON.stringify(mceSecFoldMap)); } } catch (e) {}
+		try { if (window.localStorage) { window.localStorage.setItem(MCE_SEC_FOLD_KEY, JSON.stringify(mceSecFoldMap)); } } catch (e) { /* 持久化失败（隐私模式/配额满）→ 折叠状态本次会话内仍生效，仅刷新后丢失 */ }
 		return open;
 	}
 	/* 带编号区块（可折叠）：返回区块的 body 容器，后续照旧 sec.appendChild(...) */
@@ -7336,7 +7338,7 @@ function renderPlayerEdit() {
 					mbCEUiState.diffPreview = (obj.diffPreview === "1" || obj.diffPreview === "true") ? "1" : "0";
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 读不到偏好 → 保留默认 UI 状态 */ }
 	}
 	function mbCEUiSave(partial) {
 		try {
@@ -7358,7 +7360,7 @@ function renderPlayerEdit() {
 			if (typeof localStorage !== "undefined" && localStorage) {
 				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));
 			}
-		} catch (e) {}
+		} catch (e) { /* 持久化失败 → 偏好仅本次会话生效，不打断面板操作 */ }
 	}
 	function mbCEUiCollapsed(tcat, open) {
 		mbCEUiState.collapsed[tcat] = open ? 0 : 1;
@@ -7532,7 +7534,7 @@ function renderPlayerEdit() {
 					mbCEPushError(ev && ev.message ? ev.message : "未知错误",
 						ev && ev.filename ? ev.filename + (ev.lineno ? ":" + ev.lineno : "") : "",
 						e && e.stack ? e.stack : "");
-				} catch (e2) {}
+				} catch (e2) { /* 错误池上报自身失败必须静默，避免级联二次错误 */ }
 			});
 			/* v1.8.12 优化：Promise 拒绝（未捕获的 async/await 异常）同样进面板 */
 			if (typeof window.addEventListener === "function") {
@@ -7542,7 +7544,7 @@ function renderPlayerEdit() {
 						mbCEPushError("未处理的 Promise 拒绝：" + (r && r.message ? r.message : (r ? String(r) : "未知原因")),
 							"unhandledrejection",
 							r && r.stack ? r.stack : "");
-					} catch (e2) {}
+					} catch (e2) { /* 错误池上报自身失败必须静默，避免级联二次错误 */ }
 				});
 			}
 			if (window.console && typeof window.console.error === "function") {
@@ -7555,11 +7557,11 @@ function renderPlayerEdit() {
 							parts.push(a && a.stack ? a.stack : String(a));
 						}
 						mbCEPushError(parts.join(" | "), "console.error", "");
-					} catch (e2) {}
+					} catch (e2) { /* 上报失败不得阻断后续 origErr 输出 */ }
 					origErr.apply(this, /** @type {any} */ (arguments));
 				};
 			}
-		} catch (e) {}
+		} catch (e) { /* 钩子安装失败不阻断面板加载（退化为无全局错误采集） */ }
 	}
 
 	/* ---- 角色一览卡片（v1.9.0：按类型拆子页面，按钮展开/收起） ---- */
@@ -7825,6 +7827,8 @@ function renderPlayerEdit() {
 	     不硬编码段落清单：按前缀/关键词在 Story 段落里动态枚举，MOD 新增段落自动收录；
 	     组 = 主场景，组内各段落 = 子场景，main 段落排最前并标注「主」。============ */
 	var PLACE_GROUPS = [
+		/* v2.0.15 剧情入口四组（象牙怨灵 / 万圣节 / 情人节 / 圣诞）登记在 07d-places3.js：
+		   用 unshift 插到本数组最前（listPlaceGroups 靠 seen 先占先得，"Lake Halloween Party" 否则会被 lake 组吃掉）。 */
 		{ id: "orphanage_loft", name: "孤儿院 · 阁楼", match: function (n) { return n.indexOf("Orphanage Loft") === 0; }, main: "Orphanage Loft", note: "孤儿院上方的阁楼（隐藏区域，Bailey 视线之外）" },
 		{ id: "kylar_manor", name: "凯拉尔 · 庄园", match: function (n) { return n.indexOf("Manor ") === 0; }, main: "Manor Hall", note: "凯拉尔家族的庄园大宅（大厅/花园/实验室/秘密房间）" },
 		{ id: "sydney_temple", name: "悉尼（Sydney）· 神殿居所", match: function (n) { return n.indexOf("Temple Sydney") === 0 || n.indexOf("Sydney Temple") === 0; }, main: "Temple Sydney", note: "神殿中悉尼的房间与祭坛场景（纯/堕两线都在此）" },
@@ -7842,7 +7846,8 @@ function renderPlayerEdit() {
 		}, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
 		{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) {
 			return n.indexOf("Elk Compound") === 0;
-		}, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/怨灵线/附身线等 70+ 子场景）" },
+		}, exclude: mbCEIsUnplayableEntry, main: "Elk Compound",
+		  note: "麋鹿街大院：Elk Compound 前缀段实测 70 段（中央区/地下/水晶/车站/附身线）。其中怨灵相关只有 4 段（Wraith Give / Resist / Fight / Fight Finish），怨灵主线其余 64 段不带此前缀、不归本组。widget 定义段（Elk Compound Widgets）与战斗起始段（首宏 $fightstart / $molestationstart，共 9 段）不入组。" },
 		/* v1.9.13 场景直达补充 6 组（段落前缀均经本体 0.5.12.13 实证） */
 		{ id: "asylum", name: "精神病院 · Asylum", match: function (n) {
 			return n === "Asylum" || n.indexOf("Asylum ") === 0;
@@ -7903,7 +7908,10 @@ function renderPlayerEdit() {
 		"shower": "淋浴", "cry": "哭泣", "talk": "交谈", "hot chocolate": "热巧克力", "volleyball": "排球",
 		/* v2.0.0.007：妓院/雷米牧场/农场主场景与子场景中文化 */
 		"brothel": "妓院", "basement": "地下层", "gloryhole": "荣耀洞", "livestock": "牲口", "barn": "牛棚",
-		"farm": "农场", "farmland": "农田", "plough": "犁地", "tie stall": "拴栏", "milking": "挤奶"
+		"farm": "农场", "farmland": "农田", "plough": "犁地", "tie stall": "拴栏", "milking": "挤奶",
+		/* v2.0.15：剧情入口四组的主场景中文词条 */
+		"halloween": "万圣节", "valentines": "情人节", "christmas": "圣诞节", "ivory": "象牙",
+		"bonfire": "篝火", "costume": "戏服", "trick": "捣蛋", "treat": "讨糖", "gift": "礼物"
 	};
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
@@ -8009,6 +8017,9 @@ function ensureSceneStateFor(name) {
 			ensureFarmState(!(fs >= 1)); /* 农场线未推进也补壳（只补不覆盖）：直达后子段落会读 $farm.* */
 			return;
 		}
+		/* v2.0.15 剧情入口四组（象牙怨灵 / 万圣节 / 情人节 / 圣诞）：状态保底与时间通道见 07d-places3.js。
+		   必须排在下面「Lake 」前缀分支之前，否则 Lake Halloween Party 会被湖畔分支把 $phase 改成 1（草丛档）。 */
+		if (mbCEFestivalEntryState(nm, V2)) { return; }
 		/* v2.0.10：湖畔 / 卧室的状态兜底（只补缺失、绝不覆盖进度） */
 		if (nm === "Bedroom" || nm === "Bedroom Wardrobe" || nm === "Bedroom Chest") {
 			if (typeof V2.location !== "string" || !V2.location) { V2.location = "home"; }
@@ -8040,7 +8051,7 @@ function ensureSceneStateFor(name) {
 		if (nm === "Island" || nm.indexOf("Island ") === 0) {
 			if (typeof mbCEIslandV === "function") { mbCEIslandV(); }
 		}
-	} catch (e) {}
+	} catch (e) { /* 直达前补壳失败（存档结构异常）→ 不阻断直达，由目标段落自身兜底 */ }
 }
 function mbCEPassageMacroWarn(name) {
 	/* 直达前读目标段落「运行时文本」（含所有 MOD 改写与汉化插入）做宏配对预检。
@@ -8112,7 +8123,12 @@ function teleportTo(name) {
 			for (var j = 0; j < ps.length; j++) {
 				var n = ps[j].name;
 				if (seen[n]) { continue; }
-				if (g.match(n)) { seen[n] = true; items.push(n); }
+				if (!g.match(n)) { continue; }
+				/* 不可安全直达的段不入组、也不占 seen —— 留给后面能匹配它的原组
+				   （例：「Kylar Halloween Start」是 widget 定义段，排最前的节日组不该抢） */
+				if (g.exclude && g.exclude(n, mbCEPassageText(n))) { continue; }
+				seen[n] = true;
+				items.push(n);
 			}
 			items.sort(function (a, b) {
 				var am = a === g.main ? 0 : 1, bm = b === g.main ? 0 : 1;
@@ -8583,6 +8599,224 @@ function teleportTo(name) {
 		} catch (e) { return ""; }
 	}
 
+/* 剧情入口四组（用户拍板 A 象牙怨灵 + B 节日三线）—— 结构门禁 S1 拆段。
+   本片段只放「四组登记 + 节日/怨灵状态保底」；分组与渲染主逻辑仍在
+   07d-places.js（PLACE_GROUPS / ensureSceneStateFor）与 07d-places2.js（renderPlacesDirect）。
+
+   取证（本体 0.5.12.13 单行 HTML，逐条实测，非摘要转述）：
+   A 象牙怨灵 —— 原版 $passageData 的测试直跳表里自带
+       { link: ["Summon the Wraith", "Wraith Test Start"],
+         widgets: [<<endcombat>>,
+                   <<run Time.timeTravel(new DateTime(Time.year, Time.month, Time.lastDayOfMonth, 21, 0))>>,
+                   <<set $moonstate to "evening">>] }
+     → Wraith Test Start 首行 <<set $outside to 0>><<set $location to "home">> + <<generateWraith 1 true>>，
+       自带 NPC 生成与退出链接（"I'm going to jump out my window now, bye." → Domus Street，
+       带 <<endWraith>><<clearWraith>><<set $eventskip to 1>>），不需要任何外部前置。
+       68 段怨灵剧情里只有它是可安全直达的入口：其余 59 段是战斗中继段
+       （Wraith Stalk 依赖 $molestationstart、Wraith Caught 依赖 $struggle_start，硬跳必崩）。
+   B 节日三线 —— 原版不按段落判日期，而由 Time 的每日例程按月份置存档旗标：
+       if (Time.monthName === "February" && monthDay 6..14)  { V.valentines = 1; ... }
+       if (Time.monthName === "October"  && monthDay >= 21)  { V.halloween  = 1; ... }
+       if (Time.monthName === "December" && monthDay 18..25) { V.christmas  = 1; ... }
+     每个节日都配 else if (V.<fest>) 清理分支：离开窗口就 delete 主旗标，并连带删子旗标
+     （halloween_lake / halloweenWolves / halloween_kylar / halloween_robin_costume /
+       valentines_eden* / christmas_gift* / christmas_kylar / christmas_whitney …）。
+     ⇒ 只置 $halloween = 1 之类标志，过一天就被原版清掉；正确做法是用 Time.timeTravel 把日期
+       推进到节日窗口内，让原版自己的例程置旗标并保持。这条日期通道与 A 用的是同一条。
+
+   精度轮（三条结构性修正，均有断言覆盖；版本号仍 2.0.14，未升版）：
+   ① 谓词统一：四组的 match 与状态注入原先各写一套判据（match 用宽正则 /halloween/i，
+      注入用 indexOf("Christmas ") === 0），会出现「组里列出这段、点进去却没保底」的裂缝。
+      现抽成 mbCEIsWraithPassage / Halloween / Valentines / Christmas 四个谓词，两处共用。
+   ② 跨组抢段收窄：/halloween/i 命中「Gwylan Talk Clothes Halloween」（格威兰换装线，
+      归 gwylan_garden 组），/christmas/i 命中「Bedroom Robin Christmas Wrap」（归 bedroom 组）。
+      四组排最前会先占先得抢走它们 —— 现在按段名前缀显式排除，原组不再掉段。
+   ③ 时间通道按窗口判，不再按同月比较：原守卫只比 curM === targetM && curD >= targetD，
+      导致「3 月点圣诞」「11 月点万圣节」这类跨月场合无脑回拨，而「10 月 25 日点万圣节」
+      （窗口 21~31，本就在窗口内）又被推去 28 日。现改为 window(dayFrom..dayTo) 判定：
+      已在窗口内 → 完全不动；不在窗口内 → 推到窗口内的代表日（跨月即回拨到同年窗口，
+      这是作弊器的功能本意，note 里已写明）。 */
+
+/* ============ 四组段落谓词（match 与状态注入共用同一判据） ============ */
+/* 象牙怨灵：只有「Wraith 前缀 / Ivory Wraith / Nightmare Wraith」三类原版段落；
+   刻意不匹配 WraithsReflection 等第三方 mod 段（同前缀会混入非本体剧情）。 */
+function mbCEIsWraithPassage(n) {
+	if (n === "Wraith Test Start") { return true; }
+	if (/^Wraith( |$)/.test(n)) { return true; }
+	if (n.indexOf("Ivory Wraith") === 0) { return true; }
+	if (n.indexOf("Nightmare Wraith") === 0) { return true; }
+	return false;
+}
+/* 万圣节：含 halloween 的段落，但排除格威兰换装线（gwylan_garden 组的地盘）。 */
+function mbCEIsHalloweenPassage(n) {
+	if (!/halloween/i.test(n)) { return false; }
+	if (n.indexOf("Gwylan Talk") === 0) { return false; }
+	return true;
+}
+/* 情人节：原版该族段落一律带 Valentines 字样（实测 116 段）。 */
+function mbCEIsValentinesPassage(n) { return /valentines/i.test(n); }
+/* 圣诞：含 christmas 的段落，但排除「别人的地盘」——Bedroom Robin Christmas Wrap（bedroom 组）
+   与 Gwylan Talk Clothes Christmas（gwylan_garden 组）。
+   注意不能只收「Christmas 」前缀：38 段里 Eden Christmas Meal/Kylar Christmas/Forest Christmas Robin/
+   Orphanage Christmas 等都以角色名为前缀（实测清单，见 %TEMP%\mce_fest_christmas.txt）。 */
+function mbCEIsChristmasPassage(n) {
+	if (!/christmas/i.test(n)) { return false; }
+	if (n.indexOf("Bedroom ") === 0) { return false; }
+	if (n.indexOf("Gwylan Talk") === 0) { return false; }
+	return true;
+}
+
+/* 取段落正文（用于可玩性判定）。拿不到就返回空串 —— 空串一律当「可玩」，避免误杀。 */
+function mbCEPassageText(nm) {
+	try {
+		var S = (typeof Story !== "undefined" && Story) ? Story : null;
+		if (!S || typeof S.get !== "function") { return ""; }
+		var p = S.get(nm);
+		return (p && typeof p.text === "string") ? p.text : "";
+	} catch (e) { return ""; }
+}
+
+/* 不可安全直达的段落判定（实测口径，%TEMP%\mce_playability.txt 对四组 127 段逐段扫描）：
+   ① 段首就是 <<widget "xxx">> —— widget 定义段，play 它只会重新注册 widget，正文空白且无链接；
+   ② 段首第一个控制宏是 <<if $molestationstart / $struggle_start / $fightstart / $sexstart …>>
+      —— 整段被「战斗/遭遇中继状态」包住，硬跳进去条件为假、正文空白、链接全灭。
+   不能只看「段落里出现过 $molestationstart」：Wolf Halloween 7 / Avery Valentines End 的首宏
+   分别是 $phase / <<avery_injury_check>>，属正常入口，一刀切会误杀（实测已逐段枚举）。
+   判定：顺序扫 <<...>> 宏；链接类 / else / endif / switch 出现即说明正文已开始 → 可玩；
+   第一个 if 之前只允许不产正文的设置类宏（set / run / pass / npc / person / effects …）。 */
+function mbCEIsUnplayableEntry(nm, text) {
+	var t = String(text || "");
+	if (!t) { return false; }
+	if (/^<<widget/.test(t.trim())) { return true; }
+	var SETUP = /^(set|run|unset|pass|passage|npc|person|gettarget|wearprop|effects|endevent|encounter|caption|parse|seenpassage|strip|wash|upperstrip|underupper|handholdingvirginitywarning|generatewraith|rainwraith|endcombat|clearwraith|control)$/;
+	var BODYSTART = /^(link|linkappend|linkprepend|linkreplacer|linkreplace|else|elseif|endif|switch|case|break|default|for|while|print)$/;
+	var re = /<<([a-zA-Z_]+)\s?([^>]*)>>/g;
+	var m;
+	while ((m = re.exec(t)) !== null) {
+		var macro = String(m[1] || "").toLowerCase();
+		var body = String(m[2] || "");
+		if (BODYSTART.test(macro)) { return false; }
+		if (macro === "if") {
+			if (/\$(molestationstart|struggle_start|fightstart|sexstart)\b/.test(body)) { return true; }
+			return false;
+		}
+		if (!SETUP.test(macro)) { return false; } /* 未知/产出型宏 → 正文已开始，按可玩处理 */
+	}
+	return false;
+}
+
+/* 四组用 unshift 插到 PLACE_GROUPS 最前：listPlaceGroups 靠 seen 先占先得，
+   「Lake Halloween Party」同时匹配 lake 组的 "Lake " 前缀 —— 排后会被 lake 组吃掉主场景，
+   UI 就会报「未匹配到主场景段落」（renderPlacesDirect 的兜底文案）。 */
+(function () {
+	var groups = [
+		{ id: "wraith", name: "象牙怨灵 · Ivory Wraith", match: mbCEIsWraithPassage, exclude: mbCEIsUnplayableEntry, main: "Wraith Test Start",
+		  note: "象牙怨灵 68 段（血月猎杀 / 项链 Schism / 附身 / 梦魇四套状态机）。主场景沿用原版自带的召唤入口（$passageData 测试直跳表的「Summon the Wraith」载入段，自设 home、自带 generateWraith 与退出链接）；直达前补 $wraith 八字段、月相 evening，并把日期推到当月最后一天 21:00（与主场景同口径）。其余 59 段是战斗/中继段（依赖 $molestationstart、$struggle_start 等战前状态），硬跳会崩，故只登记前缀段、详情顺正文分支走。" },
+		{ id: "halloween", name: "万圣节 · Halloween", match: mbCEIsHalloweenPassage, exclude: mbCEIsUnplayableEntry, main: "Lake Halloween Party",
+		  note: "万圣节 111 段（湖畔篝火派对 / 凯拉尔 / 惠特尼 / 伊甸 / 罗宾服装）。主场景是湖畔派对（段落自带 outside/location，只依赖 $phase 与 $cool）；直达前 $phase 补 0（湖岸篝火档，湖畔默认 1 会落到草丛分支）、$cool 补 240（原版 gte 240 是「欢呼」最高档，0 会读到「没人理你」），日期推进到 10 月 28 日让原版置 V.halloween。格威兰换装线（Gwylan Talk Clothes Halloween）留在原 gwylan_garden 组。" },
+		{ id: "valentines", name: "情人节 · Valentines", match: mbCEIsValentinesPassage, exclude: mbCEIsUnplayableEntry, main: "Avery Valentines",
+		  note: "情人节 116 段（艾弗里晚宴 / Alex / 伊甸 / Robin / Whitney / Kylar 送礼 / 格威兰）。主场景是艾弗里情人节晚宴；直达前推进到 2 月 10 日（原版窗口 6~14），并补 $avery_valentines 十七字段与 $foodstuff.valentines_chocolate（该段直接读 .amount，缺对象会 TypeError）。" },
+		{ id: "christmas", name: "圣诞节 · Christmas", match: mbCEIsChristmasPassage, exclude: mbCEIsUnplayableEntry, main: "Christmas Mirror",
+		  note: "圣诞 38 段（镜中人 12 段 / 孤儿院 / 伊甸晚餐 / Kylar / 罗宾礼物）。主场景是圣诞夜的「镜中人」（段落自带 outside/location，守卫 $wraith.seen gte 3 或 $wraithPrison）；直达前推进到 12 月 22 日（原版窗口 18~25）并把 $wraith.seen 抬到 3、$wraithPrison 补 false。Bedroom Robin Christmas Wrap 留在原 bedroom 组。" }
+	];
+	for (var i = groups.length - 1; i >= 0; i--) { PLACE_GROUPS.unshift(groups[i]); }
+})();
+
+/* 把存档日期推到节日窗口内（B 方案的时间通道）。
+   为什么不直接置 $halloween = 1：原版每日例程是
+     if (October && monthDay >= 21) { V.halloween = 1 } else if (V.halloween) { delete V.halloween; delete 一串子旗标 }
+   —— 手动置的标志会在下一次跨日被 else 分支连子旗标一起删掉；推进日期则让原版自己置旗标，状态自洽。
+
+   参数：month（1-12 或 "last"）、dayFrom/dayTo（该节日窗口的日号闭区间）、day（窗口内的代表日）、hour/minute。
+   判据：当前已在窗口内（curM === month && dayFrom <= curD <= dayTo）→ 返回 false，完全不碰日期；
+        否则 timeTravel 到 (Time.year, month, day, hour, minute)。跨月即回拨到同年窗口，是功能本意。
+   "last" = 当月最后一天（原版 Summon the Wraith 的血月口径），此时窗口退化为单日。 */
+function mbCETimeTravelTo(month, dayFrom, dayTo, day, hour, minute) {
+	try {
+		var T = (typeof Time !== "undefined" && Time) ? Time : ((typeof window !== "undefined" && window) ? window.Time : null);
+		if (!T || typeof T.timeTravel !== "function") { return false; }
+		var Ctor = (typeof DateTime !== "undefined" && DateTime) ? DateTime
+			: ((typeof window !== "undefined" && window && window.DateTime) ? window.DateTime : null);
+		if (!Ctor) { return false; }
+		var y = Number(T.year);
+		if (!isFinite(y)) { return false; }
+		var isLast = (month === "last");
+		var targetM = isLast ? Number(T.month) : Number(month);
+		var targetD = isLast ? Number(T.lastDayOfMonth) : Number(day);
+		var from = isLast ? targetD : Number(dayFrom);
+		var to = isLast ? targetD : Number(dayTo);
+		if (!isFinite(targetM) || targetM < 1 || targetM > 12) { return false; }
+		if (!isFinite(targetD) || targetD < 1 || targetD > 31) { return false; }
+		var curM = Number(T.month), curD = Number(T.monthDay);
+		/* 已在窗口内：不动（不做「同月但日号更小就推」的无谓位移） */
+		if (isFinite(curM) && isFinite(curD) && curM === targetM && curD >= from && curD <= to) { return false; }
+		T.timeTravel(new Ctor(y, targetM, targetD, Number(hour) || 0, Number(minute) || 0));
+		return true;
+	} catch (e) { return false; } /* 存档结构异常 / 非游戏页面：不阻断直达 */
+}
+
+/* 象牙怨灵状态壳：字段对齐原版 checkWraith 的补全集（init/seen/days/defeated/evaded/nightmare/timer/hunt）。
+   只补缺失、不覆盖已有进度；bumpSeen=true 时把 seen 抬到 3（Christmas Mirror 的守卫是 $wraith.seen gte 3）。 */
+function mbCEWraithShell(V, bumpSeen) {
+	if (!V) { return; }
+	if (typeof V.wraith !== "object" || V.wraith === null) {
+		V.wraith = { init: 1, seen: 0, days: 0, defeated: 0, evaded: 0, nightmare: 0, timer: 0, hunt: 0 };
+	} else {
+		var w = V.wraith;
+		var WDEF = { init: 1, seen: 0, days: 0, defeated: 0, evaded: 0, nightmare: 0, timer: 0, hunt: 0 };
+		Object.keys(WDEF).forEach(function (k) { if (w[k] === undefined) { w[k] = WDEF[k]; } });
+	}
+	if (typeof V.moonstate !== "string" || !V.moonstate) { V.moonstate = "evening"; }
+	if (bumpSeen && !(Number(V.wraith.seen) >= 3)) { V.wraith.seen = 3; }
+}
+
+/* 四组的直达前状态保底。返回 true = 已接管该段落，ensureSceneStateFor 直接 return。
+   ⚠ 调用点必须排在 07d-places.js 里「Lake 」前缀分支之前：「Lake Halloween Party」以 "Lake " 开头，
+   会被湖畔分支截获并把 $phase 强制写成 1（草丛档），而派对主体是 $phase is 0 的湖岸篝火档。
+   ⚠ 判据与上面四组的 match 逐字共用同一谓词 —— 否则会出现「组里列着这段、点进去没保底」。 */
+function mbCEFestivalEntryState(nm, V) {
+	if (!V) { return false; }
+	var name = String(nm || "");
+	if (mbCEIsWraithPassage(name)) {
+		mbCEWraithShell(V, false);
+		mbCETimeTravelTo("last", 0, 0, 0, 21, 0); /* 当月最后一天 21:00 —— 原版 Summon the Wraith 三件套口径 */
+		return true;
+	}
+	if (mbCEIsHalloweenPassage(name)) {
+		if (name === "Lake Halloween Party") {
+			if (!isFinite(Number(V.phase))) { V.phase = 0; } /* 篝火档；湖畔默认的 1 会落到草丛分支 */
+			if (!isFinite(Number(V.cool))) { V.cool = 240; } /* 原版 gte 240 = 欢呼（最高档）；0 会读到「没人理你」 */
+		}
+		mbCETimeTravelTo(10, 21, 31, 28, 20, 0); /* 落进 October && monthDay >= 21 → 原版置 V.halloween */
+		return true;
+	}
+	if (mbCEIsValentinesPassage(name)) {
+		if (typeof V.avery_valentines !== "object" || V.avery_valentines === null) {
+			/* 逐字对齐原版每日例程的建壳（17 字段）。原版只在 V.avery_mansion 为真时建对象，
+			   没买庄园的档这里是空的，而段落直接读 $avery_valentines.done / .invite → TypeError。 */
+			V.avery_valentines = {
+				intro: false, invite: false, ready: false, done: false, reservation: false,
+				chocolate: false, chocolate_asked: false, opinion: "none", confess: false, food: "none",
+				soften: false, talk: false, talk_count: 0, sex: "none", end: "none", end_talk: false,
+				missed_approach: false
+			};
+		}
+		if (typeof V.foodstuff !== "object" || V.foodstuff === null) { V.foodstuff = {}; }
+		if (typeof V.foodstuff.valentines_chocolate !== "object" || V.foodstuff.valentines_chocolate === null) {
+			V.foodstuff.valentines_chocolate = { amount: 0 }; /* 段落读 .amount gte 1；缺对象即 TypeError，0 = 没这盒 */
+		}
+		if (typeof V.foodstuff.valentines_chocolate.amount !== "number") { V.foodstuff.valentines_chocolate.amount = 0; }
+		mbCETimeTravelTo(2, 6, 14, 10, 18, 0); /* 落进 February && monthDay 6~14 → 原版置 V.valentines */
+		return true;
+	}
+	if (mbCEIsChristmasPassage(name)) {
+		mbCEWraithShell(V, true); /* Christmas Mirror 守卫：$wraith.seen gte 3 或 $wraithPrison */
+		if (V.wraithPrison === undefined) { V.wraithPrison = false; }
+		mbCETimeTravelTo(12, 18, 25, 22, 20, 0); /* 落进 December && monthDay 18~25 → 原版置 V.christmas */
+		return true;
+	}
+	return false;
+}
 	/* ============ 特殊剧情（DoL 场景注册表 $scenes / Scene Viewer 系统）
 	     方案A：不硬编码任何剧情。从游戏 Story 文本解析 `<<widget "scenes">>` 的注册表
 	     （MOD 经 TweeReplacer/ReplacePatcher 改动的场景同样被解析到），unlocked 表达式
@@ -9174,7 +9408,7 @@ function mbCELockTrace(Vp, path, before, after) {
 			return;
 		}
 		Vp.mbCE_wrote[key] = { type: "lock", path: path, before: before, after: after, t: Date.now(), last: Date.now() };
-	} catch (e) {}
+	} catch (e) { /* 留痕失败不影响锁定写回本身（trace 仅供回退预览） */ }
 }
 
 /* 强制写回：当前值 ≠ 锁定目标 → 先记留痕（mbCELockTrace）再写回。
@@ -10340,7 +10574,7 @@ var SCENE_LOCATIONS = {
 			if (typeof st.eggs !== "number") { st.eggs = 0; }
 			if (typeof st.milk !== "number") { st.milk = 0; }
 			if (typeof st.cream !== "number") { st.cream = 0; }
-		} catch (e) {}
+		} catch (e) { /* farm/stock 结构异常时跳过补齐（不凭空造 farm 根，交由上层拒绝） */ }
 	}
 	function ensureAveryMansion() {
 		try {
@@ -10417,7 +10651,7 @@ var SCENE_LOCATIONS = {
 					dav.housekeeping_events = {};
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 艾弗里线结构兜底整体失败（存档只读/被冻结）→ 不阻断直达与重放，由目标段落自身兜底 */ }
 	}
 	function pinScene(it) {
 		try {
@@ -10540,7 +10774,7 @@ var SCENE_LOCATIONS = {
 				   （播放器 default 的 Back 链接依赖它），不主动跳转——玩家经 Back 退出
 				   （489 行路径清理）或播放器自身退出调用 unfreeze → mbCEUnfreezeHook 兜底清理。 */
 			}
-		} catch (e) {}
+		} catch (e) { /* 退出重放时置 sceneViewSwitch 无效值失败（存档只读/结构异常）→ 不阻断取消流程，replayScene 保留交由回退/退出兜底 */ }
 		return changed;
 	}
 	/* 剧情入口段落/剧情名 → 匹配的场景组 id（联动解锁用）；
@@ -10578,7 +10812,7 @@ var SCENE_LOCATIONS = {
 			if (gid) {
 				V.mbCE_unlockedPlaces[gid] = { key: P.key, name: P.name, startPassage: P.startPassage, t: Date.now() };
 			}
-		} catch (e) {}
+		} catch (e) { /* 解锁地点登记失败（存档只读/结构异常）→ 本次不登记，不阻断剧情直达 */ }
 	}
 	/* 世界入口解锁表（v1.3）：各组场景在游戏世界里的原版进入条件（已从本体源码实证）：
 	   - kylar_manor：多瑙河街 → "Kylar's manor" 链接，条件 $syndromekylar gte 1
@@ -10715,7 +10949,7 @@ var SCENE_LOCATIONS = {
 							/* v1.9.23-实机修复六轮：同步冻结快照——原版 unfreezePlayerStats 用 frozenValues
 							   strict-replace 覆盖 State.variables，不同步则刚写入的「已完成 ✓」记录被恢复撤销
 							   （实机：播完后面板仍无「已完成 ✓」、按钮仍可锚定）。 */
-							try { if (Vq.frozenValues && typeof Vq.frozenValues === "object") { Vq.frozenValues.mbCE_completedScenes = Vq.mbCE_completedScenes; } } catch (e) {}
+							try { if (Vq.frozenValues && typeof Vq.frozenValues === "object") { Vq.frozenValues.mbCE_completedScenes = Vq.mbCE_completedScenes; } } catch (e) { /* 冻结快照同步失败 → 本次记录不回写冻结点，原版 unfreeze 后可能被撤销（已知降级） */ }
 						}
 					}
 				}
@@ -10723,7 +10957,7 @@ var SCENE_LOCATIONS = {
 					if (qc[i3] && qc[i3].used) { qc.splice(i3, 1); }
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 队列收尾失败（存档冻结/结构异常）→ 已完成的解锁登记保留，队列项不移除以便下次重试 */ }
 	}
 	/* v1.9.5-自检：清重放残留的统一入口（unpinScene / onPassageOverride 各终点共用，消除 5 处分叉不一致）。
 	   顺序固定：先清 replayScene/标记，再 unfreeze（避免 mbCEUnfreezeHook 在清理前重复走 cleanup）；
@@ -10993,7 +11227,7 @@ var SCENE_LOCATIONS = {
 			P.used = true; /* 一次性：触发后不再重复触发 */
 			unlockPlaceForScene(P); /* 联动解锁：触发即解锁所在场景组（如凯拉尔剧情 → 庄园可直达） */
 			applyWorldUnlockForScene(P); /* 世界入口解锁：写入原版进入条件（多瑙河街→庄园等） */
-		} catch (e) {}
+		} catch (e) { /* 触发登记失败（存档只读/结构异常）→ 本次不写 used/联动解锁，不阻断段落跳转 */ }
 	}
 	function hookPassageOverride() {
 		try {
@@ -11031,7 +11265,7 @@ var SCENE_LOCATIONS = {
 			if (!V) { return; }
 			if (V.mbCE_replayPending) { V.mbCE_replayPending = false; return; }
 			if (V.replayScene && V.mbCE_replayOnce) { V.sceneViewSwitch = "MB_CE_END"; }
-		} catch (e) {}
+		} catch (e) { /* passage 收尾钩子失败必须静默，避免阻断原版段落流转 */ }
 	}
 	function hookPassageInit() {
 		try {
@@ -11065,12 +11299,12 @@ var SCENE_LOCATIONS = {
 						/* MOD 固定触发的重放中收到 unfreeze = 播放结束 → 清理已触发项 + 重放状态 */
 						cleanupUsedPins();
 						try { V.replayScene = undefined; } catch (e) { V.replayScene = undefined; }
-						try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) {}
+						try { V.mbCE_replayOnce = undefined; V.mbCE_replayPending = undefined; } catch (e) { /* 重放一次性标记清理失败 → 保留原值，不影响本次播放结束流程 */ }
 					}
-				} catch (e) {}
+				} catch (e) { /* 清理重放状态失败必须静默，避免遮蔽下方 orig 原函数调用 */ }
 				try { return orig.apply(window, arguments); } catch (e) {}
 			};
-		} catch (e) {}
+		} catch (e) { /* unfreeze 钩子安装失败不阻断面板加载（退化为不接管 unfreeze） */ }
 	}
 
 /* 职责：恋爱 / 转化阶段页渲染（renderRomanceStages / renderTransformStages） */
@@ -11798,7 +12032,7 @@ var SCENE_LOCATIONS = {
 			if (!V) { return; }
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["yanling:" + op] = { type: "yanling", modId: "vanilla", op: op, before: before, after: after, t: Date.now() };
-		} catch (e) {}
+		} catch (e) { /* 留痕失败不影响本次言灵写入结果（留痕仅供回退参考） */ }
 	}
 
 	/* 运行期覆盖 window.isCrossdressing（幂等）：已装则跳过；被第三方重包则以新函数为上游重新包裹。
@@ -11957,7 +12191,7 @@ var SCENE_LOCATIONS = {
 				var arr = V.backgroundTraits;
 				if (arr && typeof arr.indexOf === "function" && arr.indexOf("crossdresser") !== -1) { arr.splice(arr.indexOf("crossdresser"), 1); }
 			}
-		} catch (e) {}
+		} catch (e) { /* 异装清理失败时保留原值不清零（避免半清理状态），下次调用重试 */ }
 	}
 	/** @type {any} 浏览器里是 number，Node/jsdom 里是 Timeout（带 unref） */
 	var mbCEYanlingTimer = null;
@@ -12553,7 +12787,7 @@ var SCENE_LOCATIONS = {
 			try {
 				var pv = (V && V.prison) ? V.prison.protection : undefined;
 				protTxt = (V && V.prison) ? (pv === "" ? "无庇护（空串）" : (pv === undefined ? "未设置（字段缺省，等价无庇护）" : JSON.stringify(pv))) : "本存档无监狱对象（尚未进过监狱）";
-			} catch (eP) {}
+			} catch (eP) { /* 读数失败（存档冻结/结构异常）→ 面板展示降级为占位符，不影响按钮写入 */ }
 			s9.appendChild(el("div", "mce-hint", "当前：$prison.protection = " + protTxt));
 			var s9g = mceBtnGrid(s9);
 			mkBtn(s9g, "疤痕狱友庇护", "mce-gold", function () { return mbCEYanlingPrisonProtect("scarred"); }, "prison.protection = \"scarred\"（原版 14 处同值；早餐 / 午餐走 scarred 狱友分支）");
@@ -13262,7 +13496,7 @@ function renderNpcUndergroundSec(pane) {
 				prev.t = Date.now();
 			}
 			if (typeof mbCEWroteTrim === "function") { mbCEWroteTrim(V); }
-		} catch (e) {}
+		} catch (e) { /* 留痕失败不影响本次原版写入结果（留痕仅供回退参考） */ }
 	}
 
 	function mbCEVanillaCrimeTypes() {
@@ -13362,7 +13596,7 @@ function renderNpcUndergroundSec(pane) {
 		/* maxCount 兜底：原版由一个 always-run widget 每次补，存档里可能还没跑过 */
 		if (!(Number(ma.maxCount) > 0)) { ma.maxCount = Object.keys(ma.antiques).length; }
 		/* 期刊提示指向「未发现位置」，全部 found 后失去意义（原版 found 迁移时也会逐条清） */
-		try { V.museumAntiqueJournalHints = []; } catch (eH) {}
+		try { V.museumAntiqueJournalHints = []; } catch (eH) { /* 清期刊提示失败 → 保留旧提示（仅展示冗余，不影响古董状态） */ }
 
 		var featOk = false;
 		var featNew = false;
@@ -13498,7 +13732,7 @@ function renderNpcUndergroundSec(pane) {
 				ma.stolenCount = b.stolenCount;
 				ma.recoveredCount = b.recoveredCount;
 				if (b.maxCount !== undefined) { ma.maxCount = b.maxCount; }
-				try { V.museumAntiqueJournalHints = b.hints || []; } catch (eH2) {}
+				try { V.museumAntiqueJournalHints = b.hints || []; } catch (eH2) { /* 恢复期刊提示失败 → 提示保持现值（不影响古董与成就还原） */ }
 				try {
 					if (V.feats && V.feats.currentSave) {
 						if (b.hadFeat) {
@@ -13507,7 +13741,7 @@ function renderNpcUndergroundSec(pane) {
 							delete V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM];
 						}
 					}
-				} catch (eF2) {}
+				} catch (eF2) { /* 成就标记还原失败 → 保留现值（仅成就显示差异，不影响古董数据） */ }
 				delete V.mbCE_wrote[key];
 				return { ok: true, message: "已还原古董状态与成就标记" };
 			}
@@ -13908,7 +14142,7 @@ function renderNpcUndergroundSec(pane) {
 				if (typeof localStorage !== "undefined" && localStorage) {
 					localStorage.setItem("mbCE_toggle_lock_v1", nowLocked ? "0" : "1");
 				}
-			} catch (e) {}
+			} catch (e) { /* 拖动锁持久化失败（隐私模式/配额满）→ 锁定状态本次会话仍生效，仅刷新后丢失 */ }
 			renderGlobal();
 		});
 		fabWrap.appendChild(fabBtn);
@@ -15175,7 +15409,7 @@ function renderAttitudesGroup(pane) {
 					toggleBtn.title = "Maplebirch CE 剧情条件解锁面板（拖动已锁定：点击开关面板，到「全局」页解锁拖动）";
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 读不到悬浮球偏好（隐私模式/配额满/JSON 损坏）→ 保留默认位置与显示状态 */ }
 		var drag = { on: false, moved: false, sx: 0, sy: 0, l: 0, t: 0, bw: 56, bh: 56, nx: 0, ny: 0, raf: 0 };
 		/* v1.9.11+ 自查：绑定守卫——ModLoader 热重载复用同一 #mce-toggle 时跳过重复 addEventListener，
 		   否则 click 监听堆叠会导致一次点击多次开关面板 */
@@ -15230,7 +15464,7 @@ function renderAttitudesGroup(pane) {
 					if (typeof localStorage !== "undefined" && localStorage) {
 						localStorage.setItem("mbCE_toggle_pos_v1", JSON.stringify({ left: nl, top: nt }));
 					}
-				} catch (e2) {}
+				} catch (e2) { /* 位置持久化失败 → 位置本次会话仍生效，仅刷新后回到默认位 */ }
 			}
 		}
 		toggleBtn.addEventListener("pointerup", tgDragEnd);

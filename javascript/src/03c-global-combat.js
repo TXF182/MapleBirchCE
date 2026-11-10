@@ -83,7 +83,7 @@
 			var key = parsed.type + ":" + (parsed.path || npcName) + ":" + (parsed.value || "");
 			V.mbCE_wrote[key] = { type: parsed.type, path: parsed.path || "", value: parsed.value || "", npc: npcName, t: Date.now() };
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
-		} catch (e) {}
+		} catch (e) { /* 留痕失败不影响本次恋爱写入结果（留痕仅供回退） */ }
 	}
 	function recordVanillaWrite(key) {
 		try {
@@ -92,7 +92,7 @@
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
 			V.mbCE_wrote["vanilla:" + key] = { type: "vanilla", key: key, npc: "Gwylan", t: Date.now() };
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
-		} catch (e) {}
+		} catch (e) { /* 留痕失败不影响原版写入结果（留痕仅供回退） */ }
 	}
 	function fillGwylanLoveMax() {
 		try {
@@ -127,7 +127,7 @@
 			var V = getV();
 			if (V.gwylan && typeof V.gwylan === "object") { V.gwylan.wary = 0; }
 			else { V.gwylan = { wary: 0 }; }
-		} catch (e) {}
+		} catch (e) { /* 写入失败时保持原值不清零，下次调用重试 */ }
 	}
 	function vanillaNpcPregnant(name) {
 		try { if (typeof npcIsPregnant === "function") { return !!npcIsPregnant(name); } } catch (e) {}

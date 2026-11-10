@@ -68,6 +68,7 @@ module.exports = [
         "Wikifier": "readonly",
         "passage": "readonly",
         "Time": "readonly",
+        "DateTime": "readonly", /* SugarCube 日期构造器（Time.timeTravel 的入参类型，v2.0.15 节日时间通道用到） */
         "clone": "readonly",
         "T": "readonly",
         "$": "readonly",

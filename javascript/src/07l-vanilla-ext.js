@@ -64,7 +64,7 @@
 				prev.t = Date.now();
 			}
 			if (typeof mbCEWroteTrim === "function") { mbCEWroteTrim(V); }
-		} catch (e) {}
+		} catch (e) { /* 留痕失败不影响本次原版写入结果（留痕仅供回退参考） */ }
 	}
 
 	function mbCEVanillaCrimeTypes() {
@@ -164,7 +164,7 @@
 		/* maxCount 兜底：原版由一个 always-run widget 每次补，存档里可能还没跑过 */
 		if (!(Number(ma.maxCount) > 0)) { ma.maxCount = Object.keys(ma.antiques).length; }
 		/* 期刊提示指向「未发现位置」，全部 found 后失去意义（原版 found 迁移时也会逐条清） */
-		try { V.museumAntiqueJournalHints = []; } catch (eH) {}
+		try { V.museumAntiqueJournalHints = []; } catch (eH) { /* 清期刊提示失败 → 保留旧提示（仅展示冗余，不影响古董状态） */ }
 
 		var featOk = false;
 		var featNew = false;
@@ -300,7 +300,7 @@
 				ma.stolenCount = b.stolenCount;
 				ma.recoveredCount = b.recoveredCount;
 				if (b.maxCount !== undefined) { ma.maxCount = b.maxCount; }
-				try { V.museumAntiqueJournalHints = b.hints || []; } catch (eH2) {}
+				try { V.museumAntiqueJournalHints = b.hints || []; } catch (eH2) { /* 恢复期刊提示失败 → 提示保持现值（不影响古董与成就还原） */ }
 				try {
 					if (V.feats && V.feats.currentSave) {
 						if (b.hadFeat) {
@@ -309,7 +309,7 @@
 							delete V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM];
 						}
 					}
-				} catch (eF2) {}
+				} catch (eF2) { /* 成就标记还原失败 → 保留现值（仅成就显示差异，不影响古董数据） */ }
 				delete V.mbCE_wrote[key];
 				return { ok: true, message: "已还原古董状态与成就标记" };
 			}

@@ -48,7 +48,7 @@
 				   （播放器 default 的 Back 链接依赖它），不主动跳转——玩家经 Back 退出
 				   （489 行路径清理）或播放器自身退出调用 unfreeze → mbCEUnfreezeHook 兜底清理。 */
 			}
-		} catch (e) {}
+		} catch (e) { /* 退出重放时置 sceneViewSwitch 无效值失败（存档只读/结构异常）→ 不阻断取消流程，replayScene 保留交由回退/退出兜底 */ }
 		return changed;
 	}
 	/* 剧情入口段落/剧情名 → 匹配的场景组 id（联动解锁用）；
@@ -86,7 +86,7 @@
 			if (gid) {
 				V.mbCE_unlockedPlaces[gid] = { key: P.key, name: P.name, startPassage: P.startPassage, t: Date.now() };
 			}
-		} catch (e) {}
+		} catch (e) { /* 解锁地点登记失败（存档只读/结构异常）→ 本次不登记，不阻断剧情直达 */ }
 	}
 	/* 世界入口解锁表（v1.3）：各组场景在游戏世界里的原版进入条件（已从本体源码实证）：
 	   - kylar_manor：多瑙河街 → "Kylar's manor" 链接，条件 $syndromekylar gte 1
@@ -223,7 +223,7 @@
 							/* v1.9.23-实机修复六轮：同步冻结快照——原版 unfreezePlayerStats 用 frozenValues
 							   strict-replace 覆盖 State.variables，不同步则刚写入的「已完成 ✓」记录被恢复撤销
 							   （实机：播完后面板仍无「已完成 ✓」、按钮仍可锚定）。 */
-							try { if (Vq.frozenValues && typeof Vq.frozenValues === "object") { Vq.frozenValues.mbCE_completedScenes = Vq.mbCE_completedScenes; } } catch (e) {}
+							try { if (Vq.frozenValues && typeof Vq.frozenValues === "object") { Vq.frozenValues.mbCE_completedScenes = Vq.mbCE_completedScenes; } } catch (e) { /* 冻结快照同步失败 → 本次记录不回写冻结点，原版 unfreeze 后可能被撤销（已知降级） */ }
 						}
 					}
 				}
@@ -231,7 +231,7 @@
 					if (qc[i3] && qc[i3].used) { qc.splice(i3, 1); }
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 队列收尾失败（存档冻结/结构异常）→ 已完成的解锁登记保留，队列项不移除以便下次重试 */ }
 	}
 	/* v1.9.5-自检：清重放残留的统一入口（unpinScene / onPassageOverride 各终点共用，消除 5 处分叉不一致）。
 	   顺序固定：先清 replayScene/标记，再 unfreeze（避免 mbCEUnfreezeHook 在清理前重复走 cleanup）；

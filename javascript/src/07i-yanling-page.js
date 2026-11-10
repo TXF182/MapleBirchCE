@@ -194,7 +194,7 @@
 			try {
 				var pv = (V && V.prison) ? V.prison.protection : undefined;
 				protTxt = (V && V.prison) ? (pv === "" ? "无庇护（空串）" : (pv === undefined ? "未设置（字段缺省，等价无庇护）" : JSON.stringify(pv))) : "本存档无监狱对象（尚未进过监狱）";
-			} catch (eP) {}
+			} catch (eP) { /* 读数失败（存档冻结/结构异常）→ 面板展示降级为占位符，不影响按钮写入 */ }
 			s9.appendChild(el("div", "mce-hint", "当前：$prison.protection = " + protTxt));
 			var s9g = mceBtnGrid(s9);
 			mkBtn(s9g, "疤痕狱友庇护", "mce-gold", function () { return mbCEYanlingPrisonProtect("scarred"); }, "prison.protection = \"scarred\"（原版 14 处同值；早餐 / 午餐走 scarred 狱友分支）");

@@ -2,6 +2,8 @@
 	     不硬编码段落清单：按前缀/关键词在 Story 段落里动态枚举，MOD 新增段落自动收录；
 	     组 = 主场景，组内各段落 = 子场景，main 段落排最前并标注「主」。============ */
 	var PLACE_GROUPS = [
+		/* v2.0.15 剧情入口四组（象牙怨灵 / 万圣节 / 情人节 / 圣诞）登记在 07d-places3.js：
+		   用 unshift 插到本数组最前（listPlaceGroups 靠 seen 先占先得，"Lake Halloween Party" 否则会被 lake 组吃掉）。 */
 		{ id: "orphanage_loft", name: "孤儿院 · 阁楼", match: function (n) { return n.indexOf("Orphanage Loft") === 0; }, main: "Orphanage Loft", note: "孤儿院上方的阁楼（隐藏区域，Bailey 视线之外）" },
 		{ id: "kylar_manor", name: "凯拉尔 · 庄园", match: function (n) { return n.indexOf("Manor ") === 0; }, main: "Manor Hall", note: "凯拉尔家族的庄园大宅（大厅/花园/实验室/秘密房间）" },
 		{ id: "sydney_temple", name: "悉尼（Sydney）· 神殿居所", match: function (n) { return n.indexOf("Temple Sydney") === 0 || n.indexOf("Sydney Temple") === 0; }, main: "Temple Sydney", note: "神殿中悉尼的房间与祭坛场景（纯/堕两线都在此）" },
@@ -19,7 +21,8 @@
 		}, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
 		{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) {
 			return n.indexOf("Elk Compound") === 0;
-		}, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/怨灵线/附身线等 70+ 子场景）" },
+		}, exclude: mbCEIsUnplayableEntry, main: "Elk Compound",
+		  note: "麋鹿街大院：Elk Compound 前缀段实测 70 段（中央区/地下/水晶/车站/附身线）。其中怨灵相关只有 4 段（Wraith Give / Resist / Fight / Fight Finish），怨灵主线其余 64 段不带此前缀、不归本组。widget 定义段（Elk Compound Widgets）与战斗起始段（首宏 $fightstart / $molestationstart，共 9 段）不入组。" },
 		/* v1.9.13 场景直达补充 6 组（段落前缀均经本体 0.5.12.13 实证） */
 		{ id: "asylum", name: "精神病院 · Asylum", match: function (n) {
 			return n === "Asylum" || n.indexOf("Asylum ") === 0;
@@ -80,7 +83,10 @@
 		"shower": "淋浴", "cry": "哭泣", "talk": "交谈", "hot chocolate": "热巧克力", "volleyball": "排球",
 		/* v2.0.0.007：妓院/雷米牧场/农场主场景与子场景中文化 */
 		"brothel": "妓院", "basement": "地下层", "gloryhole": "荣耀洞", "livestock": "牲口", "barn": "牛棚",
-		"farm": "农场", "farmland": "农田", "plough": "犁地", "tie stall": "拴栏", "milking": "挤奶"
+		"farm": "农场", "farmland": "农田", "plough": "犁地", "tie stall": "拴栏", "milking": "挤奶",
+		/* v2.0.15：剧情入口四组的主场景中文词条 */
+		"halloween": "万圣节", "valentines": "情人节", "christmas": "圣诞节", "ivory": "象牙",
+		"bonfire": "篝火", "costume": "戏服", "trick": "捣蛋", "treat": "讨糖", "gift": "礼物"
 	};
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
@@ -186,6 +192,9 @@ function ensureSceneStateFor(name) {
 			ensureFarmState(!(fs >= 1)); /* 农场线未推进也补壳（只补不覆盖）：直达后子段落会读 $farm.* */
 			return;
 		}
+		/* v2.0.15 剧情入口四组（象牙怨灵 / 万圣节 / 情人节 / 圣诞）：状态保底与时间通道见 07d-places3.js。
+		   必须排在下面「Lake 」前缀分支之前，否则 Lake Halloween Party 会被湖畔分支把 $phase 改成 1（草丛档）。 */
+		if (mbCEFestivalEntryState(nm, V2)) { return; }
 		/* v2.0.10：湖畔 / 卧室的状态兜底（只补缺失、绝不覆盖进度） */
 		if (nm === "Bedroom" || nm === "Bedroom Wardrobe" || nm === "Bedroom Chest") {
 			if (typeof V2.location !== "string" || !V2.location) { V2.location = "home"; }
@@ -217,7 +226,7 @@ function ensureSceneStateFor(name) {
 		if (nm === "Island" || nm.indexOf("Island ") === 0) {
 			if (typeof mbCEIslandV === "function") { mbCEIslandV(); }
 		}
-	} catch (e) {}
+	} catch (e) { /* 直达前补壳失败（存档结构异常）→ 不阻断直达，由目标段落自身兜底 */ }
 }
 function mbCEPassageMacroWarn(name) {
 	/* 直达前读目标段落「运行时文本」（含所有 MOD 改写与汉化插入）做宏配对预检。
@@ -289,7 +298,12 @@ function teleportTo(name) {
 			for (var j = 0; j < ps.length; j++) {
 				var n = ps[j].name;
 				if (seen[n]) { continue; }
-				if (g.match(n)) { seen[n] = true; items.push(n); }
+				if (!g.match(n)) { continue; }
+				/* 不可安全直达的段不入组、也不占 seen —— 留给后面能匹配它的原组
+				   （例：「Kylar Halloween Start」是 widget 定义段，排最前的节日组不该抢） */
+				if (g.exclude && g.exclude(n, mbCEPassageText(n))) { continue; }
+				seen[n] = true;
+				items.push(n);
 			}
 			items.sort(function (a, b) {
 				var am = a === g.main ? 0 : 1, bm = b === g.main ? 0 : 1;

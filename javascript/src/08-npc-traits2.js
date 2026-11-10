@@ -26,7 +26,7 @@
 				if (typeof localStorage !== "undefined" && localStorage) {
 					localStorage.setItem("mbCE_toggle_lock_v1", nowLocked ? "0" : "1");
 				}
-			} catch (e) {}
+			} catch (e) { /* 拖动锁持久化失败（隐私模式/配额满）→ 锁定状态本次会话仍生效，仅刷新后丢失 */ }
 			renderGlobal();
 		});
 		fabWrap.appendChild(fabBtn);

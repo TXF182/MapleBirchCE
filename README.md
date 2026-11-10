@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.0.14**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.0.15**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -64,6 +64,7 @@
 
 ### 4. 场景直达页（特殊场景传送）
 - **8 组场景**直达：孤儿院阁楼 / 凯拉尔庄园 / 悉尼神殿 / 西里斯学校与商店 / 艾弗里庄园 / 格威岚花园与森林商店 / 多伦公寓与阁楼 / 麋鹿街大院。
+- **剧情直达四组（v2.0.15）**：象牙怨灵（65 段，主场景 `Wraith Test Start`）/ 万圣节（98 段，`Lake Halloween Party`）/ 情人节（112 段，`Avery Valentines`）/ 圣诞节（33 段，`Christmas Mirror`），入口按原版时间窗口预置日期与状态（`$wraith` 八字段、`$avery_valentines` 十七字段、`$phase=0`、`$cool=240`）。**不可安全直达的段不会出现在列表里**：`<<widget>>` 定义段（`Kylar Halloween Start` 等 4 个）与首宏即 `$molestationstart / $struggle_start / $fightstart / $sexstart` 的战斗中继段（共 32 个）一律过滤，实测剔除 36 段；判据是「顺序扫宏取第一个控制宏」，故 `Wolf Halloween 7`（首宏 `$phase`）、`Avery Valentines End` 这类含战斗变量的正常入口不会被误杀。麋鹿街大院同口径过滤 10 段。
 - 点「直达」= **永久解锁 + 世界入口写入**：凯拉尔庄园（`syndromekylar=1`）、阁楼（`loft_known=1`）、西里斯商店（`adultshopstate="open"`）、麋鹿街大院（`compound.allowed/discovered`）等，解锁后游戏世界里直接可进入。
 - **防崩兜底**：直达/固定触发进入艾弗里庄园、农场线、格威岚剧情前自动补缺失状态对象（`$daily.avery.talk`、`$farm`、`T.gwylanStatus/TF`），**已有进度绝不覆盖**——新存档直接传送不炸档。
 

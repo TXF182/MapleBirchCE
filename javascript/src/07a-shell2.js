@@ -46,7 +46,7 @@
 					mbCEUiState.diffPreview = (obj.diffPreview === "1" || obj.diffPreview === "true") ? "1" : "0";
 				}
 			}
-		} catch (e) {}
+		} catch (e) { /* 读不到偏好 → 保留默认 UI 状态 */ }
 	}
 	function mbCEUiSave(partial) {
 		try {
@@ -68,7 +68,7 @@
 			if (typeof localStorage !== "undefined" && localStorage) {
 				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));
 			}
-		} catch (e) {}
+		} catch (e) { /* 持久化失败 → 偏好仅本次会话生效，不打断面板操作 */ }
 	}
 	function mbCEUiCollapsed(tcat, open) {
 		mbCEUiState.collapsed[tcat] = open ? 0 : 1;
@@ -242,7 +242,7 @@
 					mbCEPushError(ev && ev.message ? ev.message : "未知错误",
 						ev && ev.filename ? ev.filename + (ev.lineno ? ":" + ev.lineno : "") : "",
 						e && e.stack ? e.stack : "");
-				} catch (e2) {}
+				} catch (e2) { /* 错误池上报自身失败必须静默，避免级联二次错误 */ }
 			});
 			/* v1.8.12 优化：Promise 拒绝（未捕获的 async/await 异常）同样进面板 */
 			if (typeof window.addEventListener === "function") {
@@ -252,7 +252,7 @@
 						mbCEPushError("未处理的 Promise 拒绝：" + (r && r.message ? r.message : (r ? String(r) : "未知原因")),
 							"unhandledrejection",
 							r && r.stack ? r.stack : "");
-					} catch (e2) {}
+					} catch (e2) { /* 错误池上报自身失败必须静默，避免级联二次错误 */ }
 				});
 			}
 			if (window.console && typeof window.console.error === "function") {
@@ -265,10 +265,10 @@
 							parts.push(a && a.stack ? a.stack : String(a));
 						}
 						mbCEPushError(parts.join(" | "), "console.error", "");
-					} catch (e2) {}
+					} catch (e2) { /* 上报失败不得阻断后续 origErr 输出 */ }
 					origErr.apply(this, /** @type {any} */ (arguments));
 				};
 			}
-		} catch (e) {}
+		} catch (e) { /* 钩子安装失败不阻断面板加载（退化为无全局错误采集） */ }
 	}
 

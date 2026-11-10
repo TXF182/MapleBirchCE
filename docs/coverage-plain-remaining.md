@@ -1,5 +1,30 @@
 # plain 分支剩余欠账（2026-11-09 第三轮补测收口）
 
+> **2026-11-09 第四轮补测（本段为后续进展；下方表格是第三轮快照，保留作对照）**
+>
+> 结果：`Branches 81.59%（5694/6978）`，`run_all.ps1` 12/12 绿。已清分支的断言全在
+> `tests/plain_branches.js` 第 7–10 段，可直接复核。
+>
+> | 文件 | 行 | 覆盖方式 | 提交 |
+> |---|---|---|---|
+> | `09-exports.js` | L18 / L19 | 注入 `maplebirch.npc.NPCNameList` 造「框架有角色」夹具（此前 `npc:{}` 使 `listCharacters()` 恒空 → render 永远早退，这是该文件覆盖率全仓最低的机制性原因） | `d521937` |
+> | `05a-modcheat-rows.js` | L118 / L268 | 注入 `setup.mbCE_modCheats` 两条注册项；空声明模组走 renderModCheatDetail 四组全空提示 | `4819cbd` |
+> | `08-npc-traits2.js` | L125 / L126 / L255 / L257 | 注入 `V.templePromised` / `V.temple_rank` 后点全局页签；`acItems` 六 key 里 `clean` 无专属 else-if ⇒ 首次开启落 L255 兜底，再点关闭走 L257 | `f45908d` |
+> | `07a-shell2.js` | L202 / L235 | 压 210 条 `mbCEPushError` 触发「1 分钟 ≥200 条」全局熔断（阈值 07a-shell2.js:179），再点开 `.mce-errbtn` 渲染熔断提示；`open()` 内调 `mbCEHookErrors()`（09-exports2.js:36），二次 open 即命中幂等闸 | `25e9d73` |
+>
+> **已判结构性不可达并删除（取证写进断言，不伪造输入）**
+> - `05a:115 if (!m.declared)`：`normalizeCheatMod` 强制 `declared: true`（04c-modcheat-util.js:4），而唯一写 `declared:false` 的 `CHEAT_PASSIVE_PROBES`（03d-global-modzh.js:122）建空数组后全仓无任何 push ⇒ `declared:false` 输入域为空。**已删除**守卫（未声明项只展示提示 / 已声明项绑点击），改为直接绑点击，原地留注释写明「若被动探针被填充必须恢复该守卫」；`tests/plain_branches.js` 保留 `getCheatMods()` 全体 `declared===true` 的输入域取证断言作为删除前提（断言变红即说明必须回滚该删除），标题同步改口径。
+> - `05a:252 if (pend.length <= MOD_ROW_BATCH)`：分片入口条件是 `pend.length > MOD_ROW_BATCH_LIMIT(60)`，`<= 40` 永不成立。**已删除**（连同其内的 failed 提示块）：首批与后续分片失败统一由 `modRowStep:30` 按 `t.failed` 提示，提示语义与文案不变；删除后 `Branches 81.6%（5693/6976）`、产物 978,507 B / `E18A1981…`。
+> - `actCheat`（05a 内）两层恒真判定：原 `if (modId && key) { …… return; }` 包住整块局部刷新，其后 `if (modId) { renderModCheatDetail(modId); }`。取证双向：① 13 个调用点（`05a2-modcheat-rows-build.js:85/87/113/115/117/127/157/159/161/185/192/218/222`）一律传 `m.modId` 与 `"tasks:"+t.key` 这类带前缀字面拼接（`key` 至少含前缀故恒非空）；② `m.modId` 由 `getCheatMods` 三源过滤空 id 保证（`05a2:8` 注册项 / `05a2:22` 被动探针 / 适配器 entry 经 `04c normalizeCheatMod` 透传）。**已删除**两层判定：`pane` 提升到函数体、末尾无条件 `renderModCheatDetail(modId)`，原地留注释写明恢复条件（出现无 modId 或无 key 的调用形态时须恢复）。等价性由 `tests/modcheat_ui_state.js` 第 3 节新增断言守护：摘掉 `tasks:t1` 行后点其「跳过任务」→ 不抛且仍停在子页（即 `refreshModRow` 落空后走兜底重建），该断言在**旧码即绿**（证明等价），改后仍绿。删除后 `Branches 81.65%（5699/6979）`、产物 **979,581 B / `6C90D3155C1B0B12`**、zip **313,942 B / `4BB613E2…`**。
+> - **口径校正（重要）**：c8 的 branches 分母**不是纯静态**——未被执行的函数其分支条目不进入统计（`npx c8 --include=javascript/maplebirchce.js node tests/test_mce.js` 单测只得 `3010/4506`）。故本轮 `6975 → 6979` 不能与「删了 4 个判定点」直接对消，也不能据此判断覆盖率升降；跨轮比较只应看两件事：源码 diff 里判定点确已消失、`report_branch_gaps.js` 里该分片未覆盖数不升（本轮 05a 已不在未覆盖 top 15）。
+>
+> **剩余未补的三类（本轮停在这里的原因：每条只值 1 分支，构造与验证成本高）**
+> 1. **时序类**：`05b2-modcheat-attitude.js:133/L135` 只在 `setInterval(1000ms)` 回调里命中；测试须真等 1 秒并观察定时器对 DOM 的副作用，拖慢门禁且引入时序脆弱性。
+> 2. **未导出入口**：`07d-places.js:130/L139`（`mbCEHasUsableLinks` / `mbCEArrivalCheck` 只在直达后 250ms `setTimeout` 内被调用）、`renderGlobal`、`mbCEHookErrors` 等无导出，只能经页签/二次 open 一类间接路径，其余无稳定路径。
+> 3. **null 变量类**：`07a-shell2.js:132/L199/L219`、`08-npc-traits2.js:19`、`09-exports.js:4`——被检查的 DOM 引用与模块变量都在 `ensureDom()` 里赋值，`close()` 只移除节点不清变量，且 `ensureDom` 在 `root` 仍挂 body 时不重建被移除的子 pane（09-exports.js:67）⇒ 测试无法把已赋值的变量重新置空。
+>
+> 复现本轮数字：`npx c8 --include=javascript/maplebirchce.js --reporter=text-summary --check-coverage --lines 90 --branches 80 --functions 95 node tools/run_coverage_par.js --groups auto`。
+
 口径：`node tools/report_branch_gaps.js` 的 `classifyLine` 归因，`plain` = 普通 if-else 可补测欠账；
 已从欠账里单独摘出的 `dead-guard`（不可达守卫）不计入本表。
 

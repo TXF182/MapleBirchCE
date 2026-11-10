@@ -112,13 +112,14 @@
 			top.appendChild(el("span", "mce-card-name", "▶ " + m.modName));
 			top.appendChild(el("span", "mce-badge " + (m.declared ? "mce-on" : "mce-off"), m.declared ? "可操控" : "未声明"));
 			row.appendChild(top);
-			if (!m.declared) {
-				row.appendChild(el("div", "mce-hint", "该模组未按注册协议声明可操控项，仅识别展示（不提供操控）。"));
-			} else {
-				row.addEventListener("click", (function (mod) {
-					return function () { curCheatModId = mod.modId; renderModCheatDetail(mod.modId); };
-				})(m));
-			}
+			/* 已删去「未声明模组」守卫（原 if (!m.declared) 提示 / else 绑点击）：m.declared 在当前
+			   输入域恒为 true —— 注册表项经 normalizeCheatMod 强制 declared:true（04c-modcheat-util.js:4），
+			   唯一写 declared:false 的 CHEAT_PASSIVE_PROBES 在 03d-global-modzh.js:122 建空数组后全仓无 push，
+			   故该守卫无可达输入。若将来被动探针被填充或新增 declared:false 来源，必须在此恢复
+			   「未声明项不绑点击、只展示提示」的守卫（否则未声明模组会被误开子页）。 */
+			row.addEventListener("click", (function (mod) {
+				return function () { curCheatModId = mod.modId; renderModCheatDetail(mod.modId); };
+			})(m));
 			list.appendChild(row);
 		});
 		pane.appendChild(list);
@@ -244,16 +245,13 @@
 				}
 				return;
 			}
-			/* 分片：先同步建首批 BATCH 行（点击展开立刻可见内容），剩余入队逐帧排空 */
+			/* 分片：先同步建首批 BATCH 行（点击展开立刻可见内容），剩余入队逐帧排空。
+			   注：本路径入口已保证 pend.length > MOD_ROW_BATCH_LIMIT(60) > MOD_ROW_BATCH(40)，
+			   故不存在「首批已排空剩余」的分支（已删去恒假的 <=40 判定）；首批失败与
+			   后续分片失败统一由 modRowStep 收尾按 t.failed 提示，提示语义不变。 */
 			var first = Math.min(MOD_ROW_BATCH, pend.length);
 			for (var fi = 0; fi < first; fi++) {
 				try { appendRowNodes(grp.body, pend[fi]()); } catch (e) { failed++; }
-			}
-			if (pend.length <= MOD_ROW_BATCH) {
-				if (failed) {
-					grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
-				}
-				return;
 			}
 			var task = { body: grp.body, fns: pend.slice(first), i: 0, failed: failed };
 			modRowQueue.push(task);
@@ -281,19 +279,23 @@
 	function actCheat(res, modId, key) {
 		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
 		/* 五巡：操作后局部刷新目标行（不再全量重建整个模组页——高频操作下 DOM churn 是卡顿/闪退累积源之一） */
-		if (modId && key) {
-			var pane = root.querySelector('[data-pane="mods"]');
-			if (pane && refreshModRow(pane, modId, key)) {
-				/* v1.9.14 效果2：写入成功 → 刷新回显后的目标行金底闪烁（反馈落在可见新值上） */
-				if (res && res.ok) {
-					var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
-					var newRow = pane.querySelector('[data-mce-key="' + esc + '"]');
-					if (newRow) { mbCEFlash(newRow); }
-				}
-				return;
+		/* 已删两层恒真判定（原 `if (modId && key)` 包住整块、其后再 `if (modId)` 包 renderModCheatDetail）：
+		   13 个调用点（05a2-modcheat-rows-build.js）全部传 m.modId 与 "tasks:"+t.key 这类字面拼接（至少含前缀故
+		   恒非空）；m.modId 由 getCheatMods 三源过滤空 id 保证（05a2:8 注册项 / 05a2:22 被动探针 / 适配器 entry
+		   经 04c normalizeCheatMod 透传）⇒ modId 与 key 均为真值。
+		   化简后行为等价：pane 取不到或局部刷新落空即落到 renderModCheatDetail（与原 else 分支同一行、同一结果）。
+		   若将来出现「无 modId」或「无 key」的调用形态，必须在此恢复这两层判定。 */
+		var pane = root.querySelector('[data-pane="mods"]');
+		if (pane && refreshModRow(pane, modId, key)) {
+			/* v1.9.14 效果2：写入成功 → 刷新回显后的目标行金底闪烁（反馈落在可见新值上） */
+			if (res && res.ok) {
+				var esc = (typeof CSS !== "undefined" && typeof CSS.escape === "function") ? CSS.escape(key) : String(key).replace(/["\\]/g, "\\$&");
+				var newRow = pane.querySelector('[data-mce-key="' + esc + '"]');
+				if (newRow) { mbCEFlash(newRow); }
 			}
+			return;
 		}
-		if (modId) { renderModCheatDetail(modId); }
+		renderModCheatDetail(modId);
 	}
 	/* 阶段下拉回显公共（渲染与局部刷新共用，v1.4.4 行为保持） */
 	function reflectStageSelect(sel, s, modId) {

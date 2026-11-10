@@ -139,6 +139,17 @@ assert(V.fakeA.t1_done === true, "直接完成任务 → completeVar 写 true");
 btnIn(t2, "跳过任务").click();
 assert(/未声明跳过标记变量/.test(statusErr()), "未声明 skipVar → 状态栏拒绝文案");
 assert(V.fakeA.t2_skip === false, "拒绝时不落档");
+/* 局部刷新失败 → 兜底全量重建详情页（05a actCheat 删两层恒真判定的等价保护断言）：
+   原代码走 `if (modId) { renderModCheatDetail(modId); }` 的真分支（modId 假分支结构性不可达），
+   删除判定后该行无条件执行，玩家可见结果必须与改前完全一致——仍停在模组子页、不抛。
+   构造方式：把目标行从 DOM 摘掉，使 refreshModRow 因 querySelector 落空返回 false。 */
+const t1RowFb = rowByKey("tasks:t1");
+const t1SkipBtnFb = btnIn(t1RowFb, "跳过任务");
+t1RowFb.parentNode.removeChild(t1RowFb);
+let rFallback = null;
+try { t1SkipBtnFb.click(); } catch (e) { rFallback = String((e && e.message) || e); }
+assert(rFallback === null, "局部刷新落空时 actCheat 不抛（行已摘除）" + (rFallback ? "（" + rFallback + "）" : ""));
+assert(pane().textContent.indexOf("【假模组A】作弊控制") >= 0, "局部刷新落空 → 兜底重建详情页（仍停在模组子页，非退回列表页）");
 
 /* ================= 4. 阶段组 ================= */
 section("4 阶段：数字枚举 / 字符串枚举 / 跳最高 / 回退初始");

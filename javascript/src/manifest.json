@@ -188,6 +188,11 @@
       "layer": "ui"
     },
     {
+      "file": "07d-places3.js",
+      "layer": "ui",
+      "note": "v2.0.15 剧情入口四组登记 + 节日/怨灵状态保底（结构门禁 S1 拆段）"
+    },
+    {
       "file": "07e-scenes.js",
       "layer": "ui"
     },
