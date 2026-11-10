@@ -38,7 +38,8 @@
 		}, main: "Lake Stroll", note: "湖畔（$location=lake；散步/昆虫/黄金/遗迹等线）" },
 		{ id: "wolf_territory", name: "森林深处 · 狼群领地", match: function (n) {
 			return n.indexOf("Wolf ") === 0 || n.indexOf("Forest Wolf") === 0;
-		}, main: "Wolf Pack", note: "森林深处的狼群领地（Wolf Pack 遭遇/狼穴/狼孩线）" },
+		}, exclude: mbCEIsUnplayableEntry, main: "Wolf Cave",
+		  note: "森林深处的狼群领地（狼穴 hub / 猎人 / 腐肉 / 河流 / 巡逻各线）。主场景取 Wolf Cave（狼穴入口，自带出口）；原主场景 Wolf Pack 的首个控制宏是 if($molestationstart is 1)，属战斗遭遇中继段，硬跳进去条件为假、正文空白、链接全灭（v2.0.15 未给本组挂 exclude，该缺陷一直在线，v2.0.16 修正）。" },
 		{ id: "hospital", name: "医院 · Hospital", match: function (n) {
 			return n.indexOf("Hospital ") === 0;
 		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" },
@@ -52,8 +53,15 @@
 			return n.indexOf("Livestock") === 0;
 		}, main: "Livestock Intro", note: "雷米的牧场（被当作牲口的整条线：牛棚/牧场/劳动/挤奶/逃脱/冬歇）" },
 		{ id: "remy_farm", name: "雷米农场 · The Farm", match: function (n) {
-			return n === "The Farm" || n.indexOf("The Farm ") === 0 || n.indexOf("Farmland ") === 0;
-		}, main: "The Farm", note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）" },
+			/* v2.0.16 扩前缀：原 match 只认「The Farm / Farmland」，主场景换到 Farm Cottage 后
+			   该段不在组内（渲染会报「未匹配到主场景段落」）。现补两种前缀：
+			   "The Farm " 为农场本体族、"Farm " 为农场小屋族（Farm Cottage / Bedroom / Bed /
+			   Breakfast / Alex / Assault / Wardrobe 等）、"Farmland " 为农田事件族。
+			   战斗中继段由 exclude 剔除，不会进组。 */
+			return n === "The Farm" || n === "Farm" || n.indexOf("The Farm ") === 0
+				|| n.indexOf("Farm ") === 0 || n.indexOf("Farmland ") === 0;
+		}, exclude: mbCEIsUnplayableEntry, main: "Farm Cottage",
+		  note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）。主场景取 Farm Cottage（农场小屋，自带出口）；原主场景 The Farm 的首个控制宏是 if($molestationstart is 1)，属战斗遭遇中继段，硬跳会白屏（v2.0.15 未给本组挂 exclude，该缺陷一直在线，v2.0.16 修正）。" },
 		/* v2.0.7 R3（玩家「有的地点都没了」「那小岛的作弊呢」）：原版 0.5.12.13 有 Island 海岛线
 		   （setup.majorAreas 含 "Island"，setup.addlocation("island").parent("sea")，Widgets Text Island → "the nearby island"，
 		   teleportCheater 有 case "Island" → island_end），但 CE 的 17 组地点直达里一直没有 → 玩家进不去。
@@ -62,32 +70,6 @@
 			return n === "Island" || n.indexOf("Island ") === 0;
 		}, main: "Island", note: "海岛生存线（营地三选/探索六处/建造/隐蔽/语言；生存数值与营地作弊见「地点」子页签）" }
 	];
-	var PLACE_CN = {
-		/* v1.9.23-实机修复：新 6 组主场景名中文化（主场景行 placeNameCN 子串映射） */
-		"asylum": "精神病院", "police": "警局与监狱", "prison": "监狱", "docks": "码头",
-		"lake": "湖畔", "wolf": "狼群", "hospital": "医院", "island": "海岛",
-		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
-		"spray": "喷漆", "hall": "大厅", "garden": "花园", "lab": "实验室", "parents room": "父母房间",
-		"grounds": "庭院", "kylar room": "凯拉尔房间", "secret": "秘密", "bed": "卧室", "pool": "泳池",
-		"bathroom": "浴室", "lounge": "客厅", "dining": "餐厅", "study": "书房", "dungeon": "地牢",
-		"garage": "车库", "display": "陈列室", "wardrobe": "衣帽间", "breakfast": "早餐", "folder": "档案",
-		"party": "宴会", "bathe": "沐浴", "chase": "追逐", "bedroom": "卧室", "corridor": "走廊",
-		"stairs": "楼梯", "antiques": "古董", "mirror": "镜子", "intro": "初次进入", "vigil": "守夜",
-		"pray": "祈祷", "wakeup": "醒来", "rescue": "营救", "confess": "忏悔", "pure": "纯洁线",
-		"corrupt": "堕落线", "seduce": "引诱", "spank": "拍打", "sex": "性爱", "ritual": "仪式",
-		"start": "开始", "pregnancy": "分娩", "birth": "接生", "forest": "森林", "shop": "商店",
-		"compound": "大院", "central": "中央区", "underground": "地下", "interior": "室内", "station": "站台",
-		"wraith": "怨灵", "possessed": "附身", "machine": "机械", "experiment": "实验", "tentacles": "触手",
-		"crystal": "水晶", "sell": "出售", "bluff": "虚张声势", "fight": "战斗", "explore": "探索",
-		"camera": "摄像头", "pipes": "管道", "smoke": "烟雾", "climb": "攀爬", "tower": "塔楼",
-		"shower": "淋浴", "cry": "哭泣", "talk": "交谈", "hot chocolate": "热巧克力", "volleyball": "排球",
-		/* v2.0.0.007：妓院/雷米牧场/农场主场景与子场景中文化 */
-		"brothel": "妓院", "basement": "地下层", "gloryhole": "荣耀洞", "livestock": "牲口", "barn": "牛棚",
-		"farm": "农场", "farmland": "农田", "plough": "犁地", "tie stall": "拴栏", "milking": "挤奶",
-		/* v2.0.15：剧情入口四组的主场景中文词条 */
-		"halloween": "万圣节", "valentines": "情人节", "christmas": "圣诞节", "ivory": "象牙",
-		"bonfire": "篝火", "costume": "戏服", "trick": "捣蛋", "treat": "讨糖", "gift": "礼物"
-	};
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
 		var parts = [];
@@ -179,6 +161,9 @@ function ensureSceneStateFor(name) {
 		var V2 = getV();
 		if (!V2) { return; }
 		var nm = String(name || "");
+		/* v2.0.17：子入口专属状态兜底（$gwylan / $pubfame），实现落在 07d-places4.js。
+		   先于各地点分支执行 —— 它只补缺失、不覆盖，且与被调地点不冲突。 */
+		if (typeof mbCEEnsureEntryState === "function") { mbCEEnsureEntryState(nm, V2); }
 		if (/^Prison/.test(nm)) { /* 无 \b：PrisonScarredInmate 一类无空格段名也命中 */
 			if (V2.prison && typeof V2.prison === "object") { return; } /* 已有进度：绝不调 init（避免 morning 被重置） */
 			var sc = (typeof window !== "undefined" && window && window.SugarCube) ? window.SugarCube : null;
@@ -186,10 +171,27 @@ function ensureSceneStateFor(name) {
 			if (W) { new W(null, "<<prison_init>>"); }
 			return;
 		}
-		if (nm.indexOf("The Farm") === 0 || nm.indexOf("Farmland") === 0) {
-			if (V2.farm && typeof V2.farm === "object") { return; }
-			var fs = Number(V2.farm_stage);
-			ensureFarmState(!(fs >= 1)); /* 农场线未推进也补壳（只补不覆盖）：直达后子段落会读 $farm.* */
+		/* v2.0.16：判据从「The Farm / Farmland」放宽到「Farm 开头」——主场景已从 The Farm 换成 Farm Cottage
+		   （前者首宏是 if($molestationstart is 1) 的战斗中继段），Farm Cottage 不以 "The Farm" 开头，旧判据下
+		   新档直达农场小屋会丢掉 $farm 兜底。且不因「$farm 已是对象」早退：Farm Cottage 段首是
+		   <<if $farm.build_finished.includes("nursery")>>，build_finished 缺失或非数组照样 TypeError；
+		   ensureFarmState 只补缺失、不覆盖已有进度，故无条件调用安全。 */
+		if (nm.indexOf("The Farm") === 0 || nm.indexOf("Farm") === 0 || nm.indexOf("Farmland") === 0) {
+			ensureFarmState(true);
+			return;
+		}
+		/* v2.0.16：狼穴 hub 的状态兜底。Wolf Cave 段首即
+		      <<set $wolfpackharmony to Math.clamp($wolfpackharmony, 0, 22)>>
+		   —— 这三个键在原版只在狼线各段内才被初始化（不在 StoryInit），新档直达时
+		   $wolfpackharmony / $wolfpackferocity 为 undefined → Math.clamp 返回 NaN（不抛，但面板读数是 NaN、
+		   wolfcavestate 分支判定失真）。按原版初始化值补 10；$wolfstate 补 "cave"、$wolfevent 补 0、
+		   $wolfcavedig 补 0（等价「还没开挖」，仍走 Examine 分支）。全部「缺失才补」。 */
+		if (nm === "Wolf Cave" || nm.indexOf("Wolf Cave") === 0) {
+			if (typeof V2.wolfpackharmony !== "number" || !isFinite(V2.wolfpackharmony)) { V2.wolfpackharmony = 10; }
+			if (typeof V2.wolfpackferocity !== "number" || !isFinite(V2.wolfpackferocity)) { V2.wolfpackferocity = 10; }
+			if (typeof V2.wolfstate !== "string" || !V2.wolfstate) { V2.wolfstate = "cave"; }
+			if (typeof V2.wolfevent !== "number") { V2.wolfevent = 0; }
+			if (typeof V2.wolfcavedig !== "number") { V2.wolfcavedig = 0; }
 			return;
 		}
 		/* v2.0.15 剧情入口四组（象牙怨灵 / 万圣节 / 情人节 / 圣诞）：状态保底与时间通道见 07d-places3.js。

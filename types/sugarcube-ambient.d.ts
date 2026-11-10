@@ -21,6 +21,13 @@ declare function gwylanStatusCheck(...args: any[]): any;
 declare function npcIsPregnant(...args: any[]): any;
 declare function playerIsPregnant(...args: any[]): any;
 
+/* SugarCube 给 Math 打了 clamp 补丁（引擎在 story 前置脚本里注入）：
+   v2.0.17 $gwylan.lureDistance 兜底照抄原版 Widgets Forest 的 Math.clamp($forest, 15, 100)。
+   源码侧仍包 typeof 守卫（沙箱/纯 node 测试里没有该补丁），此处只做类型补声明。 */
+interface Math {
+  clamp(value: number, min: number, max: number): number;
+}
+
 interface Window {
   maplebirch?: any;
   SugarCube?: any;

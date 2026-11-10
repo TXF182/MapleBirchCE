@@ -21,7 +21,7 @@
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
 	/** @type {any} */
-	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0" };
+	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0", placeOpen: {} };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
 	function mbCEUiLoad() {
 		try {
@@ -45,6 +45,9 @@
 				if (obj.diffPreview === "1" || obj.diffPreview === "0" || obj.diffPreview === "true" || obj.diffPreview === "false") {
 					mbCEUiState.diffPreview = (obj.diffPreview === "1" || obj.diffPreview === "true") ? "1" : "0";
 				}
+				/* v2.0.16：场景直达子入口折叠状态（组 id → 1 展开 / 0 收起）。此前无此键，
+				   加子入口后若不持久化，切页签或重开面板就会全部收回折叠态。 */
+				if (obj.placeOpen && typeof obj.placeOpen === "object") { mbCEUiState.placeOpen = obj.placeOpen; }
 			}
 		} catch (e) { /* 读不到偏好 → 保留默认 UI 状态 */ }
 	}
@@ -64,6 +67,8 @@
 					partial.diffPreview === true || partial.diffPreview === false) {
 					mbCEUiState.diffPreview = (partial.diffPreview === "1" || partial.diffPreview === "true" || partial.diffPreview === true) ? "1" : "0";
 				}
+				/* v2.0.16：场景直达子入口折叠状态（组 id → 1/0），与 collapsed 同款白名单合并 */
+				if (partial.placeOpen && typeof partial.placeOpen === "object") { mbCEUiState.placeOpen = partial.placeOpen; }
 			}
 			if (typeof localStorage !== "undefined" && localStorage) {
 				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));

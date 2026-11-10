@@ -1,7 +1,7 @@
 /* MapleBirchCE ESLint 配置（flat config，eslint 10.x）
  *
  * 定位：只做「确定性错误」检查，不做风格检查。
- * 源码共 73 个分片、跨文件全局共享（浏览器 IIFE 拼接后同一作用域），
+ * 源码共 76 个分片、跨文件全局共享（浏览器 IIFE 拼接后同一作用域），
  * 因此宿主导出的标识符（SugarCube / DoL / jQuery）必须以 globals 显式声明，
  * 否则 no-undef 会把「宿主提供的全局」误报成未定义（实测 363 条全部属此类）。
  *
@@ -36,7 +36,7 @@
  *
  * 跑法：npm run lint（即 npx eslint javascript/maplebirchce.js）
  *
- * 检查对象是 build 产物而非 src 分片：src 是 73 段「不完整片段」（00-preamble.js 的开括号
+ * 检查对象是 build 产物而非 src 分片：src 是 76 段「不完整片段」（00-preamble.js 的开括号
  * 与 09-exports.js 的闭括号分处两个文件），单文件解析必然 Parsing error，无法逐片 lint。
  * 产物是拼接后的完整脚本，与运行时真正执行的代码一致；命中行号可直接按段注释定位回 src。
  * 该检查已并入 tools/run_all.ps1 的第 2.5 步（与 node --check 同层，放在 build 之后）。

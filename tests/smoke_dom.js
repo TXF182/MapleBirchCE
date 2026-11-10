@@ -1647,7 +1647,10 @@ setTimeout(function () {
     assert(builtNow < 70, "16 分片：70 行组展开首帧未全量渲染（" + builtNow + "/70，长任务已摊平）");
     assert(builtNow >= 40, "16 分片：首帧已渲染 40+ 行（点击立即可见内容），实际 " + builtNow);
     window.__mbCE_forceSyncRows = true;
-    setTimeout(function () {
+    /* v2.0.16：原写法是固定 setTimeout(…, 800) 一次性检查，覆盖率并行 4 组时 CPU 抢占会让 0ms 分片
+       定时器排不空（实测首帧 46 → 800ms 后仍 46，误报 FAIL）。改为轮询到 70 行或 3s 上限，
+       到点仍不足才判失败 —— 断言口径不变，只去掉时序赌注。 */
+    const finish16 = function () {
       const total = bPane.querySelectorAll(".mce-row").length;
       const bTxt = bPane.textContent;
       if (total > builtNow && bTxt.indexOf("大数值0") !== -1 && bTxt.indexOf("大数值69") !== -1) {
@@ -1757,7 +1760,11 @@ setTimeout(function () {
       assert(js.indexOf("@keyframes mce-fade-in") !== -1 && js.indexOf('data-collapsed=\\"0\\"]{animation:mce-fade-in .2s ease-out}') !== -1, "17 折叠组展开淡入规则（效果4）");
       assert(js.indexOf(".mce-flash{animation:mce-flash .6s ease-out}") !== -1 && js.indexOf("@keyframes mce-flash") !== -1, "17 写入成功闪烁规则（效果2）");
       assert(js.indexOf("function mbCEFlash(node)") !== -1 && js.indexOf("function mbCEFlashAfterRender(stageKey)") !== -1, "17 mbCEFlash/mbCEFlashAfterRender 工具在位（效果2）");
-    }, 800);
+    };
+    (function pollDrain(tries) {
+      if (bPane.querySelectorAll(".mce-row").length >= 70 || tries <= 0) { finish16(); return; }
+      setTimeout(function () { pollDrain(tries - 1); }, 150);
+    })(20);
   } catch (e16) {
     failures++;
     console.error("FAIL: 16 分片测试异常：" + (e16 && e16.message ? e16.message : e16));

@@ -494,6 +494,9 @@ const PLACE_NAMES = [
   "Lake Stroll", "Lake Insect",
   "Police Cell", "Police Community Start", "Prison Wren Intro",
   "Wolf Pack", "Forest Wolf Cave Intro",
+  /* v2.0.16 主场景修正：Wolf Pack / The Farm 首宏都是 if($molestationstart is 1) 的纯战斗遭遇段
+     （实证原文含 <<beastCombatInit>>，硬跳必白屏），主场景换到自带出口的 hub / 小屋。 */
+  "Wolf Cave", "Farm Cottage",
   "Hospital front", "Hospital Foyer"
 ];
 // 模拟 SugarCube 2.36.1：无 Story.passages，场景页经 lookupWith 枚举段落名
@@ -507,7 +510,7 @@ assert(!!brV7 && brV7.group.main === "Brothel Basement" && brV7.items.length ===
 let lvV7 = pGroups.find(x => x.group.id === "remy_livestock");
 assert(!!lvV7 && lvV7.group.main === "Livestock Intro" && lvV7.group.name.indexOf("雷米牧场") === 0, "v2.0.0.007 雷米牧场牲口线组存在（主场景 Livestock Intro）, 实际 " + JSON.stringify(lvV7 && lvV7.group.main));
 let fmV7 = pGroups.find(x => x.group.id === "remy_farm");
-assert(!!fmV7 && fmV7.group.main === "The Farm" && fmV7.group.name.indexOf("雷米农场") === 0, "v2.0.0.007 雷米农场组存在（主场景 The Farm）, 实际 " + JSON.stringify(fmV7 && fmV7.group.main));
+assert(!!fmV7 && fmV7.group.main === "Farm Cottage" && fmV7.group.name.indexOf("雷米农场") === 0, "雷米农场组存在（v2.0.16 主场景 The Farm→Farm Cottage：前者首宏 if($molestationstart is 1) 是纯战斗遭遇段）, 实际 " + JSON.stringify(fmV7 && fmV7.group.main));
 let asy = pGroups.find(x => x.group.id === "asylum");
 assert(asy.group.name.indexOf("精神病院") === 0 && asy.items.length === 2 && asy.items[0] === "Asylum", "精神病院组 2 段主置顶, 实际 " + JSON.stringify(asy.items));
 let dp = pGroups.find(x => x.group.id === "police_prison");
@@ -517,7 +520,7 @@ assert(dk.group.name.indexOf("码头") === 0 && dk.items.length === 2 && dk.item
 let lk = pGroups.find(x => x.group.id === "lake");
 assert(lk.group.name.indexOf("湖畔") === 0 && lk.items.length === 2 && lk.items[0] === "Lake Stroll", "湖畔组 2 段主置顶, 实际 " + JSON.stringify(lk.items));
 let wf = pGroups.find(x => x.group.id === "wolf_territory");
-assert(wf.group.name.indexOf("森林深处") === 0 && wf.items.length === 2 && wf.items[0] === "Wolf Pack", "狼群领地组 2 段主置顶, 实际 " + JSON.stringify(wf.items));
+assert(wf.group.name.indexOf("森林深处") === 0 && wf.items.length === 3 && wf.items[0] === "Wolf Cave", "狼群领地组 3 段主置顶（v2.0.16 主场景 Wolf Pack→Wolf Cave）, 实际 " + JSON.stringify(wf.items));
 let hp = pGroups.find(x => x.group.id === "hospital");
 assert(hp.group.name.indexOf("医院") === 0 && hp.items.length === 2 && hp.items[0] === "Hospital front", "医院组 2 段主置顶, 实际 " + JSON.stringify(hp.items));
 let og = pGroups.find(x => x.group.id === "orphanage_loft");
@@ -533,7 +536,29 @@ assert(ag.items.length === 5 && ag.items[0] === "Mansion Bed", "艾弗里庄园�
 let gg = pGroups.find(x => x.group.id === "gwylan_garden");
 assert(gg.items.length === 4 && gg.items[0] === "Gwylan Ritual Start Garden", "格威岚花园组 4 段主置顶, 实际 " + JSON.stringify(gg.items));
 let totalItems = pGroups.reduce((s, x) => s + x.items.length, 0);
-assert(totalItems === 37, "干扰段落不误入（v1.9.13 全段归组，总 37 段）, 实际 " + totalItems);
+assert(totalItems === 39, "干扰段落不误入（v2.0.16 起含 Wolf Cave / Farm Cottage 两条新主场景，总 39 段）, 实际 " + totalItems);
+// 10.0) v2.0.16 场景直达子入口（用户「note 里点了名的子区域也该有直达按钮」）
+assert(typeof api.mbCEListPlaceEntries === "function" && typeof api.PLACE_EXTRA_ENTRIES === "object", "子入口表 PLACE_EXTRA_ENTRIES 与过滤函数已导出");
+const PXE = api.PLACE_EXTRA_ENTRIES;
+assert(Object.keys(PXE).length === 22, "子入口表覆盖全部 22 组, 实际 " + Object.keys(PXE).length);
+assert(Array.isArray(PXE.wraith) && PXE.wraith.length === 0, "象牙怨灵组显式不拆子入口（四套状态机依赖 $wraith.state 与月相，直跳会崩）");
+let subTotal = 0, subBadCn = [], subMainDup = [];
+Object.keys(PXE).forEach(k => {
+  (PXE[k] || []).forEach(it => {
+    subTotal++;
+    if (typeof it.cn !== "string" || !it.cn.trim()) { subBadCn.push(it.name); }
+    const grp = pGroups.find(x => x.group.id === k);
+    if (grp && it.name === grp.group.main) { subMainDup.push(it.name); }
+  });
+});
+assert(subTotal === 151, "子入口总条数 151（21 组非空 + wraith 空）, 实际 " + subTotal);
+assert(subBadCn.length === 0, "每条子入口都有非空中文标签（汉化硬约束：不许裸英文）, 违规 " + JSON.stringify(subBadCn));
+assert(subMainDup.length === 0, "子入口不得与主场景重名（避免同一段两个按钮）, 实际 " + JSON.stringify(subMainDup));
+assert(api.mbCEListPlaceEntries(kg).length === 3, "凯拉尔庄园子入口按 mock 段落表过滤后剩 3 条（Manor Garden/Lab/Kylar Room）, 实际 " + JSON.stringify(api.mbCEListPlaceEntries(kg)));
+assert(api.mbCEListPlaceEntries(kg)[0].cn === "花园", "子入口中文标签取显式 cn 而非子串拼接, 实际 " + JSON.stringify(api.mbCEListPlaceEntries(kg)[0]));
+assert(api.mbCEListPlaceEntries(og).length === 2, "孤儿院阁楼子入口过滤后 2 条（Spray 不在 mock 段落表 → 自动降级）, 实际 " + JSON.stringify(api.mbCEListPlaceEntries(og)));
+assert(api.mbCEListPlaceEntries(wf).length === 0, "狼群子入口在 mock 表全缺 → 返回空数组（模组缺段不显示死按钮）, 实际 " + JSON.stringify(api.mbCEListPlaceEntries(wf)));
+assert(api.mbCEListPlaceEntries({ group: { id: "no_such_group", main: "X" }, items: [] }).length === 0, "未知组 id 返回空数组且不抛错");
 let cn = api.placeNameCN ? api.placeNameCN("Orphanage Loft Kitchen") : "";
 assert(typeof cn === "string" && cn.indexOf("厨房") !== -1, "段落名中文提示：厨房, 实际 " + cn);
 // teleportTo：无 Engine 时不抛错（setStatus 安全空转）
@@ -548,7 +573,7 @@ delete global.Engine;
 global.Story = { has: () => false, passages: PLACE_NAMES.map(n => ({ name: n, text: "" })) };
 let lapC = api.listAllPassages();
 assert(lapC.length === PLACE_NAMES.length, "旧版 Story.passages 兼容路径可用, 实际 " + lapC.length);
-assert(api.listPlaceGroups().reduce((s, x) => s + x.items.length, 0) === 37, "兼容路径下场景分组总数不变（37 段）");
+assert(api.listPlaceGroups().reduce((s, x) => s + x.items.length, 0) === 39, "兼容路径下场景分组总数不变（v2.0.16 起 39 段）");
 
 // 11) 锚定触发队列 / 回退 / 联动解锁（v1.9.23）：地点触发 + 确认条 + 已完成 + 旧档兼容
 global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT }].filter(fn) };
@@ -6317,6 +6342,82 @@ try {
 } catch (e64) {
   failures++;
   console.error("FAIL: 64 v2.0.15 剧情直达四组测试异常: " + (e64 && e64.stack ? e64.stack : e64));
+}
+
+// ===== 65 v2.0.17 子入口状态兜底：$gwylan / $pubfame（07d-places4.js + 07d-places.js 调用点）=====
+/* 取证（原版 0.5.12.13 解码后 16,087 段落，脚本 %TEMP%\mce_writeinit2.js）：
+   - StoryInit 仅 355 B / 只跑 <<variablesStatic>>，且原文注明「在故事变量载入前执行、每个 $ 都是 undefined」。
+   - 新档真正的 $ 初始化入口是 Start → Start2 → <<variablesStart2>>（<<variablesStart>> 全库零调用者，
+     探针 %TEMP%\mce_callers.js）。
+   - 判据 = 段落前 6 行内做「$K.属性 = / += / ++ / <<set $K.属性>>」写入的键 ∩ (gameStartOnly ∪ variablesStart2)
+     的差集 → 151 条子入口只剩 2 组真缺口：
+       $gwylan（Forest Gwylan Lure 第 3 行 <<set $gwylan.lureDistance -= 5>>，原版只在 Widgets Named Npcs 建壳）
+       $pubfame（Hospital Keycard Receptionist 首屏 <<set $pubfame.hospital to {}>>，原版只在 SV Pub Fame Intro 建壳）
+     其余 $compound/$docks/$livestock/$harper_appointments 均在 <<variablesStart2>> 内新档必建；
+     $wraith 由 <<gameStartOnly>> 建壳（子键写入不崩）；$island/$prison/$farm 已有分支覆盖。 */
+try {
+  const api65 = setup.mbStageCE;
+  const V65 = global.V;
+  const bk65 = { gwylan: V65.gwylan, pubfame: V65.pubfame, forest: V65.forest, MathClamp: Math.clamp };
+
+  /* 65.1~65.3 $gwylan 建壳：字面量照抄原版 Widgets Named Npcs */
+  delete V65.gwylan; delete V65.forest;
+  api65.ensureSceneStateFor("Forest Gwylan Lure");
+  assert(!!V65.gwylan && typeof V65.gwylan === "object", "65.1 格威岚引诱段 → 建 $gwylan 壳, 实际 " + JSON.stringify(V65.gwylan));
+  assert(["progress", "stage", "sea", "wary", "robin", "purged", "timer", "request", "requestCount", "requestDone"]
+    .every(k => k in V65.gwylan), "65.2 $gwylan 十字段齐（对齐原版 Widgets Named Npcs 字面量）, 实际 " + Object.keys(V65.gwylan).join(","));
+  assert(V65.gwylan.lureDistance === 15 && V65.gwylan.lureWill === 0,
+    "65.3 $forest 缺失时 lureDistance 落 clamp 下界 15（原版 Math.clamp($forest,15,100)）, 实际 " + V65.gwylan.lureDistance + "/" + V65.gwylan.lureWill);
+
+  /* 65.4~65.5 只补不覆盖：已有进度与已有距值一律保留 */
+  V65.forest = 60;
+  api65.ensureSceneStateFor("Forest Gwylan Lure");
+  assert(V65.gwylan.progress === 0 && V65.gwylan.lureDistance === 15,
+    "65.4 二次进入不重复初始化（progress 仍 0、lureDistance 仍 15，不按 $forest=60 重算）, 实际 " + V65.gwylan.progress + "/" + V65.gwylan.lureDistance);
+  V65.gwylan = { progress: 7, stage: 3, lureDistance: 42, robin: 2 };
+  api65.ensureSceneStateFor("Forest Gwylan Lure");
+  assert(V65.gwylan.progress === 7 && V65.gwylan.stage === 3 && V65.gwylan.lureDistance === 42 && V65.gwylan.requestDone === false,
+    "65.5 已有进度完整保留、只补缺失键（progress=7/stage=3/lureDistance=42 + 补 requestDone）, 实际 " + JSON.stringify(V65.gwylan));
+
+  /* 65.6 新档 $forest 存在时按 Math.clamp 取真值（不是恒 15） */
+  delete V65.gwylan; V65.forest = 60;
+  api65.ensureSceneStateFor("Forest Gwylan Lure");
+  assert(V65.gwylan.lureDistance === 60, "65.6 $forest=60 → lureDistance=60（clamp(60,15,100) 真值, 非硬编码 15）, 实际 " + V65.gwylan.lureDistance);
+  delete V65.gwylan; V65.forest = 3;
+  api65.ensureSceneStateFor("Forest Gwylan Lure");
+  assert(V65.gwylan.lureDistance === 15, "65.7 $forest=3 低于下界 → 钳到 15, 实际 " + V65.gwylan.lureDistance);
+
+  /* 65.8~65.9 $pubfame 建壳：字面量照抄原版 SV Pub Fame Intro */
+  delete V65.pubfame;
+  api65.ensureSceneStateFor("Hospital Keycard Receptionist");
+  assert(!!V65.pubfame && Array.isArray(V65.pubfame.seen) && Array.isArray(V65.pubfame.tasksDone),
+    "65.8 医院门禁卡前台 → 建 $pubfame 壳 {seen:[],tasksDone:[]}, 实际 " + JSON.stringify(V65.pubfame));
+  V65.pubfame = { seen: ["hospital"], tasksDone: ["t1"], hospital: {} };
+  api65.ensureSceneStateFor("Brothel Stage");
+  assert(V65.pubfame.seen.length === 1 && V65.pubfame.tasksDone[0] === "t1" && V65.pubfame.hospital && V65.pubfame.hospital.constructor === Object,
+    "65.9 妓院段同享兜底且不覆盖已见列表（seen/tasksDone/hospital 原样保留）, 实际 " + JSON.stringify(V65.pubfame));
+
+  /* 65.10~65.11 无副作用的边界：无关段落不新增任何键 / 空名与非法 V 不崩 */
+  const keysBefore = Object.keys(V65).sort().join(",");
+  api65.ensureSceneStateFor("Bedroom Robin Christmas Wrap");
+  assert(Object.keys(V65).sort().join(",") === keysBefore, "65.10 无关段落零副作用（不凭空新增 $gwylan/$pubfame）");
+  api65.ensureSceneStateFor("");
+  api65.ensureSceneStateFor(null);
+  assert(true, "65.11 空名/null 段名不抛异常");
+
+  /* 65.12 补壳函数对数组与嵌套对象的深补（$compound 的 theft 是三键对象、symbol 是数组） */
+  const sh = api65.mbCEFillShapeV({ alarm: 5, theft: { centre: true } }, { alarm: 0, theft: { centre: false, pipes: false }, symbol: [] });
+  assert(sh.alarm === 5 && sh.theft.centre === true && sh.theft.pipes === false && Array.isArray(sh.symbol),
+    "65.12 深补只填缺失：alarm/theft.centre 保留、theft.pipes 补 false、symbol 补数组, 实际 " + JSON.stringify(sh));
+
+  // 收尾还原
+  if (bk65.gwylan === undefined) { delete V65.gwylan; } else { V65.gwylan = bk65.gwylan; }
+  if (bk65.pubfame === undefined) { delete V65.pubfame; } else { V65.pubfame = bk65.pubfame; }
+  if (bk65.forest === undefined) { delete V65.forest; } else { V65.forest = bk65.forest; }
+  if (bk65.MathClamp === undefined) { delete Math.clamp; } else { Math.clamp = bk65.MathClamp; }
+} catch (e65) {
+  failures++;
+  console.error("FAIL: 65 v2.0.17 子入口状态兜底测试异常: " + (e65 && e65.stack ? e65.stack : e65));
 }
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");

@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.15";
+	var MCE_VERSION = "2.0.17";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -7313,7 +7313,7 @@ function renderPlayerEdit() {
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
 	/** @type {any} */
-	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0" };
+	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0", placeOpen: {} };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
 	function mbCEUiLoad() {
 		try {
@@ -7337,6 +7337,9 @@ function renderPlayerEdit() {
 				if (obj.diffPreview === "1" || obj.diffPreview === "0" || obj.diffPreview === "true" || obj.diffPreview === "false") {
 					mbCEUiState.diffPreview = (obj.diffPreview === "1" || obj.diffPreview === "true") ? "1" : "0";
 				}
+				/* v2.0.16：场景直达子入口折叠状态（组 id → 1 展开 / 0 收起）。此前无此键，
+				   加子入口后若不持久化，切页签或重开面板就会全部收回折叠态。 */
+				if (obj.placeOpen && typeof obj.placeOpen === "object") { mbCEUiState.placeOpen = obj.placeOpen; }
 			}
 		} catch (e) { /* 读不到偏好 → 保留默认 UI 状态 */ }
 	}
@@ -7356,6 +7359,8 @@ function renderPlayerEdit() {
 					partial.diffPreview === true || partial.diffPreview === false) {
 					mbCEUiState.diffPreview = (partial.diffPreview === "1" || partial.diffPreview === "true" || partial.diffPreview === true) ? "1" : "0";
 				}
+				/* v2.0.16：场景直达子入口折叠状态（组 id → 1/0），与 collapsed 同款白名单合并 */
+				if (partial.placeOpen && typeof partial.placeOpen === "object") { mbCEUiState.placeOpen = partial.placeOpen; }
 			}
 			if (typeof localStorage !== "undefined" && localStorage) {
 				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));
@@ -7863,7 +7868,8 @@ function renderPlayerEdit() {
 		}, main: "Lake Stroll", note: "湖畔（$location=lake；散步/昆虫/黄金/遗迹等线）" },
 		{ id: "wolf_territory", name: "森林深处 · 狼群领地", match: function (n) {
 			return n.indexOf("Wolf ") === 0 || n.indexOf("Forest Wolf") === 0;
-		}, main: "Wolf Pack", note: "森林深处的狼群领地（Wolf Pack 遭遇/狼穴/狼孩线）" },
+		}, exclude: mbCEIsUnplayableEntry, main: "Wolf Cave",
+		  note: "森林深处的狼群领地（狼穴 hub / 猎人 / 腐肉 / 河流 / 巡逻各线）。主场景取 Wolf Cave（狼穴入口，自带出口）；原主场景 Wolf Pack 的首个控制宏是 if($molestationstart is 1)，属战斗遭遇中继段，硬跳进去条件为假、正文空白、链接全灭（v2.0.15 未给本组挂 exclude，该缺陷一直在线，v2.0.16 修正）。" },
 		{ id: "hospital", name: "医院 · Hospital", match: function (n) {
 			return n.indexOf("Hospital ") === 0;
 		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" },
@@ -7877,8 +7883,15 @@ function renderPlayerEdit() {
 			return n.indexOf("Livestock") === 0;
 		}, main: "Livestock Intro", note: "雷米的牧场（被当作牲口的整条线：牛棚/牧场/劳动/挤奶/逃脱/冬歇）" },
 		{ id: "remy_farm", name: "雷米农场 · The Farm", match: function (n) {
-			return n === "The Farm" || n.indexOf("The Farm ") === 0 || n.indexOf("Farmland ") === 0;
-		}, main: "The Farm", note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）" },
+			/* v2.0.16 扩前缀：原 match 只认「The Farm / Farmland」，主场景换到 Farm Cottage 后
+			   该段不在组内（渲染会报「未匹配到主场景段落」）。现补两种前缀：
+			   "The Farm " 为农场本体族、"Farm " 为农场小屋族（Farm Cottage / Bedroom / Bed /
+			   Breakfast / Alex / Assault / Wardrobe 等）、"Farmland " 为农田事件族。
+			   战斗中继段由 exclude 剔除，不会进组。 */
+			return n === "The Farm" || n === "Farm" || n.indexOf("The Farm ") === 0
+				|| n.indexOf("Farm ") === 0 || n.indexOf("Farmland ") === 0;
+		}, exclude: mbCEIsUnplayableEntry, main: "Farm Cottage",
+		  note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）。主场景取 Farm Cottage（农场小屋，自带出口）；原主场景 The Farm 的首个控制宏是 if($molestationstart is 1)，属战斗遭遇中继段，硬跳会白屏（v2.0.15 未给本组挂 exclude，该缺陷一直在线，v2.0.16 修正）。" },
 		/* v2.0.7 R3（玩家「有的地点都没了」「那小岛的作弊呢」）：原版 0.5.12.13 有 Island 海岛线
 		   （setup.majorAreas 含 "Island"，setup.addlocation("island").parent("sea")，Widgets Text Island → "the nearby island"，
 		   teleportCheater 有 case "Island" → island_end），但 CE 的 17 组地点直达里一直没有 → 玩家进不去。
@@ -7887,32 +7900,6 @@ function renderPlayerEdit() {
 			return n === "Island" || n.indexOf("Island ") === 0;
 		}, main: "Island", note: "海岛生存线（营地三选/探索六处/建造/隐蔽/语言；生存数值与营地作弊见「地点」子页签）" }
 	];
-	var PLACE_CN = {
-		/* v1.9.23-实机修复：新 6 组主场景名中文化（主场景行 placeNameCN 子串映射） */
-		"asylum": "精神病院", "police": "警局与监狱", "prison": "监狱", "docks": "码头",
-		"lake": "湖畔", "wolf": "狼群", "hospital": "医院", "island": "海岛",
-		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
-		"spray": "喷漆", "hall": "大厅", "garden": "花园", "lab": "实验室", "parents room": "父母房间",
-		"grounds": "庭院", "kylar room": "凯拉尔房间", "secret": "秘密", "bed": "卧室", "pool": "泳池",
-		"bathroom": "浴室", "lounge": "客厅", "dining": "餐厅", "study": "书房", "dungeon": "地牢",
-		"garage": "车库", "display": "陈列室", "wardrobe": "衣帽间", "breakfast": "早餐", "folder": "档案",
-		"party": "宴会", "bathe": "沐浴", "chase": "追逐", "bedroom": "卧室", "corridor": "走廊",
-		"stairs": "楼梯", "antiques": "古董", "mirror": "镜子", "intro": "初次进入", "vigil": "守夜",
-		"pray": "祈祷", "wakeup": "醒来", "rescue": "营救", "confess": "忏悔", "pure": "纯洁线",
-		"corrupt": "堕落线", "seduce": "引诱", "spank": "拍打", "sex": "性爱", "ritual": "仪式",
-		"start": "开始", "pregnancy": "分娩", "birth": "接生", "forest": "森林", "shop": "商店",
-		"compound": "大院", "central": "中央区", "underground": "地下", "interior": "室内", "station": "站台",
-		"wraith": "怨灵", "possessed": "附身", "machine": "机械", "experiment": "实验", "tentacles": "触手",
-		"crystal": "水晶", "sell": "出售", "bluff": "虚张声势", "fight": "战斗", "explore": "探索",
-		"camera": "摄像头", "pipes": "管道", "smoke": "烟雾", "climb": "攀爬", "tower": "塔楼",
-		"shower": "淋浴", "cry": "哭泣", "talk": "交谈", "hot chocolate": "热巧克力", "volleyball": "排球",
-		/* v2.0.0.007：妓院/雷米牧场/农场主场景与子场景中文化 */
-		"brothel": "妓院", "basement": "地下层", "gloryhole": "荣耀洞", "livestock": "牲口", "barn": "牛棚",
-		"farm": "农场", "farmland": "农田", "plough": "犁地", "tie stall": "拴栏", "milking": "挤奶",
-		/* v2.0.15：剧情入口四组的主场景中文词条 */
-		"halloween": "万圣节", "valentines": "情人节", "christmas": "圣诞节", "ivory": "象牙",
-		"bonfire": "篝火", "costume": "戏服", "trick": "捣蛋", "treat": "讨糖", "gift": "礼物"
-	};
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
 		var parts = [];
@@ -8004,6 +7991,9 @@ function ensureSceneStateFor(name) {
 		var V2 = getV();
 		if (!V2) { return; }
 		var nm = String(name || "");
+		/* v2.0.17：子入口专属状态兜底（$gwylan / $pubfame），实现落在 07d-places4.js。
+		   先于各地点分支执行 —— 它只补缺失、不覆盖，且与被调地点不冲突。 */
+		if (typeof mbCEEnsureEntryState === "function") { mbCEEnsureEntryState(nm, V2); }
 		if (/^Prison/.test(nm)) { /* 无 \b：PrisonScarredInmate 一类无空格段名也命中 */
 			if (V2.prison && typeof V2.prison === "object") { return; } /* 已有进度：绝不调 init（避免 morning 被重置） */
 			var sc = (typeof window !== "undefined" && window && window.SugarCube) ? window.SugarCube : null;
@@ -8011,10 +8001,27 @@ function ensureSceneStateFor(name) {
 			if (W) { new W(null, "<<prison_init>>"); }
 			return;
 		}
-		if (nm.indexOf("The Farm") === 0 || nm.indexOf("Farmland") === 0) {
-			if (V2.farm && typeof V2.farm === "object") { return; }
-			var fs = Number(V2.farm_stage);
-			ensureFarmState(!(fs >= 1)); /* 农场线未推进也补壳（只补不覆盖）：直达后子段落会读 $farm.* */
+		/* v2.0.16：判据从「The Farm / Farmland」放宽到「Farm 开头」——主场景已从 The Farm 换成 Farm Cottage
+		   （前者首宏是 if($molestationstart is 1) 的战斗中继段），Farm Cottage 不以 "The Farm" 开头，旧判据下
+		   新档直达农场小屋会丢掉 $farm 兜底。且不因「$farm 已是对象」早退：Farm Cottage 段首是
+		   <<if $farm.build_finished.includes("nursery")>>，build_finished 缺失或非数组照样 TypeError；
+		   ensureFarmState 只补缺失、不覆盖已有进度，故无条件调用安全。 */
+		if (nm.indexOf("The Farm") === 0 || nm.indexOf("Farm") === 0 || nm.indexOf("Farmland") === 0) {
+			ensureFarmState(true);
+			return;
+		}
+		/* v2.0.16：狼穴 hub 的状态兜底。Wolf Cave 段首即
+		      <<set $wolfpackharmony to Math.clamp($wolfpackharmony, 0, 22)>>
+		   —— 这三个键在原版只在狼线各段内才被初始化（不在 StoryInit），新档直达时
+		   $wolfpackharmony / $wolfpackferocity 为 undefined → Math.clamp 返回 NaN（不抛，但面板读数是 NaN、
+		   wolfcavestate 分支判定失真）。按原版初始化值补 10；$wolfstate 补 "cave"、$wolfevent 补 0、
+		   $wolfcavedig 补 0（等价「还没开挖」，仍走 Examine 分支）。全部「缺失才补」。 */
+		if (nm === "Wolf Cave" || nm.indexOf("Wolf Cave") === 0) {
+			if (typeof V2.wolfpackharmony !== "number" || !isFinite(V2.wolfpackharmony)) { V2.wolfpackharmony = 10; }
+			if (typeof V2.wolfpackferocity !== "number" || !isFinite(V2.wolfpackferocity)) { V2.wolfpackferocity = 10; }
+			if (typeof V2.wolfstate !== "string" || !V2.wolfstate) { V2.wolfstate = "cave"; }
+			if (typeof V2.wolfevent !== "number") { V2.wolfevent = 0; }
+			if (typeof V2.wolfcavedig !== "number") { V2.wolfcavedig = 0; }
 			return;
 		}
 		/* v2.0.15 剧情入口四组（象牙怨灵 / 万圣节 / 情人节 / 圣诞）：状态保底与时间通道见 07d-places3.js。
@@ -8398,7 +8405,7 @@ function teleportTo(name) {
 				shU.appendChild(btnU);
 				rowU.appendChild(shU);
 				block.appendChild(rowU);
-			} else if (entry.items.indexOf(g.main) !== -1) {
+			} else if (entry.items.indexOf(g.main) !== -1 && !(typeof mbCEIsUnplayableEntry === "function" && mbCEIsUnplayableEntry(g.main, mbCEPassageText(g.main)))) {
 				/* 只显示主场景（v1.2 精简：副场景段落不逐条列出） */
 				var rowM = el("div", "mce-stage mce-place-row");
 				var shM = el("div", "mce-stage-head");
@@ -8413,12 +8420,19 @@ function teleportTo(name) {
 				shM.appendChild(btnM);
 				rowM.appendChild(shM);
 				block.appendChild(rowM);
+				/* v2.0.16 子入口折叠块：清单+三重过滤+展开状态全在 07d-places4.js 的 mbCERenderPlaceSubs
+				   （22 组 151 条，默认收起，切换状态存 mbCE_ui_state_v1 的 placeOpen）。 */
+				if (typeof mbCERenderPlaceSubs === "function") { mbCERenderPlaceSubs(block, entry); }
+			} else if (entry.items.indexOf(g.main) !== -1) {
+				/* 主场景在组里但不可安全直达（首宏是战斗/遭遇中继状态，或 widget 定义段）：
+				   明确说明，不留一个点进去必然白屏的按钮。 */
+				block.appendChild(el("div", "mce-stage-txt", "主场景「" + g.main + "」不可安全直达（该段被战斗/遭遇中继状态或 widget 定义包住），请从正常入口进入。"));
 			} else {
 				block.appendChild(el("div", "mce-stage-txt", "未匹配到主场景段落（未安装对应 MOD 或版本差异）。"));
 			}
 			pane.appendChild(block);
 		});
-		pane.appendChild(el("div", "mce-hint", "共枚举 " + total + " 个可直达段落（已按组精简，仅显示主场景；副场景段落计入统计不逐条列出）。点击「直达」立即跳转，不打断存档。"));
+		pane.appendChild(el("div", "mce-hint", "共枚举 " + total + " 个可直达段落（已按组精简：主场景常显，同组的子场景收在「更多入口」里点开才逐行展开；其余段落只计入统计）。点击「直达」立即跳转，不打断存档。"));
 		/* v2.0.10：原版调试报告开关 —— 好友实测「雷米农场野兽战 ERROR: Unexpected $$NPCList[0].pronoun」
 		   取证（本体 0.5.12.13 三个 widget 段落逐字核对）：
 		     Widgets State Man @rel1196、Widgets Combat Man-Combat @rel160511、Widgets Text @rel51459。
@@ -8711,13 +8725,13 @@ function mbCEIsUnplayableEntry(nm, text) {
 (function () {
 	var groups = [
 		{ id: "wraith", name: "象牙怨灵 · Ivory Wraith", match: mbCEIsWraithPassage, exclude: mbCEIsUnplayableEntry, main: "Wraith Test Start",
-		  note: "象牙怨灵 68 段（血月猎杀 / 项链 Schism / 附身 / 梦魇四套状态机）。主场景沿用原版自带的召唤入口（$passageData 测试直跳表的「Summon the Wraith」载入段，自设 home、自带 generateWraith 与退出链接）；直达前补 $wraith 八字段、月相 evening，并把日期推到当月最后一天 21:00（与主场景同口径）。其余 59 段是战斗/中继段（依赖 $molestationstart、$struggle_start 等战前状态），硬跳会崩，故只登记前缀段、详情顺正文分支走。" },
+		  note: "象牙怨灵：谓词实测命中 78 段，已剔除 13 段（战斗/中继，首宏为 $molestationstart、$struggle_start 等战前状态，硬跳会崩），保留 65 段（血月猎杀 / 项链 Schism / 附身 / 梦魇四套状态机）。主场景沿用原版自带的召唤入口（$passageData 测试直跳表的「Summon the Wraith」载入段，自设 home、自带 generateWraith 与退出链接）；直达前补 $wraith 八字段、月相 evening，并把日期推到当月最后一天 21:00（与主场景同口径）。象牙怨灵不拆子入口：四套状态机依赖 $wraith.state 三态与月相，直跳会崩，故只留主入口。" },
 		{ id: "halloween", name: "万圣节 · Halloween", match: mbCEIsHalloweenPassage, exclude: mbCEIsUnplayableEntry, main: "Lake Halloween Party",
-		  note: "万圣节 111 段（湖畔篝火派对 / 凯拉尔 / 惠特尼 / 伊甸 / 罗宾服装）。主场景是湖畔派对（段落自带 outside/location，只依赖 $phase 与 $cool）；直达前 $phase 补 0（湖岸篝火档，湖畔默认 1 会落到草丛分支）、$cool 补 240（原版 gte 240 是「欢呼」最高档，0 会读到「没人理你」），日期推进到 10 月 28 日让原版置 V.halloween。格威兰换装线（Gwylan Talk Clothes Halloween）留在原 gwylan_garden 组。" },
+		  note: "万圣节：谓词实测命中 105 段，已剔除 7 段（战斗/中继），保留 98 段（湖畔篝火派对 / 凯拉尔 / 惠特尼 / 伊甸 / 罗宾服装）。主场景是湖畔派对（段落自带 outside/location，只依赖 $phase 与 $cool）；直达前 $phase 补 0（湖岸篝火档，湖畔默认 1 会落到草丛分支）、$cool 补 240（原版 gte 240 是「欢呼」最高档，0 会读到「没人理你」），日期推进到 10 月 28 日让原版置 V.halloween。子入口覆盖各条角色线，见下方「更多入口」。" },
 		{ id: "valentines", name: "情人节 · Valentines", match: mbCEIsValentinesPassage, exclude: mbCEIsUnplayableEntry, main: "Avery Valentines",
-		  note: "情人节 116 段（艾弗里晚宴 / Alex / 伊甸 / Robin / Whitney / Kylar 送礼 / 格威兰）。主场景是艾弗里情人节晚宴；直达前推进到 2 月 10 日（原版窗口 6~14），并补 $avery_valentines 十七字段与 $foodstuff.valentines_chocolate（该段直接读 .amount，缺对象会 TypeError）。" },
+		  note: "情人节：谓词实测命中 116 段，已剔除 4 段（战斗/中继），保留 112 段（艾弗里晚宴 / Alex / 伊甸 / Robin / Whitney / Kylar 送礼 / 格威兰）。主场景是艾弗里情人节晚宴；直达前推进到 2 月 10 日（原版窗口 6~14），并补 $avery_valentines 十七字段与 $foodstuff.valentines_chocolate（该段直接读 .amount，缺对象会 TypeError）。子入口覆盖送礼与约会各线，见下方「更多入口」。" },
 		{ id: "christmas", name: "圣诞节 · Christmas", match: mbCEIsChristmasPassage, exclude: mbCEIsUnplayableEntry, main: "Christmas Mirror",
-		  note: "圣诞 38 段（镜中人 12 段 / 孤儿院 / 伊甸晚餐 / Kylar / 罗宾礼物）。主场景是圣诞夜的「镜中人」（段落自带 outside/location，守卫 $wraith.seen gte 3 或 $wraithPrison）；直达前推进到 12 月 22 日（原版窗口 18~25）并把 $wraith.seen 抬到 3、$wraithPrison 补 false。Bedroom Robin Christmas Wrap 留在原 bedroom 组。" }
+		  note: "圣诞节：谓词实测命中 35 段，已剔除 2 段（战斗/中继），保留 33 段（镜中人 12 段 / 孤儿院 / 伊甸晚餐 / Kylar / 罗宾礼物）。主场景是圣诞夜的「镜中人」（段落自带 outside/location，守卫 $wraith.seen gte 3 或 $wraithPrison）；直达前推进到 12 月 22 日（原版窗口 18~25）并把 $wraith.seen 抬到 3、$wraithPrison 补 false。子入口覆盖各条角色线，见下方「更多入口」。" }
 	];
 	for (var i = groups.length - 1; i >= 0; i--) { PLACE_GROUPS.unshift(groups[i]); }
 })();
@@ -8817,6 +8831,380 @@ function mbCEFestivalEntryState(nm, V) {
 	}
 	return false;
 }
+/* 场景直达 · 子入口表（用户「凯拉尔庄园 note 里列了 大厅/花园/实验室/秘密房间，
+   却不给各自直达按钮」的诉求）—— 结构门禁 S1 拆段。
+   本段只放「组 id → 子入口清单」与过滤函数；分组定义/主场景/note 仍在
+   07d-places.js，渲染在 07d-places2.js，可玩性判据在 07d-places3.js。
+
+   设计要点：
+   ① 子入口是「快捷按钮」，不是新的分组元素 —— 不参与 listPlaceGroups 的 items 计数，
+      所以组标题的「N 个段落」与 totalItems 断言口径完全不变。
+   ② 每条子入口的 cn 是**显式中文标签**，不走 placeNameCN 的子串拼接：
+      placeNameCN 是子串匹配（"show" 会命中 "Shower"），149 条叠加起来必然互相污染。
+   ③ 渲染前逐条过三重判据：属于本组 items（存在 / 未被 exclude / 未被别组先占）
+      + passageExists + mbCEIsUnplayableEntry。任何一条不成立就不显示该行，
+      模组缺段或段落被改名时自动降级，不会点出一个空白页。
+   ④ 取证：%TEMP%\mce_verify_sub.txt（150+ 候选段逐条三态）+ %TEMP%\mce_playable2.js
+      （首个控制宏严判）。初选的 Sirris Classroom / Sirris Science / Sirris Adult Shop
+      在原版 HTML 为 MISSING，已剔除；Wolf Pack / The Farm 首宏是
+      if($molestationstart is 1)，属战斗中继段，改由 main 换掉（见 07d-places.js）。 */
+
+/* 主场景名中文化词表（placeNameCN 的子串映射表；v2.0.16 起随子入口一起落在本段，
+	   原在 07d-places.js，搬出是为了让该段回到结构门禁 400 行内。子入口不走这张表，各自带显式 cn） */
+	var PLACE_CN = {
+		/* v1.9.23-实机修复：新 6 组主场景名中文化（主场景行 placeNameCN 子串映射） */
+		"asylum": "精神病院", "police": "警局与监狱", "prison": "监狱", "docks": "码头",
+		"lake": "湖畔", "wolf": "狼群", "hospital": "医院", "island": "海岛",
+		"loft": "阁楼", "kitchen": "厨房", "reading nook": "阅读角", "bay window": "凸窗", "coffee pot": "咖啡壶",
+		"spray": "喷漆", "hall": "大厅", "garden": "花园", "lab": "实验室", "parents room": "父母房间",
+		"grounds": "庭院", "kylar room": "凯拉尔房间", "secret": "秘密", "bed": "卧室", "pool": "泳池",
+		"bathroom": "浴室", "lounge": "客厅", "dining": "餐厅", "study": "书房", "dungeon": "地牢",
+		"garage": "车库", "display": "陈列室", "wardrobe": "衣帽间", "breakfast": "早餐", "folder": "档案",
+		"party": "宴会", "bathe": "沐浴", "chase": "追逐", "bedroom": "卧室", "corridor": "走廊",
+		"stairs": "楼梯", "antiques": "古董", "mirror": "镜子", "intro": "初次进入", "vigil": "守夜",
+		"pray": "祈祷", "wakeup": "醒来", "rescue": "营救", "confess": "忏悔", "pure": "纯洁线",
+		"corrupt": "堕落线", "seduce": "引诱", "spank": "拍打", "sex": "性爱", "ritual": "仪式",
+		"start": "开始", "pregnancy": "分娩", "birth": "接生", "forest": "森林", "shop": "商店",
+		"compound": "大院", "central": "中央区", "underground": "地下", "interior": "室内", "station": "站台",
+		"wraith": "怨灵", "possessed": "附身", "machine": "机械", "experiment": "实验", "tentacles": "触手",
+		"crystal": "水晶", "sell": "出售", "bluff": "虚张声势", "fight": "战斗", "explore": "探索",
+		"camera": "摄像头", "pipes": "管道", "smoke": "烟雾", "climb": "攀爬", "tower": "塔楼",
+		"shower": "淋浴", "cry": "哭泣", "talk": "交谈", "hot chocolate": "热巧克力", "volleyball": "排球",
+		/* v2.0.0.007：妓院/雷米牧场/农场主场景与子场景中文化 */
+		"brothel": "妓院", "basement": "地下层", "gloryhole": "荣耀洞", "livestock": "牲口", "barn": "牛棚",
+		"farm": "农场", "farmland": "农田", "plough": "犁地", "tie stall": "拴栏", "milking": "挤奶",
+		/* v2.0.15：剧情入口四组的主场景中文词条 */
+		"halloween": "万圣节", "valentines": "情人节", "christmas": "圣诞节", "ivory": "象牙",
+		"bonfire": "篝火", "costume": "戏服", "trick": "捣蛋", "treat": "讨糖", "gift": "礼物",
+		/* v2.0.16：主场景行「记得汉化」补齐 —— 此前 Temple Sydney / Adult Shop Approach Sirris /
+		   Doren Entrance / Mansion Bed 等多组 placeNameCN 返回空串，主场景行只剩英文裸名。
+		   子入口不走这张表（各自带显式 cn），这里只服务主场景行与既有组名。
+		   逐条已核对子串污染：无「单字词条命中同族长名」的情况（如 show→Shower 那种）。 */
+		"avery": "艾弗里", "orphanage": "孤儿院", "manor": "庄园", "temple": "神殿",
+		"sydney": "悉尼", "adult shop": "成人商店", "sirris": "西里斯", "approach": "前往",
+		"mansion": "宅邸", "gwylan": "格威岚", "doren": "多伦", "entrance": "入口",
+		"cell": "拘押室", "stroll": "散步", "cave": "狼穴", "front": "前门", "cottage": "小屋",
+		"foyer": "门厅", "dressing room": "更衣室", "brothel show": "舞台表演", "brothel private": "私人房"
+	};
+
+/* 组 id → 子入口白名单（顺序即面板显示顺序：按空间/行为就近排列，不排序） */
+var PLACE_EXTRA_ENTRIES = {
+	orphanage_loft: [
+		{ name: "Orphanage Loft Intro", cn: "阁楼入口" },
+		{ name: "Orphanage Loft Kitchen", cn: "阁楼厨房" },
+		{ name: "Orphanage Loft Spray", cn: "阁楼喷漆" }
+	],
+	kylar_manor: [
+		{ name: "Manor Garden", cn: "花园" },
+		{ name: "Manor Lab", cn: "实验室" },
+		{ name: "Manor Parents Room", cn: "父母房间" },
+		{ name: "Manor Kitchen", cn: "厨房" },
+		{ name: "Manor Kylar Room", cn: "凯拉尔房间" },
+		{ name: "Manor Grounds", cn: "庭院" }
+	],
+	sydney_temple: [
+		{ name: "Sydney Temple Pure", cn: "纯洁线" },
+		{ name: "Sydney Temple Corrupt", cn: "堕落线" },
+		{ name: "Temple Sydney Pray", cn: "祈祷" },
+		{ name: "Sydney Temple Garden", cn: "神殿花园" },
+		{ name: "Temple Sydney Rosary", cn: "念珠" },
+		{ name: "Temple Sydney Wakeup", cn: "醒来" },
+		{ name: "Sydney Temple Punish", cn: "惩戒" },
+		{ name: "Temple Sydney Ask", cn: "询问" },
+		{ name: "Temple Sydney Walk", cn: "散步" }
+	],
+	sirris_places: [
+		{ name: "Sydney Ride Home", cn: "送回家（车程）" },
+		{ name: "Sydney Ride Temple", cn: "送往神殿（车程）" }
+	],
+	avery_mansion: [
+		{ name: "Mansion Pool", cn: "泳池" },
+		{ name: "Mansion Bathroom", cn: "浴室" },
+		{ name: "Mansion Bedroom", cn: "卧室" },
+		{ name: "Mansion Display", cn: "陈列室" },
+		{ name: "Mansion Folder", cn: "档案" },
+		{ name: "Mansion Dungeon Intro", cn: "地牢入口" },
+		{ name: "Mansion Bathe", cn: "沐浴" },
+		{ name: "Mansion Talk", cn: "交谈" },
+		{ name: "Mansion Skyscraper Rise", cn: "摩天楼" }
+	],
+	gwylan_garden: [
+		{ name: "Gwylan Gifts List", cn: "礼物清单" },
+		{ name: "Forest Gwylan Lure", cn: "森林引诱" },
+		{ name: "Nightmare Gwylan", cn: "梦魇" }
+	],
+	doren_flat: [
+		{ name: "Doren Talk", cn: "交谈" },
+		{ name: "Doren Cry", cn: "哭泣" },
+		{ name: "Doren Shower", cn: "淋浴" },
+		{ name: "Doren Shower Ask", cn: "求淋浴" },
+		{ name: "Doren Loft", cn: "阁楼布置" }
+	],
+	elk_compound: [
+		{ name: "Elk Compound Interior", cn: "室内" },
+		{ name: "Elk Compound Central", cn: "中央区" },
+		{ name: "Elk Compound Underground", cn: "地下" },
+		{ name: "Elk Compound Station", cn: "站台" },
+		{ name: "Elk Compound Crystal", cn: "水晶" },
+		{ name: "Elk Compound Pipes", cn: "管道" },
+		{ name: "Elk Compound Camera", cn: "摄像头" },
+		{ name: "Elk Compound Possessed", cn: "附身" },
+		{ name: "Elk Compound Experiment", cn: "实验" },
+		{ name: "Elk Compound Explore", cn: "探索" },
+		{ name: "Elk Compound Sell", cn: "出售" }
+	],
+	asylum: [
+		{ name: "Asylum Depths Intro", cn: "深渊入口" },
+		{ name: "Asylum Room", cn: "病房" },
+		{ name: "Asylum Shower", cn: "淋浴" },
+		{ name: "Asylum Study", cn: "书房" },
+		{ name: "Asylum Machine", cn: "机械" },
+		{ name: "Asylum Pill Sit", cn: "服药静坐" },
+		{ name: "Asylum Button Press", cn: "按按钮" },
+		{ name: "Asylum Hypnosis Trance", cn: "催眠恍惚" },
+		{ name: "Asylum Mirror Meek", cn: "镜中怯弱" }
+	],
+	police_prison: [
+		{ name: "Police Station Cover", cn: "警局掩护" },
+		{ name: "Prison Yard", cn: "操场" },
+		{ name: "Prison Laundry", cn: "洗衣房" },
+		{ name: "Prison Medical", cn: "医务室" },
+		{ name: "Prison Spire Hole", cn: "尖塔洞" },
+		{ name: "Prison Breakfast", cn: "早餐" },
+		{ name: "Prison Dinner", cn: "晚餐" },
+		{ name: "Prison Beach", cn: "狱中海滩" },
+		{ name: "Prison Attention Quiet", cn: "低调应对" }
+	],
+	docks: [
+		{ name: "Docks Pub Crawl", cn: "酒吧巡游" },
+		{ name: "Docks Lunch", cn: "午餐" },
+		{ name: "Docks Catsuit", cn: "猫装" },
+		{ name: "Docks Compound", cn: "码头大院" },
+		{ name: "Docks Gold", cn: "黄金" },
+		{ name: "Docks Start Early", cn: "提早开工" },
+		{ name: "Docks Tourist Return", cn: "游客归来" }
+	],
+	lake: [
+		{ name: "Lake Campsite", cn: "营地" },
+		{ name: "Lake Shore", cn: "湖岸" },
+		{ name: "Lake Office", cn: "办公室" },
+		{ name: "Lake Mermaid", cn: "美人鱼" },
+		{ name: "Lake Ritual", cn: "仪式" },
+		{ name: "Lake Fishing Rock", cn: "垂钓石" },
+		{ name: "Lake Skate", cn: "滑冰" },
+		{ name: "Lake Underwater", cn: "水下" },
+		{ name: "Lake Depths", cn: "深处" },
+		{ name: "Lake Ruin Prison", cn: "遗迹囚牢" },
+		{ name: "Lake Mason Intro", cn: "石匠入口" }
+	],
+	wolf_territory: [
+		{ name: "Wolf Cave Help", cn: "狼穴求助" },
+		{ name: "Wolf Cave Clearing", cn: "狼穴空地" },
+		{ name: "Wolf Cave Bed", cn: "狼穴巢床" },
+		{ name: "Wolf Hunters", cn: "猎人" },
+		{ name: "Wolf Carrion", cn: "腐肉" },
+		{ name: "Wolf Bear", cn: "熊" },
+		{ name: "Wolf River", cn: "河流" },
+		{ name: "Wolf Patrol Intro", cn: "巡逻入口" }
+	],
+	hospital: [
+		{ name: "Hospital Foyer", cn: "门厅" },
+		{ name: "Hospital Bed", cn: "病床" },
+		{ name: "Hospital Keycard Receptionist", cn: "门禁卡前台" },
+		{ name: "Hospital cupboard", cn: "储物柜" },
+		{ name: "Hospital Tattoo Removal", cn: "洗纹身" },
+		{ name: "Hospital Paternity Test", cn: "亲子鉴定" },
+		{ name: "Hospital Breast Reduction", cn: "缩胸" },
+		{ name: "Hospital Penis Reduction", cn: "缩阴" },
+		{ name: "Hospital Parasite", cn: "寄生虫" }
+	],
+	brothel: [
+		{ name: "Brothel Stage", cn: "舞台" },
+		{ name: "Brothel Wardrobe", cn: "衣柜" },
+		{ name: "Brothel Dressing Room", cn: "更衣室" },
+		{ name: "Brothel Gloryhole", cn: "荣耀洞" },
+		{ name: "Brothel Private", cn: "私人房" },
+		{ name: "Brothel Show", cn: "表演" },
+		{ name: "Brothel Shower", cn: "淋浴" },
+		{ name: "Brothel Intro", cn: "初次进入" }
+	],
+	remy_livestock: [
+		{ name: "Livestock Barn", cn: "牛棚" },
+		{ name: "Livestock Field", cn: "牧场" },
+		{ name: "Livestock Cell", cn: "栏笼" },
+		{ name: "Livestock Plough", cn: "犁地" },
+		{ name: "Livestock Milking Obey", cn: "顺从挤奶" },
+		{ name: "Livestock Escape", cn: "逃脱" },
+		{ name: "Livestock Lock Examine", cn: "检视锁" },
+		{ name: "Livestock Return", cn: "返回" }
+	],
+	remy_farm: [
+		{ name: "Farm Bedroom", cn: "小屋卧室" },
+		{ name: "Farm Bed", cn: "小屋床铺" },
+		{ name: "Farm Breakfast", cn: "小屋早餐" },
+		{ name: "Farmland Event Wheat", cn: "麦田事件" }
+	],
+	island: [
+		{ name: "Island Build", cn: "建造" },
+		{ name: "Island Sleep", cn: "睡眠" },
+		{ name: "Island Castle", cn: "城堡" },
+		{ name: "Island Beach", cn: "海滩" },
+		{ name: "Island Treeline", cn: "林线" },
+		{ name: "Island Rope", cn: "绳索" },
+		{ name: "Island Plumeria", cn: "鸡蛋花" },
+		{ name: "Island Walnut Punch", cn: "砸核桃" },
+		{ name: "Island Wood Ask", cn: "讨木头" }
+	],
+	/* v2.0.15 剧情入口四组：note 里点名的「各角色线」在这里各给一个入口 */
+	wraith: [],
+	halloween: [
+		{ name: "Wolf Halloween", cn: "狼群万圣夜" },
+		{ name: "Kylar Halloween", cn: "凯拉尔万圣夜" },
+		{ name: "Eden Halloween", cn: "伊甸万圣夜" },
+		{ name: "Orphanage Ward Halloween Enter", cn: "孤儿院病栋入口" },
+		{ name: "Lake Halloween Invite Inquire", cn: "湖畔受邀询问" },
+		{ name: "Shop Eden Halloween", cn: "伊甸商店" }
+	],
+	valentines: [
+		{ name: "Eden Valentines Bath", cn: "伊甸浴" },
+		{ name: "Home Valentines Approach", cn: "家中上前" },
+		{ name: "Robin Gifts Valentines Yes", cn: "罗宾礼物·答应" },
+		{ name: "Kylar Gifts Valentines Calm", cn: "凯拉尔礼物·安抚" },
+		{ name: "Whitney Gifts Valentines Allow", cn: "惠特尼礼物·允许" },
+		{ name: "Alex Gifts Valentines Kiss", cn: "亚历克斯礼物·亲吻" },
+		{ name: "Avery Valentines Missed Intro", cn: "艾弗里·错过入场" },
+		{ name: "Orphanage Sneaky Valentines", cn: "孤儿院偷情" },
+		{ name: "Shopping Centre Valentines Ask", cn: "购物中心询问" }
+	],
+	christmas: [
+		{ name: "Eden Christmas Meal", cn: "伊甸圣诞晚餐" },
+		{ name: "Orphanage Christmas", cn: "孤儿院圣诞" },
+		{ name: "Kylar Christmas", cn: "凯拉尔圣诞" },
+		{ name: "Forest Christmas Robin", cn: "森林罗宾圣诞" },
+		{ name: "Shop Robin Christmas", cn: "罗宾商店圣诞" },
+		{ name: "Bleeding Ward Home Christmas", cn: "病栋回家圣诞" }
+	]
+};
+
+/* 子入口过滤：返回本组真正可渲染的 {name, cn} 清单（三重判据，任一不成立即剔除）。
+   copy 出去而不是直接返回原数组元素，避免调用方误改 PLACE_EXTRA_ENTRIES。 */
+function mbCEListPlaceEntries(entry) {
+	var out = [];
+	try {
+		if (!entry || !entry.group || !entry.group.id) { return out; }
+		var list = (typeof PLACE_EXTRA_ENTRIES === "object" && PLACE_EXTRA_ENTRIES) ? PLACE_EXTRA_ENTRIES[entry.group.id] : null;
+		if (!list || !list.length || !Array.isArray(entry.items)) { return out; }
+		for (var i = 0; i < list.length; i++) {
+			var it = list[i] || {};
+			var nm = String(it.name || "");
+			if (!nm) { continue; }
+			if (nm === entry.group.main) { continue; } /* 与主场景同一段 → 不重复列 */
+			if (entry.items.indexOf(nm) === -1) { continue; } /* 不存在 / 被 exclude 剔除 / 被别组先占 */
+			if (typeof mbCEIsUnplayableEntry === "function" && mbCEIsUnplayableEntry(nm, mbCEPassageText(nm))) { continue; }
+			out.push({ name: nm, cn: String(it.cn || "") });
+		}
+	} catch (e) { /* 存档结构异常 → 退化为「无子入口」，不影响主场景按钮 */ }
+	return out;
+}
+
+/* 子入口折叠块渲染：在主场景行之后追加「▸/▾ 更多入口（N）」开关 + 展开后的逐行直达。
+   放在本段而不是 07d-places2.js，是因为 places2 已接近结构门禁 400 行上限；
+   依赖 el / mbCEUiState / mbCEUiSave / renderPlaces / teleportTo 全在同作用域。 */
+function mbCERenderPlaceSubs(block, entry) {
+	var subs = mbCEListPlaceEntries(entry);
+	if (!subs.length) { return; } /* 无可直达子入口 → 不渲染开关，不留空壳 */
+	var gid = String(entry.group.id);
+	var opened = !!(mbCEUiState && mbCEUiState.placeOpen && mbCEUiState.placeOpen[gid] === 1);
+	var bMore = el("button", "mce-btn mce-place-more", (opened ? "▾ " : "▸ ") + "更多入口（" + subs.length + "）");
+	bMore.type = "button";
+	bMore.title = opened ? "收起本组的子场景直达按钮" : "展开本组的子场景直达按钮";
+	bMore.addEventListener("click", function () {
+		if (!mbCEUiState.placeOpen || typeof mbCEUiState.placeOpen !== "object") { mbCEUiState.placeOpen = {}; }
+		mbCEUiState.placeOpen[gid] = (mbCEUiState.placeOpen[gid] === 1) ? 0 : 1;
+		mbCEUiSave({ placeOpen: mbCEUiState.placeOpen });
+		renderPlaces();
+	});
+	block.appendChild(bMore);
+	if (!opened) { return; }
+	var box = el("div", "mce-place-subs");
+	subs.forEach(function (s) {
+		var row = el("div", "mce-stage mce-place-row");
+		var head = el("div", "mce-stage-head");
+		head.appendChild(el("span", "mce-dot", ""));
+		head.appendChild(el("span", "mce-stage-name", s.name + (s.cn ? "　（" + s.cn + "）" : "")));
+		var btn = el("button", "mce-btn", "直达");
+		btn.type = "button";
+		btn.title = "跳转到段落：" + s.name;
+		(function (target) {
+			btn.addEventListener("click", function () { teleportTo(target); });
+		})(s.name);
+		head.appendChild(btn);
+		row.appendChild(head);
+		box.appendChild(row);
+	});
+	block.appendChild(box);
+}
+
+/* v2.0.17 子入口状态兜底 —— 补 v2.0.16 的漏。
+   取证（原版 HTML 解码后 16,087 段落）：
+   - StoryInit 仅 355 B，只跑 <<variablesStatic>>，且注明「在故事变量载入前执行、每个 $ 都是 undefined」；
+     新档真正的 $ 初始化入口是 Start → Start2 → <<variablesStart2>>（<<variablesStart>> 全库零调用者）。
+   - 因此判据是「段落前 6 行内做 .属性 写入的键 ∩ 新档初始化集合（gameStartOnly + variablesStart2）的差集」，
+     151 条子入口实测只剩两组真缺口（其余 .属性 读取属分支失真或已被既有分支覆盖）：
+     1) $gwylan：Forest Gwylan Lure 第 3 行 <<set $gwylan.lureDistance -= 5>>；原版只在
+        Widgets Named Npcs 里建壳，新档走不到 → undefined 上写入必 TypeError。
+     2) $pubfame：Hospital Keycard Receptionist 首屏 <<set $pubfame.hospital to {}>>；
+        原版只在 SV Pub Fame Intro 段建壳，新档走不到。
+   已复核无需兜底：$compound/$docks/$livestock/$harper_appointments 均在 <<variablesStart2>> 内新档必建；
+   $wraith 由 <<gameStartOnly>> 建壳（子键写入不崩，exit 等字段由 mbCEWraithShell 补齐）；
+   $island/$prison/$farm（含 Brothel 两段的 $farm 读取）已由既有分支处理。
+   一律「缺失才补、不覆盖已有进度」，字面量照抄原版。 */
+function mbCEFillShapeV(dst, shape) {
+	if (!dst || typeof dst !== "object" || Array.isArray(dst)) { return shape; }
+	for (var k in shape) {
+		if (!Object.prototype.hasOwnProperty.call(shape, k)) { continue; }
+		var sv = shape[k];
+		if (sv && typeof sv === "object" && !Array.isArray(sv)) {
+			if (!dst[k] || typeof dst[k] !== "object" || Array.isArray(dst[k])) { dst[k] = sv; }
+			else { mbCEFillShapeV(dst[k], sv); }
+		} else if (dst[k] === undefined) { dst[k] = sv; }
+	}
+	return dst;
+}
+
+function mbCEEnsureEntryState(nm, V) {
+	try {
+		var n = String(nm || "");
+		if (!V || typeof V !== "object") { return; }
+		if (n === "Forest Gwylan Lure" || n === "Nightmare Gwylan" || n.indexOf("Gwylan ") === 0) {
+			V.gwylan = mbCEFillShapeV(V.gwylan, {
+				progress: 0, stage: 0, sea: 0, wary: 0, robin: 0, purged: 0,
+				timer: {}, request: {}, requestCount: 0, requestDone: false,
+			});
+			if (V.gwylan.lureDistance === undefined) {
+				/* 原版 Widgets Forest：<<set $gwylan.lureDistance to Math.clamp($forest, 15, 100)>> */
+				var f = Number(V.forest);
+				if (!isFinite(f)) { f = 15; }
+				V.gwylan.lureDistance = (typeof Math.clamp === "function") ? Math.clamp(f, 15, 100) : Math.min(100, Math.max(15, f));
+				if (V.gwylan.lureWill === undefined) { V.gwylan.lureWill = 0; }
+			}
+		}
+		if (n === "Hospital Keycard Receptionist" || n.indexOf("Brothel ") === 0) {
+			/* 原版 SV Pub Fame Intro：<<set $pubfame to {seen: [], tasksDone: []}>> */
+			V.pubfame = mbCEFillShapeV(V.pubfame, { seen: [], tasksDone: [] });
+		}
+	} catch (e) { /* 兜底失败不阻断直达：段落自身仍按原版逻辑渲染 */ }
+}
+
+/* v2.0.16 子入口样式：折叠开关 + 展开后的缩进层级（默认收起，避免竖屏拉出上百行）。
+   追加到 07a-shell.js 定义的 MB_CSS（同作用域、本段在其后执行），而不是写回 shell 段 ——
+   shell 段已接近结构门禁 400 行上限，样式跟着功能走更好维护。 */
+MB_CSS +=
+	".mce-place-more{align-self:flex-start;margin-top:6px;font-size:var(--mce-fs-btn)}" +
+	".mce-place-subs{display:flex;flex-direction:column;gap:5px;margin-top:6px;padding-left:10px;border-left:2px dashed var(--mce-border-quiet)}" +
+	".mce-place-subs .mce-stage{padding:5px 8px}" +
+	".mce-place-subs .mce-stage-name{font-size:var(--mce-fs-btn);font-weight:600}";
+
 	/* ============ 特殊剧情（DoL 场景注册表 $scenes / Scene Viewer 系统）
 	     方案A：不硬编码任何剧情。从游戏 Story 文本解析 `<<widget "scenes">>` 的注册表
 	     （MOD 经 TweeReplacer/ReplacePatcher 改动的场景同样被解析到），unlocked 表达式
@@ -15743,6 +16131,7 @@ function renderAttitudesGroup(pane) {
 				applyRolePlotAction: applyRolePlotAction,
 				listPlaceGroups: listPlaceGroups,
 				placeNameCN: placeNameCN,
+				/* v2.0.16 场景直达子入口（测试/外部检查用） */ mbCEListPlaceEntries: (typeof mbCEListPlaceEntries === "function") ? mbCEListPlaceEntries : null, PLACE_EXTRA_ENTRIES: (typeof PLACE_EXTRA_ENTRIES === "object") ? PLACE_EXTRA_ENTRIES : null, mbCEEnsureEntryState: (typeof mbCEEnsureEntryState === "function") ? mbCEEnsureEntryState : null, mbCEFillShapeV: (typeof mbCEFillShapeV === "function") ? mbCEFillShapeV : null, /* 后两项 v2.0.17 子入口状态兜底 */
 				teleportTo: teleportTo, mbCECurrentPassage: mbCECurrentPassage, mbCEPassageMacroWarn: mbCEPassageMacroWarn,
 				listAllPassages: listAllPassages,
 				getPinnedScene: getPinnedScene,

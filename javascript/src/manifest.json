@@ -193,6 +193,11 @@
       "note": "v2.0.15 剧情入口四组登记 + 节日/怨灵状态保底（结构门禁 S1 拆段）"
     },
     {
+      "file": "07d-places4.js",
+      "layer": "ui",
+      "note": "v2.0.16 场景直达子入口表（group → entries，含显式中文标签与三重过滤）"
+    },
+    {
       "file": "07e-scenes.js",
       "layer": "ui"
     },

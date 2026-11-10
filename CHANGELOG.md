@@ -2,6 +2,73 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.17（2026-11-10 子入口状态兜底：$gwylan / $pubfame）
+
+### 一、修的是 v2.0.16 那批子入口里唯一会真的崩的两条
+
+v2.0.16 加了 151 条子入口后，用「进段前该不该有某个 `$` 对象」这一问做了三轮取证，最终只剩两条是**新档直达必 TypeError**的：
+
+- **`Forest Gwylan Lure`**（格威岚组）—— 段首第 3 行 `<<set $gwylan.lureDistance -= 5>>`，`$gwylan` 只在原版 `Widgets Named Npcs` 里建壳，新档走不到 → 对 `undefined` 做 `-=` 直接中断渲染。
+- **`Hospital Keycard Receptionist`**（医院组）—— 首屏 `<<if !$per_npc.pubfame_receptionist>>` 分支里 `<<set $pubfame.hospital to {}>>`，`$pubfame` 只在原版 `SV Pub Fame Intro` 段建壳，新档走不到 → 同样崩。
+
+修法：`07d-places4.js` 新增 `mbCEEnsureEntryState(nm, V)`，在 `ensureSceneStateFor` 入口（`07d-places.js`）先于各地点分支调用。它只做两件事：
+
+- `$gwylan` 前缀段 → 建 10 字段壳（`progress/stage/sea/wary/robin/purged/timer/request/requestCount/requestDone`，字面量照抄原版），并按原版 `Widgets Forest` 的 `Math.clamp($forest, 15, 100)` 补 `lureDistance`（顺带 `lureWill = 0`）。妓院组（`Brothel ` 前缀 8 条）同时补 `$pubfame`。
+- `Hospital Keycard Receptionist` → 建 `$pubfame = {seen: [], tasksDone: []}`（字面量照抄原版 `SV Pub Fame Intro`）。
+
+配套 `mbCEFillShapeV(dst, shape)`：递归「缺失才补、不覆盖已有进度」，数组与标量只在 `undefined` 时填。整段 `try/catch` 包裹 —— 兜底失败不阻断直达。
+
+### 二、判据口径（为什么只修这两条，别的不动）
+
+- **`StoryInit` 不能当基线**：原版 `StoryInit` 只有 355 B，正文是三条注释（明确写「此段在故事变量载入前执行，每个 `$` 都是 undefined」）+ `<<variablesStatic>>`。以它为基线会把 108/151 条误判成「未初始化」。
+- **新档真实初始化入口 = `Start` → `Start2` → `<<variablesStart2>>`**（`<<variablesStart>>` 全库零调用者；`<<gameStartOnly>>` 由 `Start` 与 `Widgets variablesStart2` 调用）。按此集合（666 键）算差集。
+- **只算「写」不算「读」**：读一个缺失对象的属性只是分支判定失真（`undefined` 参与比较不抛），**写属性才必崩**。据此再过滤一遍，151 条只剩 3 条命中，其中 `Island Walnut Punch`（`$island`）已被既有 Island 分支覆盖。
+- **已复核无需兜底**：`$compound` / `$docks` / `$livestock` / `$harper_appointments` 全部在 `<<variablesStart2>>` 内整对象建立，新档必建；`$wraith` 由 `<<gameStartOnly>>` 建 `{"state":"","init":0}`，子键写入不崩，`exit` 等字段由 `mbCEWraithShell` 补齐；`$prison` / `$farm`（含 `Brothel Stage` / `Brothel Show` 两段读 `$farm.*`）已由既有分支处理。
+
+### 三、其他
+
+- `09-exports2.js` 导出 `mbCEEnsureEntryState` / `mbCEFillShapeV`（测试与外部检查用）。
+- `07d-places.js` 农场分支两段内容重叠的 v2.0.16 注释合并为一段（文件从 400 行降到 397 行，仍在结构门禁 400 内）。
+- 新增 12 条断言（`tests/test_mce.js` 第 65 块 65.1~65.12）：建壳字段齐 / 缺 `$forest` 落 clamp 下界 15 / `$forest=60` 取真值 60 / `$forest=3` 钳到 15 / 二次进入不重算 / 已有进度不覆盖 / `$pubfame` 两段共享且不覆盖 `seen` / 无关段落零副作用 / 空名不抛 / 深补只填缺失。
+
+## v2.0.16（2026-11-10 场景直达子入口 + 两个主场景白屏修复）
+
+### 一、子入口直达（本轮主功能）
+
+「场景直达」此前每组只有 1 个主场景按钮，但 note 里点名的子区域（凯拉尔庄园的 大厅/花园/实验室/秘密房间、艾弗里庄园的 卧室/泳池/浴室/地牢、湖畔的 营地/湖岸/美人鱼 等）都点不到。本轮 22 组共补 **151 条子入口直达按钮**（`07d-places4.js` 的 `PLACE_EXTRA_ENTRIES`），分布：孤儿院阁楼 3、凯拉尔庄园 6、悉尼神殿 9、西里斯 2、艾弗里庄园 9、格威岚 3、多伦 5、麋鹿街 11、精神病院 9、警局监狱 9、码头 7、湖畔 11、狼群 8、医院 9、妓院 8、雷米牧场 8、雷米农场 4、海岛 9、万圣节 6、情人节 9、圣诞节 6；象牙怨灵显式为空（四套状态机依赖 `$wraith.state` 三态与月相，直跳会崩，故只留主入口，note 已写明）。
+
+- **默认折叠**：每组主场景行下多一个「▸ 更多入口（N）」开关，点开才逐行展开子入口。理由：151 条全展开会把竖屏拉出上百行，主场景被埋掉。展开状态存 `mbCE_ui_state_v1` 的 `placeOpen`（组 id → 1/0），切页签、重开面板都保持。
+- **汉化硬约束**：每条子入口都带**显式中文副标签**（`{name, cn}` 结构），不走 `placeNameCN` 的子串拼接 —— 后者是子串匹配（`"show"` 会命中 `"Shower"`），151 条叠加必然互相污染。主场景行也补了 21 条 `PLACE_CN` 词条（此前 `Temple Sydney` / `Adult Shop Approach Sirris` / `Doren Entrance` / `Mansion Bed` 等多组主场景行只剩英文裸名）。
+- **三重过滤**（`mbCEListPlaceEntries`）：属于本组 `items`（存在 / 未被 `exclude` 剔除 / 未被别组 `seen` 先占）+ 与主场景不同名 + 首个控制宏可玩。任一不成立即不显示该行 —— 模组缺段、段落改名时自动降级，不会点出空白页。
+- **剔除的幻觉段名**：初选清单里的 `Sirris Classroom` / `Sirris Science` / `Sirris Adult Shop` 在原版 HTML 为 **MISSING**（段落不存在），已剔除；`sirris_places` 组最终只加 `Sydney Ride Home` / `Sydney Ride Temple`。
+
+### 二、两个主场景白屏 bug（v2.0.15 遗留，本轮修）
+
+`wolf_territory` 与 `remy_farm` 两组从未挂 `exclude`，主场景一直是：
+
+- **`Wolf Pack`** —— 段首 `<<if $molestationstart is 1>>`，段内是 `<<beastNEWinit 1 dog>>` + `<<beastCombatInit>>`，**整段是纯战斗遭遇**，无正常分支。点「直达」= 硬跳战斗前状态，`$molestationstart` 非 1 时跳过 if 块后直接读 `$enemyno` → 白屏、零链接。
+- **`The Farm`** —— 同样首宏 `$molestationstart`，段内 6 只野兽 + `<<beastCombatInit>>`，也是纯战斗遭遇段。
+
+修法：主场景换成自带出口的入口段 —— 狼群改 **`Wolf Cave`**（原版狼穴 hub，`<<storeactions "wolfcave">>` 有 4 条静态出口），农场改 **`Farm Cottage`**（艾利克斯小屋，含厨房/育儿室/楼梯分支）。两组同时挂 `exclude: mbCEIsUnplayableEntry`，战斗段不再进列表。
+
+配套三处：
+
+1. `remy_farm` 的 `match` 扩前缀（`Farm ` / `The Farm ` / `Farmland ` / 裸 `Farm`）—— 原判据只认「The Farm / Farmland」，主场景换 `Farm Cottage` 后该段不进组，渲染会报「未匹配到主场景段落」。
+2. `ensureSceneStateFor` 农场分支：判据放宽到「Farm 开头」，并去掉「`$farm` 已是对象就早退」——`Farm Cottage` 段首是 `<<if $farm.build_finished.includes("nursery")>>`，`$farm` 存在但 `build_finished` 缺失/非数组照样 TypeError。`ensureFarmState(true)` 全程只补缺失、不覆盖进度，无条件调用安全。
+3. 新增狼穴状态兜底：`Wolf Cave` 段首 `Math.clamp($wolfpackharmony, 0, 22)`，这三个键在原版只在狼线各段内初始化（**不在 StoryInit**），新档直达为 `undefined` → `Math.clamp` 返回 `NaN`（不抛，但面板读数是 NaN、`wolfcavestate` 分支失真）。按原版初始化值补 `$wolfpackharmony = 10` / `$wolfpackferocity = 10` / `$wolfstate = "cave"` / `$wolfevent = 0` / `$wolfcavedig = 0`。
+
+### 三、note 口径统一
+
+四组剧情 note 首句的旧估数（68 / 111 / 116 / 38）全部换成实测口径（**谓词命中 / 已剔除 / 保留**：怨灵 78→13→65、万圣 105→7→98、情人节 116→4→112、圣诞 35→2→33），与组标题「（N 个段落）」同为实测值。删掉两条已被精度轮修好的旧表述（`Gwylan Talk Clothes Halloween` 归组说明、`Bedroom Robin Christmas Wrap` 归组说明），改「子入口覆盖各条角色线，见下方「更多入口」」。
+
+### 四、验证
+
+- 段落取证：`%TEMP%\mce_verify_sub.txt`（150+ 候选段逐条「段落存在 / 出口类型（wiki/link/goto/wd）/ 载荷长度」三态）、`mce_playable2.js`（严判据：只认**首个控制宏**，已修正 `mce_farmwolf.js` 正则 `$` 未转义导致的假绿）。
+- 新增断言：子入口表覆盖 22 组 / 151 条 / 每条 cn 非空 / 不与主场景重名 / 过滤后条数按 mock 段落表降级 / 未知组返回空数组；主场景断言改 `Farm Cottage` + `Wolf Cave`，`totalItems` 37→39。
+- 结构门禁：新段 `07d-places4.js` 已登记 `manifest.json`（76 段）与 `tools/structure-baseline.json` 的 `continuationAllowlist`；拆分后六段全部 ≤400 行（`07a-shell.js` ~400 / `07d-places.js` 400 / `07d-places2.js` 388 / `07d-places4.js` 323 / `07d-places3.js` 219 / `09-exports2.js` 400）。
+- 全链 `run_all.ps1` 12/12 全绿（覆盖率 Statements 97.36% / Branches 81.58% / Functions 98.4%，32 项测试 4 组并行墙钟 58.0s）。产物 1,017,177 B / 76 段 / SHA256 `EECCBD18…B71C`；包 328,072 B / SHA256 `C70D782B…8C90`，verifier 严格三项（exact 4/4 + 集合相等 + CRC 全量）通过，已覆盖安装到 `game\`（双端 SHA 一致）。
+- 测试时序修复：`tests/smoke_dom.js` 第 16 块原用固定 `setTimeout(…, 800)` 检查「70 行分片排空」，覆盖率 4 组并行时 CPU 抢占会让 0ms 分片定时器排不空（实测首帧 46 → 800ms 后仍 46，误报 FAIL；单独串行跑却 PASS）。改为轮询到 70 行或 3s 上限才断言 —— 断言口径不变，只去掉时序赌注。
+
 ## v2.0.15（2026-11-10 场景直达四组精度收尾 + 不可玩段过滤）
 
 ### 一、四组剧情入口（象牙怨灵 / 万圣节 / 情人节 / 圣诞节）

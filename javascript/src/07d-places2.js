@@ -178,7 +178,7 @@
 				shU.appendChild(btnU);
 				rowU.appendChild(shU);
 				block.appendChild(rowU);
-			} else if (entry.items.indexOf(g.main) !== -1) {
+			} else if (entry.items.indexOf(g.main) !== -1 && !(typeof mbCEIsUnplayableEntry === "function" && mbCEIsUnplayableEntry(g.main, mbCEPassageText(g.main)))) {
 				/* 只显示主场景（v1.2 精简：副场景段落不逐条列出） */
 				var rowM = el("div", "mce-stage mce-place-row");
 				var shM = el("div", "mce-stage-head");
@@ -193,12 +193,19 @@
 				shM.appendChild(btnM);
 				rowM.appendChild(shM);
 				block.appendChild(rowM);
+				/* v2.0.16 子入口折叠块：清单+三重过滤+展开状态全在 07d-places4.js 的 mbCERenderPlaceSubs
+				   （22 组 151 条，默认收起，切换状态存 mbCE_ui_state_v1 的 placeOpen）。 */
+				if (typeof mbCERenderPlaceSubs === "function") { mbCERenderPlaceSubs(block, entry); }
+			} else if (entry.items.indexOf(g.main) !== -1) {
+				/* 主场景在组里但不可安全直达（首宏是战斗/遭遇中继状态，或 widget 定义段）：
+				   明确说明，不留一个点进去必然白屏的按钮。 */
+				block.appendChild(el("div", "mce-stage-txt", "主场景「" + g.main + "」不可安全直达（该段被战斗/遭遇中继状态或 widget 定义包住），请从正常入口进入。"));
 			} else {
 				block.appendChild(el("div", "mce-stage-txt", "未匹配到主场景段落（未安装对应 MOD 或版本差异）。"));
 			}
 			pane.appendChild(block);
 		});
-		pane.appendChild(el("div", "mce-hint", "共枚举 " + total + " 个可直达段落（已按组精简，仅显示主场景；副场景段落计入统计不逐条列出）。点击「直达」立即跳转，不打断存档。"));
+		pane.appendChild(el("div", "mce-hint", "共枚举 " + total + " 个可直达段落（已按组精简：主场景常显，同组的子场景收在「更多入口」里点开才逐行展开；其余段落只计入统计）。点击「直达」立即跳转，不打断存档。"));
 		/* v2.0.10：原版调试报告开关 —— 好友实测「雷米农场野兽战 ERROR: Unexpected $$NPCList[0].pronoun」
 		   取证（本体 0.5.12.13 三个 widget 段落逐字核对）：
 		     Widgets State Man @rel1196、Widgets Combat Man-Combat @rel160511、Widgets Text @rel51459。

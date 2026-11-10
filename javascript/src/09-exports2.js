@@ -152,6 +152,7 @@
 				applyRolePlotAction: applyRolePlotAction,
 				listPlaceGroups: listPlaceGroups,
 				placeNameCN: placeNameCN,
+				/* v2.0.16 场景直达子入口（测试/外部检查用） */ mbCEListPlaceEntries: (typeof mbCEListPlaceEntries === "function") ? mbCEListPlaceEntries : null, PLACE_EXTRA_ENTRIES: (typeof PLACE_EXTRA_ENTRIES === "object") ? PLACE_EXTRA_ENTRIES : null, mbCEEnsureEntryState: (typeof mbCEEnsureEntryState === "function") ? mbCEEnsureEntryState : null, mbCEFillShapeV: (typeof mbCEFillShapeV === "function") ? mbCEFillShapeV : null, /* 后两项 v2.0.17 子入口状态兜底 */
 				teleportTo: teleportTo, mbCECurrentPassage: mbCECurrentPassage, mbCEPassageMacroWarn: mbCEPassageMacroWarn,
 				listAllPassages: listAllPassages,
 				getPinnedScene: getPinnedScene,
