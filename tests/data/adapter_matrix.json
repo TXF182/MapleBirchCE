@@ -3,8 +3,8 @@
   "note": "由 tools/gen_adapter_matrix.js 从声明自动生成，勿手改；改声明后重跑生成器。",
   "source": "javascript/src/04a-*.js（段序取自 manifest.json）",
   "adapterCount": 13,
-  "itemCount": 467,
-  "probeCount": 1056,
+  "itemCount": 470,
+  "probeCount": 1074,
   "items": [
     {
       "modId": "revelation-the-book-of-return",
@@ -12072,6 +12072,106 @@
     },
     {
       "modId": "dolonline",
+      "section": "stages",
+      "index": 2,
+      "key": "dl_townat",
+      "varPath": "mpTownAt",
+      "kind": "stage-string",
+      "type": "string",
+      "min": null,
+      "max": null,
+      "levels": [
+        "harvest",
+        "market",
+        "smith",
+        "guild",
+        "bank",
+        "inn",
+        "plaza",
+        "online",
+        "catshop",
+        "merchant",
+        "campfire",
+        "dungeon",
+        "fish",
+        "rogue"
+      ],
+      "probes": [
+        {
+          "label": "level0 (harvest)",
+          "write": "harvest",
+          "expect": "harvest"
+        },
+        {
+          "label": "level1 (market)",
+          "write": "market",
+          "expect": "market"
+        },
+        {
+          "label": "level2 (smith)",
+          "write": "smith",
+          "expect": "smith"
+        },
+        {
+          "label": "level3 (guild)",
+          "write": "guild",
+          "expect": "guild"
+        },
+        {
+          "label": "level4 (bank)",
+          "write": "bank",
+          "expect": "bank"
+        },
+        {
+          "label": "level5 (inn)",
+          "write": "inn",
+          "expect": "inn"
+        },
+        {
+          "label": "level6 (plaza)",
+          "write": "plaza",
+          "expect": "plaza"
+        },
+        {
+          "label": "level7 (online)",
+          "write": "online",
+          "expect": "online"
+        },
+        {
+          "label": "level8 (catshop)",
+          "write": "catshop",
+          "expect": "catshop"
+        },
+        {
+          "label": "level9 (merchant)",
+          "write": "merchant",
+          "expect": "merchant"
+        },
+        {
+          "label": "level10 (campfire)",
+          "write": "campfire",
+          "expect": "campfire"
+        },
+        {
+          "label": "level11 (dungeon)",
+          "write": "dungeon",
+          "expect": "dungeon"
+        },
+        {
+          "label": "level12 (fish)",
+          "write": "fish",
+          "expect": "fish"
+        },
+        {
+          "label": "level13 (rogue)",
+          "write": "rogue",
+          "expect": "rogue"
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
       "section": "values",
       "index": 0,
       "key": "dl_dglv",
@@ -13066,6 +13166,56 @@
           "label": "max(9999)",
           "write": 9999,
           "expect": 9999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 40,
+      "key": "dl_bank",
+      "varPath": "mpBank",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 999999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(999999)",
+          "write": 999999,
+          "expect": 999999
+        }
+      ],
+      "sync": null
+    },
+    {
+      "modId": "dolonline",
+      "section": "values",
+      "index": 41,
+      "key": "dl_bosskills",
+      "varPath": "mpBossKills",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 999,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(999)",
+          "write": 999,
+          "expect": 999
         }
       ],
       "sync": null

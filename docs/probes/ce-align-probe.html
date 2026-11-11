@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!--
+  ce-align-probe.html — CE 面板 × DoL-Game-UI 4.2 的 CSS 级联探针（配合 run-ce-align-probe.ps1）
+
+  两个 <style> 是两边规则原文逐字照抄：
+    dgu = DoLGameUI 4.2.0 style.css 里命中最广的一条（按钮尺寸，padding 带 !important、min-height 不带）
+    ce  = MapleBirchCE 07a-shell.js MB_CSS 的 .mce-btn（padding:3px 9px，无 min-height）
+
+  r0..r4 是同一份按钮 DOM 的五份拷贝，各承载一条反制规则——用不同容器 ID 而不是切
+  style.disabled，是为了让规则同时在场、互不污染。此前踩过坑：style.disabled 切换未
+  生效，导致把"反制无效"读成结论，多绕一轮。
+    r0  无                      → 对照组，看污染原始值
+    r1  #r1 button       (1,0,1) → 预期 padding 输
+    r2  #r2#r2 button    (2,0,1) → 预期赢（双 ID 是唯一纯 CSS 可行写法）
+    r3  #r3 .mce-btn     (1,1,0) → 预期 padding 输
+    r4  inline !important         → 预期赢
+-->
+<html><head><meta charset="utf-8">
+<style id="dgu">html[data-dgu-buttons-scaled] :is(button,input[type=button],input[type=submit]):not(#ui-bar *):not([data-overlay=modloader] *){padding:calc(.5em * var(--dgu-button-scale,1)) calc(.75em * var(--dgu-button-scale,1))!important;min-height:max(36px,calc(44px * var(--dgu-button-scale,1)));box-sizing:border-box;max-width:100%;white-space:normal;overflow-wrap:anywhere}</style>
+<style id="ce">.mce-btn{padding:3px 9px;font-size:13px}</style>
+<style id="k1">#r1 button{padding:3px 9px!important;min-height:0!important}</style>
+<style id="k2">#r2#r2 button{padding:3px 9px!important;min-height:0!important}</style>
+<style id="k3">#r3 .mce-btn{padding:3px 9px!important;min-height:0!important}</style>
+<style>:root{--dgu-button-scale:1} body{margin:0}</style>
+</head><body>
+<div id="r0"><button class="mce-btn">r0</button></div>
+<div id="r1"><button class="mce-btn">r1</button></div>
+<div id="r2"><button class="mce-btn">r2</button></div>
+<div id="r3"><button class="mce-btn">r3</button></div>
+<div id="r4"><button class="mce-btn" style="padding:3px 9px!important;min-height:0!important">r4</button></div>
+</body></html>

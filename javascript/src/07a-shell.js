@@ -321,7 +321,7 @@
 		".mce-errrow .mce-err-msg{color:var(--mce-red-err-txt)}" +
 		".mce-errrow .mce-err-src{color:var(--mce-red-err-src);font-size:var(--mce-fs-xs)}" +
 		/* v1.9.14 UI 动效：面板内全部按钮统一按压反馈（缩放）与过渡；写入成功闪烁 + 面板开合/折叠淡入 keyframes */
-		"#mce-root button{transition:background .12s ease,color .12s ease,transform .12s ease,box-shadow .12s ease}" +
+		"#mce-root button{transition:background .12s ease,color .12s ease,transform .12s ease,box-shadow .12s ease}" + /* A2 与主 UI 共存的按钮尺寸反制规则见同层 07a-shell-css.js（本文件顶到 400 行上限，结构门禁拆段） */
 		"#mce-root button:active{transform:scale(.96)}" +
 		".mce-flash{animation:mce-flash .6s ease-out}" +
 		"@keyframes mce-pop-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}" +
@@ -330,7 +330,7 @@
 		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}" +
 		/* v1.9.29 锚定确认条 token 化：此前内联米色/绿/灰（#f5f0e0/#7a9b4f/#888），与面板黑金 token 脱节——改走 CSS 类，换主题自动跟随 */
 		".mce-anchor-prompt{position:fixed;top:0;left:0;right:0;z-index:2147483647;background:var(--mce-gold-bg);color:var(--mce-gold-txt);" +
-		"border-bottom:2px solid var(--mce-accent);padding:8px 12px;font-size:14px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.3);" +
+		"border-bottom:2px solid var(--mce-accent);padding:8px 12px;font-size:calc(14px * var(--dgu-font-scale,1));line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.3);" +
 		"display:flex;flex-wrap:wrap;align-items:center;gap:8px;animation:mce-prompt-in .18s ease-out}" +
 		".mce-anchor-prompt button{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);" +
 		"border-radius:var(--mce-radius);padding:4px 12px;cursor:pointer;font-size:13px;font-family:inherit;transition:background .12s ease,transform .12s ease}" +
@@ -371,7 +371,7 @@
 		"@media (max-width:520px){" +
 		"#mce-root{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}" +
 		".mce-body{padding:8px}" +
-		".mce-tabs button{padding:8px 5px}" +
+		".mce-tabs button{padding:8px 5px}html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-tabs button{padding:8px 5px!important}" +
 		".mce-row{gap:var(--mce-space-sm)}" +
 		".mce-row-lbl,.mce-row-name{flex:1 1 100%;min-width:0}" +
 		".mce-inp{width:84px}" +
@@ -381,7 +381,7 @@
 		".mce-cards{grid-template-columns:1fr}" +
 		".mce-preview-bar{gap:6px}" +
 		".mce-preview-lbl{flex:1 1 100%;white-space:normal;overflow:visible}" +
-		".mce-anchor-prompt{padding:6px 8px;font-size:13px}" +
+		".mce-anchor-prompt{padding:6px 8px;font-size:calc(13px * var(--dgu-font-scale,1))}" +
 		"}";
 
 	function injectCSS() {

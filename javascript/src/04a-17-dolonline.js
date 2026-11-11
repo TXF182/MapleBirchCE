@@ -1,14 +1,40 @@
-/* 职责：DoL 联机&地下城（Dolonline 5.29）适配器 —— **只做单机状态键**。
+/* 职责：DoL 联机&地下城（Dolonline 5.31）适配器 —— **只做单机状态键**。
    用户口径（2026-11-08）：Dolonline 仅本地单机状态，不做联机交互（不碰 WebSocket / auth / 服务器共享血量）。
 
-   源码实证（tools\_modcache\dolonline529\unpacked\，index.js 595,350 B + 4 个 twee + img，2026-11-09 复核 5.28→5.29）：
-   - boot.json：nickName「DoLOnline」、version 5.29、scriptFileList ["index.js"]、dependenceInfo []
+   源码实证（tools\_modcache\dolonline531\unpacked\，index.js 716,973 B + 4 个 twee + img，2026-11-11 复核 5.30→5.31）：
+   - boot.json：nickName「DoLOnline」、version 5.30、scriptFileList ["index.js"]、dependenceInfo []
      → 零依赖；addonPlugin 仍只有 TweeReplacerAddon（`Harvest Street` 段落尾部追加 `<<dol-dg-entry>>`），与 5.28 同。
        ModLoaderGui SafeMode 禁 TweeReplacer 时入口仍有 JS DOM 兜底 ensureDgEntry()。
    - 5.28 → 5.29 变更范围（**逐文件 SHA256 判定，不按体积**——boot.json 前后同为 922 B 但内容已变）：
        变更 4 个：boot.json（仅 version 5.28→5.29）、dungeon.twee 54,440→153,961 B（+99,521）、
        index.js 449,013→595,350 B（+146,337）、README.md 5,620→6,614 B；
        内容完全相同 6 个：combat.twee 333 B、npc.twee 16,357 B、quests.twee 15,209 B、img 三张。
+   - 5.29 → 5.30 变更范围（**逐文件 SHA256 判定，不按体积**，2026-11-10 复核；包 363,642 B /
+     sha256 0292819de287982e6a3ded8af1441dc118c7313d3779e90ae6bce0781133730c）：
+       变更 4 个：boot.json（仅 version 5.29→5.30，仍 922 B）、dungeon.twee 153,961→154,786 B（+825）、
+       index.js 595,350→620,847 B（+25,497）、README.md 6,614→6,644 B；
+       内容完全相同 6 个：combat.twee 333 B、npc.twee 16,357 B、quests.twee 15,209 B、img 三张。
+   - 5.30 是**纯 bug 修复版**（README 增量只两行：`**5.30**` + 「修复缩放 bug」），无新功能面。
+       三组读数与 5.29 逐项相同：audit [2] 新增候选只 1 条 mpSkill、[4] 其它根同 30 个、[5] 动态前缀同 pot_/food_
+       → 零新增状态根、零删除。resolve_missing 42/42 KEEP、REMOVE 0 → 声明**零改动**，仅同步版本号与对照目录。
+       注：+25,497 B 全落在 index.js 的缩放/尺寸计算实作，未触及任何 `v.xxx` / `$xxx` 状态键契约。
+   - 5.30 → 5.31 变更范围（**逐文件 SHA256 判定，不按体积**，2026-11-11 复核；包 449,718 B /
+     sha256 d204012661e416ef301c8309760c0714be91470d6e9adf69cd313733f9a58514）：
+       变更 4 个：boot.json 922→950 B（version 5.30→5.31 **且新增 repository 字段**，非纯版本号变化）、
+       dungeon.twee 154,786→167,648 B（+12,862）、index.js 620,847→716,973 B（+96,126）、README.md 6,644→7,708 B；
+       内容完全相同 4 个：combat.twee 333 B、npc.twee 16,357 B、quests.twee 15,209 B、img 三张；
+       **新增文件 1 个**：img\dol-town-map.png 31,493 B（小镇地图，boot.json imgFileList 同步登记为第 4 项）。
+   - 5.31 是**新增大系统版**（README「5.31」段）：小镇地图（14 个地点、走路消耗时间）、银行（猫猫币存款，
+       每日 1% 利息、上限 60 天）、旅馆（£300 休息）、公会（六项委托各领一次）、巷子随机事件 10 种、
+       图鉴武器/装备全收集页、成就接入原生成就系统（8 个）、铁匠铺强化上限 +5。
+       状态键层面新增 12 个（全量键集 135 → 147，**消失键 0**）：mpBank / mpBankDay / mpGuildDone / mpBossKills /
+       mpTownAt / mpTownEv / mpTownEvAt / mpTownEvRes / dgBossMode / dgSkipExchange（另 arousalmax / feats 属原版键）。
+       resolve_missing 42/42 KEEP（REMOVE 0）→ 既有 42 条声明**零删失**，仅同步版本号；本轮按单机可作弊面补 3 条
+       （mpBank 存款 / mpBossKills 层主击杀 / mpTownAt 地点直达）。豁免与不声明理由：
+       dgBossMode、dgSkipExchange 属层主战瞬态；mpTownEv/mpTownEvAt/mpTownEvRes 属事件瞬时状态
+       （mpTownEv 非空会拦截移动，是模组自身流程锁，不代解）；mpGuildDone **刻意为不声明**——写 1 等于标记已领，
+       会反向堵死领奖，清空才能重领，属模组领奖缺口，不代玩家利用；mpBankDay 是计息起始日、与 Time.days 强耦合，
+       只作 mpBank 的说明项。
    - 5.29 功能增量（README L51–66）：层主战重做（分回合 / 血条 / 三套招式轮转）、地下商人（猫猫币买随机装备）、
        **随身物系统**（材料 / 药水 / 食物，背包下方独立栏）、**药水**（回血回蓝 / 攻防闪避增益 3 回合）、
        **篝火**（材料做四种食物）、怪物掉材料、战斗页「使用物品」栏（不耗回合）、猫猫商店改每 5 层、
@@ -54,7 +80,7 @@
 		},
 		entry: {
 			modId: "dolonline",
-			modName: "DoL 联机&地下城 v5.29（单机状态键）",
+			modName: "DoL 联机&地下城 v5.31（单机状态键）",
 			tasks: [],
 			stages: [
 				{ key: "dl_unlocked", name: "地下城 · 入口解锁", varPath: "mpDgUnlocked",
@@ -63,7 +89,11 @@
 				{ key: "dl_class", name: "地下城 · 职业", varPath: "mpClass",
 				  levels: ["", "warrior", "mage", "ranger", "priest"],
 				  labels: ["未选", "剑士", "法师", "游侠", "祭司"],
-				  note: "职业专属技能在 dungeon.twee:108 起判定；空串 = 未选职业" }
+				  note: "职业专属技能在 dungeon.twee:108 起判定；空串 = 未选职业" },
+				{ key: "dl_townat", name: "小镇 · 当前地点", varPath: "mpTownAt",
+				  levels: ["harvest", "market", "smith", "guild", "bank", "inn", "plaza", "online", "catshop", "merchant", "campfire", "dungeon", "fish", "rogue"],
+				  labels: ["丰收街", "市场", "铁匠铺", "公会", "银行", "旅馆", "广场", "联机·世界", "猫猫商店", "地下商人", "篝火", "地下世界", "水潭·钓鱼", "深渊回廊"],
+				  note: "5.31 新增小镇地图（DOL_TOWN 14 项，index.js:2106–2134）；默认 'harvest'（townAt :2136–2138 兜底）。直写即瞬移到该地点、跳过走路耗时——正常走 dolTownGo 会 passTime(:2339–2341)。写非法 id 时渲染按 `DOL_TOWN[cur] || DOL_TOWN.harvest` 兜底(:2328)，不会崩；但 mpTownEv 非空时移动被拦截(:2338)，那是事件未处理完，本项不解。" }
 			],
 			abilities: [],
 			scenes: [],
@@ -151,7 +181,11 @@
 				{ key: "dl_dgsp", name: "地下城点数池 mpDgSP", varPath: "mpDgSP", type: "number", min: 0, max: 9999,
 				  note: "加点面板扣此池（index.js:4960 读取 / :4984 扣减 / :5030 洗点返还）；持有即可自由加 ATTRS_DG 四项" },
 				{ key: "dl_dsp", name: "日常点数池 mpDSP", varPath: "mpDSP", type: "number", min: 0, max: 9999,
-				  note: "加点面板扣此池（index.js:4933 / :4960 / :5029 洗点返还）；持有即可自由加 ATTRS_DAILY 五项" }
+				  note: "加点面板扣此池（index.js:4933 / :4960 / :5029 洗点返还）；持有即可自由加 ATTRS_DAILY 五项" },
+				{ key: "dl_bank", name: "银行 · 存款 mpBank", varPath: "mpBank", type: "number", min: 0, max: 999999,
+				  note: "5.31 新增银行：存入从 mpCat 扣、取回按 1%/天计息、上限 60 天（bankState index.js:2371–2383；deposit :2394–2403；withdraw :2405–2415 取回 st.amt + st.interest 后把 mpBank/mpBankDay 清零）。写大额后到银行点「取回」即可兑现；**不改 mpBankDay 则利息为 0、只回本金**（day0 :2393 在首次存款时置为当日 Time.days）。公会委托 bank 项按该值判 need 500（:2424）。" },
+				{ key: "dl_bosskills", name: "层主击杀 mpBossKills", varPath: "mpBossKills", type: "number", min: 0, max: 999,
+				  note: "5.31 新增计数：唯一写入处 dungeon.twee:670 `set $mpBossKills to ($mpBossKills or 0) + 1`（击败层主时）。两处读取——公会委托 boss1（need 1 → 120 猫猫币，index.js:2421）、原生成就「DoLOnline 深渊之主」（:8206 `> 0`）。写 1 即同时满足；成就需等下一次成就判定渲染才落。" }
 			],
 			actions: [
 				{

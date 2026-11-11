@@ -168,6 +168,11 @@
       "layer": "ui"
     },
     {
+      "file": "07a-host-compat.js",
+      "layer": "ui",
+      "note": "A2+A3+A4+A5 拆段：07a-shell.js 基线 400/400 行顶满，与主 UI 共存的逻辑全部移到这里（同 01b-wrote-trim.js 先例）。A2=按钮尺寸按类封回；A3=读 getTheme().tokens（变量名映射表）把 4 个 CE 变量指向主 UI 的 --dgu-*，其中 card 用 var(--dgu-card, var(--dgu-panel, #111)) 两级回退（--dgu-card 不在 :root，只有 html[data-stone-free] 下有值）；A4=cap.layout 跟随 + resize 自监听（layout 是快照不是信号）；A5=动效零 JS（@media reduce + html[data-dol-midnight]:not([data-dgu-visualMotion])）"
+    },
+    {
       "file": "07a-shell2.js",
       "layer": "ui"
     },

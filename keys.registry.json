@@ -981,6 +981,10 @@
         "varPath": "mpClass"
       },
       {
+        "key": "dl_townat",
+        "varPath": "mpTownAt"
+      },
+      {
         "key": "dl_dglv",
         "varPath": "mpDgLv"
       },
@@ -1139,6 +1143,14 @@
       {
         "key": "dl_dsp",
         "varPath": "mpDSP"
+      },
+      {
+        "key": "dl_bank",
+        "varPath": "mpBank"
+      },
+      {
+        "key": "dl_bosskills",
+        "varPath": "mpBossKills"
       }
     ],
     "dolsims": [
@@ -1904,7 +1916,7 @@
   },
   "totals": {
     "adapters": 13,
-    "entries": 467,
+    "entries": 470,
     "keysWithoutVarPath": 5
   }
 }

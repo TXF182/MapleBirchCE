@@ -1797,7 +1797,105 @@ setTimeout(function () {
     assert(!!ap18.querySelector(".mce-anchor-go"), "18 确认条「立即触发★」带 .mce-anchor-go 类");
     assert(ap18.querySelectorAll("button").length === 2, "18 确认条双按钮（立即触发/暂不触发）");
     assert(mceCss.indexOf(".mce-anchor-prompt{position:fixed") !== -1 && mceCss.indexOf("@keyframes mce-prompt-in") !== -1, "18 CSS 定义 .mce-anchor-prompt + 进入动画");
+    /* 18.2b A1：确认条字号跟随主 UI 字号缩放（--dgu-font-scale 由 DoL-Game-UI 无条件写在 html 上，缺省 1） */
+    assert(mceCss.indexOf("padding:8px 12px;font-size:calc(14px * var(--dgu-font-scale,1));line-height:1.6") !== -1, "18.2b CSS 确认条桌面字号 calc 跟随主 UI（无主 UI 时 var 缺省 1 → 仍 14px）");
+    assert(mceCss.indexOf(".mce-anchor-prompt{padding:6px 8px;font-size:calc(13px * var(--dgu-font-scale,1))}") !== -1, "18.2b CSS 确认条移动端字号同样 calc 跟随（只改桌面会留一半洞）");
+    assert(mceCss.indexOf("padding:8px 12px;font-size:14px") === -1, "18.2b 旧写法 padding:8px 12px;font-size:14px 已移除（残留即 A1 未生效）");
+    assert(mceCss.indexOf("cursor:pointer;font-size:13px;font-family:inherit") !== -1, "18.2b 条内按钮字号保持 13px 硬编码（控件尺寸走 button scale，不随 A1 变）");
+    /* 18.2c A2：主 UI 全局按钮规则 (1,3,2) 会把面板按钮撑大 —— 按类逐条封回原值，禁止一刀切；
+       前导 html[data-dgu-buttons-scaled] 保证未装主 UI 时这段根本不匹配（零侵入） */
+    assert(mceCss.indexOf("html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-btn{padding:3px 9px!important;min-height:0!important}") !== -1, "18.2c .mce-btn 封回 3px 9px / min-height 0");
+    assert(mceCss.indexOf("html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-btn-grid .mce-btn{padding:6px 8px!important}") !== -1, "18.2c 网格按钮封回 6px 8px（块状，比通用按钮厚）");
+    assert(mceCss.indexOf("html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-inner button{padding:3px 10px!important;min-height:0!important}") !== -1, "18.2c .mce-inner button 封回 3px 10px");
+    assert(mceCss.indexOf("html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-row button{padding:3px 8px!important;min-height:22px!important}") !== -1, "18.2c 行内按钮封回 3px 8px + min-height 22px（22px 是原值，不能归零）");
+    assert(mceCss.indexOf("html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-tabs button{padding:8px 6px!important;min-height:var(--mce-tab-h)!important}") !== -1, "18.2c 页签封回 8px 6px + 保留 --mce-tab-h（一刀切会把页签压塌）");
+    assert(mceCss.indexOf("html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-header button{padding:0 7px!important;min-height:0!important}") !== -1, "18.2c 标题栏图标按钮封回 0 7px");
+    assert(mceCss.indexOf("#mce-root#mce-root button{padding:3px 9px") === -1, "18.2c 禁止一刀切 `#mce-root#mce-root button`（会覆盖页签/标题栏/行内各自的尺寸语义）");
+    assert(mceCss.indexOf("html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-tabs button{padding:8px 5px!important}") !== -1, "18.2c 窄屏(≤520px)页签内距也有封回（否则窄屏被 8px 6px 覆盖，七个页签总宽多 2px）");
+    /* 18.2d A3：主 UI 主题 token 跟随（路径 B 的本来目的）。
+       取证：DoL-Game-UI 4.2.0 index.js 的 Cm 是【变量名映射表】不是色值——
+         {ocean:"--dgu-accent", card:"--dgu-card", mist:"--dgu-secondary", radius:"--dgu-radius", ...}
+       所以 CE 只能把变量指向主 UI 的变量名（var(--dgu-accent, CE默认)），不能抄色值：
+       抄色值就得监听主题切换，且主 UI 改版即失效。 */
+    assert(js.indexOf("var MCE_HOST_TOKEN_MAP = [") !== -1, "18.2d A3 token 映射表已落地");
+    assert(js.indexOf('{ mce: "--mce-accent", tok: "ocean", def: "#d4a73c" }') !== -1, "18.2d accent ← ocean");
+    assert(js.indexOf('{ mce: "--mce-bg-card", tok: "card", def: "var(--dgu-panel, #111)" }') !== -1, "18.2d 卡片底 ← card，默认值两级回退 var(--dgu-panel, #111)");
+    assert(js.indexOf('{ mce: "--mce-bg-card", tok: "card", def: "#111" }') === -1, "18.2d 禁止退回单级默认 #111：--dgu-card 不在 :root（8 处定义全在 html[data-stone-free] 或窄作用域），非 stone-free 玩家会永远拿不到卡片色");
+    assert(js.indexOf('{ mce: "--mce-border", tok: "mist", def: "#3c3c3c" }') !== -1, "18.2d 边框 ← mist");
+    assert(js.indexOf('def: "var(--dgu-border') === -1, "18.2d 禁止把边框改指向 --dgu-border：:root 上它是 --kw-hairline=#ffffff0b（4.3% 白），CE 按钮边框会肉眼消失；--dgu-secondary=#aaa9ad 才是可见且 :root 可达的那个");
+    assert(js.indexOf('{ mce: "--mce-radius", tok: "radius", def: "4px" }') !== -1, "18.2d 圆角 ← radius");
+    assert(js.indexOf('root.style.setProperty(m.mce, "var(" + name + ", " + m.def + ")")') !== -1, "18.2d 写 var(主UI变量, CE默认)：无主 UI 时语法上合法并退化到 CE 原值");
+    assert(js.indexOf('window.addEventListener("dol-ui-runtime-ready", syncHostTokens)') !== -1, "18.2d 主 UI 晚于 CE 加载时靠 dol-ui-runtime-ready 补（index.js 挂 ui 后派发该事件）");
+    assert(js.indexOf("window.DoLGameUI && window.DoLGameUI.ui") !== -1, "18.2d Api 挂载点是 window.DoLGameUI.ui（index.js: Ve.DoLGameUI.ui = i.api）");
+    assert(js.indexOf("} catch (e) { return 0; }") !== -1, "18.2d 取 token 全程 try/catch 返回 0（CE 是常驻面板，一次抛错就白屏）");
+    /* 18.2e A3 行为验证：上面 9 条只是字符串断言（证明代码在），这里真正跑 syncHostTokens。
+       通过派发 dol-ui-runtime-ready 触发——addEventListener 的回调是同步执行的，不用等 setTimeout。 */
+    const mceRootEl = document.getElementById("mce-root");
+    assert(!!mceRootEl, "18.2e #mce-root 已创建（A3 写入目标存在）");
+    const fakeDgu = (tokens, throwIt) => {
+      window.DoLGameUI = { ui: { getTheme: () => {
+        if (throwIt) { throw new Error("host theme unavailable"); }
+        return { id: "soft-wet", enabled: true, tokens: tokens };
+      } } };
+    };
+    fakeDgu({ neutral: "--dgu-surface", card: "--dgu-card", ocean: "--dgu-accent", mist: "--dgu-secondary", text: "--dgu-text", danger: "--dgu-danger", radius: "--dgu-radius", cardRadius: "--dgu-card-radius" }, false);
+    window.dispatchEvent(new window.Event("dol-ui-runtime-ready"));
+    assert(mceRootEl.style.getPropertyValue("--mce-accent") === "var(--dgu-accent, #d4a73c)", "18.2e ocean → --mce-accent 实际写入 var(--dgu-accent, #d4a73c)");
+    assert(mceRootEl.style.getPropertyValue("--mce-bg-card") === "var(--dgu-card, var(--dgu-panel, #111))", "18.2e card → --mce-bg-card 实际写入两级回退（stone-free 时吃 --dgu-card，否则退 --dgu-panel，都没装才退 #111）");
+    assert(mceRootEl.style.getPropertyValue("--mce-radius") === "var(--dgu-radius, 4px)", "18.2e radius → --mce-radius 实际写入");
+    assert(mceRootEl.style.getPropertyValue("--mce-tab-h") === "", "18.2e 只写 4 个映射键，不碰 --mce-tab-h 等布局 token");
+    fakeDgu({ ocean: "--renamed-accent", mist: "--dgu-secondary", radius: "--dgu-radius" }, false);
+    window.dispatchEvent(new window.Event("dol-ui-runtime-ready"));
+    assert(mceRootEl.style.getPropertyValue("--mce-accent") === "var(--renamed-accent, #d4a73c)", "18.2e 主 UI 改版改名后自动跟随（不写死变量名，这是读 tokens 的全部意义）");
+    let hostThrew = false;
+    fakeDgu({}, true);
+    try { window.dispatchEvent(new window.Event("dol-ui-runtime-ready")); } catch (eHost) { hostThrew = true; }
+    assert(!hostThrew, "18.2e 主 UI getTheme 抛错被吞掉，不冒泡（否则一次异常就废掉整个面板）");
+    delete window.DoLGameUI;
+    window.dispatchEvent(new window.Event("dol-ui-runtime-ready"));
+    hostThrew = false;
+    try { window.dispatchEvent(new window.Event("dol-ui-runtime-ready")); } catch (eHost2) { hostThrew = true; }
+    assert(!hostThrew, "18.2e 未装主 UI（无 DoLGameUI）时静默返回，不抛错");
     assert(js.indexOf("background:#f5f0e0") === -1 && js.indexOf("background:#7a9b4f") === -1 && js.indexOf("background:#888") === -1, "18 源码无确认条旧内联硬编码色（f5f0e0/7a9b4f/888 已清除）");
+    /* 18.2f A5：动效强度跟随系统设置与主 UI 动效开关。**零 JS** —— 两条 CSS 就够，故意不读 cap.reducedMotion。
+       取证（index.js 原文）：cap.reducedMotion 的唯一来源是 d("(prefers-reduced-motion: reduce)")，
+       即它是 matchMedia 的镜像；主 UI 启用标志是 html[data-dol-midnight]，动效开关是 html[data-dgu-visualMotion]。
+       → 用镜像等于多一个会过期的真相源（还要自己监听 media query 变化），直接用原始判据才对。 */
+    assert(mceCss.indexOf("@media (prefers-reduced-motion: reduce)") !== -1, "18.2f 系统减动效走媒体查询（等价 cap.reducedMotion，且不依赖主 UI 是否安装）");
+    assert(mceCss.indexOf("animation:none!important") !== -1, "18.2f 减动效时关掉全部 animation");
+    assert(mceCss.indexOf("transition:none!important") !== -1, "18.2f 减动效时关掉全部 transition");
+    assert(mceCss.indexOf("html[data-dol-midnight]:not([data-dgu-visualMotion])") !== -1, "18.2f 主 UI 启用但玩家关掉动效开关时同样关动画（:not 判据，未装主 UI 时零匹配）");
+    assert(mceCss.indexOf("#mce-toggle{animation:none!important") !== -1, "18.2f 覆盖星空悬浮球 3.5s 无限呼吸（#mce-toggle 是独立宿主，不在 #mce-root 内）");
+    assert(mceCss.indexOf(".mce-anchor-prompt{animation:none!important") !== -1, "18.2f 覆盖锚定确认条（挂在 #story 下，独立宿主）");
+    /* 18.2g A4：面板宽度/断点跟随主 UI 的 cap.layout。
+       取证（index.js 原文）：layout = innerWidth<=600 ? mobile : innerWidth<=899 ? tablet : desktop。
+       关键限制：主 UI **不把 layout 挂到 html 上**（MutationObserver 的 attributeFilter 只有
+       data-dol-midnight / data-dgu-visual / data-dgu-visualGlass / data-dgu-visualMotion），
+       所以 cap.layout 只是 getCapabilities() 调用瞬间的快照，必须自己监听 resize 重算。 */
+    assert(js.indexOf("mce-host-mobile") !== -1, "18.2g A4 已落地 mce-host-mobile 类");
+    assert(js.indexOf('capabilities.layout === "mobile"') !== -1, "18.2g 只在 cap.layout==='mobile' 时全屏（tablet/desktop 不动 430px 现状）");
+    assert(js.indexOf('"resize"') !== -1, "18.2g 监听 resize —— cap.layout 是瞬时快照，主 UI 不把它挂成 DOM 信号，不重算就会在旋转/拖窗口后停在旧断点");
+    assert(mceCss.indexOf("#mce-root.mce-host-mobile") !== -1, "18.2g 全屏规则挂在 #mce-root.mce-host-mobile（与现有 @media(max-width:520px) 分支取并集，不改原断点）");
+    const mceRootG = document.getElementById("mce-root");
+    const fakeCaps = (layout, throwIt) => {
+      window.DoLGameUI = { ui: {
+        getTheme: () => ({ id: "soft-wet", enabled: true, tokens: { ocean: "--dgu-accent", card: "--dgu-card", mist: "--dgu-secondary", radius: "--dgu-radius" } }),
+        getCapabilities: () => { if (throwIt) { throw new Error("host caps unavailable"); } return { layout: layout }; }
+      } };
+    };
+    fakeCaps("mobile", false);
+    window.dispatchEvent(new window.Event("dol-ui-runtime-ready"));
+    assert(mceRootG.classList.contains("mce-host-mobile"), "18.2g cap.layout=mobile → 实际挂上 mce-host-mobile");
+    fakeCaps("desktop", false);
+    window.dispatchEvent(new window.Event("dol-ui-runtime-ready"));
+    assert(!mceRootG.classList.contains("mce-host-mobile"), "18.2g cap.layout=desktop → 类被摘掉（不是只挂不摘）");
+    fakeCaps("mobile", true);
+    let capsThrew = false;
+    try { window.dispatchEvent(new window.Event("dol-ui-runtime-ready")); } catch (eCaps) { capsThrew = true; }
+    assert(!capsThrew, "18.2g getCapabilities 抛错被吞掉，不冒泡（否则一次异常就废掉整个面板）");
+    delete window.DoLGameUI;
+    window.dispatchEvent(new window.Event("dol-ui-runtime-ready"));
+    assert(!mceRootG.classList.contains("mce-host-mobile"), "18.2g 未装主 UI → 不挂全屏类，窄屏仍走原 @media(max-width:520px) 分支（对无主 UI 用户零影响）");
     api.setTheme("starry");
     api.showAnchorPrompt({ key: "__smoke2__", name: "测试锚定2" }, { location: "Room" });
     const ap18b = document.querySelector(".mce-anchor-prompt");

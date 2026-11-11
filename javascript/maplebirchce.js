@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.17";
+	var MCE_VERSION = "2.0.19";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -4072,17 +4072,43 @@ function mbCEFertRenderChildren(container) {
 		ad.entry.actionPanel.__mbCEHasKids = true;
 	} catch (e) { /* 适配器未注册时静默 */ }
 })();
-/* 职责：DoL 联机&地下城（Dolonline 5.29）适配器 —— **只做单机状态键**。
+/* 职责：DoL 联机&地下城（Dolonline 5.31）适配器 —— **只做单机状态键**。
    用户口径（2026-11-08）：Dolonline 仅本地单机状态，不做联机交互（不碰 WebSocket / auth / 服务器共享血量）。
 
-   源码实证（tools\_modcache\dolonline529\unpacked\，index.js 595,350 B + 4 个 twee + img，2026-11-09 复核 5.28→5.29）：
-   - boot.json：nickName「DoLOnline」、version 5.29、scriptFileList ["index.js"]、dependenceInfo []
+   源码实证（tools\_modcache\dolonline531\unpacked\，index.js 716,973 B + 4 个 twee + img，2026-11-11 复核 5.30→5.31）：
+   - boot.json：nickName「DoLOnline」、version 5.30、scriptFileList ["index.js"]、dependenceInfo []
      → 零依赖；addonPlugin 仍只有 TweeReplacerAddon（`Harvest Street` 段落尾部追加 `<<dol-dg-entry>>`），与 5.28 同。
        ModLoaderGui SafeMode 禁 TweeReplacer 时入口仍有 JS DOM 兜底 ensureDgEntry()。
    - 5.28 → 5.29 变更范围（**逐文件 SHA256 判定，不按体积**——boot.json 前后同为 922 B 但内容已变）：
        变更 4 个：boot.json（仅 version 5.28→5.29）、dungeon.twee 54,440→153,961 B（+99,521）、
        index.js 449,013→595,350 B（+146,337）、README.md 5,620→6,614 B；
        内容完全相同 6 个：combat.twee 333 B、npc.twee 16,357 B、quests.twee 15,209 B、img 三张。
+   - 5.29 → 5.30 变更范围（**逐文件 SHA256 判定，不按体积**，2026-11-10 复核；包 363,642 B /
+     sha256 0292819de287982e6a3ded8af1441dc118c7313d3779e90ae6bce0781133730c）：
+       变更 4 个：boot.json（仅 version 5.29→5.30，仍 922 B）、dungeon.twee 153,961→154,786 B（+825）、
+       index.js 595,350→620,847 B（+25,497）、README.md 6,614→6,644 B；
+       内容完全相同 6 个：combat.twee 333 B、npc.twee 16,357 B、quests.twee 15,209 B、img 三张。
+   - 5.30 是**纯 bug 修复版**（README 增量只两行：`**5.30**` + 「修复缩放 bug」），无新功能面。
+       三组读数与 5.29 逐项相同：audit [2] 新增候选只 1 条 mpSkill、[4] 其它根同 30 个、[5] 动态前缀同 pot_/food_
+       → 零新增状态根、零删除。resolve_missing 42/42 KEEP、REMOVE 0 → 声明**零改动**，仅同步版本号与对照目录。
+       注：+25,497 B 全落在 index.js 的缩放/尺寸计算实作，未触及任何 `v.xxx` / `$xxx` 状态键契约。
+   - 5.30 → 5.31 变更范围（**逐文件 SHA256 判定，不按体积**，2026-11-11 复核；包 449,718 B /
+     sha256 d204012661e416ef301c8309760c0714be91470d6e9adf69cd313733f9a58514）：
+       变更 4 个：boot.json 922→950 B（version 5.30→5.31 **且新增 repository 字段**，非纯版本号变化）、
+       dungeon.twee 154,786→167,648 B（+12,862）、index.js 620,847→716,973 B（+96,126）、README.md 6,644→7,708 B；
+       内容完全相同 4 个：combat.twee 333 B、npc.twee 16,357 B、quests.twee 15,209 B、img 三张；
+       **新增文件 1 个**：img\dol-town-map.png 31,493 B（小镇地图，boot.json imgFileList 同步登记为第 4 项）。
+   - 5.31 是**新增大系统版**（README「5.31」段）：小镇地图（14 个地点、走路消耗时间）、银行（猫猫币存款，
+       每日 1% 利息、上限 60 天）、旅馆（£300 休息）、公会（六项委托各领一次）、巷子随机事件 10 种、
+       图鉴武器/装备全收集页、成就接入原生成就系统（8 个）、铁匠铺强化上限 +5。
+       状态键层面新增 12 个（全量键集 135 → 147，**消失键 0**）：mpBank / mpBankDay / mpGuildDone / mpBossKills /
+       mpTownAt / mpTownEv / mpTownEvAt / mpTownEvRes / dgBossMode / dgSkipExchange（另 arousalmax / feats 属原版键）。
+       resolve_missing 42/42 KEEP（REMOVE 0）→ 既有 42 条声明**零删失**，仅同步版本号；本轮按单机可作弊面补 3 条
+       （mpBank 存款 / mpBossKills 层主击杀 / mpTownAt 地点直达）。豁免与不声明理由：
+       dgBossMode、dgSkipExchange 属层主战瞬态；mpTownEv/mpTownEvAt/mpTownEvRes 属事件瞬时状态
+       （mpTownEv 非空会拦截移动，是模组自身流程锁，不代解）；mpGuildDone **刻意为不声明**——写 1 等于标记已领，
+       会反向堵死领奖，清空才能重领，属模组领奖缺口，不代玩家利用；mpBankDay 是计息起始日、与 Time.days 强耦合，
+       只作 mpBank 的说明项。
    - 5.29 功能增量（README L51–66）：层主战重做（分回合 / 血条 / 三套招式轮转）、地下商人（猫猫币买随机装备）、
        **随身物系统**（材料 / 药水 / 食物，背包下方独立栏）、**药水**（回血回蓝 / 攻防闪避增益 3 回合）、
        **篝火**（材料做四种食物）、怪物掉材料、战斗页「使用物品」栏（不耗回合）、猫猫商店改每 5 层、
@@ -4128,7 +4154,7 @@ function mbCEFertRenderChildren(container) {
 		},
 		entry: {
 			modId: "dolonline",
-			modName: "DoL 联机&地下城 v5.29（单机状态键）",
+			modName: "DoL 联机&地下城 v5.31（单机状态键）",
 			tasks: [],
 			stages: [
 				{ key: "dl_unlocked", name: "地下城 · 入口解锁", varPath: "mpDgUnlocked",
@@ -4137,7 +4163,11 @@ function mbCEFertRenderChildren(container) {
 				{ key: "dl_class", name: "地下城 · 职业", varPath: "mpClass",
 				  levels: ["", "warrior", "mage", "ranger", "priest"],
 				  labels: ["未选", "剑士", "法师", "游侠", "祭司"],
-				  note: "职业专属技能在 dungeon.twee:108 起判定；空串 = 未选职业" }
+				  note: "职业专属技能在 dungeon.twee:108 起判定；空串 = 未选职业" },
+				{ key: "dl_townat", name: "小镇 · 当前地点", varPath: "mpTownAt",
+				  levels: ["harvest", "market", "smith", "guild", "bank", "inn", "plaza", "online", "catshop", "merchant", "campfire", "dungeon", "fish", "rogue"],
+				  labels: ["丰收街", "市场", "铁匠铺", "公会", "银行", "旅馆", "广场", "联机·世界", "猫猫商店", "地下商人", "篝火", "地下世界", "水潭·钓鱼", "深渊回廊"],
+				  note: "5.31 新增小镇地图（DOL_TOWN 14 项，index.js:2106–2134）；默认 'harvest'（townAt :2136–2138 兜底）。直写即瞬移到该地点、跳过走路耗时——正常走 dolTownGo 会 passTime(:2339–2341)。写非法 id 时渲染按 `DOL_TOWN[cur] || DOL_TOWN.harvest` 兜底(:2328)，不会崩；但 mpTownEv 非空时移动被拦截(:2338)，那是事件未处理完，本项不解。" }
 			],
 			abilities: [],
 			scenes: [],
@@ -4225,7 +4255,11 @@ function mbCEFertRenderChildren(container) {
 				{ key: "dl_dgsp", name: "地下城点数池 mpDgSP", varPath: "mpDgSP", type: "number", min: 0, max: 9999,
 				  note: "加点面板扣此池（index.js:4960 读取 / :4984 扣减 / :5030 洗点返还）；持有即可自由加 ATTRS_DG 四项" },
 				{ key: "dl_dsp", name: "日常点数池 mpDSP", varPath: "mpDSP", type: "number", min: 0, max: 9999,
-				  note: "加点面板扣此池（index.js:4933 / :4960 / :5029 洗点返还）；持有即可自由加 ATTRS_DAILY 五项" }
+				  note: "加点面板扣此池（index.js:4933 / :4960 / :5029 洗点返还）；持有即可自由加 ATTRS_DAILY 五项" },
+				{ key: "dl_bank", name: "银行 · 存款 mpBank", varPath: "mpBank", type: "number", min: 0, max: 999999,
+				  note: "5.31 新增银行：存入从 mpCat 扣、取回按 1%/天计息、上限 60 天（bankState index.js:2371–2383；deposit :2394–2403；withdraw :2405–2415 取回 st.amt + st.interest 后把 mpBank/mpBankDay 清零）。写大额后到银行点「取回」即可兑现；**不改 mpBankDay 则利息为 0、只回本金**（day0 :2393 在首次存款时置为当日 Time.days）。公会委托 bank 项按该值判 need 500（:2424）。" },
+				{ key: "dl_bosskills", name: "层主击杀 mpBossKills", varPath: "mpBossKills", type: "number", min: 0, max: 999,
+				  note: "5.31 新增计数：唯一写入处 dungeon.twee:670 `set $mpBossKills to ($mpBossKills or 0) + 1`（击败层主时）。两处读取——公会委托 boss1（need 1 → 120 猫猫币，index.js:2421）、原生成就「DoLOnline 深渊之主」（:8206 `> 0`）。写 1 即同时满足；成就需等下一次成就判定渲染才落。" }
 			],
 			actions: [
 				{
@@ -7213,7 +7247,7 @@ function renderPlayerEdit() {
 		".mce-errrow .mce-err-msg{color:var(--mce-red-err-txt)}" +
 		".mce-errrow .mce-err-src{color:var(--mce-red-err-src);font-size:var(--mce-fs-xs)}" +
 		/* v1.9.14 UI 动效：面板内全部按钮统一按压反馈（缩放）与过渡；写入成功闪烁 + 面板开合/折叠淡入 keyframes */
-		"#mce-root button{transition:background .12s ease,color .12s ease,transform .12s ease,box-shadow .12s ease}" +
+		"#mce-root button{transition:background .12s ease,color .12s ease,transform .12s ease,box-shadow .12s ease}" + /* A2 与主 UI 共存的按钮尺寸反制规则见同层 07a-shell-css.js（本文件顶到 400 行上限，结构门禁拆段） */
 		"#mce-root button:active{transform:scale(.96)}" +
 		".mce-flash{animation:mce-flash .6s ease-out}" +
 		"@keyframes mce-pop-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}" +
@@ -7222,7 +7256,7 @@ function renderPlayerEdit() {
 		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}" +
 		/* v1.9.29 锚定确认条 token 化：此前内联米色/绿/灰（#f5f0e0/#7a9b4f/#888），与面板黑金 token 脱节——改走 CSS 类，换主题自动跟随 */
 		".mce-anchor-prompt{position:fixed;top:0;left:0;right:0;z-index:2147483647;background:var(--mce-gold-bg);color:var(--mce-gold-txt);" +
-		"border-bottom:2px solid var(--mce-accent);padding:8px 12px;font-size:14px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.3);" +
+		"border-bottom:2px solid var(--mce-accent);padding:8px 12px;font-size:calc(14px * var(--dgu-font-scale,1));line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.3);" +
 		"display:flex;flex-wrap:wrap;align-items:center;gap:8px;animation:mce-prompt-in .18s ease-out}" +
 		".mce-anchor-prompt button{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border-ctl);" +
 		"border-radius:var(--mce-radius);padding:4px 12px;cursor:pointer;font-size:13px;font-family:inherit;transition:background .12s ease,transform .12s ease}" +
@@ -7263,7 +7297,7 @@ function renderPlayerEdit() {
 		"@media (max-width:520px){" +
 		"#mce-root{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}" +
 		".mce-body{padding:8px}" +
-		".mce-tabs button{padding:8px 5px}" +
+		".mce-tabs button{padding:8px 5px}html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-tabs button{padding:8px 5px!important}" +
 		".mce-row{gap:var(--mce-space-sm)}" +
 		".mce-row-lbl,.mce-row-name{flex:1 1 100%;min-width:0}" +
 		".mce-inp{width:84px}" +
@@ -7273,7 +7307,7 @@ function renderPlayerEdit() {
 		".mce-cards{grid-template-columns:1fr}" +
 		".mce-preview-bar{gap:6px}" +
 		".mce-preview-lbl{flex:1 1 100%;white-space:normal;overflow:visible}" +
-		".mce-anchor-prompt{padding:6px 8px;font-size:13px}" +
+		".mce-anchor-prompt{padding:6px 8px;font-size:calc(13px * var(--dgu-font-scale,1))}" +
 		"}";
 
 	function injectCSS() {
@@ -7290,6 +7324,175 @@ function renderPlayerEdit() {
 		st.textContent = text;
 		st.className = "mce-status" + (cls ? " " + cls : "");
 	}
+	/* ============ UI 兼容层：与外部 UI 模组（DoL-Game-UI）共存 ============
+	   结构门禁拆段：07a-shell.js 基线已顶到 400/400 行上限，本段承载 A2/A3 的共存逻辑。
+	   先例同 01b-wrote-trim.js（01-core 加错误池后 415 行超限，同法拆出）。
+	   本段五件事：① A2 按钮尺寸按类封回（全局规则 (1,3,2)，padding 带 !important）；
+	   ② A3 主题变量指向主 UI token（card 走两级回退，见下方 2a）；③ A4 断点跟随 cap.layout（resize 自监听）；
+	   ④ A5 动效零 JS（媒体查询 + 主 UI 属性判据）；⑤ token 兜底链本身 var(--a, var(--b, def))。
+	   追加方式 MB_CSS +=，manifest 序在 07a-shell.js 之后；injectCSS() 运行时才读 MB_CSS，顺序安全。 */
+
+	/* ---- A2（探针实测，docs\probes\run-ce-align-probe.ps1）----
+	   主 UI 开按钮缩放时挂 html[data-dgu-buttons-scaled]，其规则
+	     html[...buttons-scaled] :is(button,input[type=button],input[type=submit]):not(#ui-bar *):not([data-overlay=modloader] *)
+	   特异性 (1,3,2)：padding 带 !important、min-height 不带。
+	   → padding 必须 ID 计数 ≥2 且带 !important 才赢；min-height 任意 !important 即赢。
+	   → 必须按按钮类逐条封回原值：一刀切 (padding:3px 9px;min-height:0) 会把页签(--mce-tab-h 36px)、
+	     标题栏(0 7px)、网格(6px 8px)、行内(22px) 各自的尺寸语义一起压平。
+	   → 前导 html[data-dgu-buttons-scaled] 保证未装主 UI 时这段零匹配（对无主 UI 用户零影响）。 */
+	MB_CSS +=
+		"html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-btn{padding:3px 9px!important;min-height:0!important}" +
+		"html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-btn-grid .mce-btn{padding:6px 8px!important}" +
+		"html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-inner button{padding:3px 10px!important;min-height:0!important}" +
+		"html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-row button{padding:3px 8px!important;min-height:22px!important}" +
+		"html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-tabs button{padding:8px 6px!important;min-height:var(--mce-tab-h)!important}" +
+		"html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-header button{padding:0 7px!important;min-height:0!important}";
+
+	/* ---- A3：主 UI 主题 token 跟随（路径 B 的本来目的）----
+	   取证（DoL-Game-UI 4.2.0 原始源码，非二手转述）：
+	     1. index.js 里 getTheme() 返回的 tokens 是【变量名映射表】不是色值：
+	        Cm = {neutral:"--dgu-surface", card:"--dgu-card", ocean:"--dgu-accent", mist:"--dgu-secondary",
+	              text:"--dgu-text", danger:"--dgu-danger", radius:"--dgu-radius", cardRadius:"--dgu-card-radius"}
+	        → 所以只能把 CE 变量指向主 UI 的变量名，不能抄色值：抄色值要监听主题切换，且主 UI 改版即失效。
+	     2. style.css 定义域（按规则块逐块提取，非按行 grep）：--dgu-accent / --dgu-secondary /
+	        --dgu-panel / --dgu-radius(12px) / --dgu-card-radius(16px) 在 :root；--dgu-surface / --dgu-border 也在 :root。
+	        --dgu-card **不在 :root**：全 8 处定义都在 html[data-stone-free] 与 :is(...) 窄作用域里。
+	        html 层那几处可被 #mce-root 继承；主 UI 未启用时变量不存在，靠 var() 兜底链退化。
+	     2a. 所以 card 必须两级回退：var(--dgu-card, var(--dgu-panel, #111))。
+	        只写 var(--dgu-card, #111) 时，玩家没开 stone-free 就永远拿到 #111，卡片色与主 UI 脱节
+	        （2026-11-11 复核发现并修掉的真缺陷）。三级语义链：
+	          开 stone-free → --dgu-card = #272729（真卡片色）
+	          未开          → 退 --dgu-panel = rgba(29,30,34,.72)
+	          未装主 UI     → 再退 #111
+	     2b. border 反向不要"修正"成 --dgu-border：:root 上它是 --kw-hairline = #ffffff0b（4.3% 白），
+	        --mce-border 只用在 .mce-btn 边框与滚动条 hover，换成它会肉眼看不见；
+	        --dgu-secondary = --sf-muted = #aaa9ad 是 :root 可达且可见的那个，mist 映射维持不变。
+	     3. Api 挂载：index.js 内 `Ve.DoLGameUI.ui = i.api`，随后 dispatch "dol-ui-runtime-ready"。
+	        → 主 UI 晚于 CE 加载时靠该事件补；已先加载时靠 setTimeout(0)/1200ms 兜。
+	   只映射 4 个核心变量（清单 A3 口径：不试图一一对应 70 个 --mce-*）。
+	   注意 CE 没有 --mce-card-bg，实际变量名是 --mce-bg-card（以源码为准，不照抄清单笔误）。 */
+
+	var MCE_HOST_TOKEN_MAP = [
+		{ mce: "--mce-accent", tok: "ocean", def: "#d4a73c" },
+		{ mce: "--mce-bg-card", tok: "card", def: "var(--dgu-panel, #111)" },
+		{ mce: "--mce-border", tok: "mist", def: "#3c3c3c" },
+		{ mce: "--mce-radius", tok: "radius", def: "4px" }
+	];
+
+	/* 返回成功写入的条数（测试/诊断用）；任何异常吞掉并返回 0 —— CE 是常驻面板，一次抛错就白屏。
+	   写入值形如 var(--dgu-accent, #d4a73c)：主 UI 变量存在则跟随，不存在时语法上仍合法并退化到 CE 原值。 */
+	function syncHostTokens() {
+		try {
+			var api = window.DoLGameUI && window.DoLGameUI.ui;
+			if (!api || typeof api.getTheme !== "function") { return 0; }
+			var theme = api.getTheme();
+			var tokens = theme && theme.tokens;
+			if (!tokens) { return 0; }
+			var root = document.getElementById("mce-root");
+			if (!root) { return 0; }
+			var n = 0;
+			for (var i = 0; i < MCE_HOST_TOKEN_MAP.length; i++) {
+				var m = MCE_HOST_TOKEN_MAP[i];
+				var name = tokens[m.tok];
+				if (typeof name !== "string" || name === "") { continue; }
+				root.style.setProperty(m.mce, "var(" + name + ", " + m.def + ")");
+				n++;
+			}
+			return n;
+		} catch (e) { return 0; }
+	}
+
+	function scheduleHostTokenSync() {
+		try { window.addEventListener("dol-ui-runtime-ready", syncHostTokens); } catch (e1) {}
+		try { setTimeout(syncHostTokens, 0); } catch (e2) {}
+		try { setTimeout(syncHostTokens, 1200); } catch (e3) {}
+	}
+	scheduleHostTokenSync();
+
+	/* ---- A5：动效强度跟随系统设置与主 UI 动效开关（**零 JS**，故意不读 cap.reducedMotion）----
+	   取证（DoL-Game-UI 4.2.0 index.js 原文，getCapabilities 函数体）：
+	     P = d("(prefers-reduced-motion: reduce)")   →  reducedMotion: P
+	     b = !i && documentElement.hasAttribute("data-dol-midnight")  →  enabled: b
+	     motion: b && !P && documentElement.hasAttribute("data-dgu-visualMotion")
+	   即 cap.reducedMotion 只是 matchMedia 的镜像，cap.motion 还夹着 enabled。
+	   → 读镜像等于多一个会过期的真相源（还得自己监听 media query 变化）；matchMedia 与
+	     data-dgu-visualMotion 本来就是浏览器/主 UI 自己维护的活状态，CSS 直接吃即可。
+	   两条判据：
+	     ① @media (prefers-reduced-motion: reduce) —— 系统级无障碍设置，与主 UI 装不装无关；
+	     ② html[data-dol-midnight]:not([data-dgu-visualMotion]) —— 主 UI 已启用但玩家关了动效开关。
+	        前导 data-dol-midnight 保证未装主 UI 时零匹配（该属性是主 UI 启用的准确标志）。
+	   必须逐宿主写：动画声明分散在 #mce-root.mce-open / #mce-toggle.mce-theme-starry /
+	   .mce-anchor-prompt 三处；.mce-anchor-prompt 挂在 #story 首个子元素下，既不在 #mce-root 里
+	   也不是 body 直属，后代选择器够不到。 */
+	MB_CSS +=
+		"@media (prefers-reduced-motion: reduce){" +
+		"#mce-root,#mce-root *{animation:none!important;transition:none!important}" +
+		"#mce-toggle{animation:none!important;transition:none!important}" +
+		".mce-anchor-prompt{animation:none!important;transition:none!important}" +
+		".mce-anchor-prompt *{animation:none!important;transition:none!important}" +
+		"}" +
+		"html[data-dol-midnight]:not([data-dgu-visualMotion]) #mce-root," +
+		"html[data-dol-midnight]:not([data-dgu-visualMotion]) #mce-root *{" +
+		"animation:none!important;transition:none!important}" +
+		"html[data-dol-midnight]:not([data-dgu-visualMotion]) #mce-toggle," +
+		"html[data-dol-midnight]:not([data-dgu-visualMotion]) .mce-anchor-prompt," +
+		"html[data-dol-midnight]:not([data-dgu-visualMotion]) .mce-anchor-prompt *{" +
+		"animation:none!important;transition:none!important}";
+
+	/* ---- A4：面板宽度/断点跟随主 UI 的 cap.layout ----
+	   取证（index.js 原文）：layout = innerWidth<=600 ? "mobile" : innerWidth<=899 ? "tablet" : "desktop"。
+	   必须写 JS 的原因：主 UI **不把 layout 挂到 html 上**——MutationObserver 的 attributeFilter 只有
+	   ["data-dol-midnight","data-dgu-visual","data-dgu-visualGlass","data-dgu-visualMotion"]。
+	   所以 layout 只是 getCapabilities() 调用瞬间的快照，旋转屏幕/拖窗口不会自动更新，必须自己
+	   监 resize 重算，否则面板会停在旧断点。
+	   与清单原写法的差异：只在 mobile 时全屏，tablet 不动——CE 的 430px 浮动面板在 601~899px 里本来
+	   够用，跟着 tablet 改几何没有收益，只多一条可变的几何来源。
+	   只改几何、不复制 @media(max-width:520px) 的排版补偿：那份补偿是为**430px 面板宽**设计的
+	   （07a-shell.js 注释原文"避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位"）；521~600px 全屏后
+	   可用宽度 ≥521px，拥挤前提已消失。
+	   → 代价：521~600px 比现状（520 才全屏）提前约 80px 全屏。这是"跟随主 UI 移动布局"的必要取舍。
+	   未装主 UI 时不挂类，对无主 UI 用户零影响。 */
+	var MCE_HOST_MOBILE_CLASS = "mce-host-mobile";
+
+	MB_CSS +=
+		"#mce-root.mce-host-mobile{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}";
+
+	function syncHostLayout() {
+		try {
+			var root = document.getElementById("mce-root");
+			if (!root) { return 0; }
+			var api = window.DoLGameUI && window.DoLGameUI.ui;
+			var mobile = false;
+			if (api && typeof api.getCapabilities === "function") {
+				var capabilities = api.getCapabilities();
+				mobile = !!(capabilities && capabilities.layout === "mobile");
+			}
+			if (mobile) { root.classList.add(MCE_HOST_MOBILE_CLASS); }
+			else { root.classList.remove(MCE_HOST_MOBILE_CLASS); }
+			return mobile ? 1 : 0;
+		} catch (e) { return 0; }
+	}
+
+	/* resize 节流 150ms：getCapabilities() 内部要跑 CSS.supports() 两三次，拖动窗口时每帧调会卡。
+	   抛错路径故意不动 class —— getCapabilities 抛错时保持现状，比按"非 mobile"误摘更安全。 */
+	var MCE_HOST_RESIZE_TIMER = 0;
+	function onHostResize() {
+		try {
+			if (MCE_HOST_RESIZE_TIMER) { clearTimeout(MCE_HOST_RESIZE_TIMER); }
+			MCE_HOST_RESIZE_TIMER = setTimeout(function () {
+				MCE_HOST_RESIZE_TIMER = 0;
+				syncHostLayout();
+			}, 150);
+		} catch (e) {}
+	}
+
+	function scheduleHostLayoutSync() {
+		try { window.addEventListener("resize", onHostResize); } catch (e1) {}
+		try { window.addEventListener("dol-ui-runtime-ready", syncHostLayout); } catch (e2) {}
+		try { setTimeout(syncHostLayout, 0); } catch (e3) {}
+		try { setTimeout(syncHostLayout, 1200); } catch (e4) {}
+	}
+	scheduleHostLayoutSync();
 /* 职责：面板外壳续 —— 外层页签分发（switchOuterTab）、页签状态持久化（mbCEUiLoad / mbCEUiSave / mbCEUiCollapsed）、主题切换 */
 	function switchOuterTab(name) {
 		var tabs = root.querySelectorAll(".mce-tabs button");

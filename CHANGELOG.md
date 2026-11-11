@@ -2,6 +2,58 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.19（2026-11-11 与 DoL-Game-UI 4.x 共存 A1–A5 + Dolonline 5.31 适配）
+
+### 一、与主 UI 共存（A1–A5）：`07a-shell.js` 四处 + 新建 `07a-host-compat.js`
+
+结构门禁拆段：`07a-shell.js` 基线 400/400 行已顶满，A2–A5 全部移入新文件 `javascript/src/07a-host-compat.js`（`manifest.json` 序在其后；追加方式 `MB_CSS +=`，`injectCSS()` 运行时才读 `MB_CSS`，顺序安全），同 `01b-wrote-trim.js` 先例。
+
+- **A1 字号跟随**：`.mce-anchor-prompt` 两处 `font-size` 由固定值改 `calc(14px * var(--dgu-font-scale,1))`（`07a-shell.js:334`）与 `calc(13px * var(--dgu-font-scale,1))`（`:385`）。未装主 UI 时 `--dgu-font-scale` 不存在 → 退 1，与原值逐像素一致。
+- **A2 按钮尺寸按类封回**（`07a-host-compat.js:17–23` + `07a-shell.js:374`）：主 UI 开按钮缩放时挂 `html[data-dgu-buttons-scaled]`，其规则特异性 `(1,3,2)`（`html[...buttons-scaled] :is(button,input[type=button],input[type=submit]):not(#ui-bar *):not([data-overlay=modloader] *)`），**padding 带 `!important`、min-height 不带** → padding 必须 ID 计数 ≥2 且带 `!important` 才赢，故写作 `#mce-root#mce-root`。**必须按按钮类逐条封回原值**（`.mce-btn` / `.mce-btn-grid .mce-btn` / `.mce-inner button` / `.mce-row button` / `.mce-tabs button` / `.mce-header button`），一刀切 `padding:3px 9px;min-height:0` 会把页签 `--mce-tab-h` 36px、标题栏 `0 7px`、网格 `6px 8px`、行内 `22px` 各自的尺寸语义一起压平。前导 `html[data-dgu-buttons-scaled]` 保证**未装主 UI 时零匹配**。
+- **A3 主题 token 跟随（含本轮修掉的真缺陷）**（`07a-host-compat.js:25–77`）：`getTheme().tokens` 是**变量名映射表**不是色值（`Cm = {neutral:"--dgu-surface", card:"--dgu-card", ocean:"--dgu-accent", mist:"--dgu-secondary", text:"--dgu-text", danger:"--dgu-danger", radius:"--dgu-radius", cardRadius:"--dgu-card-radius"}`），故只能转发引用、不能抄色值（抄色值要监听主题切换，且主 UI 改版即失效）。**card 必须两级回退** `var(--dgu-card, var(--dgu-panel, #111))`：`--dgu-card` 全 8 处定义都在 `html[data-stone-free]` 与 `:is(...)` 窄作用域，`:root` 上一次都没有 —— 只写 `var(--dgu-card, #111)` 时，未开 stone-free 的玩家永远落到纯黑 `#111`，卡片底与主 UI 脱节（语法合法、字符串断言能过、jsdom 不解析层叠继承所以验不出来，属静默缺陷）。三级语义链：开 stone-free → `#272729`；未开 → `--dgu-panel` = `rgba(29,30,34,.72)`；未装主 UI → `#111`。**border 反向禁止"修正"成 `--dgu-border`**：`:root` 上它是 `--kw-hairline` = `#ffffff0b`（4.3% 白），`--mce-border` 只用在 `.mce-btn` 边框与滚动条 hover，换过去按钮边框会肉眼消失；`:root` 可达且可见的是 `--dgu-secondary` = `--sf-muted` = `#aaa9ad`，`mist` 映射维持不变。
+- **A4 断点跟随 `cap.layout`**（`07a-host-compat.js:116–169`）：`layout = innerWidth<=600 ? "mobile" : innerWidth<=899 ? "tablet" : "desktop"` 是 `getCapabilities()` 调用瞬间的**快照** —— 主 UI 的 `MutationObserver.attributeFilter` 只有 `["data-dol-midnight","data-dgu-visual","data-dgu-visualGlass","data-dgu-visualMotion"]`，**不挂 layout**，旋转屏幕/拖窗口不会自动更新，必须自建 `resize` 重算（150ms 节流，`getCapabilities()` 内部要跑两三次 `CSS.supports()`），否则面板停在旧断点。只在 mobile 时全屏挂 `mce-host-mobile`，tablet 不动（CE 的 430px 浮动面板在 601~899px 本来够用，跟着改几何没有收益、只多一条可变几何来源）。**代价**：521~600px 比现状（520 才全屏）提前约 80px 全屏；且不复制 `@media(max-width:520px)` 的排版补偿（那份补偿是为 430px 面板宽设计的，全屏后可用宽度 ≥521px，拥挤前提已消失）。`getCapabilities` 抛错时**故意不动 class** —— 保持现状比按"非 mobile"误摘更安全。
+- **A5 动效强度跟随（零 JS）**（`07a-host-compat.js:86–114`）：`cap.reducedMotion` 只是 `matchMedia("(prefers-reduced-motion: reduce)")` 的**镜像**，`cap.motion` 还夹着 `enabled`（`= !i && documentElement.hasAttribute("data-dol-midnight")`）→ 读镜像等于多一个会过期的真相源（还得自己监听 media query 变化）。改用两条活判据：`@media (prefers-reduced-motion: reduce)`（系统级无障碍设置，与装不装主 UI 无关）+ `html[data-dol-midnight]:not([data-dgu-visualMotion])`（主 UI 已启用但玩家关了动效）。必须**逐宿主**写（`#mce-root` / `#mce-toggle` / `.mce-anchor-prompt`）：`.mce-anchor-prompt` 挂在 `#story` 首个子元素下，既不在 `#mce-root` 里也不是 body 直属，后代选择器够不到。
+
+### 二、Dolonline 5.30 → 5.31（补 3 条单机状态键，42 → 45 条）
+
+- **逐文件 SHA256 判定，不按体积**：包 449,718 B / `sha256 d204012661e416ef301c8309760c0714be91470d6e9adf69cd313733f9a58514`；变更 4 个 —— `boot.json` 922→950 B（version 5.30→5.31 **且新增 `repository` 字段**，非纯版本号变化）、`dungeon.twee` +12,862 B、`index.js` 620,847→716,973 B、`README.md` +1,064 B；相同 4 个 —— `combat.twee` 333 B、`npc.twee` 16,357 B、`quests.twee` 15,209 B、`img` 三张；**新增 1 个** —— `img\dol-town-map.png` 31,493 B（`boot.json` 的 `imgFileList` 同步登记为第 4 项）。
+- 5.31 是**新增大系统版**（上游 README）：小镇地图（14 个地点、走路消耗时间）、银行（猫猫币存款、每日 1% 利息上限 60 天）、旅馆（£300 休息一小时）、公会（委托板六项各领一次）、巷子随机事件 10 种、图鉴新增武器/装备全收集页、成就接入原生成就系统（8 个）、铁匠铺强化上限 +5；修复 3 项。
+- `audit_adapters.js`：源码 V 路径 107 条 / 根 76 个，字面覆盖 23/42（55%），分级 `SOURCE_MISMATCH=8` + `MISSING=11`，动态前缀 `pot_` / `food_`，新增候选 1 条（`mpSkill`）。
+- `resolve_missing.js`：**42/42 KEEP、REMOVE 0、REVIEW 0、WEAK 0、SOURCE_MISMATCH 0，存活率 100%**。19 条"缺失"全部证实为扫描盲区而非键消失：8 条连写访问命中（`v.mpDgExp` / `v.mpDLv` / `v.mpDExp` / `v.mpDgDef` / `v.mpFatigueCut` / `v.mpPainReduce` / `v.mpDgSP` / `v.mpDSP`，源码走小写 `v.` 与 `v[key]` 动态索引）+ `mpSkill.*` 11 条属主归位命中（`dungeon.twee` 的 state 绑定属主即 `mpSkill`，文件内相对路径存在，如 `_ps.atk` / `_ps.def` / `sk.arcane`）。
+- 状态键 **135 → 147，消失键 0**。按单机可作弊面补 3 条：`mpTownAt`（`DOL_TOWN` 14 地点，`index.js:2106–2134`；默认 `'harvest'`（`townAt :2136–2138`）；非法 id 渲染按 `DOL_TOWN[cur] || DOL_TOWN.harvest` 兜底 `:2328`；正常走 `dolTownGo` 会 `passTime :2339–2341`）、`mpBank`（`bankState :2371–2383` / `deposit :2394–2403` / `withdraw :2405–2415`；**不改 `mpBankDay` 则利息为 0、只回本金**，`day0 :2393` 在首次存款时置当日 `Time.days`）、`mpBossKills`（唯一写入 `dungeon.twee:670`；公会 `boss1` 委托 `:2421` 与「深渊之主」成就 `:8206` 读取）。
+- **刻意不声明**：`mpGuildDone` —— 对象 `{taskId:1}`，写 1 = 标记已领，`if (vv.mpGuildDone[id]) return;`（`:2453`）会**反向堵死领奖**，清空才能重领，属模组领奖缺口，不代玩家利用；`mpBankDay` 与 `Time.days` 强耦合，只作 `mpBank` 说明项；瞬态豁免 `dgBossMode` / `dgSkipExchange`（层主战）、`mpTownEv` / `mpTownEvAt` / `mpTownEvRes`（`mpTownEv` 非空会拦截移动 `:2338`「先把眼前的事处理掉」，属模组自身流程锁）。
+- 对照目录：新增 `tools/_modcache/dolonline531/`（11 文件 + `unpacked/`），按"只保留当前对照版本"删除 `dolonline530`（删前列出内容确认），`tools/modcache_state.js` 的 MAP 改指 `dolonline531` / `5.31`，`STATE.json` 重生成后 `--check` exit 0。
+
+### 三、验证
+
+- `tools/_check_keys_mod.js dolonline dolonline531`：**45 条 varPath 全部存活**（含新增 3 条）
+- `check_claims.js`：470 条命中 0；`validate_adapters.js`：13 适配器 / **471 条**（stages 54 / abilities 167 / values 249 / scenes 1 / tasks 0）形态全过
+- `gen_adapter_matrix.js`：470 条 / 1074 探针 / 13 适配器；`gen_key_registry.js --write`：470 条 / 13 适配器
+- `run_all.ps1` **12/12 全绿**（`ALL CHECKS PASSED`）：覆盖率 Statements 97.4%（16151/16581）、Branches 81.6%（5887/7214）、Functions 98.42%（625/635）；覆盖率并行 4 组（32 项测试序列，--groups auto 按核数自适应）；tsc 产物侧 0 错误、src 分账 0 债务、拼接 SHA `72a15b67b221` == 产物 SHA（src/产物同步）
+- `tests/smoke_dom.js` 新增 18.2d / 18.2e / 18.2f / 18.2g 四段断言（A1–A5 行为，含"禁止退回单级 `#111`"与"禁止把 border 改指 `--dgu-border`"两条反向锁）
+
+### 四、产物
+
+- `MapleBirchCE.mod.zip`：**336,074 B** / SHA256 `9CC966CC59EADFD7FFC10082572A628AA05A421623D3B94178970CD925213967`
+- 包内 4 条目（正斜杠）：`boot.json` / `javascript/maplebirchce.js` / `twee/maplebirchce-widget.twee` / `README.md`（简版 `README.pack.md` 4,770 B，完整 144 KB README 不进包）
+- verifier 严格三项（`--mode exact` 4/4 + 集合精确相等 + `testzip()` CRC 全量）全部通过
+
+
+## v2.0.18（2026-11-11 Dolonline 5.30 适配同步 · 纯元数据）
+
+### 一、上游 5.29 → 5.30 是纯 bug 修复，声明零改动
+
+- **逐文件 SHA256 判定，不按体积**（`boot.json` 前后同为 922 B 但 `version` 字段已变）：变更 4 个 —— `boot.json`（仅 `version` 5.29→5.30）、`dungeon.twee` 153,961→154,786 B（+825）、`index.js` 595,350→620,847 B（+25,497）、`README.md` 6,614→6,644 B；内容完全相同 6 个 —— `combat.twee` 333 B、`npc.twee` 16,357 B、`quests.twee` 15,209 B、`img` 三张。5.29 独占文件：无。
+- 上游 `README.md` 增量只有两行（`**5.30**` + 「修复缩放 bug」）→ **纯 bug 修复、无新功能面**；`index.js` 的 +25,497 B 全落在缩放/尺寸计算实作，**未触及任何 `v.xxx` / `$xxx` 状态键契约**。
+- `audit_adapters.js`：声明 42 条，字面覆盖 23/42（55%）；报出的 19 条「缺失」经分级为 `SOURCE_MISMATCH 8`（源码走小写 `v.xxx` 别名形态）+ `MISSING 11`（`mpSkill.atk/def/hp/crit/lifesteal/loot/arcane/uBurst/uChain/uDesp/uBlood`），全部是扫描盲区而非键消失；新增候选仅 1 条 `mpSkill`（容器根，不需单独声明）。
+- `resolve_missing.js`：**42/42 KEEP、REMOVE 0、REVIEW/WEAK/SOURCE_MISMATCH 均 0，存活率 100%**。关键行号：`dungeon.twee:73-77`（`_ps.atk`/`_pDef`/crit/lifesteal）、`:102-106`（9 法术节点）、`:112-115`（`($mpSkill or {}).uXxx`）、`:151/664`（`mpSkillPts`）、`:693`、`:722`、`:1002-1022`（`dgChestTier`/`dgChestReq`）、`index.js:4240`（atk/def/crit/loot 默认值）、`:4914-4916`（三键对 mpDLv/mpDgLv、mpDExp/mpDgExp、mpDSP/mpDgSP）、`:4979`/`:5088`（`mpFatigueCut`/`mpPainReduce`）、`:5224-5256`（减免面板 step/max 80）、`:6338`（`sk.arcane *=8`）。
+- **跨版本对账（关键）**：对 5.29 旧源再跑一遍 audit，三组读数与 5.30 逐项相同（`[2]` 新增候选仅 `mpSkill` 1 条、`[4]` 其它根 30 个、`[5]` 动态前缀 `pot_`/`food_`）→ **零新增状态根、零删除**。故本版**只同步版本标识，键位、动作、写入逻辑零改动**。
+- 对照源码 `tools/_modcache/dolonline530/`（10 文件 + `unpacked/`）；下载包 363,642 B / `sha256 0292819D…1133730C` 与 GitHub release asset `digest` 逐字节一致；旧 `dolonline529` 按「`_modcache` 只保留当前对照版本」清理，`_dl` 暂存区清空。
+
+### 二、本版改了什么
+
+`04a-17-dolonline.js`：头注释 5.29→5.30、实证路径改 `dolonline530`、新增「5.29→5.30 变更范围」段、`modName` 改 `v5.30`；`README.md` 适配器表版本列与 21:15 检测脚注同步；`tools/modcache_state.js` MAP 指向新目录（`STATE.json` 重生成后 `--check` exit 0）。**作弊项数量（42 条）、键位、UI 一律未改**。
+
 ## v2.0.17（2026-11-10 子入口状态兜底：$gwylan / $pubfame）
 
 ### 一、修的是 v2.0.16 那批子入口里唯一会真的崩的两条
