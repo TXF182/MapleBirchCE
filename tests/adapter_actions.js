@@ -1,10 +1,14 @@
-/* 适配器动作直调通道 + 存档就绪判据（v2.0.10）
+/* 适配器动作直调通道 + 存档就绪判据 hasV（v2.0.10，2026-11-12 改挂自建适配器）
  *
  * 背景（v2.0.9 遗留缺口）：
  *  ① 适配器 actions 原先只在 UI 点击时内联 a.run({})，测试/外部无直调通道 → 动作分支无法覆盖；
- *  ② detect 与两个 action 的 `if (!v)` 判空恒不成立（getV() 未读档时返回 {} 兜底，truthy），
- *     分支不可达；且真未读档时写进 {} 只落在临时对象上，静默无效。
+ *  ② 动作内的 `if (!v)` 判空恒不成立（getV() 未读档时返回 {} 兜底，truthy），分支不可达；
+ *     且真未读档时写进 {} 只落在临时对象上，静默无效。
  * 本测试同时验证「未就绪要明确报错」与「就绪后动作真写进存档」。
+ *
+ * 2026-11-12：Dolonline 适配器撤下（上游含联机交易与市场，作弊会破坏其他玩家公平），
+ * 本测试不再依赖任何真实模组——改用测试内自建 __t_probe 适配器。顺带补上原版漏测的
+ * actions 直挂形态（原版只用 entry 内形态，mbCEAdapterList 的另一条分支从未被覆盖）。
  */
 "use strict";
 const { JSDOM } = require("jsdom");
@@ -34,113 +38,89 @@ const jsPath = path.join(__dirname, "..", "javascript", "maplebirchce.js");
 eval(fs.readFileSync(jsPath, "utf8") + "\n//# sourceURL=" + jsPath.replace(/\\/g, "/"));
 const api = setup.mbStageCE;
 
-/* ============ 1. 注入早于读档：两条通道都必须明确说「未就绪」，不得静默写空对象 ============ */
+/* ============ 0. 自建测试适配器：两种 actions 声明形态各一个 ============
+   probe_fill：ifMissing 语义（缺才补，已有不覆盖），幂等；
+   probe_free：直挂形态（不带 entry），只验证 mbCEAdapterList 能取到。 */
+const PROBE_KEYS = ["__t_a", "__t_b", "__t_c"];
+function probeFillRun() {
+  if (!api.hasV()) { return { ok: false, message: "游戏尚未就绪，请先读档" }; }
+  const v = window.V;
+  let added = 0;
+  PROBE_KEYS.forEach(function (k) {
+    if (v[k] === undefined) { v[k] = 7; added++; }
+  });
+  return added
+    ? { ok: true, message: "已补齐 " + added + " 个测试键" }
+    : { ok: true, message: "已齐全，未改动" };
+}
+api.CHEAT_ADAPTERS["__t_probe"] = {
+  entry: {
+    detect: function () { return false; },
+    actions: [
+      { key: "probe_fill", name: "测试补齐", run: probeFillRun },
+      { key: "__t_norun", name: "临时未实现" },
+      { key: "__t_boom", name: "临时抛异常", run: function () { throw new Error("boom"); } }
+    ]
+  }
+};
+/* 直挂形态（无 entry 包裹）：单独一个适配器，避免影响上面的 entry 形态断言 */
+api.CHEAT_ADAPTERS["__t_flat"] = {
+  actions: [{ key: "flat_ok", name: "直挂动作", run: function () { return { ok: true, message: "flat done" }; } }]
+};
+assert(Array.isArray(api.CHEAT_ADAPTERS["__t_probe"].entry.actions), "自建适配器（entry 形态）注册成功");
+assert(Array.isArray(api.CHEAT_ADAPTERS["__t_flat"].actions), "自建适配器（直挂形态）注册成功");
+
+/* ============ 1. 注入早于读档：直调通道必须明确说「未就绪」，不得静默写空对象 ============ */
 section("1 未读档");
 assert(!!api && typeof api.mbCEAdapterAction === "function", "导出 mbCEAdapterAction（适配器动作直调通道）");
-const early = api.mbCEAdapterAction("dolonline", "dl_init_run", {});
+const early = api.mbCEAdapterAction("__t_probe", "probe_fill", {});
 assert(early && early.ok === false && /尚未就绪/.test(early.message), "未读档执行动作 → ok:false 且提示游戏尚未就绪（实际：" + (early && early.message) + "）");
-assert(api.CHEAT_ADAPTERS.dolonline.detect() === false, "未读档 detect 返回 false（不会把兜底空对象当成模组在场）");
 
-/* ============ 2. 读档但没有任何 Dolonline 键：detect 仍应为 false ============ */
-section("2 读档无该模组键");
+/* ============ 2. 读档后：ifMissing 补齐、不覆盖已有值、幂等 ============ */
+section("2 读档后执行");
 const V = {};
 global.V = V; window.V = V; /* 真实游戏里 V 挂在 window 上；hasV() 按 window 判就绪，两条都要设 */
 global.State = { variables: V, passage: "Room" };
 window.State = global.State;
-assert(api.CHEAT_ADAPTERS.dolonline.detect() === false, "空存档 detect false");
-
-/* ============ 3. 有 mpCat 即认定在场（Dolonline 独有键） ============ */
-section("3 detect 命中");
-V.mpCat = 0;
-assert(api.CHEAT_ADAPTERS.dolonline.detect() === true, "存在 mpCat → detect true");
-delete V.mpCat;
-V.npcCh = 0;
-assert(api.CHEAT_ADAPTERS.dolonline.detect() === true, "存在 npcCh（灰的章节）→ detect true");
-
-/* ============ 4. dl_init_run：补齐运行态键、不覆盖已有值、可重复执行 ============ */
-section("4 初始化地下城运行态键");
-V.dgHp = 42; /* 已有值不能被覆盖 */
-const r1 = api.mbCEAdapterAction("dolonline", "dl_init_run", {});
+V.__t_b = 42; /* 已有值不能被覆盖 */
+const r1 = api.mbCEAdapterAction("__t_probe", "probe_fill", {});
 assert(r1 && r1.ok === true, "动作执行成功");
-assert(V.dgFloor === 1 && V.dgGold === 0 && V.dgMana === 100 && V.dgManaMax === 100 && V.dgKills === 0, "按 dungeon.twee:3–5 原版初值补齐 dgFloor/dgGold/dgMana/dgManaMax/dgKills");
-assert(V.dgHp === 42, "已有 dgHp=42 未被覆盖（写回原值而非重置）");
-assert(V.mpSkill && typeof V.mpSkill === "object", "mpSkill 补空对象（法术动作的宿主）");
-assert(/已补齐/.test(r1.message), "首次提示「已补齐 N 个运行态键」（" + r1.message + "）");
-const r2 = api.mbCEAdapterAction("dolonline", "dl_init_run", {});
+assert(V.__t_a === 7 && V.__t_c === 7, "缺失的 __t_a / __t_c 被补为 7（ifMissing 语义）");
+assert(V.__t_b === 42, "已有 __t_b=42 未被覆盖（写回原值而非重置）");
+assert(/已补齐 2 个测试键/.test(r1.message), "首次提示补齐条数（实际：" + r1.message + "）");
+const r2 = api.mbCEAdapterAction("__t_probe", "probe_fill", {});
 assert(r2 && r2.ok === true && /已齐全/.test(r2.message), "重复执行幂等：提示已齐全，不再改动");
 
-/* ============ 5. dl_all_spells：9 键置 1、幂等、宿主缺失自动建 ============ */
-section("5 解锁全部法术");
-delete V.mpSkill;
-const r3 = api.mbCEAdapterAction("dolonline", "dl_all_spells", {});
-assert(r3 && r3.ok === true, "宿主缺失时动作自动建 mpSkill 并执行成功");
-const keys = ["fireWall", "iceSpike", "shadowBolt", "thunderStorm", "meteor", "uDesp", "uBurst", "uChain", "uBlood"];
-assert(keys.every(function (k) { return V.mpSkill[k] === 1; }), "9 个法术键全部置 1（含 4 个职业技能）");
-const r4 = api.mbCEAdapterAction("dolonline", "dl_all_spells", {});
-assert(r4 && /此前已解锁/.test(r4.message), "重复执行幂等：全部此前已解锁");
+/* ============ 2b. actions 两种声明形态都能被直调通道找到 ============ */
+section("2b actions 声明形态");
+const flat = api.mbCEAdapterAction("__t_flat", "flat_ok", {});
+assert(flat && flat.ok === true && /flat done/.test(flat.message), "直挂形态 actions 可被直调（mbCEAdapterList 的非 entry 分支）");
+const flatMiss = api.mbCEAdapterAction("__t_flat", "nope", {});
+assert(flatMiss && flatMiss.ok === false && /无此动作/.test(flatMiss.message), "直挂形态未知动作 → 明确报错");
 
-/* ============ 5b. dl_fill_inv（5.29 新增随身物）：18 键补 99、不覆盖更高值、宿主缺失自建、幂等 ============ */
-section("5b 随身物全满");
-delete V.dgInv; /* 模拟 5.28 老档 / 未进过地下城：该对象尚不存在 */
-const r5 = api.mbCEAdapterAction("dolonline", "dl_fill_inv", {});
-assert(r5 && r5.ok === true, "dgInv 缺失时动作自动建对象并执行成功");
-assert(V.dgInv && typeof V.dgInv === "object", "dgInv 被建为对象（等价 ensureDgInv index.js:6109）");
-const invKeys = [
-	"fang", "hide", "herb", "ore", "dust", "ember", "slime",
-	"pot_hp1", "pot_hp2", "pot_mp1", "pot_mp2", "pot_atk", "pot_def", "pot_agi",
-	"food_soup", "food_steak", "food_stew", "food_ember_tea"
-];
-assert(invKeys.length === 18, "键清单 18 项（材料 7 + 药水 7 + 食物 4，DG_MATS/DG_POTIONS/DG_FOODS）");
-assert(invKeys.every(function (k) { return V.dgInv[k] === 99; }), "18 个物品键全部补到 99");
-assert(/已补满 18/.test(r5.message), "首次提示补满 18 类（实际：" + r5.message + "）");
-V.dgInv.fang = 999; /* 已有更高值不得被覆盖 */
-const r6 = api.mbCEAdapterAction("dolonline", "dl_fill_inv", {});
-assert(V.dgInv.fang === 999, "已有更高值 999 不被覆盖");
-assert(r6 && r6.ok === true && /未改动/.test(r6.message), "重复执行幂等：提示未改动（实际：" + r6.message + "）");
-
-/* ============ 5c. dl_refill_run（5.29 战斗中补资源）：只增不减、上限尊重 dgManaMax、幂等 ============ */
-section("5c 地下城资源补满");
-V.dgHp = 5; V.dgMana = 3; V.dgGold = 12; V.dgManaMax = 180;
-const r7 = api.mbCEAdapterAction("dolonline", "dl_refill_run", {});
-assert(r7 && r7.ok === true, "资源补满动作执行成功");
-assert(V.dgMana === 180, "dgMana 补到 dgManaMax 配置上限（180），不写死 100（实际：" + V.dgMana + "）");
-assert(V.dgHp === 100, "dgHp 补到体力上限；测试环境无 window.dolStaminaMax 时回落 100（dungeon.twee:4 同源逻辑）");
-assert(V.dgGold === 9999, "dgGold 补到 9999（猫猫商店可用额度）");
-assert(/体力 5 → 100/.test(r7.message) && /法力 3 → 180/.test(r7.message) && /金币 12 → 9999/.test(r7.message),
-	"提示逐项写前后值（实际：" + r7.message + "）");
-V.dgGold = 99999; /* 已有更高值不得被覆盖 */
-const r8 = api.mbCEAdapterAction("dolonline", "dl_refill_run", {});
-assert(V.dgGold === 99999, "已有更高金币 99999 不被回退");
-assert(r8 && r8.ok === true && /未改动/.test(r8.message), "三项均在上限时幂等未改动（实际：" + r8.message + "）");
-
-/* ============ 6. 错误通道：未知适配器/未知动作必须报错，不能静默返回 undefined ============ */
-section("6 错误通道");
+/* ============ 3. 错误通道：未知适配器/未知动作/空 id/未实现/抛异常 ============ */
+section("3 错误通道");
 const e1 = api.mbCEAdapterAction("no-such-adapter", "x", {});
 assert(e1 && e1.ok === false && /未找到适配器/.test(e1.message), "未知适配器 → 明确报错");
-const e2 = api.mbCEAdapterAction("dolonline", "no-such-action", {});
+const e2 = api.mbCEAdapterAction("__t_probe", "no-such-action", {});
 assert(e2 && e2.ok === false && /无此动作/.test(e2.message), "未知动作 → 明确报错");
-const e3 = api.mbCEAdapterAction("", "dl_init_run", {});
+const e3 = api.mbCEAdapterAction("", "probe_fill", {});
 assert(e3 && e3.ok === false && /未指定适配器/.test(e3.message), "空 adapterId → 明确报错（不落到注册表首项）");
-/* 临时动作：声明了 key 但没有 run / run 抛异常 —— 两条错误分支真实走一遍后清理 */
-const host = api.CHEAT_ADAPTERS.dolonline.entry.actions;
-const realActionCount = host.length; /* 真实动作条数（版本无关：新增动作后不必改断言） */
-host.push({ key: "__t_norun", name: "临时未实现" }, { key: "__t_boom", name: "临时抛异常", run: function () { throw new Error("boom"); } });
-const e4 = api.mbCEAdapterAction("dolonline", "__t_norun", {});
+const e4 = api.mbCEAdapterAction("__t_probe", "__t_norun", {});
 assert(e4 && e4.ok === false && /该动作未实现/.test(e4.message), "run 不是函数 → 「该动作未实现」（不抛 TypeError）");
-const e5 = api.mbCEAdapterAction("dolonline", "__t_boom", {});
+const e5 = api.mbCEAdapterAction("__t_probe", "__t_boom", {});
 assert(e5 && e5.ok === false && /动作抛出异常/.test(e5.message) && /boom/.test(e5.message), "run 抛异常 → 被 catch 成 { ok:false, message }（不冒泡）");
-host.splice(host.length - 2, 2);
-assert(host.length === realActionCount, "临时动作已清理（注册表回到 " + realActionCount + " 条真实动作）");
 
-/* ============ 7. 单一实现路径（源码级防回归）：UI 按钮不得再内联 a.run() ============ */
-section("7 单一实现路径");
+/* ============ 4. 单一实现路径（源码级防回归）：UI 按钮不得再内联 a.run() ============ */
+section("4 单一实现路径");
 const src = fs.readFileSync(path.join(__dirname, "..", "javascript", "src", "05a3-modcheat-actions.js"), "utf8");
 assert(src.indexOf("mbCEAdapterRun(m, a.key, {})") > 0, "UI 按钮走共用执行函数 mbCEAdapterRun（单一实现路径）");
 assert(src.indexOf("list[i].run(args") > 0, "执行本体只有一处 run 调用");
 assert(src.indexOf("function mbCEAdapterRun(") > 0 && src.indexOf("function mbCEAdapterAction(") > 0, "执行本体与直调入口各只定义一次");
+assert(src.indexOf("function mbCEAdapterList(") > 0, "actions 取值收敛在 mbCEAdapterList 一处（两种声明形态同源）");
 
-/* ============ 8. 存档就绪判据 hasV：V / State 两条来源的四种组合 ============ */
-section("8 存档就绪判据 hasV");
+/* ============ 5. 存档就绪判据 hasV：V / State 两条来源的四种组合 ============ */
+section("5 存档就绪判据 hasV");
 assert(typeof api.hasV === "function", "导出 hasV（就绪判据可被测试与外部脚本核对）");
 const savedV = window.V, savedState = window.State;
 window.V = {}; window.State = undefined;
@@ -155,6 +135,13 @@ window.State = {};
 assert(api.hasV() === false, "State 存在但无 variables → 未就绪");
 window.V = savedV; window.State = savedState;
 assert(api.hasV() === true, "复原后回到就绪态（后续断言不受污染）");
+
+/* ============ 6. 清理自建适配器，注册表不留测试残留 ============ */
+section("6 清理");
+delete api.CHEAT_ADAPTERS["__t_probe"];
+delete api.CHEAT_ADAPTERS["__t_flat"];
+assert(!api.CHEAT_ADAPTERS["__t_probe"] && !api.CHEAT_ADAPTERS["__t_flat"], "测试自建适配器已从注册表移除");
+assert(!Object.prototype.hasOwnProperty.call(api.CHEAT_ADAPTERS, "dolonline"), "Dolonline 适配器已撤下（不在注册表）");
 
 console.log("\nADAPTER ACTIONS: passed=" + passes + " failed=" + failures);
 if (failures) { process.exit(1); }

@@ -30,7 +30,6 @@ const STATE_FILE = path.join(CACHE_DIR, "STATE.json");
 const MAP = [
 	{ dir: "cat119", adapter: "cattery", name: "Cattery", slug: "1.1.9" },
 	{ dir: "dolmod0990", adapter: "dolmod", name: "DolMod-（人物附加与生活质量提升）", slug: "0.1.990" },
-	{ dir: "dolonline531", adapter: "dolonline", name: "DoL 联机&地下城（仅单机状态键）", slug: "5.31" },
 	{ dir: "dw258", adapter: "deadwood-reblooms", name: "枯木逢春", slug: "2.5.8" },
 	{ dir: "farm108", adapter: "more-farm-upgrade", name: "More Farm Upgrade", slug: "1.0.8" },
 	{ dir: "fw562", adapter: "maplebirch-framework", name: "Maplebirch Framework", slug: "5.6.2", noKeys: "框架本体走 declOverride 兼容记录，不是 CHEAT_ADAPTERS 适配器，audit/resolve 不适用" },

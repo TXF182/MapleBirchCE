@@ -104,9 +104,9 @@ const TESTS = [
      varPath|skipVar|completeVar|progressVar、未知操作码、原版根拦截、parent 缺失），以及
      list / string / boolean 三条写入通道与 cheatReadSafe 异常兜底。 */
   "tests/adapters_negative_state.js",
-  /* Dolonline 适配器（04a-17）+ 动作直调通道（05a3）+ 存档就绪判据 hasV（01-core）：
-     detect 三种在场形态、两个动作的幂等与 ifMissing 语义、动作错误四分支、hasV 的
-     window.V / State 两条来源组合。补齐该适配器的覆盖率缺口，与 run_all 第 5 步同源。 */
+  /* 动作直调通道（05a3）+ 存档就绪判据 hasV（01-core）：用测试内自建适配器覆盖
+     actions 两种声明形态（直挂 / entry 内）、动作幂等与 ifMissing 语义、动作错误四分支、
+     hasV 的 window.V / State 两条来源组合。不依赖任何真实模组（Dolonline 已于 2026-11-12 撤下）。 */
   "tests/adapter_actions.js",
   /* 锁定恢复真实路径（2026-11-09 从 run_all 第 5 步移入序列）：注入早于读档 → 翻页写回、
      面板全部可锁 path 批量核查、说话态度与言灵守卫定时器随恢复入口起表。

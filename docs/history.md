@@ -179,7 +179,7 @@ MapleBirchCE/（git 源码真相源）
 │   ├── structure-baseline.json    # 结构门禁基线：maxLines 400 + lineAllowlist（现为空，07i 拆分后无豁免）+ 续号白名单 9 项
 │   ├── check_src_types.js         # src 侧类型分账：manifest 拼联合文件 → strict:true → 错误按行区间映射回 src 文件 → 与基线棘轮（同时硬校验 src/产物 SHA 同步）
 │   ├── src-types-baseline.json    # src 类型债务基线：26 文件 / 169 条真债务（隐式 any 家族 1019 条不计账）
-│   ├── lib/adapter_ir.js          # 适配器 IR 装载器：vm 沙箱按 manifest 段序跑 04a-*.js，取回 13 个适配器的真实 entry
+│   ├── lib/adapter_ir.js          # 适配器 IR 装载器：vm 沙箱按 manifest 段序跑 04a-*.js，取回 12 个适配器的真实 entry
 │   ├── validate_adapters.js       # 声明 schema 校验：字段白名单 / 必填 / 类型枚举 / 数值域 / levels-labels / sync / varPath 形状 / modId 一致 / detect 缺失
 │   ├── gen_adapter_matrix.js      # 声明驱动矩阵生成：442 条 / 1006 探针（--check 漂移检测 / --stdout）
 │   ├── audit_adapters.js          # 模组升级核对：扫描第三方模组源码 V 路径 vs 适配器声明

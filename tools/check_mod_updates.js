@@ -52,11 +52,6 @@ const CHANNELS = [
        从 release 资产名提取（如 `_v0.1.880.zip` → 0.1.880）；useAssetVersion=true 生效。
        官方资产名两种形态：`_v<版本>.zip` 与 `人物附加与生活质量提升_v<版本>.zip`。 */
     extractDecl: /(\d+(?:\.\d+)+)/, useAssetVersion: true, gameGlob: "*v0.1.*.zip" },
-  { modId: "dolonline", repo: "lmzgls/Dolonline",
-    /* DoL 联机&地下城（DolOnline）。官方 release 的 tag 形态不稳定，版本改从资产名提取
-       （`DoLOnline-5.27.mod.zip` → 5.27）；本轮适配只做**单机状态键**（不碰 WebSocket /
-       服务器共享血量），故渠道更新只用于发现新版本、不自动改适配逻辑。 */
-    extractDecl: /(\d+(?:\.\d+)+)/, useAssetVersion: true, gameGlob: "DoLOnline*.zip" },
   { modId: "maplebirch-framework", repo: "MaplebirchLeaf/SCML-DOL-maplebirchFramework",
     /* 框架本体（非适配器）：declOverride = 本地实测兼容版本。升版前必须跑
        `node tools/check_framework_api.js <新版 inject_early.js>` 核对 CE 依赖的

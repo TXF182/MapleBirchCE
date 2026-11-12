@@ -1,0 +1,18 @@
+{
+  "name": "DoLOnline-Guard",
+  "version": "1.1.0",
+  "nickName": "地下城作弊残留拦截",
+  "scriptFileList": [
+    "guard.js"
+  ],
+  "styleFileList": [],
+  "tweeFileList": [],
+  "imgFileList": [],
+  "additionFile": [
+    "README.md"
+  ],
+  "dependenceInfo": [
+    { "modName": "ModLoader", "version": ">=2.100.0" },
+    { "modName": "GameVersion", "version": "=0.5.12.13" }
+  ]
+}

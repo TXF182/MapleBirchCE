@@ -116,10 +116,6 @@
       "layer": "adapter"
     },
     {
-      "file": "04a-17-dolonline.js",
-      "layer": "adapter"
-    },
-    {
       "file": "04b-modcheat-write.js",
       "layer": "write"
     },

@@ -2,6 +2,64 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.1（2026-11-12 地下城作弊残留拦截包判据重订）
+
+给「DoL 联机&地下城（DoLOnline 5.34）」的独立旁加载包 `DoLOnline-Guard.mod.zip`（v1.1.0）重订拦截判据，
+**本版不动 CE 面板功能（面板最后的功能改动在 v2.1.0），只升版本号 + 修正拦截包判据**。
+
+> **Dolonline 适配器的撤除从本版起才实际生效。**
+> `javascript/src/04a-17-dolonline.js` 的删除与 `manifest.json` 的段登记撤销，落在 v2.1.0 提交**之后**，
+> 未随 v2.1.0 的发布包分发。
+> **实证**：`v2.1.0` Release 资产 `MapleBirchCE.mod.zip`（349,881 B / SHA256 `630D860553C40D3BD0DA200DEB091346AD9CC2AD255E9A86C3004C0B0B2A81D5`）
+> 下载解压后产物 `maplebirchce.js` 为 1,077,877 B，`dolonline` 命中 **8 处**，
+> 其中产物流 L4157 为 `modName: "DoL 联机&地下城 v5.31（单机状态键）"` —— 该版面板上**仍有**这一项。
+> 本版产物（77 段 / 1,051,286 B）`dolonline` 命中 **0**，适配器 12 个 / varPath 425 条（撤除前 470 条），面板上不再有该项。
+> 也就是说：停在 v2.1.0 及更早版本的用户，升级到本版之前一直能通过 CE 面板改写地下城数据。
+
+### 一、判据从「建在死键上」改为「逐键回归源码实证」
+
+对照 `tools/_modcache/dolonline534/unpacked/index.js`（749,755 B）逐键核写入点后，推翻旧版三条判据里的两条：
+
+- **F2 物资**：`dgAdd`（index.js:9010）是 `inv[item] = (Number(inv[item])||0) + n`，**没有 99 上限 clamp**，
+  长期玩家可以合法把 18 键堆到 99 → 旧判据会误伤。改为「18 键全 99 **且 `mpDgLv` 仍为 1`」：
+  等级 1 却有 18 样同时精确 99，而物资只在层内掉落、掉落伴随经验，两者不可能同时成立。
+- **F3 金币**：`dgGold` 全库唯一写入是「进本置 0」（index.js:9523），合法态恒为 0 → `9999` 单独即指纹。
+  旧版附带的 `dgKills === 0` 是**死键条件**：`dgKills` 全库只在 `dgUnlocked()` 的老存档兼容分支被读（L5662）、零写入，
+  真实击杀计在 run 对象 `r.kills`（L4656）→ 恒真条件，已删。
+- **F4 法术**：旧版用 `dgFloor <= 1 && dgKills === 0` 作「从未获得技能点」的豁免门槛，而这两个键正常游玩流程都不写
+  （`dgFloor` 只有初始化 L9522 与模组管理员按钮 L1455/L1460 写）→ **门槛恒真**，
+  退化成「`mpSkillPts === 0` 且有非 auto 节点」，玩家合法花光技能点即被误伤。
+  改为「**9 个法术键全部为 1 且 `mpDgLv < 12`**」，删除时按 `cost` 退回点数（只退未被等级白送的），误伤可逆。
+
+### 二、为什么不再逐键判、不再用余额判
+
+- 逐键判「节点越过 `auto` 等级」会误伤：`index.js:8835` 在 `autoOn === false` 时仍渲染「解锁」按钮，
+  玩家可以花点提前买该节点，不是严格矛盾。
+- `mpSkillPts` 余额不能当豁免：CE 不写 pts，作弊者余额可任意；合法玩家花光点后余额同样是 0，两者不可区分。
+
+### 三、加载时序加固（拦截包真能生效的前提）
+
+从 `game/Degrees of Lewdity.html` 内实证：ModLoader 的 `loadMod()` 只显式处理
+`scriptFileList_inject_early`（@12385677）/ `earlyload`（@12388849）/ `preload`（@12342860）三类，
+**普通 `scriptFileList` 没有独立执行函数**、其执行点相对 SugarCube 自举不定 → 脚本跑起来时 `State` 常常还没就绪。
+原实现 `waitBoot` 30 秒后放弃，本次改为「30 秒短轮询 + 5 秒长轮询永不放弃」两段式，`boot()` 加幂等闸门防重复挂载。
+
+### 四、验证
+
+- `tests/test_dolonline_guard.js` 扩到 10 组 / **66 断言**（新增「18×99 但 lv6 不命中」「17×99+1×98 不命中」
+  「9999 + 残留 dgKills/dgFloor 仍命中」「lv11 只退 18 点」「lv12 不命中」「余额 40 仍命中且退点叠加」等）；
+- `tests/test_dolonline_guard_boot.js` **17 断言**；新增 `tests/test_dolonline_guard_late_boot.js` **15 断言**（State 晚到接续）；
+- 全链 12/12 全绿（覆盖率 Stmts 97.38% / Branch 81.5% / Fn 98.43%），拼接 SHA `a2b649ae30b6` == 产物 SHA；
+- `check_ui_mod.py` 12 PASS / 1 WARN / 0 FAIL（WARN 是「只有 script 没 style」，非 UI 包属预期）。
+
+<details>
+<summary>产物</summary>
+
+- `MapleBirchCE.mod.zip` 339,618 B / SHA256 `237D511C435339D82320F652FD092062DB36B612D9C6C6750CE0AAFD1850DDDE`
+- `DoLOnline-Guard.mod.zip` 9,522 B / SHA256 `A6C796174D4BA83FA33063128051F4FD9061B2E229CA0670BF963DB78DCB290A`
+
+</details>
+
 ## v2.1.0（2026-11-12 四主题：赛博朋克 / 青瓷 / 星空 v2 + 选择器迁到全局页顶）
 
 学习 [MapleLantern](https://github.com/TXF182/MapleLantern/releases/tag/v1.1.7) 的 UI 设计语言（真源 `src/style.css` 52,127 B，
@@ -68,6 +126,50 @@
 - 视觉迭代第三轮（截图查出的两处）：`✦`(U+2726) 在微软雅黑下渲染成豆腐方块，换成 `◇ / ★ / ⚡ / ◆`；
   四颗按钮由 `flex:1 1 auto` 改 `flex:1 1 0` + `min-width:76px`（等分，窄屏仍可换行）。
 
+
+### 六、Dolonline 适配整体撤下（2026-11-12 追加，同版未升号）
+
+**用户决策**：停止对「DoL 联机&地下城」（Dolonline）的适配，并把该适配从模组里彻底移除。
+理由：该模组含**联机交易 / 跨世界市场**，CE 作弊会破坏其他玩家公平性。
+这是对 v2.0.9 以来 5.27 → 5.34 整套适配的**整体撤除**，不是回退到旧版。
+
+- **删源码 + 删段登记（必须同批）**：`javascript/src/04a-17-dolonline.js`（28,378 B /
+  SHA256 `E454C51E62D07F9D`，stages 3 + values 42 + actions 4 = 45 条 varPath）整文件移除；
+  `javascript/src/manifest.json` 去掉 `{ "file": "04a-17-dolonline.js", "layer": "adapter" }` 一行
+  （6,936 → 6,861 B）。产物 78 段 / 1,079,664 B → **77 段 / 1,051,286 B**（减量恰为 28,378 B），
+  `maplebirchce.js` 全文 `dolonline` 命中 **0**，SHA256 `BC12190281F87BD4…74B6` / order `a7a80f3ab3fe`。
+- **动作测试改挂自建适配器**（`tests/adapter_actions.js` 整篇重写，10,955 → 9,141 B）：
+  原文件 20 处调用都拿 dolonline 当被测对象（它是全仓库唯一显式声明 `actions:` 的适配器，
+  `04a-17:203`；其余 12 个都没有）。撤下后不能简单删段，改为挂**测试内自建**适配器
+  `__t_probe`（entry 形态）与 `__t_flat`（直挂 actions 形态），保住并加强四项：
+  未读档明确报错、ifMissing 补齐/不覆盖/幂等、动作错误四分支（未知适配器 / 未知动作 / 空 id /
+  未实现 / 抛异常）、`hasV` 的 V/State 组合；顺带覆盖此前从未测到的 `mbCEAdapterList` 直挂分支，
+  并新增「注册表里不再有 dolonline」的反向断言，末尾清理自建适配器。
+- **删专属写入断言**：`tests/test_mce.js` 63.23~63.25（`mpDgLv` / `dgChestReq` / `npcAff` 三条
+  `cheatWriteValue("dolonline", …)`）随适配器撤下，改注释留痕；写入器通用路径仍由 62/63 系列
+  与 `adapter_actions.js` 覆盖。
+- **检测渠道 13 → 12**：`tools/check_mod_updates.js` 去掉 dolonline 渠道项（17,037 → 16,569 B）；
+  实测输出 12 个渠道（deadwood / revelation / dom_robin / more_love_interests / smartphone /
+  dol-optimization / wraiths-reflection / dolsims / cattery / more-farm-upgrade / dolmod /
+  maplebirch-framework）、`UPDATES: 0`、exit 0。
+- **登记表**：`tools/modcache_state.js` 的 MAP 去掉 `dolonline534` 映射（11,762 → 11,646 B）；
+  `dolonline534` 现显示为「未映射目录」，`--check` exit 0。
+- **派生文件重生成**：`tests/data/adapter_matrix.json` → **12 适配器 / 425 条目 / 969 探针**
+  （248,215 B / `B75071DB65BD33C7`；原 272,308 B）；`keys.registry.json` 470 → **425 条 / 12 适配器**
+  （40,156 B / `265EF6BE53CD470B`）。`validate_adapters.js` 口径 471 → **426 条**
+  （stages 54 → 51、values 249 → 207，差值恰为 dolonline 的 3 + 42）。
+- **核查新口径**：`check_claims.js` 425 条**命中 0**；`check_key_types.js` 320 → **278 条 /
+  CONFLICT 0 / STRICT 0 / WARN_BOOL_01 1（历史项 `wr_refuse`，`ReturnNecklace.twee:376` 写 1，
+  已定案不改）/ NO_EVIDENCE 53**。
+- **文档**：`README.md` 顶部能力行 13 → 12 适配器 / 471 → 426 条并去掉清单项（L3）；适配器表
+  **整行删除**（原 L202）；检测说明段 13 → 12 渠道/适配器，并补一段撤下理由留档（L203）；
+  `docs/architecture.md` 三处口径同步（425/12、`keysWithoutVarPath` 5 → 1、分布去 dolonline 42 条
+  注明合计 425、校验器数字）；`docs/history.md` 装载器描述 13 → 12 个适配器。
+- **保留不动**：`tools/_modcache/dolonline534/`（12 files / 1,479,303 B）与 `DoLOnline-5.34.mod.zip`
+  未删——删文件需用户指令，未映射目录不影响 `--check`；玩家侧 `game\DoLOnline-5.34.mod.zip`
+  是模组本体、与 CE 适配无关，**不随本版卸载**。
+- **玩家侧影响**：Mod作弊页不再出现「DoL 联机&地下城」页签及其 4 个动作（入口解锁 / 一键补运行态 /
+  一键解锁 9 法术 / 一键随身物全满），13 个模组页签降为 **12 个**；其余面板与数值零变化。
 
 ## v2.0.22（2026-11-12 场景直达：森林商店「无剧情直达」+ 注册表差集复核）
 

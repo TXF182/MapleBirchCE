@@ -148,8 +148,8 @@ function loadWrite(opts) {
     const m = text.match(/varPath\s*:/g);
     if (m) { varPaths += m.length; }
   });
-  assert(files.length >= 13, "适配器分块文件数 >=13（实际 " + files.length + "）");
-  assert(varPaths >= 430, "varPath 声明总条数 >=430（实际 " + varPaths + "；口径：与 adapter_matrix 的 451 条同为 stages+abilities+values，validate_adapters 的 452 另含 1 条 scenes 无写入探针）");
+  assert(files.length >= 12, "适配器分块文件数 >=12（实际 " + files.length + "；12 个适配器拆成多分块文件）");
+  assert(varPaths >= 420, "varPath 声明总条数 >=420（实际 " + varPaths + "；口径：与 adapter_matrix 的 425 条同为 stages+abilities+values，validate_adapters 的 426 另含 1 条 scenes 无写入探针；2026-11-12 撤下 Dolonline 后由 470 降至 425，下界随基线校准并留 5 条余量）");
 }
 
 console.log(failures === 0 ? "\nALL PASS（适配器路径豁免判定单测）" : "\nFAILED: " + failures);

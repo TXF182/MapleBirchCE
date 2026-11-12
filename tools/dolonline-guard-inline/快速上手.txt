@@ -1,0 +1,65 @@
+DoLOnline 反作弊守卫（内置版）v1.0.0 — 快速上手
+=================================================
+
+一句话
+------
+让外部作弊器（旧版 MapleBirchCE 的 dolonline 适配器）再也改不了你的
+dgGold / dgInv / mpSkill / mpSkillPts / mpDgLv / dgFloor 这 6 个键。
+
+
+三步接入
+--------
+1) 跑补丁脚本
+     node patch_index.js <你的 index.js> index.patched.js
+   它会自动改 26 处写入点 + 把守卫内联进产物 + 做 node --check。
+   任何一条对不上会立刻报错退出，不会改半截。
+
+2) 用产物替换你的 index.js（或把补丁出的文件当新的 scriptFileList 项）。
+
+3) 进游戏自测：加一次物资、升一级、解锁一个法术，确认功能都正常。
+
+
+为什么第 1 步不能省
+------------------
+你的写入函数自带 try { ... } catch (e) {}（例如 dgAdd 在 L7608-7612）。
+漏改一处 = 守卫抛的错被这段 catch 吞掉 = 功能静默失效：
+不崩、不报错、玩家点了"加物资"但背包不动。已用真实片段实测复现过。
+
+
+原理（三行）
+------------
+- 作弊器的写入最终是一句普通赋值：r.parent[r.leaf] = val;
+  （实证：MapleBirchCE 的 04b-modcheat-write.js:140）
+- 守卫把这些属性换成 getter + 受控 setter，非白名单窗口主动抛 TypeError
+- 作弊器的 try/catch 接住 → 面板显示"操作异常"，值进不了存档
+
+注意：拦截强度与作弊器是否开严格模式无关——是守卫主动抛，不是靠
+"严格模式下给只读属性赋值才报错"那套机制。
+
+
+拦不住什么（如实说）
+--------------------
+- 玩家直接改存档文件：那得靠服务端校验才治本
+- 恰好写成合法上限的值（如 18 种物资各 99）：自检兜底清不掉，只有实时阻断能挡
+- 这 6 个键以外的状态
+- 老环境无 Proxy 时，dgInv / mpSkill 只能防整体替换，逐键写入不设防
+  （Android WebView 5.0+ 都有 Proxy，实际极少触发）
+
+
+自测
+----
+解压后在本目录直接跑（路径已改成包内相对路径，不用改东西）：
+
+node tests/test_dgac_inline.js                        # 33 条：守卫本身
+node tests/test_patched_integration.js                # 15 条：默认用包内 index.patched.js
+node tests/test_patched_integration.js <你的产物>       # 15 条：验你自己打出来的
+
+
+包内文件
+--------
+快速上手.txt       本文件
+使用说明.md        完整说明（含 26 处写入点逐行对照表）
+dgac_inline.js     守卫本体，可独立作为 script，也可粘进 index.js
+patch_index.js     一键补丁脚本
+index.patched.js   仅 5.34 的参考成品，不要拿去覆盖你自己版本的 index.js
+tests/             两个自测脚本（纯 node，无第三方依赖）

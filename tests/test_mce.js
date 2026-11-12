@@ -6001,17 +6001,9 @@ try {
     "63.22 非飞升线只写 Remy，不改 Harper/Avery（原版本就写疤面）");
   api63.mbCEVanillaExtUndo("title");
 
-  // 63.23~63.27 Dolonline 5.27 单机状态键（只写本地 $ 变量，不涉联机交互）
-  V63.mpDgLv = 1; V63.mpCat = 0; V63.npcAff = 3;
-  const w6323 = api63.cheatWriteValue("dolonline", "dl_dglv", "value_set", "mpDgLv", "9", "number", 1, 99);
-  assert(w6323.ok === true && V63.mpDgLv === 9,
-    "63.23 mpDgLv 写 9（法术解锁门槛 3/5/7/9/12 中的「雷暴」档）");
-  const w6324 = api63.cheatWriteValue("dolonline", "dl_chestreq", "value_set", "dgChestReq", "0", "number", 0, 500);
-  assert(w6324.ok === true && V63.dgChestReq === 0,
-    "63.24 dgChestReq 写 0 = 任何诡术都能撬箱（原版 `skulduggery >= dgChestReq`）");
-  const w6325 = api63.cheatWriteValue("dolonline", "dl_npcaff", "value_set", "npcAff", "99", "number", 0, 15);
-  assert(w6325.ok === true && V63.npcAff === 99,
-    "63.25 写入器下限钳 0、上限不钳（npcAff 写 99 保留，模组侧自己 Math.min(15, ...)）");
+  // 63.23~63.25 原 Dolonline 单机状态键写入测试：随适配器于 2026-11-12 撤下
+  // （上游含联机交易 / 跨世界市场，作弊破坏其他玩家公平）。写入器通用路径仍由其它适配器
+  // 与本文件的 62/63 系列、tests/adapter_actions.js 覆盖，此三档不再需要专属断言。
   assert(typeof api63.mbCERenderVanillaExt === "function", "63.26 ⑧ 区块渲染函数已导出（页签分发可调用）");
   assert(api63.mbCEVanillaExtState().crime.types === 10, "63.27 状态回读：犯罪类型数 10（缺 setup.crimeNames 时走兜底清单）");
 
