@@ -95,6 +95,8 @@ var PLACE_EXTRA_ENTRIES = {
 		{ name: "Mansion Talk", cn: "交谈" },
 		{ name: "Mansion Skyscraper Rise", cn: "摩天楼" }
 	],
+	/* v2.0.22：森林商店主场景是纯商店段 Forest Shop；正门 Forest Shop Entrance（带 _shopEvent 格威岚登场）列子入口，要剧情时自选。 */
+	forest_shop: [{ name: "Forest Shop Entrance", cn: "正门（含格威岚登场）" }],
 	gwylan_garden: [
 		{ name: "Gwylan Gifts List", cn: "礼物清单" },
 		{ name: "Forest Gwylan Lure", cn: "森林引诱" },
@@ -372,3 +374,22 @@ MB_CSS +=
 	".mce-place-subs .mce-stage{padding:5px 8px}" +
 	".mce-place-subs .mce-stage-name{font-size:var(--mce-fs-btn);font-weight:600}";
 
+/* v2.0.22 森林商店直达兜底（本体 0.5.12.13，pid=1800 与 <<widget "forestShop-main">> 逐字核对）：
+   ① 首段 <<if $tryOn.autoReset isnot false>><<tryOnReset>><</if>> —— $tryOn 缺失即 TypeError 白屏；
+   ② 出口 <<link [[Stop browsing clothes|Forest Shop Entrance]]>> 只在尾部 <<elseif $tryOn.value is 0>> 分支，
+      value 非 0 被判「试衣中」→ 无出口 → 触发 mbCEArrivalCheck 的 no usable links 回退。
+   补原版 <<tryOnInit>>（Widgets tryOnClothes）同形轻量壳：autoReset:true 让 widget 自调 <<tryOnReset>> 建全量结构。
+   全部「缺失才补」，不覆盖玩家正在进行的试衣进度。 */
+function mbCETryOnShell(nm, V2) {
+	if (!V2) { return false; }
+	var n = String(nm || "");
+	if (!(n === "Forest Shop" || n.indexOf("Forest Shop ") === 0)) { return false; }
+	if (typeof V2.tryOn !== "object" || V2.tryOn === null) {
+		V2.tryOn = { autoReset: true, value: 0,
+			showEquip: { over_head: null, over_upper: null, over_lower: null },
+			showUnderEquip: { upper: null, lower: null } };
+	}
+	if (typeof V2.location !== "string" || !V2.location) { V2.location = "forest_shop"; }
+	if (V2.outside === undefined) { V2.outside = 0; }
+	return true;
+}

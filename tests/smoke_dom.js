@@ -122,15 +122,35 @@ tg0.style.top = "34px";
 
 /* ---------- 3.5 v1.9.18 排版 token 化 + 容器自适应断言 ---------- */
 const mceCss = (document.getElementById("mce-style") || {}).textContent || "";
-assert(mceCss.indexOf(":root{--mce-accent:#d4a73c") !== -1, "CSS token：:root 定义 --mce-accent（改主题只动变量区）");
+assert(mceCss.indexOf(":root{--mce-accent:#E3B25F") !== -1, "CSS token：:root 定义 --mce-accent（改主题只动变量区）");
 assert(mceCss.indexOf("height:var(--mce-h-header)") !== -1, "CSS token：.mce-header 高度走 var(--mce-h-header)（自查抓漏：42px 字面量）");
-assert(mceCss.indexOf("background:var(--mce-bg-panel)") !== -1, "CSS token：面板背景走 var(--mce-bg-panel)");
+assert(mceCss.indexOf("background-color:var(--mce-bg-panel)") !== -1, "CSS token：面板底色走 var(--mce-bg-panel)（v2.0.21 起底色与纹理分离，纹理走 background-image）");
 assert(mceCss.indexOf("font-size:var(--mce-fs-base)") !== -1, "CSS token：字号走 var(--mce-fs-base)");
 assert(mceCss.indexOf("max-height:calc(100vh - 16px)") !== -1, "容器自适应：#mce-root max-height 随视口（防御 DoL-Game-UI 滚动截断）");
 assert(mceCss.indexOf(".mce-body{flex:1;overflow-y:auto") !== -1, "容器自适应：.mce-body 内容区独立滚动");
 assert(mceCss.indexOf("::-webkit-scrollbar-thumb") !== -1, "容器自适应：面板滚动条样式已注入");
 assert(!!document.querySelector(".mce-body"), "容器自适应：.mce-body 滚动容器存在");
 assert(!!document.querySelector(".mce-header") && !!document.querySelector(".mce-tabs"), "容器自适应：header/tabs 固定行存在（sticky 页头）");
+
+/* ---------- 3.5c v2.0.21 灯台视觉层（设计参考 MapleLantern v1.1.7 src/style.css 原文） ----------
+   四层：背景材质 / 玻璃 / 点击涟漪 / 动效。每条断言对应一处可见行为，不是"代码里有个字符串"。 */
+assert(mceCss.indexOf("--mce-tex-panel:radial-gradient(120% 80% at 10% 0%,rgba(227,178,95,.20)") !== -1, "3.5c 面板纸纹 token：radial 暖光晕 + repeating-linear 细纹（纯 CSS，零贴图零请求）");
+assert(mceCss.indexOf("--mce-tex-body:") !== -1 && mceCss.indexOf("--mce-tex-card:") !== -1, "3.5c body / card 两级纸纹 token 存在");
+assert(mceCss.indexOf("background-image:var(--mce-tex-panel)") !== -1, "3.5c 面板把纹理叠在底色之上（background-color 与 background-image 分离，纹理不吞底色）");
+assert(mceCss.indexOf("backdrop-filter:blur(var(--mce-blur)) saturate(1.1)") !== -1 && mceCss.indexOf("-webkit-backdrop-filter:blur(var(--mce-blur))") !== -1, "3.5c 玻璃 = blur(var(--mce-blur)) + saturate(1.1)，标准与 -webkit- 双写");
+assert(mceCss.indexOf("@supports ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)))") !== -1, "3.5c @supports 兜底：不支持就完全不声明，不产生「半透明但没模糊」的脏底");
+assert(mceCss.indexOf("#mce-press-ring{position:fixed") !== -1 && mceCss.indexOf("@keyframes mce-press-ripple") !== -1, "3.5c 点击涟漪：fixed 层 + 专用 keyframes（fixed 是为绕开 #mce-root/.mce-body/.mce-tabs 三层 overflow 裁剪）");
+assert(mceCss.indexOf("scale(.45)") !== -1 && mceCss.indexOf("scale(3.4)") !== -1 && mceCss.indexOf(".46s cubic-bezier(.2,.8,.25,1)") !== -1, "3.5c 涟漪节奏：scale .45→1.9→3.4，0.46s，灯台曲线");
+assert(mceCss.indexOf("mix-blend-mode:screen") !== -1, "3.5c 涟漪 screen 混合：深底上只提亮不压暗");
+assert(mceCss.indexOf("@keyframes mce-tabline") !== -1 && mceCss.indexOf("transform-origin:left center") !== -1, "3.5c 页签下划线从左生长（scaleX .2→1，origin left）");
+assert(mceCss.indexOf("@keyframes mce-breathe") !== -1 && mceCss.indexOf("animation:mce-breathe 4.2s ease-in-out infinite") !== -1, "3.5c 悬浮球呼吸 4.2s（与 ml-breathe 同频）");
+assert(mceCss.indexOf("--mce-radius-panel:18px") !== -1 && mceCss.indexOf("--mce-radius-card:16px") !== -1 && mceCss.indexOf("--mce-radius:12px") !== -1, "3.5c 三级圆角：panel 18 / card 16 / 通用 12");
+assert(mceCss.indexOf("translateY(1px) scale(.972)") !== -1, "3.5c 按压反馈 = 下沉 1px + 收缩 .972（不是裸 scale）");
+assert(mceCss.indexOf("filter:brightness(1.14) saturate(1.06)") !== -1 && mceCss.indexOf("inset 0 1px 0 rgba(255,255,255,.14)") !== -1, "3.5c 按压同时提亮 + 顶部内高光（触屏上没有 hover，必须靠 :active 自己说话）");
+assert(mceCss.indexOf("@media (prefers-reduced-motion:reduce){#mce-press-ring") !== -1, "3.5c 涟漪自带 reduced-motion 熔断（它在 body 层，宿主 #mce-root * 那条够不到）");
+assert(js.indexOf("function mbCEPressRing") !== -1 && js.indexOf("document.addEventListener(\"pointerdown\", mbCEPressRing, true)") !== -1, "3.5c 涟漪监听在捕获阶段 pointerdown（不拦截业务点击、不重复绑）");
+assert(js.indexOf("function mbCEAnimOff") !== -1 && js.indexOf("data-dgu-visualMotion") !== -1, "3.5c JS 熔断判据与 07a-host-compat.js 两条一致（系统级 / 主 UI 动效开关）");
+assert(js.indexOf("MCE_PRESS_SEL = ") !== -1 && js.indexOf(".mce-anchor-go") !== -1, "3.5c 涟漪白名单覆盖按钮/页签/卡片/确认条");
 
 /* ---------- 3.5b v2.0.12 CSS 特异性倒挂：状态色 / 选中态曾静默失效 ----------
    ① `.mce-status`(0,1,0) 定义在 `.mce-ok`/`.mce-err`(0,1,0) 之后 → 同特异性后者胜，
@@ -1504,8 +1524,8 @@ setTimeout(function () {
       api.mbCEUiSave({ collapsed: {} });
       const sptxt = clickTabSafe("scenes");
       assert(sptxt.indexOf("THREW") === -1, "15 本体 111 键全量渲染不崩（THREW 检测）");
-      assert(sptxt.indexOf("原版剧情（游戏本体注册，111 场景）") !== -1, "15 原版区计数 = 111，实际 " + sptxt.slice(sptxt.indexOf("原版剧情"), sptxt.indexOf("原版剧情") + 60));
-      assert(sptxt.indexOf("MOD 剧情（第三方模组注册，2 场景）") !== -1, "15 MOD 区计数 = 2（widget 注入 1 + 运行时注入 1），实际 " + sptxt.slice(sptxt.indexOf("MOD 剧情"), sptxt.indexOf("MOD 剧情") + 60));
+      assert(sptxt.indexOf("原版剧情（游戏本体注册，110 场景）") !== -1, "15 原版区计数 = 110（本体 111 键中 placeHolder 是 /* */ 注释样本，v2.0.22 起已过滤），实际 " + sptxt.slice(sptxt.indexOf("原版剧情"), sptxt.indexOf("原版剧情") + 60));
+      assert(sptxt.indexOf("MOD 剧情（第三方模组注册，3 场景）") !== -1, "15 MOD 区计数 = 3（widget 注入 1 + 运行时注入 1 + EXTRA 1），实际 " + sptxt.slice(sptxt.indexOf("MOD 剧情"), sptxt.indexOf("MOD 剧情") + 60));
       /* v1.9.16：角色译名统一——Alex 分组标题「亚历克斯」→「艾利克斯」（与 01-core 角色名表一致） */
       assert(sptxt.indexOf("艾利克斯 Alex") !== -1 && sptxt.indexOf("亚历克斯 Alex") === -1, "15 角色译名：Alex 分组标题 = 艾利克斯 Alex（修复前显示 亚历克斯），实际 " + sptxt.slice(sptxt.indexOf("艾利克斯"), sptxt.indexOf("艾利克斯") + 30));
       /* v1.9.2 自查：MOD 场景区懒渲染折叠——收起时场景键不渲染，点击标题展开后才补建 */
@@ -1750,7 +1770,7 @@ setTimeout(function () {
         console.error("FAIL: P4 统一回退中心/diff 预览异常：" + (eP4 && eP4.message ? eP4.message : eP4));
       }
       /* ---------- 17. v1.9.14 UI 动效：CSS 规则与工具函数源码断言（CSS 串内嵌构建产物） ---------- */
-      assert(js.indexOf(".mce-btn:active{transform:scale(.96)}") !== -1, "17 .mce-btn 按压缩放 scale(.96)（效果1）");
+      assert(js.indexOf(".mce-btn:active{transform:translateY(1px) scale(.972);filter:brightness(1.14) saturate(1.06)") !== -1, "17 .mce-btn 按压位移+缩放+提亮（效果1 灯台版：无 hover 的触屏靠位移+提亮才说得出「按下去了」）");
       assert(js.indexOf("#mce-root button:active{transform:scale(.96)}") !== -1, "17 面板内全部按钮统一按压缩放（效果1）");
       assert(js.indexOf("#mce-toggle:active{transform:scale(.94)}") !== -1, "17 悬浮球按压缩放 scale(.94)");
       assert(js.indexOf("translateY(-1px)") !== -1 && js.indexOf(".mce-btn.mce-gold:hover") !== -1, "17 金色按钮 hover 上浮+阴影（效果3）");
@@ -1818,12 +1838,12 @@ setTimeout(function () {
        所以 CE 只能把变量指向主 UI 的变量名（var(--dgu-accent, CE默认)），不能抄色值：
        抄色值就得监听主题切换，且主 UI 改版即失效。 */
     assert(js.indexOf("var MCE_HOST_TOKEN_MAP = [") !== -1, "18.2d A3 token 映射表已落地");
-    assert(js.indexOf('{ mce: "--mce-accent", tok: "ocean", def: "#d4a73c" }') !== -1, "18.2d accent ← ocean");
-    assert(js.indexOf('{ mce: "--mce-bg-card", tok: "card", def: "var(--dgu-panel, #111)" }') !== -1, "18.2d 卡片底 ← card，默认值两级回退 var(--dgu-panel, #111)");
+    assert(js.indexOf('{ mce: "--mce-accent", tok: "ocean", def: "#E3B25F" }') !== -1, "18.2d accent ← ocean");
+    assert(js.indexOf('{ mce: "--mce-bg-card", tok: "card", def: "var(--dgu-panel, #12151A)" }') !== -1, "18.2d 卡片底 ← card，默认值两级回退 var(--dgu-panel, #12151A)");
     assert(js.indexOf('{ mce: "--mce-bg-card", tok: "card", def: "#111" }') === -1, "18.2d 禁止退回单级默认 #111：--dgu-card 不在 :root（8 处定义全在 html[data-stone-free] 或窄作用域），非 stone-free 玩家会永远拿不到卡片色");
-    assert(js.indexOf('{ mce: "--mce-border", tok: "mist", def: "#3c3c3c" }') !== -1, "18.2d 边框 ← mist");
+    assert(js.indexOf('{ mce: "--mce-border", tok: "mist", def: "rgba(255,255,255,.16)" }') !== -1, "18.2d 边框 ← mist（v2.0.21 起默认值改半透白，深底上不再像铅笔描边）");
     assert(js.indexOf('def: "var(--dgu-border') === -1, "18.2d 禁止把边框改指向 --dgu-border：:root 上它是 --kw-hairline=#ffffff0b（4.3% 白），CE 按钮边框会肉眼消失；--dgu-secondary=#aaa9ad 才是可见且 :root 可达的那个");
-    assert(js.indexOf('{ mce: "--mce-radius", tok: "radius", def: "4px" }') !== -1, "18.2d 圆角 ← radius");
+    assert(js.indexOf('{ mce: "--mce-radius", tok: "radius", def: "12px" }') !== -1, "18.2d 圆角 ← radius");
     assert(js.indexOf('root.style.setProperty(m.mce, "var(" + name + ", " + m.def + ")")') !== -1, "18.2d 写 var(主UI变量, CE默认)：无主 UI 时语法上合法并退化到 CE 原值");
     assert(js.indexOf('window.addEventListener("dol-ui-runtime-ready", syncHostTokens)') !== -1, "18.2d 主 UI 晚于 CE 加载时靠 dol-ui-runtime-ready 补（index.js 挂 ui 后派发该事件）");
     assert(js.indexOf("window.DoLGameUI && window.DoLGameUI.ui") !== -1, "18.2d Api 挂载点是 window.DoLGameUI.ui（index.js: Ve.DoLGameUI.ui = i.api）");
@@ -1840,13 +1860,13 @@ setTimeout(function () {
     };
     fakeDgu({ neutral: "--dgu-surface", card: "--dgu-card", ocean: "--dgu-accent", mist: "--dgu-secondary", text: "--dgu-text", danger: "--dgu-danger", radius: "--dgu-radius", cardRadius: "--dgu-card-radius" }, false);
     window.dispatchEvent(new window.Event("dol-ui-runtime-ready"));
-    assert(mceRootEl.style.getPropertyValue("--mce-accent") === "var(--dgu-accent, #d4a73c)", "18.2e ocean → --mce-accent 实际写入 var(--dgu-accent, #d4a73c)");
-    assert(mceRootEl.style.getPropertyValue("--mce-bg-card") === "var(--dgu-card, var(--dgu-panel, #111))", "18.2e card → --mce-bg-card 实际写入两级回退（stone-free 时吃 --dgu-card，否则退 --dgu-panel，都没装才退 #111）");
-    assert(mceRootEl.style.getPropertyValue("--mce-radius") === "var(--dgu-radius, 4px)", "18.2e radius → --mce-radius 实际写入");
+    assert(mceRootEl.style.getPropertyValue("--mce-accent") === "var(--dgu-accent, #E3B25F)", "18.2e ocean → --mce-accent 实际写入 var(--dgu-accent, #E3B25F)");
+    assert(mceRootEl.style.getPropertyValue("--mce-bg-card") === "var(--dgu-card, var(--dgu-panel, #12151A))", "18.2e card → --mce-bg-card 实际写入两级回退（stone-free 时吃 --dgu-card，否则退 --dgu-panel，都没装才退 #12151A）");
+    assert(mceRootEl.style.getPropertyValue("--mce-radius") === "var(--dgu-radius, 12px)", "18.2e radius → --mce-radius 实际写入");
     assert(mceRootEl.style.getPropertyValue("--mce-tab-h") === "", "18.2e 只写 4 个映射键，不碰 --mce-tab-h 等布局 token");
     fakeDgu({ ocean: "--renamed-accent", mist: "--dgu-secondary", radius: "--dgu-radius" }, false);
     window.dispatchEvent(new window.Event("dol-ui-runtime-ready"));
-    assert(mceRootEl.style.getPropertyValue("--mce-accent") === "var(--renamed-accent, #d4a73c)", "18.2e 主 UI 改版改名后自动跟随（不写死变量名，这是读 tokens 的全部意义）");
+    assert(mceRootEl.style.getPropertyValue("--mce-accent") === "var(--renamed-accent, #E3B25F)", "18.2e 主 UI 改版改名后自动跟随（不写死变量名，这是读 tokens 的全部意义）");
     let hostThrew = false;
     fakeDgu({}, true);
     try { window.dispatchEvent(new window.Event("dol-ui-runtime-ready")); } catch (eHost) { hostThrew = true; }

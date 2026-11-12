@@ -98,7 +98,44 @@ var SCENE_LOCATIONS = {
 		"MickeyPubFameIntro": { loc: "pub", src: "reg: manualVariableChanges $location" },
 		"PrisonSpirePrecipice": { loc: "prison", src: "reg: manualVariableChanges $location" },
 		"PrisonYardLocket": { loc: "prison", src: "reg: manualVariableChanges $location" },
-		"PrisonScarredInmate": { loc: "prison", src: "reg: manualVariableChanges $location" }
+		/* v2.0.20 C 批：本体 $scenes 有、静态表缺失的 30 条（逐条来自 $scenes manualVariableChanges 或 startPassage 段落实证；
+		   v2.0.22 差集复核（用户点名「按场景注册表做差集」）：本体 $scenes 共 111 键，第 1 个 placeHolder 是被注释掉的
+		   模板样本（name:""）→ 真实场景 110 条，CE 的 VANILLA_SCENE_KEYS 111 键与之逐键相等（差异 0），运行时全量动态解析，
+		   剧情条目零遗漏。仍缺地点元数据的是 10 条（Tutorial / HalloweenWhitney / HalloweenKylar / AlexFarmSelfMilkingCaught /
+		   RobinCrossdressing4 / RobinCrossdressing5 / EdenRadioIntro / Pinch / RaulAndJanet / PrisonScarredInmate）—— 这 10 条的
+		   startPassage 分别是 SV Tutorial / Scene Viewer passages / Farm Barn Caught / Robin's Stand CD SV Intro /
+		   Robin School CD SV Intro / Eden Radio Intro / Olive Book 1 / ScarletBook1 / SV Prison Scarred，段内均无
+		   <<set $location>>（SV 调试段或纯文本段，重放时沿用玩家当前 location），无证据不臆造，保持运行时回退。 */
+		"ChefOpeningPhotograph": { loc: "town", src: "pas: Photography Chef 段落实证 $location=town" },
+		"ChefOpeningCeremony": { loc: "cafe", src: "pas: Chef Opening 段落实证 $location=cafe" },
+		"SchoolInspectionPenis": { loc: "school", src: "pas: Science Lesson 段落实证 $location=school" },
+		"SchoolInspectionPussy": { loc: "school", src: "pas: Science Lesson 段落实证 $location=school" },
+		"SchoolInspectionBreast": { loc: "school", src: "pas: Science Lesson 段落实证 $location=school" },
+		"AlexFarmIntro": { loc: "alex_cottage", src: "pas: Farm Intro 段落实证 $location=alex_cottage" },
+		"EdenValentinesBath": { loc: "cabin", src: "pas: Eden Valentines Bath 段落实证 $location=cabin" },
+		"Christmas Mirror": { loc: "home", src: "reg: manualVariableChanges $location=home" },
+		"NightmareEden": { loc: "cabin", src: "pas: Nightmare Eden 段落实证 $location=cabin" },
+		"NightmareWraith": { loc: "temple", src: "pas: Nightmare Wraith 段落实证 $location=temple" },
+		"NightmareBird": { loc: "tower", src: "pas: Nightmare Bird 段落实证 $location=tower" },
+		"NightmareCorruptSydney": { loc: "temple", src: "pas: Nightmare Corrupt Sydney 段落实证 $location=temple" },
+		"NightmareHarper": { loc: "asylum", src: "pas: Nightmare Harper 段落实证 $location=asylum" },
+		"NightmareAlex": { loc: "alex_cottage", src: "pas: Nightmare Alex 段落实证 $location=alex_cottage" },
+		"NightmareWitch": { loc: "old_temple", src: "pas: Nightmare Witch 段落实证 $location=old_temple" },
+		"NightmareOffice": { loc: "office", src: "pas: Nightmare Office 段落实证 $location=office" },
+		"NightmareGwylan": { loc: "docks", src: "pas: Nightmare Gwylan 段落实证 $location=docks" },
+		"HarperHypnosisIntro": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisTrance1": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisTrance2": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisTrance3": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisTrance4": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisExam1": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisExam2": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisExam3": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDogIntro": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDog1": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDog2": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDog3": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDog4": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" }
 	};
 	/* 跨线前置映射（v1.9.23 第一批）：剧情有关联性时的显式前置。
 	   线内前置（数字后缀聚线）由 pendingPreconds 自动推导、零维护；

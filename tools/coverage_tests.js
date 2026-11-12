@@ -70,6 +70,10 @@ const TESTS = [
   /* 剧情页（07h-render2/3）：真实 $scenes 注册表（fixture）驱动的分区/懒渲染/展开收起/锚定/一键完成/
      直达触发禁用态/空注册表说明 —— UI 拒绝路径必须真走到。 */
   "tests/scenes_page_state.js",
+  /* v2.0.20 四项改动真实路径：ensureFarmState 补 farm_attack_timer 的五种态（缺失/NaN/已合法/fs=0 不写/
+     空壳早退不写）、kylarWatch 一键被监视写入与分页项、KylarStalkingReversal 15 段并入且不写 V.scenes、
+     30 条静态地点抽检 + 9 条无 $location 证据场景的负例（不得被臆造地点）。 */
+  "tests/kylar_farm_state.js",
   /* 模组页「命令式动作」组（05a3）+ 全局批量解锁（03a-global-batch）：动作行三条拒绝路径
      （未实现 / 抛异常 / 面板渲染失败）、衣物全解锁三种 op 与坏条目守卫、食谱全解锁与重建条目。 */
   "tests/mod_actions_batch_state.js",
@@ -114,7 +118,14 @@ const TESTS = [
      diff 预览队列封顶与空队列拒绝、地点中文名无匹配、未知 NPC 特质撤回、按活动页签重渲染的
      mods/places 分发、面板容器缺失时的渲染早退。
      不覆盖 dead-guard（if (!V) 且 V=getV()，getV() 恒返回 {} 兜底，结构性不可达）。 */
-  "tests/plain_branches.js"
+  "tests/plain_branches.js",
+  /* 2026-11-12 新增（v2.0.22）：森林商店「无剧情场景直达」。锁死三件事 ——
+     forest_shop 独立成组且排在 gwylan_garden 之前（seen 先占先得，否则主场景仍是仪式剧情段）、
+     主场景=Forest Shop 且正门 Forest Shop Entrance 作为子入口保留、
+     mbCETryOnShell 缺失才补 $tryOn 壳且不覆盖玩家试衣进度（$tryOn 缺失会让 <<forestShop-main>>
+     首行读 .autoReset 抛 TypeError、且尾部只有 $tryOn.value is 0 分支才给出口链接）。
+     另含注册表 placeHolder 注释样本过滤（空名条目不得进剧情列表）。 */
+  "tests/forest_shop_direct.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

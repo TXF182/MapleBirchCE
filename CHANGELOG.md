@@ -2,6 +2,152 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.0.22（2026-11-12 场景直达：森林商店「无剧情直达」+ 注册表差集复核）
+
+两条诉求源自同一组 QQ 截图：①「有没有其他剧情没收录进模组」（用户点名凯拉尔那条）；
+②「没有剧情的场景直达 / 我想去森林商店 / 但是都有剧情 / 我不知道为什么找不到商店」。
+
+### 一、森林商店独立成组（`07d-places3.js`）
+
+- 根因取证（本体 0.5.12.13，pid=1800）：`Forest Shop` 正文只有 77 字符
+  `<div id="clothingShop-div">\n\t<<forestShop-main>>\n</div>`，`tags=exitCheckBypass`，
+  是**纯商店界面**；`<<forestShop-main>>` 首行即 `<<set $outside to 0>><<set $location to "forest_shop">><<effects>>`，
+  段落自包含初始化，不依赖任何剧情进度。
+- 旧结构的问题：`gwylan_garden` 组的 `main` 是 `Gwylan Ritual Start Garden`（仪式剧情段），
+  `Forest Shop` 只作为「更多入口」折叠子场景 → 面板上永远只能看到剧情段；
+  而正门 `Forest Shop Entrance` 带 `_shopEvent`（格威岚登场）与 `$forest_shop_intro` 判定 →
+  正是「但是都有剧情」的观感来源。
+- 新增 `forest_shop` 组，`kind:"place"`，`main:"Forest Shop"`，用 `splice` 插到 `gwylan_garden` 之前
+  （`listPlaceGroups` 靠 `seen` 先占先得，必须早于格威岚组对其前缀的匹配）。
+- 正门 `Forest Shop Entrance` 保留为子入口，玩家要剧情仍可走；面板组名后加「〔纯地点〕」徽标。
+
+### 二、`$tryOn` 壳兜底（`07d-places4.js` + `07d-places.js`）
+
+- `<<forestShop-main>>` 首段即 `<<if $tryOn.autoReset isnot false>><<tryOnReset>><</if>>`：
+  新档 `$tryOn` 不存在 → 读 `.autoReset` 抛 TypeError，整段正文不渲染（白屏）。
+- 尾部出口只在 `<<elseif $tryOn.value is 0>>` 分支内给 `<<link [[Stop browsing clothes|Forest Shop Entrance]]>>`：
+  `$tryOn.value` 非 0 被判「试衣中」→ 无出口 → 触发 `mbCEArrivalCheck` 的 no usable links 回退。
+- 新增 `mbCETryOnShell(nm, V)`：补原版 `<<tryOnInit>>` 同形轻量壳
+  （`autoReset:true, value:0, showEquip{over_head/over_upper/over_lower:null}, showUnderEquip{upper/lower:null}`），
+  `autoReset:true` 让 widget 自己再调 `<<tryOnReset>>` 建全量结构；同时补 `$location="forest_shop"` / `$outside=0`。
+  **全部「缺失才补」，不覆盖玩家正在进行的试衣进度**。
+
+### 三、注册表差集复核（用户点名项）
+
+- 抽取路径：本体 HTML 第 279900 行 `<<set $scenes to {` 向下拼到 `</tw-passagedata>`（76,844 字符），
+  反转义后做字符串感知括号配对，按 `"Key":{`（冒号后无空格、缩进三 Tab）取顶层键 → **111 键**。
+- 关键发现：第 1 个 `placeHolder` 是被 `/* … */` 注释掉的模板样本（`name:""`、`startPassage:""`）
+  → **真实场景 110 条**。CE 侧 `VANILLA_SCENE_KEYS` 111 键与之**逐键相等（差异 0）**，
+  运行时全量动态解析 → **剧情条目零遗漏**。
+- 仍缺地点元数据 10 条（`Tutorial` / `HalloweenWhitney` / `HalloweenKylar` / `AlexFarmSelfMilkingCaught` /
+  `RobinCrossdressing4` / `RobinCrossdressing5` / `EdenRadioIntro` / `Pinch` / `RaulAndJanet` /
+  `PrisonScarredInmate`）：startPassage 分别是 `SV Tutorial` / `Scene Viewer passages` / `Farm Barn Caught` /
+  `Robin's Stand CD SV Intro` / `Robin School CD SV Intro` / `Eden Radio Intro` / `Olive Book 1` /
+  `ScarletBook1` / `SV Prison Scarred`，段内均无 `<<set $location>>`（SV 调试段或纯文本段）——
+  无证据不臆造，保持运行时回退（`07f-pins1-data.js` 注释已同步为 v2.0.22 口径）。
+- 另一层核查：全 23 个 `SV ` 段落名与注册表 1,252 条 `passages` 做差集 → **orphan 0 条**
+  （SV 场景查看器体系里注册表外的可重放剧情为 0）。
+- 副产物修正：`parseSceneBlocks` 丢弃 `name` 为空的定义（`07e-scenes.js`）——
+  键块扫描不剥注释会把 `placeHolder` 当成一条真场景塞进剧情列表（空名条目）。
+
+### 四、验证与断言
+
+- 新增 `tests/forest_shop_direct.js`（32 条断言，挂进 `tools/coverage_tests.js` 序列）：
+  组结构与占位顺序 / 主场景与子入口清单 / widget 段被 exclude / `$tryOn` 补壳四态
+  （缺失补、已有不覆盖、非本组 false、正门前缀命中）/ `placeHolder` 过滤与 EXTRA 不误伤。
+
+## v2.0.21（2026-11-12 视觉层：参考 MapleLantern 灯台设计语言重做面板材质/背景/动效/点击特效）
+
+参考对象是同级目录的 `MapleLantern` v1.1.7（`src/style.css` 1,375 行），一律取 CSS 原文数值，不取它的设计规格文档转述。落地面只改 CE 自有面板（`07a-shell.js` 的 `MB_CSS`），不注册 StyleAdapter、不接管任何第三方界面。
+
+### 一、色板整体换到灯台 amber
+
+- 强调色 `#d4a73c` → **`#E3B25F`**（Lantern `--ml-accent` 原值），hover `#EFC57A` / dark `#8A5F22` / 55 档 `rgba(227,178,95,.55)`。
+- 底色从纯黑系换到冷中性深灰：面板 `rgba(5,5,5,.92)` → `rgba(11,13,16,.92)`，deep/base/card/block/stage/detail/ctl/btn/hover 全量对齐 `--ml-bg*` 与 `--ml-bg-raise`。
+- 边框从实色灰（`#3c3c3c` 系）换成半透白：`.16 / .12 / .08 / .14 / .22` —— 在深底上这条改动比换色更明显，实色灰像铅笔描边，半透白才像玻璃边。
+- 文字全改暖白（`#E9E3D6` / bright `#FBF6EA` / on-accent `#1A1206` / muted `#ADA69A` / weak `#857F75`）。
+- **红/绿语义色与 `--mce-fs-*` 字号行一字未动**：语义色是功能信号（写成功/写失败），换色只会降低可读性。
+
+### 二、背景：三层纯 CSS 纸纹（零贴图、零请求）
+
+Lantern 最有辨识度的一层是「不用任何贴图，全靠多层 gradient 叠出纸张质感」。照抄结构、按 CE 尺寸重算：
+
+- `--mce-tex-panel`：左上琥珀光晕（`rgba(227,178,95,.20)`）+ 右下玫瑰余晖（`rgba(198,84,73,.09)`）+ 底部暖光（`rgba(120,66,28,.10)`）+ 92°竖细纹（1px/4px）+ 2°琥珀横细纹（1px/7px）。
+- `--mce-tex-body`：顶部光晕 + 115°斜细纹；`--mce-tex-card`：135°琥珀渐变 + 0°横细纹。
+- 面板改为 `background-color` 与 `background-image` **分离**：底色仍走 `var(--mce-bg-panel)`（保留主 UI token 跟随），纹理单独叠。合并写会让主 UI 换色时把纹理一起覆盖掉。
+- 圆角三级：`--mce-radius:12px` / `-card:16px` / `-panel:18px`（原 4/2/8），面板右侧内圆角 8px → 18px。
+- 阴影换 `--mce-shadow-panel:0 24px 64px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35)`（原 `0 10px 28px`）。
+
+### 三、玻璃：backdrop-filter 双写 + @supports 兜底
+
+- `--mce-blur:20px`，`backdrop-filter: blur(var(--mce-blur)) saturate(1.1)`，标准属性与 `-webkit-` 前缀同时写。
+- 整条规则包在 `@supports ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)))` 里 —— 不支持就**完全不声明**，不会出现「一半透明但没有模糊」的脏底。
+
+### 四、点击特效：CSS 静态按压 + JS 指针涟漪（两层，不是二选一）
+
+- 静态层：`.mce-btn:active` 从裸 `scale(.96)` 改为 `translateY(1px) scale(.972)` + `brightness(1.14) saturate(1.06)` + 顶部内高光 + 向外扩散的暖光（`0 0 22px -7px var(--mce-press-glow)`）。触屏没有 hover，`:active` 必须自己把「按下去了」说出来。
+- 动态层：`pointerdown` 捕获阶段生成一个 20px 圆环，`transform:translate(-50%,-50%) scale(.45→1.9→3.4)` + `opacity .95→.9→0`，`0.46s cubic-bezier(.2,.8,.25,1)`，`mix-blend-mode:screen`（深底上只提亮不压暗），520ms 后自删。
+- **为什么用 `position:fixed` 挂在 body 顶层**：CE 面板有三层裁剪（`#mce-root{overflow:hidden}` / `.mce-body{overflow-y:auto}` / `.mce-tabs{overflow-x:auto}`），涟漪放在按钮内部任一层都会把它裁掉，实测表现为「点了没反应」。
+- 白名单只有按钮/页签/卡片/数据卡/分段按钮/折叠按钮/图标/确认条，不覆盖输入框与滚动区，避免拖拽时误触发。
+
+### 五、动效：页签生长线 / 悬浮球呼吸 / 面板右滑入
+
+- 页签激活下划线：`::after` 从左生长（`transform-origin:left`，`scaleX(.2)→1`，`0.16s ease`），叠加 `linear-gradient(90deg, accent → 涟漪色)` 与 10px 暖光。
+- 悬浮球：`mce-breathe 4.2s ease-in-out infinite`（与 Lantern `ml-breathe` 同频），只动 `box-shadow`，不动 `transform` —— 球要能被拖动，改 transform 会和拖拽位移打架。星蓝主题原有的 3.5s 脉冲特异性更高，不受影响。
+- 面板开合：`.22s cubic-bezier(.2,.8,.25,1)`，`from{translateX(14px) scale(.985)}`（从屏幕右缘滑入，贴合 CE 贴右布局；原来是从中心放大）。
+
+### 六、可访问性：涟漪自带熔断（宿主那条够不到它）
+
+`07a-host-compat.js` 已有的两条 reduced-motion 熔断（系统级 media query / 主 UI 关了 `data-dgu-visualMotion`）的覆盖面是 `#mce-root,#mce-root *`、`#mce-toggle`、`.mce-anchor-prompt`。涟漪挂在 **body** 层，**不在这三条之内**，所以：
+
+- CSS 侧补一条 `@media (prefers-reduced-motion:reduce){#mce-press-ring{animation:none!important;opacity:0!important}}`；
+- JS 侧 `mbCEAnimOff()` 判据与宿主**逐字一致**，动效关闭时干脆不生成元素。
+
+### 七、契约同步（会红的四类断言）
+
+- `--mce-accent` / `--mce-radius` / `--mce-border` / `--mce-bg-card` 的 fallback 单源在 `07a-host-compat.js:50-53`，同步为新值（`#E3B25F` / `12px` / `rgba(255,255,255,.16)` / `var(--dgu-panel, #12151A)`）。
+- `tests/smoke_dom.js`：既有 10 条断言同步新值；新增 17 条 3.5c 断言，逐条对应一处可见行为（纸纹 token / 底色纹理分离 / 玻璃双写 / @supports / 涟漪 fixed + 节奏 + screen 混合 / 页签生长 / 呼吸 4.2s / 三级圆角 / 按压位移 / 提亮内高光 / 涟漪熔断 / 捕获阶段监听 / 熔断判据一致 / 白名单）。
+- 星蓝主题 `#mce-root.mce-theme-starry` 全部保留未动。
+
+### 八、结构门禁与两条工程坑（本轮实际踩到的）
+
+- **单段 400 行上限**：改后 `07a-shell.js` 464 行触发 `build_js.js` 的 S1 门禁。选择拆分而非写基线豁免：移出 5 行 token（tex 三个 / press / blur / shadow，均已在 `:root` 重新声明）+ 1 行 `::after` + 22 行 CSS 特效块 + 35 行 JS 指针逻辑 → 回到 400 行整；新段 `07a-shell3-fx.js`（79 行，layer `ui`）。
+- **`--write-manifest` 会打乱显式段序**：它按文件名字典序重写，`07a-host-compat.js`（`h` < `s`）被挪到 `07a-shell.js` 之前 → host-compat 的 `MB_CSS +=` 执行时 `var MB_CSS` 还是 `undefined`，追加成 `"undefined…"`，随后 shell 的 `var MB_CSS = "" + …` 把它覆盖归零，注入的 `#mce-style` 丢失全部宿主规则（smoke 的 18.2c 六条 / 18.2f 五条 / 18.2g 一条共 12 条全红）。修法：`git show HEAD:javascript/src/manifest.json` 还原（连 `note` 一起），再用脚本在 `07a-shell2.js` 段之后精确插入新段，`json.loads` 双重校验。**本项目 manifest 是显式段序，增段不能靠 `--write-manifest`。**
+- **node 环境 `document` 未定义**：新段末尾 `if (document && document.addEventListener)` 在无 DOM 的 node 测试里抛 `ReferenceError`，连带拖垮 `test_mce.js` / `test_adapter_matrix.js` / `integration_gender.js`（表现像三个不相干测试同时坏）。改成 `typeof document !== "undefined" && document && …` 后三测试即刻恢复（矩阵 6445/6445、性别 24/24）。
+
+## v2.0.20（2026-11-12 凯拉尔两条新诉求 + 农场 NaN 补丁 + 场景地点补齐）
+
+### 一、P0 修 `[number NaN]`：`ensureFarmState` 补 `$farm_attack_timer`（`07f-pins3-queue.js`）
+
+玩家 Journal 出现「雷米将在 在[number NaN]天后袭击农场」。归因链：本体每日结算在 `V.farm_stage >= 7` 时执行 `V.farm_attack_timer--`，该键**只在三处初始化**（Farm Cottage「共享农场」首次 `to 30`；Farm Assault 开场与 `farm_assault_end` 各 `to random(17,24)`）。CE「农场阶段」作弊项直写 `farm_stage` 绕过了这些节点，而 `ensureFarmState()` 原本只补 `V.farm.*` 六个子结构、**不含这个顶层键** → `undefined--` = NaN，且 `NaN < 0` 恒假 → `farm_attack_auto` 永不触发，雷米袭击线永久死锁，Journal `<<nDays>>` 打出 NaN。
+
+- 补法：`fs >= 1` 且该键非有效数字时补 30；`fs < 1` 不写，不凭空给未进农场线的存档造值。
+- 一处改动覆盖六个调用点（`02-romance.js:200` / `03a-global-batch.js:26` / `07d-places.js:272` / `07f-pins2-anchor.js:126` / `07f-pins4-hook.js:184` / `09-exports2.js:32` 启动兜底）。
+
+### 二、A 一键获得「被凯拉尔监视」（`07e-scenes2.js`）
+
+凯拉尔分页新增 action `kylarWatch`：写 `$kylarwatched = 1` + `$kylarwatchedtimer = 2`（本体街上事件池首设值）。之后只要在街上走动，事件池顶部 `<<elseif $kylarwatched is 1>><<kylarwatched>>` 即接管整条监视链（`$dangerevent` 41/61/81 三档分支、`Something is watching you.` 蓝字、绑架/抢劫/眨眼追逐等），计时耗尽或换地点自动复位 `0`。是**状态注射**，不是重放。
+
+### 三、B 凯拉尔「跟踪反转」并入剧情直达（`07e-scenes.js`）
+
+`Kylar Stalking Reversal` 15 段此前在 CE 剧情页完全查不到 —— 不是漏登记：本体 `$scenes` 只收「有开始段落 + 段落清单」的场景，这条线由 `$stalk_end`（`hide` / `beckon` / `escaped`）在跟踪战斗后分支，全库无裸链接入口，天然不在册。
+
+- 新增 `EXTRA_SCENES` + `mergeExtraScenes()`，在 `getScenesDefs()` 三条返回路径（parsed / recovered / `V.scenes` 兜底）统一合并。
+- **不写 `V.scenes`、不改本体 widget**：不污染存档，也不影响本体 Scene Viewer 的 `$scenePassages` 解锁判定；本体/MOD 已注册同名键则让位不覆盖。
+- **仅在本体注册表非空时合并**：本体 `$scenes` 读不到或解析失败时保留空态，剧情页照旧显式报「未读取到场景注册表」，不用 1 条自有场景把注册表缺失掩盖成「看起来正常」。
+- 入口取 `Kylar Stalking Reversal Hide Confront`（823 B：发现被监视后对质 → Praise / 继续调戏 / Scold）。
+
+### 四、C 场景地点补齐 30 条（`07f-pins1-data.js`）
+
+对「本体 `$scenes` 有、CE 静态表无」的 39 条逐条实证（`$scenes` 花括号配对 → `manualVariableChanges` 取 `$location` → 无则对 `startPassage` 段落正则取 `<<set $location>>` / `<<location>>`）：
+
+- **30 条有硬证据，全部补入**：`ChefOpeningPhotograph`(town) / `ChefOpeningCeremony`(cafe) / `SchoolInspection` 三条(school) / `AlexFarmIntro`(alex_cottage) / `EdenValentinesBath`(cabin) / `Christmas Mirror`(home, mvc) / `Nightmare` 九条(cabin·temple·tower·temple·asylum·alex_cottage·old_temple·office·docks) / `HarperHypnosis` 十三条(hospital)。
+- **9 条本体无任何 `$location` 证据，不臆造**：`Tutorial` / `HalloweenWhitney` / `HalloweenKylar` / `AlexFarmSelfMilkingCaught` / `RobinCrossdressing4` / `RobinCrossdressing5` / `EdenRadioIntro` / `Pinch` / `RaulAndJanet` —— 保持运行时 mvc 回退与「未标注地点」降级，表内注释写明理由。
+
+### 五、测试
+
+新增 `tests/kylar_farm_state.js`（22 断言）：farm timer 五态（缺失 / NaN / 已合法 / `fs=0` 不写 / 空壳早退不写）、`kylarWatch` 写入与分页项、EXTRA 15 段且不写 `V.scenes`、30 条地点抽检 22 条 + 9 条无证据场景负例（不得被臆标地点）。
+
 ## v2.0.19（2026-11-11 与 DoL-Game-UI 4.x 共存 A1–A5 + Dolonline 5.31 适配）
 
 ### 一、与主 UI 共存（A1–A5）：`07a-shell.js` 四处 + 新建 `07a-host-compat.js`

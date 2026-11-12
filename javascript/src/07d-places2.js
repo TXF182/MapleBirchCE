@@ -157,7 +157,10 @@
 			var block = el("div", "mce-stage");
 			var head = el("div", "mce-stage-head");
 			head.appendChild(el("span", "mce-dot", ""));
-			head.appendChild(el("span", "mce-stage-name", "■ " + g.name + "　（" + entry.items.length + " 个段落）"));
+			/* v2.0.22：kind:"place" 的组（当前只有 forest_shop）在组名后标〔纯地点〕，
+			   与剧情组区分 —— 用户诉求原话就是「没有剧情的场景直达」。
+			   kind 是 v2.0.22 起的可选字段，PLACE_GROUPS 的元素类型推断里没有它，故按 any 读取（不改共享类型）。 */
+			head.appendChild(el("span", "mce-stage-name", "■ " + g.name + "　（" + entry.items.length + " 个段落）" + (/** @type {any} */ (g).kind === "place" ? "　〔纯地点〕" : "")));
 			block.appendChild(head);
 			block.appendChild(el("div", "mce-stage-note", g.note));
 			var uc = unlocked[g.id];

@@ -146,25 +146,25 @@
 	var MB_CSS = "" +
 		/* ===== v1.9.18 排版 token 化：改主题/字号只动 :root 变量 ===== */
 		":root{" +
-		"--mce-accent:#d4a73c;--mce-accent-hover:#e0b44a;--mce-accent-dark:#b38a2a;--mce-accent-55:rgba(212,167,60,.55);" +
-		"--mce-gold-soft:#f0d070;--mce-gold-note:#8a6d3b;--mce-gold-bg:#2a2208;--mce-gold-txt:#f0d98c;" +
-		"--mce-bg-panel:rgba(5,5,5,.92);--mce-bg-deep:#0d0d0d;--mce-bg-base:#1a1a1a;--mce-bg-card:#111;--mce-bg-block:#0f0f0f;" +
-		"--mce-bg-stage:#101010;--mce-bg-detail:#141414;--mce-bg-ctl:#181818;--mce-bg-btn:#222;--mce-bg-hover:#333;--mce-bg-sel:#18150c;" +
+		"--mce-accent:#E3B25F;--mce-accent-hover:#EFC57A;--mce-accent-dark:#8A5F22;--mce-accent-55:rgba(227,178,95,.55);" +
+		"--mce-gold-soft:#F2DCA8;--mce-gold-note:#8A6D3B;--mce-gold-bg:#2A2208;--mce-gold-txt:#F0D98C;" +
+		"--mce-bg-panel:rgba(11,13,16,.92);--mce-bg-deep:#0B0D10;--mce-bg-base:#12151A;--mce-bg-card:#12151A;--mce-bg-block:#141820;" +
+		"--mce-bg-stage:#0F1216;--mce-bg-detail:#12151A;--mce-bg-ctl:#1A1E25;--mce-bg-btn:#1C212A;--mce-bg-hover:#262C36;--mce-bg-sel:#1C1810;" +
 		"--mce-red:#ff6b6b;--mce-red-soft:#ff9c9c;--mce-red-deep:#c0392b;--mce-red-bg:#5a2323;--mce-red-bg-h:#6e2b2b;--mce-red-bg-b:#7a3030;" +
 		"--mce-red-badge:#3a1c1c;--mce-red-badge-b:#5a2e2e;--mce-red-row:#170d0d;--mce-red-err:#2a1515;--mce-red-err-txt:#ffd0d0;--mce-red-err-src:#a07070;--mce-red-err-soft:#ffb0b0;--mce-red-errbox:#150b0b;" +
 		"--mce-green:#7ed89a;--mce-green-deep:#2e9e52;--mce-green-badge:#1c3a24;--mce-green-badge-b:#2e5a3c;--mce-green-row:#0d1710;" +
-		"--mce-border:#3c3c3c;--mce-border-soft:#333;--mce-border-dim:#2a2a2a;--mce-border-ctl:#3a3a3a;--mce-border-stage:#555;" +
-		"--mce-txt:#f2f2f2;--mce-txt-bright:#fff;--mce-txt-on-accent:#111;--mce-txt-hi:#e6e6e6;--mce-txt-label:#d8d8d8;--mce-txt-strong:#eee;" +
-		"--mce-txt-mid:#ccc;--mce-txt-dim:#b9b9b9;--mce-txt-faint:#aaa;--mce-txt-muted:#9c9c9c;--mce-txt-weak:#8a8a8a;--mce-txt-star:#666;" +
+		"--mce-border:rgba(255,255,255,.16);--mce-border-soft:rgba(255,255,255,.12);--mce-border-dim:rgba(255,255,255,.08);--mce-border-ctl:rgba(255,255,255,.14);--mce-border-stage:rgba(255,255,255,.22);" +
+		"--mce-txt:#E9E3D6;--mce-txt-bright:#FBF6EA;--mce-txt-on-accent:#1A1206;--mce-txt-hi:#E2DACB;--mce-txt-label:#D5CDBE;--mce-txt-strong:#E9E3D6;" +
+		"--mce-txt-mid:#C4BDB0;--mce-txt-dim:#B0A99C;--mce-txt-faint:#9E9789;--mce-txt-muted:#ADA69A;--mce-txt-weak:#857F75;--mce-txt-star:#6B665D;" +
 		"--mce-fs-xl:16px;--mce-fs-lg:15px;--mce-fs-tab:14px;--mce-fs-base:13px;--mce-fs-btn:12px;--mce-fs-sm:11px;--mce-fs-xs:10px;" +
-		"--mce-radius:4px;--mce-radius-sm:2px;--mce-radius-pill:8px;" +
+		"--mce-radius:12px;--mce-radius-sm:6px;--mce-radius-pill:10px;--mce-radius-card:16px;--mce-radius-panel:18px;" +
 		"--mce-space:8px;--mce-space-md:6px;--mce-space-sm:4px;--mce-h-header:42px;--mce-panel-w:430px;--mce-panel-r:8px;--mce-row-h:34px;--mce-tab-h:36px;--mce-border-quiet:rgba(255,255,255,.08);--mce-scroll:8px;" +
 		"}" +
 		"#mce-root{display:none;position:fixed;top:8px;right:0;bottom:8px;width:var(--mce-panel-w);max-width:96vw;max-height:calc(100vh - 16px);z-index:2147483000;" +
-		"background:var(--mce-bg-panel);border:1px solid var(--mce-border-quiet);border-right:none;border-radius:var(--mce-panel-r) 0 0 var(--mce-panel-r);box-shadow:0 10px 28px rgba(0,0,0,.55);" +
+		"background-color:var(--mce-bg-panel);background-image:var(--mce-tex-panel);border:1px solid var(--mce-border-quiet);border-right:none;border-radius:var(--mce-radius-panel) 0 0 var(--mce-radius-panel);box-shadow:var(--mce-shadow-panel);" +
 		"color:var(--mce-txt);flex-direction:column;overflow:hidden;" +
 		"font-family:'Noto Serif SC','Source Han Serif SC','Microsoft YaHei',serif;font-size:var(--mce-fs-base);line-height:1.5}" +
-		"#mce-root.mce-open{display:flex;animation:mce-pop-in .15s ease-out}" +
+		"#mce-root.mce-open{display:flex;animation:mce-pop-in .22s cubic-bezier(.2,.8,.25,1)}" +
 		"#mce-root.mce-closing{animation:mce-pop-out .12s ease-in forwards}" +
 		"#mce-toggle{position:fixed;right:14px;bottom:14px;z-index:2147482999;width:52px;height:52px;border-radius:50%;" +
 		"background:var(--mce-accent);color:var(--mce-txt-on-accent);border:2px solid var(--mce-accent-dark);font-size:var(--mce-fs-lg);font-weight:700;cursor:pointer;" +
@@ -180,7 +180,7 @@
 		".mce-header button:hover{color:var(--mce-txt-bright)}" +
 		".mce-tabs{display:flex;background:var(--mce-bg-deep);border-bottom:1px solid var(--mce-border-quiet);overflow-x:auto}" +
 		/* v2.0.0.006 页签增至 7 个：改 flex:1 0 auto + nowrap + 横向滚动，避免「Mod作弊」被压窄换行 */
-		".mce-tabs button{flex:1 0 auto;background:transparent;border:none;border-bottom:2px solid transparent;white-space:nowrap;" +
+		".mce-tabs button{position:relative;flex:1 0 auto;background:transparent;border:none;border-bottom:2px solid transparent;white-space:nowrap;" +
 		"color:var(--mce-txt-dim);padding:8px 6px;min-height:var(--mce-tab-h);cursor:pointer;font-size:var(--mce-fs-tab);font-family:inherit}" +
 		".mce-tabs button.mce-active{color:var(--mce-accent);border-bottom-color:var(--mce-accent)}" +
 		".mce-body{flex:1;overflow-y:auto;padding:10px;min-height:120px;overscroll-behavior:contain}" +
@@ -194,7 +194,7 @@
 		".mce-pane{display:none}.mce-pane.mce-active{display:block}" +
 		/* 角色卡片 */
 		".mce-cards{display:grid;grid-template-columns:1fr 1fr;gap:var(--mce-space)}" +
-		".mce-card{background:var(--mce-bg-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius);padding:8px;cursor:pointer}" +
+		".mce-card{background-color:var(--mce-bg-card);background-image:var(--mce-tex-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-card);padding:8px;cursor:pointer}" +
 		".mce-card:hover{border-color:var(--mce-accent)}" +
 		".mce-card.mce-sel{border-color:var(--mce-accent);background:var(--mce-bg-sel)}" +
 		".mce-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;gap:8px}" +
@@ -206,7 +206,7 @@
 		".mce-card-stats b{color:var(--mce-accent)}" +
 		/* 数据卡 */
 		/* v1.9.22 自查补：角色数据卡（07c-stage 角色数据卡，此前裸样式无容器视觉） */
-		".mce-data-card{background:var(--mce-bg-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius);padding:8px;margin:var(--mce-space) 0}" +
+		".mce-data-card{background-color:var(--mce-bg-card);background-image:var(--mce-tex-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-card);padding:8px;margin:var(--mce-space) 0}" +
 		".mce-section{font-size:var(--mce-fs-btn);color:var(--mce-txt-muted);border-bottom:1px solid var(--mce-border-quiet);padding:2px 0 4px;margin:10px 0 6px}" +
 		".mce-statrow{display:flex;align-items:center;gap:var(--mce-space-md);margin:5px 0;min-height:var(--mce-row-h);flex-wrap:wrap}" +
 		".mce-statrow:hover .mce-label{color:var(--mce-accent)}" +
@@ -215,7 +215,7 @@
 		".mce-btn{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border);border-radius:var(--mce-radius);padding:3px 9px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit;" +
 		"transition:background .12s ease,transform .12s ease,box-shadow .12s ease}" +
 		".mce-btn:hover{background:var(--mce-bg-hover)}" +
-		".mce-btn:active{transform:scale(.96)}" +
+		".mce-btn:active{transform:translateY(1px) scale(.972);filter:brightness(1.14) saturate(1.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 8px rgba(0,0,0,.3),0 0 22px -7px var(--mce-press-glow)}" +
 		".mce-btn.mce-gold{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark);font-weight:700}" +
 		".mce-btn.mce-gold:hover{background:var(--mce-accent-hover);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}" +
 		".mce-btn.mce-gold:active{transform:scale(.96);box-shadow:none}" +
@@ -324,7 +324,7 @@
 		"#mce-root button{transition:background .12s ease,color .12s ease,transform .12s ease,box-shadow .12s ease}" + /* A2 与主 UI 共存的按钮尺寸反制规则见同层 07a-shell-css.js（本文件顶到 400 行上限，结构门禁拆段） */
 		"#mce-root button:active{transform:scale(.96)}" +
 		".mce-flash{animation:mce-flash .6s ease-out}" +
-		"@keyframes mce-pop-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}" +
+		"@keyframes mce-pop-in{from{opacity:0;transform:translateX(14px) scale(.985)}to{opacity:1;transform:translateX(0) scale(1)}}" +
 		"@keyframes mce-pop-out{from{opacity:1}to{opacity:0}}" +
 		"@keyframes mce-fade-in{from{opacity:0}to{opacity:1}}" +
 		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}" +

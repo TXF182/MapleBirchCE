@@ -47,10 +47,10 @@
 	   注意 CE 没有 --mce-card-bg，实际变量名是 --mce-bg-card（以源码为准，不照抄清单笔误）。 */
 
 	var MCE_HOST_TOKEN_MAP = [
-		{ mce: "--mce-accent", tok: "ocean", def: "#d4a73c" },
-		{ mce: "--mce-bg-card", tok: "card", def: "var(--dgu-panel, #111)" },
-		{ mce: "--mce-border", tok: "mist", def: "#3c3c3c" },
-		{ mce: "--mce-radius", tok: "radius", def: "4px" }
+		{ mce: "--mce-accent", tok: "ocean", def: "#E3B25F" },
+		{ mce: "--mce-bg-card", tok: "card", def: "var(--dgu-panel, #12151A)" },
+		{ mce: "--mce-border", tok: "mist", def: "rgba(255,255,255,.16)" },
+		{ mce: "--mce-radius", tok: "radius", def: "12px" }
 	];
 
 	/* 返回成功写入的条数（测试/诊断用）；任何异常吞掉并返回 0 —— CE 是常驻面板，一次抛错就白屏。

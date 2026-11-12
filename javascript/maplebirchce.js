@@ -114,7 +114,7 @@
 
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.19";
+	var MCE_VERSION = "2.0.22";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -7072,25 +7072,25 @@ function renderPlayerEdit() {
 	var MB_CSS = "" +
 		/* ===== v1.9.18 排版 token 化：改主题/字号只动 :root 变量 ===== */
 		":root{" +
-		"--mce-accent:#d4a73c;--mce-accent-hover:#e0b44a;--mce-accent-dark:#b38a2a;--mce-accent-55:rgba(212,167,60,.55);" +
-		"--mce-gold-soft:#f0d070;--mce-gold-note:#8a6d3b;--mce-gold-bg:#2a2208;--mce-gold-txt:#f0d98c;" +
-		"--mce-bg-panel:rgba(5,5,5,.92);--mce-bg-deep:#0d0d0d;--mce-bg-base:#1a1a1a;--mce-bg-card:#111;--mce-bg-block:#0f0f0f;" +
-		"--mce-bg-stage:#101010;--mce-bg-detail:#141414;--mce-bg-ctl:#181818;--mce-bg-btn:#222;--mce-bg-hover:#333;--mce-bg-sel:#18150c;" +
+		"--mce-accent:#E3B25F;--mce-accent-hover:#EFC57A;--mce-accent-dark:#8A5F22;--mce-accent-55:rgba(227,178,95,.55);" +
+		"--mce-gold-soft:#F2DCA8;--mce-gold-note:#8A6D3B;--mce-gold-bg:#2A2208;--mce-gold-txt:#F0D98C;" +
+		"--mce-bg-panel:rgba(11,13,16,.92);--mce-bg-deep:#0B0D10;--mce-bg-base:#12151A;--mce-bg-card:#12151A;--mce-bg-block:#141820;" +
+		"--mce-bg-stage:#0F1216;--mce-bg-detail:#12151A;--mce-bg-ctl:#1A1E25;--mce-bg-btn:#1C212A;--mce-bg-hover:#262C36;--mce-bg-sel:#1C1810;" +
 		"--mce-red:#ff6b6b;--mce-red-soft:#ff9c9c;--mce-red-deep:#c0392b;--mce-red-bg:#5a2323;--mce-red-bg-h:#6e2b2b;--mce-red-bg-b:#7a3030;" +
 		"--mce-red-badge:#3a1c1c;--mce-red-badge-b:#5a2e2e;--mce-red-row:#170d0d;--mce-red-err:#2a1515;--mce-red-err-txt:#ffd0d0;--mce-red-err-src:#a07070;--mce-red-err-soft:#ffb0b0;--mce-red-errbox:#150b0b;" +
 		"--mce-green:#7ed89a;--mce-green-deep:#2e9e52;--mce-green-badge:#1c3a24;--mce-green-badge-b:#2e5a3c;--mce-green-row:#0d1710;" +
-		"--mce-border:#3c3c3c;--mce-border-soft:#333;--mce-border-dim:#2a2a2a;--mce-border-ctl:#3a3a3a;--mce-border-stage:#555;" +
-		"--mce-txt:#f2f2f2;--mce-txt-bright:#fff;--mce-txt-on-accent:#111;--mce-txt-hi:#e6e6e6;--mce-txt-label:#d8d8d8;--mce-txt-strong:#eee;" +
-		"--mce-txt-mid:#ccc;--mce-txt-dim:#b9b9b9;--mce-txt-faint:#aaa;--mce-txt-muted:#9c9c9c;--mce-txt-weak:#8a8a8a;--mce-txt-star:#666;" +
+		"--mce-border:rgba(255,255,255,.16);--mce-border-soft:rgba(255,255,255,.12);--mce-border-dim:rgba(255,255,255,.08);--mce-border-ctl:rgba(255,255,255,.14);--mce-border-stage:rgba(255,255,255,.22);" +
+		"--mce-txt:#E9E3D6;--mce-txt-bright:#FBF6EA;--mce-txt-on-accent:#1A1206;--mce-txt-hi:#E2DACB;--mce-txt-label:#D5CDBE;--mce-txt-strong:#E9E3D6;" +
+		"--mce-txt-mid:#C4BDB0;--mce-txt-dim:#B0A99C;--mce-txt-faint:#9E9789;--mce-txt-muted:#ADA69A;--mce-txt-weak:#857F75;--mce-txt-star:#6B665D;" +
 		"--mce-fs-xl:16px;--mce-fs-lg:15px;--mce-fs-tab:14px;--mce-fs-base:13px;--mce-fs-btn:12px;--mce-fs-sm:11px;--mce-fs-xs:10px;" +
-		"--mce-radius:4px;--mce-radius-sm:2px;--mce-radius-pill:8px;" +
+		"--mce-radius:12px;--mce-radius-sm:6px;--mce-radius-pill:10px;--mce-radius-card:16px;--mce-radius-panel:18px;" +
 		"--mce-space:8px;--mce-space-md:6px;--mce-space-sm:4px;--mce-h-header:42px;--mce-panel-w:430px;--mce-panel-r:8px;--mce-row-h:34px;--mce-tab-h:36px;--mce-border-quiet:rgba(255,255,255,.08);--mce-scroll:8px;" +
 		"}" +
 		"#mce-root{display:none;position:fixed;top:8px;right:0;bottom:8px;width:var(--mce-panel-w);max-width:96vw;max-height:calc(100vh - 16px);z-index:2147483000;" +
-		"background:var(--mce-bg-panel);border:1px solid var(--mce-border-quiet);border-right:none;border-radius:var(--mce-panel-r) 0 0 var(--mce-panel-r);box-shadow:0 10px 28px rgba(0,0,0,.55);" +
+		"background-color:var(--mce-bg-panel);background-image:var(--mce-tex-panel);border:1px solid var(--mce-border-quiet);border-right:none;border-radius:var(--mce-radius-panel) 0 0 var(--mce-radius-panel);box-shadow:var(--mce-shadow-panel);" +
 		"color:var(--mce-txt);flex-direction:column;overflow:hidden;" +
 		"font-family:'Noto Serif SC','Source Han Serif SC','Microsoft YaHei',serif;font-size:var(--mce-fs-base);line-height:1.5}" +
-		"#mce-root.mce-open{display:flex;animation:mce-pop-in .15s ease-out}" +
+		"#mce-root.mce-open{display:flex;animation:mce-pop-in .22s cubic-bezier(.2,.8,.25,1)}" +
 		"#mce-root.mce-closing{animation:mce-pop-out .12s ease-in forwards}" +
 		"#mce-toggle{position:fixed;right:14px;bottom:14px;z-index:2147482999;width:52px;height:52px;border-radius:50%;" +
 		"background:var(--mce-accent);color:var(--mce-txt-on-accent);border:2px solid var(--mce-accent-dark);font-size:var(--mce-fs-lg);font-weight:700;cursor:pointer;" +
@@ -7106,7 +7106,7 @@ function renderPlayerEdit() {
 		".mce-header button:hover{color:var(--mce-txt-bright)}" +
 		".mce-tabs{display:flex;background:var(--mce-bg-deep);border-bottom:1px solid var(--mce-border-quiet);overflow-x:auto}" +
 		/* v2.0.0.006 页签增至 7 个：改 flex:1 0 auto + nowrap + 横向滚动，避免「Mod作弊」被压窄换行 */
-		".mce-tabs button{flex:1 0 auto;background:transparent;border:none;border-bottom:2px solid transparent;white-space:nowrap;" +
+		".mce-tabs button{position:relative;flex:1 0 auto;background:transparent;border:none;border-bottom:2px solid transparent;white-space:nowrap;" +
 		"color:var(--mce-txt-dim);padding:8px 6px;min-height:var(--mce-tab-h);cursor:pointer;font-size:var(--mce-fs-tab);font-family:inherit}" +
 		".mce-tabs button.mce-active{color:var(--mce-accent);border-bottom-color:var(--mce-accent)}" +
 		".mce-body{flex:1;overflow-y:auto;padding:10px;min-height:120px;overscroll-behavior:contain}" +
@@ -7120,7 +7120,7 @@ function renderPlayerEdit() {
 		".mce-pane{display:none}.mce-pane.mce-active{display:block}" +
 		/* 角色卡片 */
 		".mce-cards{display:grid;grid-template-columns:1fr 1fr;gap:var(--mce-space)}" +
-		".mce-card{background:var(--mce-bg-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius);padding:8px;cursor:pointer}" +
+		".mce-card{background-color:var(--mce-bg-card);background-image:var(--mce-tex-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-card);padding:8px;cursor:pointer}" +
 		".mce-card:hover{border-color:var(--mce-accent)}" +
 		".mce-card.mce-sel{border-color:var(--mce-accent);background:var(--mce-bg-sel)}" +
 		".mce-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;gap:8px}" +
@@ -7132,7 +7132,7 @@ function renderPlayerEdit() {
 		".mce-card-stats b{color:var(--mce-accent)}" +
 		/* 数据卡 */
 		/* v1.9.22 自查补：角色数据卡（07c-stage 角色数据卡，此前裸样式无容器视觉） */
-		".mce-data-card{background:var(--mce-bg-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius);padding:8px;margin:var(--mce-space) 0}" +
+		".mce-data-card{background-color:var(--mce-bg-card);background-image:var(--mce-tex-card);border:1px solid var(--mce-border-soft);border-radius:var(--mce-radius-card);padding:8px;margin:var(--mce-space) 0}" +
 		".mce-section{font-size:var(--mce-fs-btn);color:var(--mce-txt-muted);border-bottom:1px solid var(--mce-border-quiet);padding:2px 0 4px;margin:10px 0 6px}" +
 		".mce-statrow{display:flex;align-items:center;gap:var(--mce-space-md);margin:5px 0;min-height:var(--mce-row-h);flex-wrap:wrap}" +
 		".mce-statrow:hover .mce-label{color:var(--mce-accent)}" +
@@ -7141,7 +7141,7 @@ function renderPlayerEdit() {
 		".mce-btn{background:var(--mce-bg-btn);color:var(--mce-txt-strong);border:1px solid var(--mce-border);border-radius:var(--mce-radius);padding:3px 9px;cursor:pointer;font-size:var(--mce-fs-btn);font-family:inherit;" +
 		"transition:background .12s ease,transform .12s ease,box-shadow .12s ease}" +
 		".mce-btn:hover{background:var(--mce-bg-hover)}" +
-		".mce-btn:active{transform:scale(.96)}" +
+		".mce-btn:active{transform:translateY(1px) scale(.972);filter:brightness(1.14) saturate(1.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 8px rgba(0,0,0,.3),0 0 22px -7px var(--mce-press-glow)}" +
 		".mce-btn.mce-gold{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark);font-weight:700}" +
 		".mce-btn.mce-gold:hover{background:var(--mce-accent-hover);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}" +
 		".mce-btn.mce-gold:active{transform:scale(.96);box-shadow:none}" +
@@ -7250,7 +7250,7 @@ function renderPlayerEdit() {
 		"#mce-root button{transition:background .12s ease,color .12s ease,transform .12s ease,box-shadow .12s ease}" + /* A2 与主 UI 共存的按钮尺寸反制规则见同层 07a-shell-css.js（本文件顶到 400 行上限，结构门禁拆段） */
 		"#mce-root button:active{transform:scale(.96)}" +
 		".mce-flash{animation:mce-flash .6s ease-out}" +
-		"@keyframes mce-pop-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}" +
+		"@keyframes mce-pop-in{from{opacity:0;transform:translateX(14px) scale(.985)}to{opacity:1;transform:translateX(0) scale(1)}}" +
 		"@keyframes mce-pop-out{from{opacity:1}to{opacity:0}}" +
 		"@keyframes mce-fade-in{from{opacity:0}to{opacity:1}}" +
 		"@keyframes mce-flash{0%{background:var(--mce-accent-55);box-shadow:0 0 0 1px var(--mce-accent)}100%{background:transparent;box-shadow:none}}" +
@@ -7373,10 +7373,10 @@ function renderPlayerEdit() {
 	   注意 CE 没有 --mce-card-bg，实际变量名是 --mce-bg-card（以源码为准，不照抄清单笔误）。 */
 
 	var MCE_HOST_TOKEN_MAP = [
-		{ mce: "--mce-accent", tok: "ocean", def: "#d4a73c" },
-		{ mce: "--mce-bg-card", tok: "card", def: "var(--dgu-panel, #111)" },
-		{ mce: "--mce-border", tok: "mist", def: "#3c3c3c" },
-		{ mce: "--mce-radius", tok: "radius", def: "4px" }
+		{ mce: "--mce-accent", tok: "ocean", def: "#E3B25F" },
+		{ mce: "--mce-bg-card", tok: "card", def: "var(--dgu-panel, #12151A)" },
+		{ mce: "--mce-border", tok: "mist", def: "rgba(255,255,255,.16)" },
+		{ mce: "--mce-radius", tok: "radius", def: "12px" }
 	];
 
 	/* 返回成功写入的条数（测试/诊断用）；任何异常吞掉并返回 0 —— CE 是常驻面板，一次抛错就白屏。
@@ -7772,6 +7772,84 @@ function renderPlayerEdit() {
 		} catch (e) { /* 钩子安装失败不阻断面板加载（退化为无全局错误采集） */ }
 	}
 
+/* 07a-shell3-fx：v2.0.21 灯台视觉层（设计参考 MapleLantern v1.1.7 src/style.css 原文）。
+   为什么独立成段，而不是补进 07a-shell.js：
+   ① 07a-shell.js 已顶到 tools/build_js.js 结构门禁 S1 的单段 400 行上限；另行开段，不给自己开 structure-baseline 豁免；
+   ② 原有 MB_CSS 的末尾一段是 @media (max-width:520px) 窄屏适配块（v2.0.7 P5）。把特效塞在那里面，
+      结果是「桌面全屏看不见涟漪、只有手机竖屏能看到」—— 属于最难复现的那类 bug，本轮已实测踩到并修掉。
+   CSS 用 MB_CSS += 追加（与 07a-host-compat.js / 07d-places4.js 同一机制）；
+   manifest 段序保证本段排在 07a-shell.js 之后（var MB_CSS 已初始化、el() 已可用）。 */
+
+/* ---- 纸纹（纯 CSS 多层渐变，零贴图、零网络请求）+ 按压辉光 + 玻璃参数 ----
+   :root 可以重复声明，这里追加的 7 个 token 与 07a-shell.js 里的 :root 无属性冲突。 */
+MB_CSS +=
+	":root{" +
+	"--mce-tex-panel:radial-gradient(120% 80% at 10% 0%,rgba(227,178,95,.20),transparent 58%),radial-gradient(90% 60% at 100% 100%,rgba(198,84,73,.09),transparent 62%),radial-gradient(70% 35% at 50% 100%,rgba(120,66,28,.10),transparent 72%),repeating-linear-gradient(92deg,rgba(255,255,255,.024) 0 1px,transparent 1px 4px),repeating-linear-gradient(2deg,rgba(227,178,95,.032) 0 1px,transparent 1px 7px);" +
+	"--mce-tex-body:radial-gradient(100% 70% at 50% 0%,rgba(227,178,95,.075),transparent 70%),repeating-linear-gradient(115deg,rgba(255,255,255,.018) 0 1px,transparent 1px 6px);" +
+	"--mce-tex-card:linear-gradient(135deg,rgba(227,178,95,.10),transparent 58%),radial-gradient(120% 80% at 10% 0%,rgba(255,235,200,.06),transparent 60%),repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 5px);" +
+	"--mce-press-glow:rgba(227,178,95,.50);--mce-press-ripple:rgba(255,228,180,.22);--mce-blur:20px;" +
+	"--mce-shadow-panel:0 24px 64px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.35)}" ;
+
+/* ---- 页签激活下划线：从左生长（transform-origin:left + scaleX .2→1，0.16s） ----
+   依赖 07a-shell.js 里给 .mce-tabs button 加的 position:relative 作为定位父级。 */
+MB_CSS +=
+	".mce-tabs button.mce-active::after{content:\"\";position:absolute;left:0;right:0;bottom:-2px;height:2px;transform-origin:left center;" +
+	"background:linear-gradient(90deg,var(--mce-accent),var(--mce-press-ripple));box-shadow:0 0 10px var(--mce-press-glow);" +
+	"animation:mce-tabline .16s ease both}" ;
+
+/* ---- 玻璃 / 点击涟漪 / 呼吸 / 熔断 ----
+   玻璃：@supports 双写守卫，不支持就完全不声明（否则得到「半透明但没模糊」的脏底）。
+   涟漪：20px 圆环 scale .45→1.9→3.4，0.46s 灯台曲线，screen 混合只提亮不压暗；
+   挂 fixed + body 顶层，是因为 CE 有三层裁剪（#mce-root overflow:hidden / .mce-body overflow-y:auto / .mce-tabs overflow-x:auto）。
+   呼吸：只动 box-shadow 不动 transform —— 悬浮球要能被拖动，动 transform 会和拖拽位移打架。 */
+MB_CSS +=
+	"@supports ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){" +
+	"#mce-root{-webkit-backdrop-filter:blur(var(--mce-blur)) saturate(1.1);backdrop-filter:blur(var(--mce-blur)) saturate(1.1)}}" +
+	".mce-body{background-image:var(--mce-tex-body);background-attachment:local}" +
+	".mce-group{background-image:var(--mce-tex-card)}" +
+	"#mce-press-ring{position:fixed;left:0;top:0;width:20px;height:20px;border-radius:50%;border:2px solid var(--mce-press-glow);" +
+	"background:transparent;box-shadow:0 0 0 1px var(--mce-press-ripple),0 0 26px var(--mce-press-glow),inset 0 0 12px var(--mce-press-ripple);" +
+	"pointer-events:none;z-index:2147483001;mix-blend-mode:screen;transform:translate(-50%,-50%) scale(.45);opacity:.95;" +
+	"animation:mce-press-ripple .46s cubic-bezier(.2,.8,.25,1) forwards}" +
+	"@keyframes mce-press-ripple{0%{opacity:.95;transform:translate(-50%,-50%) scale(.45)}55%{opacity:.9;transform:translate(-50%,-50%) scale(1.9)}100%{opacity:0;transform:translate(-50%,-50%) scale(3.4)}}" +
+	"@keyframes mce-tabline{from{transform:scaleX(.2);opacity:0}to{transform:scaleX(1);opacity:1}}" +
+	"@keyframes mce-breathe{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.6),0 0 10px var(--mce-press-glow)}50%{box-shadow:0 4px 14px rgba(0,0,0,.6),0 0 22px var(--mce-press-glow)}}" +
+	"#mce-toggle{animation:mce-breathe 4.2s ease-in-out infinite}" +
+	"#mce-toggle:active{transform:scale(.94);box-shadow:0 0 0 4px var(--mce-press-glow),0 18px 38px rgba(0,0,0,.5)}" +
+	/* 涟漪挂在 body 层，不在 #mce-root 的后代里 —— 07a-host-compat.js 那三条 animation:none 够不到它，必须自带熔断 */
+	"@media (prefers-reduced-motion:reduce){#mce-press-ring{animation:none!important;opacity:0!important}}" ;
+
+/* ---- 点击特效 JS：捕获阶段 pointerdown，只加视觉、不拦事件 ----
+   熔断判据与 07a-host-compat.js 的两条严格一致（系统级 reduced-motion / 主 UI 关了 data-dgu-visualMotion）。 */
+function mbCEAnimOff() {
+	try {
+		if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { return true; }
+		var de = document.documentElement;
+		return !!(de && de.hasAttribute("data-dol-midnight") && !de.hasAttribute("data-dgu-visualMotion"));
+	} catch (e) { return false; }
+}
+
+var MCE_PRESS_SEL = ".mce-btn,.mce-tabs button,.mce-card,.mce-data-card,.mce-seg-btn,.mce-chip,.mce-fold-btn,.mce-icon,.mce-anchor-go";
+
+function mbCEPressRing(ev) {
+	try {
+		if (!ev || ev.button > 0) { return; }
+		if (mbCEAnimOff()) { return; }
+		var t = ev.target;
+		if (!t || !t.closest || !t.closest(MCE_PRESS_SEL)) { return; }
+		var d = el("div", "");
+		d.className = "mce-press-ring";
+		d.setAttribute("aria-hidden", "true");
+		d.style.left = ev.clientX + "px";
+		d.style.top = ev.clientY + "px";
+		(document.body || document.documentElement).appendChild(d);
+		setTimeout(function () { if (d.parentNode) { d.parentNode.removeChild(d); } }, 520);
+	} catch (e) {}
+}
+
+if (typeof document !== "undefined" && document && document.addEventListener) {
+	document.addEventListener("pointerdown", mbCEPressRing, true);
+}
 	/* ---- 角色一览卡片（v1.9.0：按类型拆子页面，按钮展开/收起） ---- */
 	/* v1.9.29 角色页搜索词（mbCEUiLoad 恢复时同步；input 实时过滤后重建卡片） */
 	var charSearch = "";
@@ -8197,6 +8275,8 @@ function ensureSceneStateFor(name) {
 		/* v2.0.17：子入口专属状态兜底（$gwylan / $pubfame），实现落在 07d-places4.js。
 		   先于各地点分支执行 —— 它只补缺失、不覆盖，且与被调地点不冲突。 */
 		if (typeof mbCEEnsureEntryState === "function") { mbCEEnsureEntryState(nm, V2); }
+		/* v2.0.22：森林商店本体直达补 $tryOn 壳（实现与取证见 07d-places4.js 的 mbCETryOnShell）。 */
+		if (typeof mbCETryOnShell === "function" && mbCETryOnShell(nm, V2)) { return; }
 		if (/^Prison/.test(nm)) { /* 无 \b：PrisonScarredInmate 一类无空格段名也命中 */
 			if (V2.prison && typeof V2.prison === "object") { return; } /* 已有进度：绝不调 init（避免 morning 被重置） */
 			var sc = (typeof window !== "undefined" && window && window.SugarCube) ? window.SugarCube : null;
@@ -8587,7 +8667,10 @@ function teleportTo(name) {
 			var block = el("div", "mce-stage");
 			var head = el("div", "mce-stage-head");
 			head.appendChild(el("span", "mce-dot", ""));
-			head.appendChild(el("span", "mce-stage-name", "■ " + g.name + "　（" + entry.items.length + " 个段落）"));
+			/* v2.0.22：kind:"place" 的组（当前只有 forest_shop）在组名后标〔纯地点〕，
+			   与剧情组区分 —— 用户诉求原话就是「没有剧情的场景直达」。
+			   kind 是 v2.0.22 起的可选字段，PLACE_GROUPS 的元素类型推断里没有它，故按 any 读取（不改共享类型）。 */
+			head.appendChild(el("span", "mce-stage-name", "■ " + g.name + "　（" + entry.items.length + " 个段落）" + (/** @type {any} */ (g).kind === "place" ? "　〔纯地点〕" : "")));
 			block.appendChild(head);
 			block.appendChild(el("div", "mce-stage-note", g.note));
 			var uc = unlocked[g.id];
@@ -8938,6 +9021,27 @@ function mbCEIsUnplayableEntry(nm, text) {
 	];
 	for (var i = groups.length - 1; i >= 0; i--) { PLACE_GROUPS.unshift(groups[i]); }
 })();
+/* v2.0.22 用户诉求「没有剧情的场景直达」（QQ 截图原话：我想去森林商店 / 但是都有剧情 / 我不知道为什么找不到商店）。
+   取证（本体 0.5.12.13，pid=1800 逐字核对）：
+     passage `Forest Shop`（tags=exitCheckBypass，正文仅 77 字符）=
+       <div id="clothingShop-div" class="main-shop-div">\n\t<<forestShop-main>>\n</div>
+     —— 纯商店界面，无任何剧情分支；<<widget "forestShop-main">> 第一行即
+       <<set $outside to 0>><<set $location to "forest_shop">><<effects>>，随后 <<set $shopName = "forest">>、
+       <<tryOnReset>>、<<unset $shopListStartCount>>、<<set $shopPage to 0>> —— 段落自包含初始化，不依赖剧情进度。
+   旧结构的问题：gwylan_garden 组的 main 是 `Gwylan Ritual Start Garden`（仪式剧情段），Forest Shop 只作为
+   折叠在「更多入口」里的子场景 → 玩家在面板看到的是剧情段，正门 `Forest Shop Entrance` 又带 _shopEvent /
+   $forest_shop_intro 的格威岚登场判定 → 正是「但是都有剧情」的观感来源。
+   位置用 splice 插到 gwylan_garden 之前（不用 unshift 放最前，避免打乱节日四组的既有顺序）；
+   listPlaceGroups 靠 seen 先占先得，必须早于 gwylan_garden 的 match（其后半段含 n.indexOf("Forest Shop") === 0）。 */
+(function () {
+	var g = { id: "forest_shop", name: "森林商店 · Gwylan Shop（纯商店）", kind: "place",
+		match: function (n) { return n === "Forest Shop" || n.indexOf("Forest Shop ") === 0; },
+		exclude: mbCEIsUnplayableEntry, main: "Forest Shop",
+		note: "森林商店本体：纯服装店界面（$location=forest_shop，段落自带 location 与 $shopName 初始化），不触发格威岚仪式 / 接生 / 追踪 / 送人回店任何剧情。想走正门那条（会触发格威岚登场事件）请展开「更多入口」点 Forest Shop Entrance。" };
+	var idx = -1;
+	for (var j = 0; j < PLACE_GROUPS.length; j++) { if (PLACE_GROUPS[j].id === "gwylan_garden") { idx = j; break; } }
+	if (idx >= 0) { PLACE_GROUPS.splice(idx, 0, g); } else { PLACE_GROUPS.push(g); }
+})();
 
 /* 把存档日期推到节日窗口内（B 方案的时间通道）。
    为什么不直接置 $halloween = 1：原版每日例程是
@@ -9131,6 +9235,8 @@ var PLACE_EXTRA_ENTRIES = {
 		{ name: "Mansion Talk", cn: "交谈" },
 		{ name: "Mansion Skyscraper Rise", cn: "摩天楼" }
 	],
+	/* v2.0.22：森林商店主场景是纯商店段 Forest Shop；正门 Forest Shop Entrance（带 _shopEvent 格威岚登场）列子入口，要剧情时自选。 */
+	forest_shop: [{ name: "Forest Shop Entrance", cn: "正门（含格威岚登场）" }],
 	gwylan_garden: [
 		{ name: "Gwylan Gifts List", cn: "礼物清单" },
 		{ name: "Forest Gwylan Lure", cn: "森林引诱" },
@@ -9408,6 +9514,25 @@ MB_CSS +=
 	".mce-place-subs .mce-stage{padding:5px 8px}" +
 	".mce-place-subs .mce-stage-name{font-size:var(--mce-fs-btn);font-weight:600}";
 
+/* v2.0.22 森林商店直达兜底（本体 0.5.12.13，pid=1800 与 <<widget "forestShop-main">> 逐字核对）：
+   ① 首段 <<if $tryOn.autoReset isnot false>><<tryOnReset>><</if>> —— $tryOn 缺失即 TypeError 白屏；
+   ② 出口 <<link [[Stop browsing clothes|Forest Shop Entrance]]>> 只在尾部 <<elseif $tryOn.value is 0>> 分支，
+      value 非 0 被判「试衣中」→ 无出口 → 触发 mbCEArrivalCheck 的 no usable links 回退。
+   补原版 <<tryOnInit>>（Widgets tryOnClothes）同形轻量壳：autoReset:true 让 widget 自调 <<tryOnReset>> 建全量结构。
+   全部「缺失才补」，不覆盖玩家正在进行的试衣进度。 */
+function mbCETryOnShell(nm, V2) {
+	if (!V2) { return false; }
+	var n = String(nm || "");
+	if (!(n === "Forest Shop" || n.indexOf("Forest Shop ") === 0)) { return false; }
+	if (typeof V2.tryOn !== "object" || V2.tryOn === null) {
+		V2.tryOn = { autoReset: true, value: 0,
+			showEquip: { over_head: null, over_upper: null, over_lower: null },
+			showUnderEquip: { upper: null, lower: null } };
+	}
+	if (typeof V2.location !== "string" || !V2.location) { V2.location = "forest_shop"; }
+	if (V2.outside === undefined) { V2.outside = 0; }
+	return true;
+}
 	/* ============ 特殊剧情（DoL 场景注册表 $scenes / Scene Viewer 系统）
 	     方案A：不硬编码任何剧情。从游戏 Story 文本解析 `<<widget "scenes">>` 的注册表
 	     （MOD 经 TweeReplacer/ReplacePatcher 改动的场景同样被解析到），unlocked 表达式
@@ -9546,6 +9671,14 @@ MB_CSS +=
 			if (ml) { o.lockedExpr = ml[1].trim(); }
 			defs[km[1]] = o;
 		}
+		/* v2.0.22：本体注册表第 1 项 placeHolder 是被 /* … *\/ 注释掉的模板样本
+		   （name:""、startPassage:""），键块扫描不剥注释会把它当成一条真场景收进来 ——
+		   剧情列表里会多出一条空名条目。原版 111 键里只有它 name 为空，按 name 空白统一丢弃。 */
+		var _ks = Object.keys(defs);
+		for (var _ki = 0; _ki < _ks.length; _ki++) {
+			var _d = defs[_ks[_ki]];
+			if (!_d || typeof _d.name !== "string" || !_d.name.trim()) { delete defs[_ks[_ki]]; }
+		}
 		return Object.keys(defs).length ? defs : null;
 	}
 	/* 从 widget 文本解析 scenes 注册表（字符串感知，不 eval 整个对象） */
@@ -9597,6 +9730,53 @@ MB_CSS +=
 	   避免每次渲染全量扫描全部段落（07h:45 折叠懒渲染 / 07f 锚定 166/180/194 高频调用）。
 	   真机 SugarCube Story 静态不变 → 恒命中；缓存只存「widget 解析结果 / Story 恢复结果」，
 	   V.scenes 运行时注入每次调用实时合并（不缓存，防陈旧）。 */
+	/* v2.0.20：本体 $scenes 未收录、但确有可重放剧情的线。注册表只收「有开始段落 + 段落清单」
+	   的场景，街上事件池 / 靠状态变量分支的遭遇线天然不在册（如凯拉尔跟踪反转 15 段）。
+	   只在 CE 侧合并展示，不写 V.scenes、不改本体 widget —— 不污染存档，也不影响本体
+	   Scene Viewer 的 $scenePassages 解锁判定。 */
+	var EXTRA_SCENES = {
+		"KylarStalkingReversal": {
+			name: "凯拉尔 · 跟踪反转（发现被监视）",
+			startPassage: "Kylar Stalking Reversal Hide Confront",
+			passages: [
+				"Kylar Stalking Reversal Hide Confront",
+				"Kylar Stalking Reversal Hide Confront Praise",
+				"Kylar Stalking Reversal Hide Confront Scold",
+				"Kylar Stalking Reversal Hide Confront Tease",
+				"Kylar Stalking Reversal Hide Confront Tease More",
+				"Kylar Stalking Reversal Hide Confront Tease Stop",
+				"Kylar Stalking Reversal Hide Leave",
+				"Kylar Stalking Reversal Beckon Praise",
+				"Kylar Stalking Reversal Beckon Tease",
+				"Kylar Stalking Reversal Beckon Tease More",
+				"Kylar Stalking Reversal Beckon Tease Stop",
+				"Kylar Stalking Reversal Beckon Leave",
+				"Kylar Stalking Reversal Encounter",
+				"Kylar Stalking Reversal Encounter Results",
+				"Kylar Stalking Reversal Decline"
+			],
+			manualVariableChanges: "<<set $location to 'town'>>",
+			unlockedExpr: "",
+			lockedExpr: ""
+		}
+	};
+	/* 合并 EXTRA_SCENES 到 defs；本体/MOD 已注册的同名键让位，不覆盖。
+	   仅在本体注册表非空时合并：本体注册表为空/损坏时保留空态，让剧情页照旧显式报「未读取到场景注册表」，
+	   不用 1 条自有场景把错误掩盖成「看起来正常」。 */
+	function mergeExtraScenes(defs) {
+		if (!defs || typeof defs !== "object") { return defs; }
+		if (Object.keys(defs).length === 0) { return defs; }
+		Object.keys(EXTRA_SCENES).forEach(function (k) {
+			if (defs[k]) { return; }
+			var s = EXTRA_SCENES[k];
+			defs[k] = {
+				name: s.name, startPassage: s.startPassage, passages: s.passages.slice(),
+				manualVariableChanges: s.manualVariableChanges,
+				unlockedExpr: s.unlockedExpr, lockedExpr: s.lockedExpr
+			};
+		});
+		return defs;
+	}
 	var scenesDefsCache = null; /* { ref, size, passRef, passLen, parsed, recovered } */
 	function getScenesDefs() {
 		var V = getV();
@@ -9635,6 +9815,7 @@ MB_CSS +=
 					};
 				});
 			}
+			mergeExtraScenes(merged);
 			return { defs: merged, live: true };
 		}
 		/* v1.4.8：widget 段落定位失败 → Story 全文恢复（汉化/段落名变体兜底） */
@@ -9642,6 +9823,7 @@ MB_CSS +=
 		if (recoveredC) {
 			var out2 = {};
 			Object.keys(recoveredC).forEach(function (k) { out2[k] = recoveredC[k]; });
+			mergeExtraScenes(out2);
 			return { defs: out2, live: true };
 		}
 		var sc = V && V.scenes;
@@ -9659,8 +9841,11 @@ MB_CSS +=
 					lockedCache: s.lockedMessage, unlockedCache: s.unlocked
 				};
 			});
+			mergeExtraScenes(out);
 			return Object.keys(out).length ? { defs: out, live: false } : { defs: {}, live: false };
 		}
+		/* v2.0.20：此分支（无 Story 且无 V.scenes，本体注册表完全读不到）**不合并 EXTRA_SCENES** ——
+		   保留「注册表缺失」的显式提示，比只列出 1 条自有场景更有用；EXTRA 在前三条正常分支均已合并 */
 		return { defs: {}, live: false };
 	}
 /* 职责：剧情页状态层 —— sceneStatus 判定、场景解锁值、完成动作与清单渲染 */
@@ -9819,7 +10004,8 @@ MB_CSS +=
 				{ key: "kylar_raped", name: "被侵犯（kylar.raped）", type: "range", varPath: "kylar.raped", min: 0, max: 1, step: 1, note: "1=凯拉尔曾对玩家施暴（地下室绑架线）" },
 				{ key: "kylar_riddle", name: "谜题（kylar.riddle）", type: "range", varPath: "kylar.riddle", min: 0, max: 1, step: 1, note: "凯拉尔谜语剧情：答对解锁额外互动" },
 				{ key: "kylar_fame", name: "成名阶段（kylar.fameStage）", type: "range", varPath: "kylar.fameStage", min: 0, max: 3, step: 1, note: "0-3，凯拉尔对玩家出名程度的反应档位" },
-				{ key: "kylar_seen", name: "已看剧情标记补全", type: "action", action: "kylarSeen", note: "补全凯拉尔线 8 个已看标记：悉尼写作(sydneyWriting)·悉尼线 / 表白(saidLove)·主线 / 突击队(commando)·绑架线 / 冬季喷泉(fountainWinter)·冬季 / 喷泉初遇(fountainIntro)·初遇 / 聊天初遇(chatIntro)·初遇 / 食堂(canteen)·校园 / 地下室(basement)·绑架" }
+				{ key: "kylar_seen", name: "已看剧情标记补全", type: "action", action: "kylarSeen", note: "补全凯拉尔线 8 个已看标记：悉尼写作(sydneyWriting)·悉尼线 / 表白(saidLove)·主线 / 突击队(commando)·绑架线 / 冬季喷泉(fountainWinter)·冬季 / 喷泉初遇(fountainIntro)·初遇 / 聊天初遇(chatIntro)·初遇 / 食堂(canteen)·校园 / 地下室(basement)·绑架" },
+				{ key: "kylar_watch", name: "一键进入「被凯拉尔监视」", type: "action", action: "kylarWatch", note: "写 $kylarwatched=1 + $kylarwatchedtimer=2（本体街上事件池首设值）。之后在街上走动即触发「Something is watching you.」整条链，直到计时耗尽或换地点；是状态注射，不是重放" }
 			]
 		}
 	};
@@ -9844,6 +10030,11 @@ MB_CSS +=
 				if (V.avery_party.guests.indexOf(g) === -1) { V.avery_party.guests.push(g); }
 			});
 			return "已补全派对来宾区域记录（" + V.avery_party.guests.join("/") + "）";
+		}
+		if (action === "kylarWatch") {
+			V.kylarwatched = 1;
+			V.kylarwatchedtimer = 2;
+			return "已进入被监视状态（街上走动即触发凯拉尔监视事件链）";
 		}
 		if (action === "kylarSeen") {
 			if (!Array.isArray(V.kylarSeen)) { V.kylarSeen = []; }
@@ -10706,7 +10897,44 @@ var SCENE_LOCATIONS = {
 		"MickeyPubFameIntro": { loc: "pub", src: "reg: manualVariableChanges $location" },
 		"PrisonSpirePrecipice": { loc: "prison", src: "reg: manualVariableChanges $location" },
 		"PrisonYardLocket": { loc: "prison", src: "reg: manualVariableChanges $location" },
-		"PrisonScarredInmate": { loc: "prison", src: "reg: manualVariableChanges $location" }
+		/* v2.0.20 C 批：本体 $scenes 有、静态表缺失的 30 条（逐条来自 $scenes manualVariableChanges 或 startPassage 段落实证；
+		   v2.0.22 差集复核（用户点名「按场景注册表做差集」）：本体 $scenes 共 111 键，第 1 个 placeHolder 是被注释掉的
+		   模板样本（name:""）→ 真实场景 110 条，CE 的 VANILLA_SCENE_KEYS 111 键与之逐键相等（差异 0），运行时全量动态解析，
+		   剧情条目零遗漏。仍缺地点元数据的是 10 条（Tutorial / HalloweenWhitney / HalloweenKylar / AlexFarmSelfMilkingCaught /
+		   RobinCrossdressing4 / RobinCrossdressing5 / EdenRadioIntro / Pinch / RaulAndJanet / PrisonScarredInmate）—— 这 10 条的
+		   startPassage 分别是 SV Tutorial / Scene Viewer passages / Farm Barn Caught / Robin's Stand CD SV Intro /
+		   Robin School CD SV Intro / Eden Radio Intro / Olive Book 1 / ScarletBook1 / SV Prison Scarred，段内均无
+		   <<set $location>>（SV 调试段或纯文本段，重放时沿用玩家当前 location），无证据不臆造，保持运行时回退。 */
+		"ChefOpeningPhotograph": { loc: "town", src: "pas: Photography Chef 段落实证 $location=town" },
+		"ChefOpeningCeremony": { loc: "cafe", src: "pas: Chef Opening 段落实证 $location=cafe" },
+		"SchoolInspectionPenis": { loc: "school", src: "pas: Science Lesson 段落实证 $location=school" },
+		"SchoolInspectionPussy": { loc: "school", src: "pas: Science Lesson 段落实证 $location=school" },
+		"SchoolInspectionBreast": { loc: "school", src: "pas: Science Lesson 段落实证 $location=school" },
+		"AlexFarmIntro": { loc: "alex_cottage", src: "pas: Farm Intro 段落实证 $location=alex_cottage" },
+		"EdenValentinesBath": { loc: "cabin", src: "pas: Eden Valentines Bath 段落实证 $location=cabin" },
+		"Christmas Mirror": { loc: "home", src: "reg: manualVariableChanges $location=home" },
+		"NightmareEden": { loc: "cabin", src: "pas: Nightmare Eden 段落实证 $location=cabin" },
+		"NightmareWraith": { loc: "temple", src: "pas: Nightmare Wraith 段落实证 $location=temple" },
+		"NightmareBird": { loc: "tower", src: "pas: Nightmare Bird 段落实证 $location=tower" },
+		"NightmareCorruptSydney": { loc: "temple", src: "pas: Nightmare Corrupt Sydney 段落实证 $location=temple" },
+		"NightmareHarper": { loc: "asylum", src: "pas: Nightmare Harper 段落实证 $location=asylum" },
+		"NightmareAlex": { loc: "alex_cottage", src: "pas: Nightmare Alex 段落实证 $location=alex_cottage" },
+		"NightmareWitch": { loc: "old_temple", src: "pas: Nightmare Witch 段落实证 $location=old_temple" },
+		"NightmareOffice": { loc: "office", src: "pas: Nightmare Office 段落实证 $location=office" },
+		"NightmareGwylan": { loc: "docks", src: "pas: Nightmare Gwylan 段落实证 $location=docks" },
+		"HarperHypnosisIntro": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisTrance1": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisTrance2": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisTrance3": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisTrance4": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisExam1": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisExam2": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisExam3": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDogIntro": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDog1": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDog2": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDog3": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" },
+		"HarperHypnosisDog4": { loc: "hospital", src: "pas: SV Doctor Harper's Office 段落实证 $location=hospital" }
 	};
 	/* 跨线前置映射（v1.9.23 第一批）：剧情有关联性时的显式前置。
 	   线内前置（数字后缀聚线）由 pendingPreconds 自动推导、零维护；
@@ -11165,6 +11393,14 @@ var SCENE_LOCATIONS = {
 			if (typeof st.eggs !== "number") { st.eggs = 0; }
 			if (typeof st.milk !== "number") { st.milk = 0; }
 			if (typeof st.cream !== "number") { st.cream = 0; }
+			/* v2.0.20：农场袭击倒计时防 NaN —— 本体每日结算 `V.farm_attack_timer--`，
+			   只在「共享农场」首次（to 30）与 Farm Assault 开场/结算（random(17,24)）初始化；
+			   作弊直写 farm_stage >= 7 会绕过这些节点 -> undefined-- = NaN，
+			   而 `NaN < 0` 恒假 -> farm_attack_auto 永不触发，雷米袭击线永久死锁，Journal 打出 [number NaN]。
+			   仅农场线已推进（fs >= 1）时补，不凭空写。 */
+			if (fs >= 1 && (typeof V.farm_attack_timer !== "number" || isNaN(V.farm_attack_timer))) {
+				V.farm_attack_timer = 30;
+			}
 		} catch (e) { /* farm/stock 结构异常时跳过补齐（不凭空造 farm 根，交由上层拒绝） */ }
 	}
 	function ensureAveryMansion() {

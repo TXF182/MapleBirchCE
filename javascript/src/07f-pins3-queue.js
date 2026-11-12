@@ -63,6 +63,14 @@
 			if (typeof st.eggs !== "number") { st.eggs = 0; }
 			if (typeof st.milk !== "number") { st.milk = 0; }
 			if (typeof st.cream !== "number") { st.cream = 0; }
+			/* v2.0.20：农场袭击倒计时防 NaN —— 本体每日结算 `V.farm_attack_timer--`，
+			   只在「共享农场」首次（to 30）与 Farm Assault 开场/结算（random(17,24)）初始化；
+			   作弊直写 farm_stage >= 7 会绕过这些节点 -> undefined-- = NaN，
+			   而 `NaN < 0` 恒假 -> farm_attack_auto 永不触发，雷米袭击线永久死锁，Journal 打出 [number NaN]。
+			   仅农场线已推进（fs >= 1）时补，不凭空写。 */
+			if (fs >= 1 && (typeof V.farm_attack_timer !== "number" || isNaN(V.farm_attack_timer))) {
+				V.farm_attack_timer = 30;
+			}
 		} catch (e) { /* farm/stock 结构异常时跳过补齐（不凭空造 farm 根，交由上层拒绝） */ }
 	}
 	function ensureAveryMansion() {

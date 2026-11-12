@@ -1,6 +1,6 @@
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.0.19";
+	var MCE_VERSION = "2.0.22";
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */

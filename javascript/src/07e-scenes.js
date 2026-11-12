@@ -136,6 +136,14 @@
 			if (ml) { o.lockedExpr = ml[1].trim(); }
 			defs[km[1]] = o;
 		}
+		/* v2.0.22：本体注册表第 1 项 placeHolder 是被 /* … *\/ 注释掉的模板样本
+		   （name:""、startPassage:""），键块扫描不剥注释会把它当成一条真场景收进来 ——
+		   剧情列表里会多出一条空名条目。原版 111 键里只有它 name 为空，按 name 空白统一丢弃。 */
+		var _ks = Object.keys(defs);
+		for (var _ki = 0; _ki < _ks.length; _ki++) {
+			var _d = defs[_ks[_ki]];
+			if (!_d || typeof _d.name !== "string" || !_d.name.trim()) { delete defs[_ks[_ki]]; }
+		}
 		return Object.keys(defs).length ? defs : null;
 	}
 	/* 从 widget 文本解析 scenes 注册表（字符串感知，不 eval 整个对象） */
@@ -187,6 +195,53 @@
 	   避免每次渲染全量扫描全部段落（07h:45 折叠懒渲染 / 07f 锚定 166/180/194 高频调用）。
 	   真机 SugarCube Story 静态不变 → 恒命中；缓存只存「widget 解析结果 / Story 恢复结果」，
 	   V.scenes 运行时注入每次调用实时合并（不缓存，防陈旧）。 */
+	/* v2.0.20：本体 $scenes 未收录、但确有可重放剧情的线。注册表只收「有开始段落 + 段落清单」
+	   的场景，街上事件池 / 靠状态变量分支的遭遇线天然不在册（如凯拉尔跟踪反转 15 段）。
+	   只在 CE 侧合并展示，不写 V.scenes、不改本体 widget —— 不污染存档，也不影响本体
+	   Scene Viewer 的 $scenePassages 解锁判定。 */
+	var EXTRA_SCENES = {
+		"KylarStalkingReversal": {
+			name: "凯拉尔 · 跟踪反转（发现被监视）",
+			startPassage: "Kylar Stalking Reversal Hide Confront",
+			passages: [
+				"Kylar Stalking Reversal Hide Confront",
+				"Kylar Stalking Reversal Hide Confront Praise",
+				"Kylar Stalking Reversal Hide Confront Scold",
+				"Kylar Stalking Reversal Hide Confront Tease",
+				"Kylar Stalking Reversal Hide Confront Tease More",
+				"Kylar Stalking Reversal Hide Confront Tease Stop",
+				"Kylar Stalking Reversal Hide Leave",
+				"Kylar Stalking Reversal Beckon Praise",
+				"Kylar Stalking Reversal Beckon Tease",
+				"Kylar Stalking Reversal Beckon Tease More",
+				"Kylar Stalking Reversal Beckon Tease Stop",
+				"Kylar Stalking Reversal Beckon Leave",
+				"Kylar Stalking Reversal Encounter",
+				"Kylar Stalking Reversal Encounter Results",
+				"Kylar Stalking Reversal Decline"
+			],
+			manualVariableChanges: "<<set $location to 'town'>>",
+			unlockedExpr: "",
+			lockedExpr: ""
+		}
+	};
+	/* 合并 EXTRA_SCENES 到 defs；本体/MOD 已注册的同名键让位，不覆盖。
+	   仅在本体注册表非空时合并：本体注册表为空/损坏时保留空态，让剧情页照旧显式报「未读取到场景注册表」，
+	   不用 1 条自有场景把错误掩盖成「看起来正常」。 */
+	function mergeExtraScenes(defs) {
+		if (!defs || typeof defs !== "object") { return defs; }
+		if (Object.keys(defs).length === 0) { return defs; }
+		Object.keys(EXTRA_SCENES).forEach(function (k) {
+			if (defs[k]) { return; }
+			var s = EXTRA_SCENES[k];
+			defs[k] = {
+				name: s.name, startPassage: s.startPassage, passages: s.passages.slice(),
+				manualVariableChanges: s.manualVariableChanges,
+				unlockedExpr: s.unlockedExpr, lockedExpr: s.lockedExpr
+			};
+		});
+		return defs;
+	}
 	var scenesDefsCache = null; /* { ref, size, passRef, passLen, parsed, recovered } */
 	function getScenesDefs() {
 		var V = getV();
@@ -225,6 +280,7 @@
 					};
 				});
 			}
+			mergeExtraScenes(merged);
 			return { defs: merged, live: true };
 		}
 		/* v1.4.8：widget 段落定位失败 → Story 全文恢复（汉化/段落名变体兜底） */
@@ -232,6 +288,7 @@
 		if (recoveredC) {
 			var out2 = {};
 			Object.keys(recoveredC).forEach(function (k) { out2[k] = recoveredC[k]; });
+			mergeExtraScenes(out2);
 			return { defs: out2, live: true };
 		}
 		var sc = V && V.scenes;
@@ -249,7 +306,10 @@
 					lockedCache: s.lockedMessage, unlockedCache: s.unlocked
 				};
 			});
+			mergeExtraScenes(out);
 			return Object.keys(out).length ? { defs: out, live: false } : { defs: {}, live: false };
 		}
+		/* v2.0.20：此分支（无 Story 且无 V.scenes，本体注册表完全读不到）**不合并 EXTRA_SCENES** ——
+		   保留「注册表缺失」的显式提示，比只列出 1 条自有场景更有用；EXTRA 在前三条正常分支均已合并 */
 		return { defs: {}, live: false };
 	}

@@ -120,6 +120,27 @@ function mbCEIsUnplayableEntry(nm, text) {
 	];
 	for (var i = groups.length - 1; i >= 0; i--) { PLACE_GROUPS.unshift(groups[i]); }
 })();
+/* v2.0.22 用户诉求「没有剧情的场景直达」（QQ 截图原话：我想去森林商店 / 但是都有剧情 / 我不知道为什么找不到商店）。
+   取证（本体 0.5.12.13，pid=1800 逐字核对）：
+     passage `Forest Shop`（tags=exitCheckBypass，正文仅 77 字符）=
+       <div id="clothingShop-div" class="main-shop-div">\n\t<<forestShop-main>>\n</div>
+     —— 纯商店界面，无任何剧情分支；<<widget "forestShop-main">> 第一行即
+       <<set $outside to 0>><<set $location to "forest_shop">><<effects>>，随后 <<set $shopName = "forest">>、
+       <<tryOnReset>>、<<unset $shopListStartCount>>、<<set $shopPage to 0>> —— 段落自包含初始化，不依赖剧情进度。
+   旧结构的问题：gwylan_garden 组的 main 是 `Gwylan Ritual Start Garden`（仪式剧情段），Forest Shop 只作为
+   折叠在「更多入口」里的子场景 → 玩家在面板看到的是剧情段，正门 `Forest Shop Entrance` 又带 _shopEvent /
+   $forest_shop_intro 的格威岚登场判定 → 正是「但是都有剧情」的观感来源。
+   位置用 splice 插到 gwylan_garden 之前（不用 unshift 放最前，避免打乱节日四组的既有顺序）；
+   listPlaceGroups 靠 seen 先占先得，必须早于 gwylan_garden 的 match（其后半段含 n.indexOf("Forest Shop") === 0）。 */
+(function () {
+	var g = { id: "forest_shop", name: "森林商店 · Gwylan Shop（纯商店）", kind: "place",
+		match: function (n) { return n === "Forest Shop" || n.indexOf("Forest Shop ") === 0; },
+		exclude: mbCEIsUnplayableEntry, main: "Forest Shop",
+		note: "森林商店本体：纯服装店界面（$location=forest_shop，段落自带 location 与 $shopName 初始化），不触发格威岚仪式 / 接生 / 追踪 / 送人回店任何剧情。想走正门那条（会触发格威岚登场事件）请展开「更多入口」点 Forest Shop Entrance。" };
+	var idx = -1;
+	for (var j = 0; j < PLACE_GROUPS.length; j++) { if (PLACE_GROUPS[j].id === "gwylan_garden") { idx = j; break; } }
+	if (idx >= 0) { PLACE_GROUPS.splice(idx, 0, g); } else { PLACE_GROUPS.push(g); }
+})();
 
 /* 把存档日期推到节日窗口内（B 方案的时间通道）。
    为什么不直接置 $halloween = 1：原版每日例程是

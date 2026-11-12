@@ -154,7 +154,8 @@
 				{ key: "kylar_raped", name: "被侵犯（kylar.raped）", type: "range", varPath: "kylar.raped", min: 0, max: 1, step: 1, note: "1=凯拉尔曾对玩家施暴（地下室绑架线）" },
 				{ key: "kylar_riddle", name: "谜题（kylar.riddle）", type: "range", varPath: "kylar.riddle", min: 0, max: 1, step: 1, note: "凯拉尔谜语剧情：答对解锁额外互动" },
 				{ key: "kylar_fame", name: "成名阶段（kylar.fameStage）", type: "range", varPath: "kylar.fameStage", min: 0, max: 3, step: 1, note: "0-3，凯拉尔对玩家出名程度的反应档位" },
-				{ key: "kylar_seen", name: "已看剧情标记补全", type: "action", action: "kylarSeen", note: "补全凯拉尔线 8 个已看标记：悉尼写作(sydneyWriting)·悉尼线 / 表白(saidLove)·主线 / 突击队(commando)·绑架线 / 冬季喷泉(fountainWinter)·冬季 / 喷泉初遇(fountainIntro)·初遇 / 聊天初遇(chatIntro)·初遇 / 食堂(canteen)·校园 / 地下室(basement)·绑架" }
+				{ key: "kylar_seen", name: "已看剧情标记补全", type: "action", action: "kylarSeen", note: "补全凯拉尔线 8 个已看标记：悉尼写作(sydneyWriting)·悉尼线 / 表白(saidLove)·主线 / 突击队(commando)·绑架线 / 冬季喷泉(fountainWinter)·冬季 / 喷泉初遇(fountainIntro)·初遇 / 聊天初遇(chatIntro)·初遇 / 食堂(canteen)·校园 / 地下室(basement)·绑架" },
+				{ key: "kylar_watch", name: "一键进入「被凯拉尔监视」", type: "action", action: "kylarWatch", note: "写 $kylarwatched=1 + $kylarwatchedtimer=2（本体街上事件池首设值）。之后在街上走动即触发「Something is watching you.」整条链，直到计时耗尽或换地点；是状态注射，不是重放" }
 			]
 		}
 	};
@@ -179,6 +180,11 @@
 				if (V.avery_party.guests.indexOf(g) === -1) { V.avery_party.guests.push(g); }
 			});
 			return "已补全派对来宾区域记录（" + V.avery_party.guests.join("/") + "）";
+		}
+		if (action === "kylarWatch") {
+			V.kylarwatched = 1;
+			V.kylarwatchedtimer = 2;
+			return "已进入被监视状态（街上走动即触发凯拉尔监视事件链）";
 		}
 		if (action === "kylarSeen") {
 			if (!Array.isArray(V.kylarSeen)) { V.kylarSeen = []; }

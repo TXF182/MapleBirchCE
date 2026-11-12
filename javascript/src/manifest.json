@@ -177,6 +177,10 @@
       "layer": "ui"
     },
     {
+      "file": "07a-shell3-fx.js",
+      "layer": "ui"
+    },
+    {
       "file": "07b-char.js",
       "layer": "ui"
     },

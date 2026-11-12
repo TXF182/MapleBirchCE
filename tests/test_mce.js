@@ -424,7 +424,7 @@ let lap0 = api.listAllPassages();
 assert(lap0.length === 1 && lap0[0].name === "Scene Viewer", "listAllPassages 经 Story.lookupWith 枚举段落, 实际 " + lap0.length);
 // 9.1) 实时解析 widget 文本（live 模式），9 个场景
 let sDefs = api.getScenesDefs();
-assert(sDefs.live === true && Object.keys(sDefs.defs).length === 9, "场景注册表从 Story 文本实时解析 9 条, 实际 " + Object.keys(sDefs.defs).length);
+assert(sDefs.live === true && Object.keys(sDefs.defs).length === 10, "场景注册表从 Story 文本实时解析 10 条（fixture 9 + EXTRA 1）, 实际 " + Object.keys(sDefs.defs).length);
 // 9.2) Tutorial：未达成 → 一键完成（push "Tutorial"）→ 复检达成
 let stTut = api.sceneStatus(sDefs.defs["Tutorial"]);
 assert(stTut.state === "fail", "Tutorial 初始未达成(红)");
@@ -453,7 +453,7 @@ let robinLine = cluster.lines.find(l => /RobinCrossdressing/i.test(l.prefix));
 assert(robinLine && robinLine.items.length === 3 && robinLine.items.map(i => i.num).join() === "1,2,3", "罗宾变装线 3 阶段(1,2,3)");
 let alexLine = cluster.lines.find(l => /AlexFarmWorkStage/i.test(l.prefix));
 assert(alexLine && alexLine.items.length === 3 && alexLine.items.map(i => i.num).join() === "3,4,5", "亚历克斯农场线 3 阶段(3,4,5)");
-assert(cluster.singles.length === 3, "独立场景 3 个(Tutorial/TempleSydneyPure/Corrupt), 实际 " + cluster.singles.length);
+assert(cluster.singles.length === 4, "独立场景 4 个(Tutorial/TempleSydneyPure/Corrupt/KylarStalkingReversal), 实际 " + cluster.singles.length);
 // 9.6) V.scenes 缓存回退（无 Story 时读存档缓存值）
 delete global.Story;
 V.scenes = { FakeScene: { name: "假场景", startPassage: "S", passages: ["S"], unlocked: true, lockedMessage: "Locked" } };
@@ -464,7 +464,7 @@ delete V.scenes;
 const SCENE_TEXT_ESCAPED = SCENE_TEXT.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT_ESCAPED }].filter(fn) };
 let sDefs3 = api.getScenesDefs();
-assert(sDefs3.live === true && Object.keys(sDefs3.defs).length === 9, "转义形态 widget 文本反转义后可解析 9 条, 实际 " + Object.keys(sDefs3.defs).length);
+assert(sDefs3.live === true && Object.keys(sDefs3.defs).length === 10, "转义形态 widget 文本反转义后可解析 10 条（含 EXTRA）, 实际 " + Object.keys(sDefs3.defs).length);
 let stTut3 = api.sceneStatus(sDefs3.defs["Tutorial"]);
 assert(stTut3.state === "fail", "转义形态下 unlocked 表达式求值正常（Tutorial 未达成）");
 delete global.Story;
@@ -504,7 +504,7 @@ global.Story = { has: (n) => PLACE_NAMES.indexOf(n) !== -1, lookupWith: (fn) => 
 let lap10 = api.listAllPassages();
 assert(lap10.length === PLACE_NAMES.length, "listPlaceGroups 经 lookupWith 枚举全部段落, 实际 " + lap10.length);
 let pGroups = api.listPlaceGroups();
-assert(pGroups.length === 22, "场景分组 22 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组）, 实际 " + pGroups.length);
+assert(pGroups.length === 23, "场景分组 23 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组 + v2.0.22 森林商店）, 实际 " + pGroups.length);
 let brV7 = pGroups.find(x => x.group.id === "brothel");
 assert(!!brV7 && brV7.group.main === "Brothel Basement" && brV7.items.length === 0 && brV7.group.name.indexOf("妓院") === 0, "v2.0.0.007 妓院组存在（主场景 Brothel Basement=地下妓院；模拟段落表无 Brothel 段 → items 空）, 实际 " + JSON.stringify(brV7 && brV7.group.main));
 let lvV7 = pGroups.find(x => x.group.id === "remy_livestock");
@@ -534,13 +534,13 @@ assert(sr.group.name.indexOf("西里斯") === 0 && sr.items.length === 4 && sr.i
 let ag = pGroups.find(x => x.group.id === "avery_mansion");
 assert(ag.items.length === 5 && ag.items[0] === "Mansion Bed", "艾弗里庄园组 5 段主置顶, 实际 " + JSON.stringify(ag.items));
 let gg = pGroups.find(x => x.group.id === "gwylan_garden");
-assert(gg.items.length === 4 && gg.items[0] === "Gwylan Ritual Start Garden", "格威岚花园组 4 段主置顶, 实际 " + JSON.stringify(gg.items));
+assert(gg.items.length === 3 && gg.items[0] === "Gwylan Ritual Start Garden", "格威岚花园组 3 段主置顶（v2.0.22 森林商店拆出独立组）, 实际 " + JSON.stringify(gg.items));
 let totalItems = pGroups.reduce((s, x) => s + x.items.length, 0);
 assert(totalItems === 39, "干扰段落不误入（v2.0.16 起含 Wolf Cave / Farm Cottage 两条新主场景，总 39 段）, 实际 " + totalItems);
 // 10.0) v2.0.16 场景直达子入口（用户「note 里点了名的子区域也该有直达按钮」）
 assert(typeof api.mbCEListPlaceEntries === "function" && typeof api.PLACE_EXTRA_ENTRIES === "object", "子入口表 PLACE_EXTRA_ENTRIES 与过滤函数已导出");
 const PXE = api.PLACE_EXTRA_ENTRIES;
-assert(Object.keys(PXE).length === 22, "子入口表覆盖全部 22 组, 实际 " + Object.keys(PXE).length);
+assert(Object.keys(PXE).length === 23, "子入口表覆盖全部 23 组, 实际 " + Object.keys(PXE).length);
 assert(Array.isArray(PXE.wraith) && PXE.wraith.length === 0, "象牙怨灵组显式不拆子入口（四套状态机依赖 $wraith.state 与月相，直跳会崩）");
 let subTotal = 0, subBadCn = [], subMainDup = [];
 Object.keys(PXE).forEach(k => {
@@ -551,7 +551,7 @@ Object.keys(PXE).forEach(k => {
     if (grp && it.name === grp.group.main) { subMainDup.push(it.name); }
   });
 });
-assert(subTotal === 151, "子入口总条数 151（21 组非空 + wraith 空）, 实际 " + subTotal);
+assert(subTotal === 152, "子入口总条数 152（22 组非空 + wraith 空；v2.0.22 森林商店正门 +1）, 实际 " + subTotal);
 assert(subBadCn.length === 0, "每条子入口都有非空中文标签（汉化硬约束：不许裸英文）, 违规 " + JSON.stringify(subBadCn));
 assert(subMainDup.length === 0, "子入口不得与主场景重名（避免同一段两个按钮）, 实际 " + JSON.stringify(subMainDup));
 assert(api.mbCEListPlaceEntries(kg).length === 3, "凯拉尔庄园子入口按 mock 段落表过滤后剩 3 条（Manor Garden/Lab/Kylar Room）, 实际 " + JSON.stringify(api.mbCEListPlaceEntries(kg)));
@@ -593,7 +593,9 @@ assert(pinR.ok && pinR.message.indexOf("触发地点") !== -1 && Array.isArray(V
 // 11.2a) 锚定提示含未完成前置（RobinCrossdressing2：跨线前置 RobinIntro1 + 线内 RobinCrossdressing1 未完成 → 提示）
 assert(pinR.message.indexOf("前置未完成") !== -1, "锚定提示列出未完成前置, 实际 " + pinR.message);
 // 11.2b) 队列顺序：再锚定 2 条，按追加顺序排列
-let singles11 = api.listSceneLines(api.getScenesDefs().defs).singles;
+/* v2.0.20：EXTRA_SCENES 的自有场景会进入独立场景列表首位，本条用例需要「原版带地点元数据的独立场景」，
+   显式排除自有场景，避免索引随注册表扩容漂移 */
+let singles11 = api.listSceneLines(api.getScenesDefs().defs).singles.filter(function (x) { return x.key !== "KylarStalkingReversal"; });
 let pinB1 = api.pinScene(singles11[0]);
 let sec11 = robinLine2.items[2]; /* RobinCrossdressing3（表内 home 元数据）——singles 仅 1 个带元数据场景 */
 let pinB2 = api.pinScene(sec11);
@@ -1026,7 +1028,7 @@ delete V.mbCE_queue;
 global.Story = { has: (n) => false, lookupWith: (fn) => [{ name: "Gwylan Ritual Start Garden" }, { name: "Forest Shop Entrance" }, { name: "Pregnancy Birth Forest Shop" }] };
 let pgs = api.listPlaceGroups();
 let gwg = pgs.filter((g) => g.group.id === "gwylan_garden")[0];
-assert(gwg && gwg.items.length === 3, "格威岚组含森林商店等段落, items=" + (gwg ? gwg.items.length : "none"));
+assert(gwg && gwg.items.length === 2, "格威岚组只剩礼物/森林引诱段（森林商店 v2.0.22 已拆出）, items=" + (gwg ? gwg.items.length : "none"));
 // 15.9b) 新 6 组主场景名中文化映射（v1.9.23-实机修复：场景直达「主场景 X ★（中文）」）
 assert(js.indexOf('"asylum": "精神病院"') !== -1 && js.indexOf('"police": "警局与监狱"') !== -1
   && js.indexOf('"hospital": "医院"') !== -1 && js.indexOf('"wolf": "狼群"') !== -1,
@@ -4201,7 +4203,7 @@ delete V.scenes;
 delete V.scenePassages;
 var gd52a = api.getScenesDefs();
 var gd52b = api.getScenesDefs();
-assert(gd52a.live === true && Object.keys(gd52a.defs).length === 9, "52.4 同 Story 解析 live=true 9 条, 实际 " + Object.keys(gd52a.defs).length);
+assert(gd52a.live === true && Object.keys(gd52a.defs).length === 10, "52.4 同 Story 解析 live=true 10 条（含 EXTRA）, 实际 " + Object.keys(gd52a.defs).length);
 assert(JSON.stringify(Object.keys(gd52a.defs).sort()) === JSON.stringify(Object.keys(gd52b.defs).sort()), "52.4 同 Story 引用两次调用键集一致（缓存命中）");
 V.scenes = { MCE注入52: { name: "注入测试", startPassage: "P52", passages: ["P52"], unlocked: "$scenePassages.includes(\"X52\")" } };
 var gd52c = api.getScenesDefs();
@@ -4209,7 +4211,7 @@ assert(!!gd52c.defs["MCE注入52"] && gd52c.defs["MCE注入52"].unlockedExpr.ind
 delete V.scenes;
 global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT_ESCAPED }].filter(fn) };
 var gd52d = api.getScenesDefs();
-assert(gd52d.live === true && Object.keys(gd52d.defs).length === 9, "52.4 Story 对象引用变化强制失效重解析（转义形态仍 9 条）, 实际 " + Object.keys(gd52d.defs).length);
+assert(gd52d.live === true && Object.keys(gd52d.defs).length === 10, "52.4 Story 对象引用变化强制失效重解析（转义形态仍 10 条）, 实际 " + Object.keys(gd52d.defs).length);
 delete global.Story;
 var gd52e = api.getScenesDefs();
 assert(gd52e.live === false, "52.4 无 Story 时 live=false（不误用旧缓存）");
@@ -4221,7 +4223,7 @@ var gd52f = api.getScenesDefs();
 assert(gd52f.live === false, "52.4b 空 passages 首查 live=false");
 global.Story.passages = [{ name: "scenes", text: SCENE_TEXT }];
 var gd52g = api.getScenesDefs();
-assert(gd52g.live === true && Object.keys(gd52g.defs).length === 9, "52.4b passages 数组替换后失效重解析（9 条）, 实际 " + Object.keys(gd52g.defs).length);
+assert(gd52g.live === true && Object.keys(gd52g.defs).length === 10, "52.4b passages 数组替换后失效重解析（10 条）, 实际 " + Object.keys(gd52g.defs).length);
 delete global.Story;
 /* 52.5 evalSceneExpr 编译缓存：判定函数每次调用实时读 V（无陈旧状态） */
 delete V.scenePassages;

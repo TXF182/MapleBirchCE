@@ -164,6 +164,8 @@ function ensureSceneStateFor(name) {
 		/* v2.0.17：子入口专属状态兜底（$gwylan / $pubfame），实现落在 07d-places4.js。
 		   先于各地点分支执行 —— 它只补缺失、不覆盖，且与被调地点不冲突。 */
 		if (typeof mbCEEnsureEntryState === "function") { mbCEEnsureEntryState(nm, V2); }
+		/* v2.0.22：森林商店本体直达补 $tryOn 壳（实现与取证见 07d-places4.js 的 mbCETryOnShell）。 */
+		if (typeof mbCETryOnShell === "function" && mbCETryOnShell(nm, V2)) { return; }
 		if (/^Prison/.test(nm)) { /* 无 \b：PrisonScarredInmate 一类无空格段名也命中 */
 			if (V2.prison && typeof V2.prison === "object") { return; } /* 已有进度：绝不调 init（避免 morning 被重置） */
 			var sc = (typeof window !== "undefined" && window && window.SugarCube) ? window.SugarCube : null;
