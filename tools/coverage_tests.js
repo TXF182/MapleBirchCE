@@ -125,7 +125,13 @@ const TESTS = [
      mbCETryOnShell 缺失才补 $tryOn 壳且不覆盖玩家试衣进度（$tryOn 缺失会让 <<forestShop-main>>
      首行读 .autoReset 抛 TypeError、且尾部只有 $tryOn.value is 0 分支才给出口链接）。
      另含注册表 placeHolder 注释样本过滤（空名条目不得进剧情列表）。 */
-  "tests/forest_shop_direct.js"
+  "tests/forest_shop_direct.js",
+  /* 2026-11-12 新增（v2.0.23）：四主题（黑金 / 星空蓝 / 赛博朋克 / 青瓷）。
+     设计参考 MapleLantern v1.1.8 src/style.css 的 amber / star / cyberpunk / jade 四套 token 原文。
+     锁死四件事 —— setTheme 认四个名字且非法回落 gold、三类 mce-theme-* 互斥且悬浮球同步、
+     cycleTheme 顺序 gold→starry→cyberpunk→jade、三套 token/纹理（含星空 58° 银河带与 ≥12 星点）
+     真的进了 MB_CSS；另含确认条跟随与 html data-mce-theme 这条按压环取色通道。 */
+  "tests/theme_four.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

@@ -63,7 +63,10 @@
 		return { lines: lines, singles: singles };
 	}
 
-	/* ============ v1.9.2 原版剧情分区索引（提取自游戏本体 0.5.12.13 $scenes 注册表，共 111 键） ============
+	/* ============ v1.9.2 原版剧情分区索引（提取自游戏本体 0.5.12.13 $scenes 注册表，共 110 键） ============
+   v2.0.22 剔除：注册表顶层 111 键中的第 1 个 `placeHolder` 是被 /* … *\/ 注释掉的模板样本（name:""、startPassage:""），
+   不属于真实场景 → 本名单只保留 110 个真实键。parseSceneBlocks 侧同步丢弃空名条目，两侧口径一致。 */
+/*
 	   用途：剧情页把「原版剧情」与「MOD 注册剧情」分区展示。运行时解析出的场景键
 	   在本名单内 → 原版剧情（按角色分组）；不在名单内 → MOD 剧情。
 	   名单逐字提取自本体，非手写猜测；若 MOD 新增了同名键则仍归原版组（键未变）。 */
@@ -83,7 +86,7 @@
 		"MickeyOrphanageHacker","MickeyPubFameIntro","MoorFlower","NightmareAlex",
 		"NightmareBird","NightmareCorruptSydney","NightmareEden","NightmareGwylan",
 		"NightmareHarper","NightmareOffice","NightmareWitch","NightmareWraith",
-		"Pinch","placeHolder","PrisonScarredInmate","PrisonSpirePrecipice",
+		"Pinch","PrisonScarredInmate","PrisonSpirePrecipice",
 		"PrisonYardLocket","RaulAndJanet","RentFirstRobinFight","RobinCrossdressing1",
 		"RobinCrossdressing2","RobinCrossdressing3","RobinCrossdressing4","RobinCrossdressing5",
 		"RobinCrossdressing6","RobinCrossdressing6I","RobinDocks","RobinIntro1",

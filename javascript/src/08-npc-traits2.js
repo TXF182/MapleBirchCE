@@ -6,6 +6,9 @@
 			pane.appendChild(el("div", "mce-err", "未检测到 Maplebirch 框架。"));
 			return;
 		}
+		/* v2.1.0 外观主题四档选择器：全局页第一块（在悬浮球锁定等业务分组之前）——
+		   换肤是玩家最想先做的动作，埋在中间要滚半天。 */
+		mceRenderThemePicker(pane);
 		/* v1.9.11+：悬浮入口固定按钮（锁定/解锁右下角金色「解锁」球的拖动；
 		   悬浮球是面板唯一入口，不提供隐藏——隐藏即死锁） */
 		var fabLocked = !!(toggleBtn && toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1");

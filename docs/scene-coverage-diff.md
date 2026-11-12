@@ -113,12 +113,14 @@
 
 | 层 | 结果 |
 |---|---|
-| 新增断言 `tests/forest_shop_direct.js` | **29 PASS / 0 FAIL**（组序、主场景、子入口、widget 段排除、`$tryOn` 四态、`placeHolder` 过滤、EXTRA 不误伤） |
-| 结构门禁 | 78 段，单段上限 400，豁免 0，续号白名单 11 → **通过** |
+| 新增断言 `tests/forest_shop_direct.js` | **34 PASS / 0 FAIL**（组序、主场景、子入口、widget 段排除、`$tryOn` 四态、`placeHolder` 过滤、EXTRA 不误伤、正门并行 5 条） |
+| `tests/test_mce.js` | **ALL TESTS PASSED**（27.10 口径改 110 + 新增「名单不含 placeHolder」「`isVanillaSceneKey` 判否」两条） |
+| 结构门禁 | 78 段，单段上限 400（`07d-places4.js` 顶格 400），豁免 0，续号白名单 11 → **通过** |
 | `run_all.ps1` 12 步 | **ALL CHECKS PASSED**（含 tsc 0 错误、src strict 债务 0、键注册表 470 条一致） |
-| 覆盖率 | lines 97.4% / branches 81.56% / functions 98.43%（门槛 90 / 80 / 95） |
-| 打包 | 342,866 B / SHA256 `F6423E59D94526B7DB538E726FC914224D2F227C23F30A95F009C1FA85FF4820`；verifier exact 4/4 + 集合相等 + CRC 全量 |
-| 装机 | `game\MapleBirchCE.mod.zip` 同 SHA；zip 内 `boot.json` version = `2.0.22` |
+| 覆盖率 | lines 97.34%（16378/16825）/ branches 81.56%（5927/7267）/ functions 98.43%（630/640），门槛 90 / 80 / 95 |
+| 打包 | **343,054 B** / SHA256 `C531217EAD1EB2FC95EE36709F9C5BB9ED3FB5F617CF79758D3B5D60D41624E4`；verifier exact 4/4 + 集合相等 + CRC 全量 |
+| 产物 JS | 78 段 / 1,057,014 B / SHA256 `D2891CC466A284A246841ECE7AF97C5465F888D63FB609F80498FAC135DC1AB4` / order `87c15759aeac` |
+| 装机 | `game\MapleBirchCE.mod.zip` 同 SHA 同字节；zip 内 `boot.json` version = `2.0.22`；版本双源一致（`01-core.js` MCE_VERSION = 2.0.22） |
 | 实机冒烟 `real_smoke.ps1` | A/B/C/D/E/G **PASS**，F **WARN**（moli 跑 `http://127.0.0.1` origin，与玩家 `file://` IndexedDB 不共享，CE 不在内置插件集 → 三件套 0/3，属工具局限） |
 
 ---
@@ -133,10 +135,20 @@ SV 孤儿：   %TEMP%\probe_sv.py         → %TEMP%\sv_orphan.json（orphan 0�
 森林商店：  本体 HTML 搜 name="Forest Shop" tags= / <<widget "forestShop-main">> / <<widget "tryOnInit">>
 源码落点：  07d-places3.js（组）/ 07d-places4.js（补壳 + 子入口）/ 07d-places.js（调用）/ 07d-places2.js（徽标）
 断言：      tests/forest_shop_direct.js（已登记进 tools/coverage_tests.js 序列）
+键表口径：  07e-scenes2.js VANILLA_SCENE_KEYS 111 → 110（删 placeHolder）；对照 tests/test_mce.js 27.10
 ```
 
-## 七、仍未做（如实声明）
+## 七、本轮追加（v2.0.22 定稿轮，2026-11-12）
 
-- `Forest Shop Entrance` 未提升为与主场景并列的主入口 —— 当前作为「更多入口」子按钮，是否并列未拍板。
-- `VANILLA_SCENE_KEYS` 里的 `placeHolder` 键未从常量表移除（现仅 `isVanillaSceneKey` 标注用；defs 已过滤，功能无害）。
-- 10 条缺地点元数据的键维持运行时回退，未强行推断地点。
+上一版结尾列出的三个未定项，本轮全部落地：
+
+| # | 事项 | 状态 | 落点 |
+|---|---|---|---|
+| 1 | `Forest Shop Entrance`（正门，含格威岚登场）提升为与纯商店**并列主入口** | ✅ 已做 | `07d-places4.js`：`PLACE_EXTRA_ENTRIES.forest_shop` 加 `parallel:true`，`mbCEListPlaceEntries` 透出，`mbCERenderPlaceSubs` 先把 parallel 项渲染成独立行（标签「正门　Forest Shop Entrance　（正门（含格威岚登场，会有剧情））」，带直达按钮），剩余子入口才进「更多入口」折叠；只剩并列项时不渲染折叠开关 |
+| 2 | `VANILLA_SCENE_KEYS` 移除 `placeHolder`（111 → **110**） | ✅ 已做 | `07e-scenes2.js:86` 删键 + 注释改口径；`tests/test_mce.js` 27.10 断言改 110 并新增两条（名单不含 placeHolder / `isVanillaSceneKey` 判否）；`tests/forest_shop_direct.js` 新增第 5 节 5 条并行断言（导出口清单含正门、`parallel=true`、提示含「会有剧情」、折叠区不重复） |
+| 3 | 差集报告发一份到飞书 | ✅ 本次交付 | 本文即飞书文档副本 |
+
+仍未做（如实声明）：
+
+- 10 条缺地点元数据的键维持运行时回退，未强行推断地点（逐段实证段内无 `<<set $location>>`，无证据不臆造）。
+- `tests/data/direct_exit_matrix.json` 内的 `placeHolder` 条目保留：该文件是**本体注册表全量探针矩阵**（含注释样本），不是 `VANILLA_SCENE_KEYS` 的镜像，删键不影响其语义。

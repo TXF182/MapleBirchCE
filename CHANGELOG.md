@@ -2,6 +2,73 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.0（2026-11-12 四主题：赛博朋克 / 青瓷 / 星空 v2 + 选择器迁到全局页顶）
+
+学习 [MapleLantern](https://github.com/TXF182/MapleLantern/releases/tag/v1.1.7) 的 UI 设计语言（真源 `src/style.css` 52,127 B，
+主题枚举在 `src/render.js:767-774`），把 `cyberpunk` / `jade` 两套落进 CE 面板，并把原有「星空蓝」按 MapleLantern 的
+`star` 数值重做。设计原则照抄它 L1052 的原话：**只叠加颜色、描边、静态网格与光晕，布局尺寸沿用既有规格**——
+所以本轮只换 token / 纹理 / 光晕，44px 命中区与栅格一律没动。
+
+### 一、主题状态机（`07a-shell2.js`）
+
+- `MCE_THEMES = ["gold","starry","cyberpunk","jade"]`：`mbCEUiLoad` / `mbCEUiSave` 的白名单由二元 `starry|gold` 放宽到四态，
+  脏值仍回落 `gold`；旧存档里的 `starry` 语义不变（只是数值升级，不是新增第五档）。
+- `setTheme` 重写为四态 + 三类别互斥：`MCE_THEME_CLASSES = ["mce-theme-starry","mce-theme-cyberpunk","mce-theme-jade"]`
+  逐类摘挂（gold 三类全摘），同步确认条 `.mce-anchor-prompt`，并写 `document.documentElement` 的 `data-mce-theme`
+  ——按压环 `#mce-press-ring` 挂在 body 顶层、拿不到 `#mce-root` 的变量继承，只能靠 html 属性把主题色递过去。
+- `cycleTheme()` 顺序 `gold→starry→cyberpunk→jade→gold`（保留给快捷键/旧调用；全局页已改直选）。
+- `document` 守卫：假 DOM / 无 querySelector 的运行环境里不抛错。**不要**写 `&& document.querySelector` 的存在性判断
+  ——TS 认定 DOM 上该方法恒有（TS2774），改用 try/catch 兜。
+
+### 二、三套主题的视觉层（`07a-shell3-fx.js`）
+
+全部以 `MB_CSS +=` 累加在段序尾部（同特异度后写生效），不动 `07a-shell.js` 的 400 行顶格。
+
+- **赛博朋克**：accent `#00E5FF` / hover `#7DF9FF` / dark `#0089A8`，副色品红 `#FF3D9A`，底 `#05070F` / `#0B1020` / `#101830`。
+  面板六层纹理：132° 斜切 + 品红径向 + 青径向 + 0deg/31px 横网格 + 90deg/47px 竖网格 + 135deg/9px 斜纹；
+  正文 23px 横网格 + 135° 斜光；卡片青→粉双斜 + 4px 竖纹；头部 2px 双色渐变贴片（`background-size:100% 2px`）；
+  页签下划线双色；悬浮球 `linear-gradient(135deg,#0B2330,#09101E 62%,#05070F)`；四重 inset 光。
+- **青瓷**：accent `#5FBFAC` / hover `#7FD6C5` / dark `#2E7A6B`，底 `#0A1110` / `#111A18` / `#182421`。
+  七层开片：112° 高光条 + 8% 顶部青釉径向 + 100%/100% 径向 + 118° 对角反光 + 66°/28°/-24° 三向开片细纹。
+- **星空 v2**（替换旧星空蓝，数值取 MapleLantern `star` L181-224）：accent `#8FA6FF`，底 `#070A14` / `#0D1222` / `#151B31`，
+  辅色 jade `#6FE0D2` / rose `#D98CCB` / danger `#E06B6B`，面板 inset `0 0 40px rgba(111,90,255,.14)`。
+  14 层：58° 银河流光带 + 3 个紫径向云 + 面板 10 星点 + 116°/64° 双流星线；body 3 层含 3 星点、card 3 层含 2 星点（合计 15 星点）。
+- **按压辉光分档**：`:root[data-mce-theme]` 三条——赛博 `rgba(0,229,255,.56)` / 青瓷 `rgba(127,214,197,.5)` / 星空 `rgba(143,166,255,.5)`，
+  涟漪 `rgba(125,249,255,.24)` / `rgba(200,255,242,.22)` / `rgba(205,218,255,.22)`；属性缺失时仍用 `:root` 暖金兜底。
+- 显式覆盖 `#mce-root.mce-theme-<x> .mce-body{background-image:var(--mce-tex-body)}`——`07a-shell.js:354` 旧 starry 的
+  `.mce-body` 规则特异性更高，不覆盖会被压回去。
+
+### 三、主题选择器搬到「全局」页最上面（`07a-shell3-fx.js` + `08-npc-traits2.js` + `09-exports.js`）
+
+- 旧形态：面板头部一颗按钮 `cycleTheme` 循环，想要青瓷得连点三下，看不出有几档。
+- 新形态：`mceRenderThemePicker(pane)` 在 `renderGlobal()` 里紧跟 `frameworkReady()` 之后、任何业务分组之前，
+  渲染「外观主题」分组 + 四颗平铺按钮（`✦ 黑金` / `✦ 星空蓝` / `⚡ 赛博朋克` / `◆ 青瓷`），
+  当前档 `.mce-on` 实心高亮，点击直选该档（`setTheme` → 整页重绘，高亮跟着换）。
+- 头部 `themeBtn` 连同其 `MCE_THEME_TIP` / `MCE_THEME_ICON` 常量一并移走，**不留双入口**。长句文案改挂 title。
+
+### 四、验证
+
+- 新增 `tests/theme_four.js`（8 节 62 断言，锁状态层 / 类层 / CSS 层 / 联动层 / 选择器位置），已注册进 `tools/coverage_tests.js`。
+- 视觉迭代两轮（首版截图后 19 处只调透明度与星点尺寸）：赛博横网格 `.06→.085`、竖网格 `.06`、斜纹 `.03`；
+  青瓷开片主线 `.034→.058`、横纹 `.038`、斜开片 `.028`；星空银河带 `.11→.15`、10 处星点 `1px→1.5px`、双星点 `2px→2.5px`。
+- 对照页工具 `tools/theme_preview.js`：jsdom 载入构建产物、从 `<style>` 读回真实 `MB_CSS`（37,994 B，不另写一套），
+  克隆 `#mce-root` 四份各挂一个主题类 + 统一演示骨架，输出 `docs/theme-preview.html`（2×2 对照）+ `docs/theme-preview.png`。
+
+### 五、全链结果
+
+- `tools\run_all.ps1` 12 步全绿（exit 0）；覆盖率 **Branches 81.51%（5941/7288）/ Functions 98.44%（633/643）/ Lines 97.39%（16602/17046）**，
+  门槛 90/80/95 均满足；结构门禁 78 段全过；src 侧 strict 类型债务 0（基线 0，棘轮未上升）。
+- `tools\pack.ps1` 5 步全绿：verifier 严格三项（exact 4/4 + 集合相等 + CRC 全量）+ zip 正斜杠 + SHA256 回读。
+  产物 `MapleBirchCE.mod.zip` **349,881 B / SHA256 `630D860553C40D3BD0DA200DEB091346AD9CC2AD255E9A86C3004C0B0B2A81D5`**，
+  `Copy-Item` 进 `game\` 后双端 SHA 一致 `match=True`。
+- `real_smoke.ps1`：A/B/C/D/E/G 六项 PASS（`pluginCount 23 / modInits 23 / injectEvid 23`；F 为 moli `http://127.0.0.1` origin
+  看不到玩家 `file://` IndexedDB 的既有局限，非回归），末尾截图 562,359 B / PNG magic 校验通过。
+- 回归修复：`tests/smoke_dom.js` 第 18 条旧断言「header 主题按钮存在」在新结构下必然失败，改判反向
+  （header 不再有 `.mce-theme-btn` + 全局页 4 个 `.mce-theme-pick` + 是第一块），单跑 `SMOKE ALL PASSED` 后再跑全链。
+- 视觉迭代第三轮（截图查出的两处）：`✦`(U+2726) 在微软雅黑下渲染成豆腐方块，换成 `◇ / ★ / ⚡ / ◆`；
+  四颗按钮由 `flex:1 1 auto` 改 `flex:1 1 0` + `min-width:76px`（等分，窄屏仍可换行）。
+
+
 ## v2.0.22（2026-11-12 场景直达：森林商店「无剧情直达」+ 注册表差集复核）
 
 两条诉求源自同一组 QQ 截图：①「有没有其他剧情没收录进模组」（用户点名凯拉尔那条）；
@@ -55,6 +122,26 @@
 - 新增 `tests/forest_shop_direct.js`（32 条断言，挂进 `tools/coverage_tests.js` 序列）：
   组结构与占位顺序 / 主场景与子入口清单 / widget 段被 exclude / `$tryOn` 补壳四态
   （缺失补、已有不覆盖、非本组 false、正门前缀命中）/ `placeHolder` 过滤与 EXTRA 不误伤。
+
+### 五、本轮定稿（三个未定项全部落地）
+
+上一版结尾列出的三项待定，按用户「做」的指令全部执行：
+
+1. **正门提升为并列主入口**（`07d-places4.js`）：`PLACE_EXTRA_ENTRIES.forest_shop` 加 `parallel: true`，
+   `mbCEListPlaceEntries` 透出 `parallel`，`mbCERenderPlaceSubs` 先把并列项渲染成独立行
+   （标签「正门　Forest Shop Entrance　（正门（含格威岚登场，会有剧情））」＋直达按钮），
+   剩余子入口才进「更多入口」折叠；只剩并列项时不渲染折叠开关。
+   纯商店与正门从此同级并列，玩家点哪个由自己决定。
+2. **`VANILLA_SCENE_KEYS` 移除 `placeHolder`**（`07e-scenes2.js`，111 → 110）：
+   该键是被 `/* … */` 注释掉的空名模板样本（`name:""`、`startPassage:""`），不是真场景。
+   `tests/test_mce.js` 27.10 断言改 110，并新增「名单不含 placeHolder」「`isVanillaSceneKey` 判否」两条。
+3. **差集报告发飞书**：`docs/scene-coverage-diff.md`（七节全量）导入为飞书文档，含方法、结论、
+   10 条缺元数据、orphan 0、森林商店三段根因、验证层与本轮追加表。
+
+验证：`tests/forest_shop_direct.js` 新增第 5 节 5 条并行断言 → **34 PASS / 0 FAIL**；
+`run_all.ps1` 12 步 **ALL CHECKS PASSED**；覆盖率 lines 97.34% / branches 81.56% / functions 98.43%；
+打包 **343,054 B** / SHA256 `C531217EAD1EB2FC95EE36709F9C5BB9ED3FB5F617CF79758D3B5D60D41624E4`，
+verifier exact 4/4 + 集合相等 + CRC 全量，`game\MapleBirchCE.mod.zip` 同 SHA 同字节。
 
 ## v2.0.21（2026-11-12 视觉层：参考 MapleLantern 灯台设计语言重做面板材质/背景/动效/点击特效）
 

@@ -96,7 +96,7 @@ var PLACE_EXTRA_ENTRIES = {
 		{ name: "Mansion Skyscraper Rise", cn: "摩天楼" }
 	],
 	/* v2.0.22：森林商店主场景是纯商店段 Forest Shop；正门 Forest Shop Entrance（带 _shopEvent 格威岚登场）列子入口，要剧情时自选。 */
-	forest_shop: [{ name: "Forest Shop Entrance", cn: "正门（含格威岚登场）" }],
+	forest_shop: [{ name: "Forest Shop Entrance", cn: "正门（含格威岚登场，会有剧情）", parallel: true }],
 	gwylan_garden: [
 		{ name: "Gwylan Gifts List", cn: "礼物清单" },
 		{ name: "Forest Gwylan Lure", cn: "森林引诱" },
@@ -255,7 +255,8 @@ var PLACE_EXTRA_ENTRIES = {
 	]
 };
 
-/* 子入口过滤：返回本组真正可渲染的 {name, cn} 清单（三重判据，任一不成立即剔除）。
+/* 子入口过滤：返回本组真正可渲染的 {name, cn, parallel} 清单（三重判据，任一不成立即剔除）。
+   parallel:true = v2.0.22 起「森林商店正门」提升为与纯商店并列的主入口行，不再只收在「更多入口」折叠里。
    copy 出去而不是直接返回原数组元素，避免调用方误改 PLACE_EXTRA_ENTRIES。 */
 function mbCEListPlaceEntries(entry) {
 	var out = [];
@@ -270,7 +271,7 @@ function mbCEListPlaceEntries(entry) {
 			if (nm === entry.group.main) { continue; } /* 与主场景同一段 → 不重复列 */
 			if (entry.items.indexOf(nm) === -1) { continue; } /* 不存在 / 被 exclude 剔除 / 被别组先占 */
 			if (typeof mbCEIsUnplayableEntry === "function" && mbCEIsUnplayableEntry(nm, mbCEPassageText(nm))) { continue; }
-			out.push({ name: nm, cn: String(it.cn || "") });
+			out.push({ name: nm, cn: String(it.cn || ""), parallel: !!it.parallel });
 		}
 	} catch (e) { /* 存档结构异常 → 退化为「无子入口」，不影响主场景按钮 */ }
 	return out;
@@ -282,6 +283,16 @@ function mbCEListPlaceEntries(entry) {
 function mbCERenderPlaceSubs(block, entry) {
 	var subs = mbCEListPlaceEntries(entry);
 	if (!subs.length) { return; } /* 无可直达子入口 → 不渲染开关，不留空壳 */
+	subs.filter(function (s) { return s.parallel; }).forEach(function (s) {
+		var pr = el("div", "mce-stage mce-place-row mce-parallel"), phead = el("div", "mce-stage-head");
+		phead.appendChild(el("span", "mce-dot", ""));
+		phead.appendChild(el("span", "mce-stage-name", "正门　" + s.name + (s.cn ? "　（" + s.cn + "）" : "")));
+		var pb = el("button", "mce-btn", "直达");
+		pb.type = "button"; pb.title = "跳转到段落：" + s.name;
+		(function (t) { pb.addEventListener("click", function () { teleportTo(t); }); })(s.name);
+		phead.appendChild(pb); pr.appendChild(phead); block.appendChild(pr);
+	});
+	subs = subs.filter(function (s) { return !s.parallel; }); if (!subs.length) { return; } /* 只剩并列项 -> 不渲染折叠开关 */
 	var gid = String(entry.group.id);
 	var opened = !!(mbCEUiState && mbCEUiState.placeOpen && mbCEUiState.placeOpen[gid] === 1);
 	var bMore = el("button", "mce-btn mce-place-more", (opened ? "▾ " : "▸ ") + "更多入口（" + subs.length + "）");
@@ -315,19 +326,13 @@ function mbCERenderPlaceSubs(block, entry) {
 }
 
 /* v2.0.17 子入口状态兜底 —— 补 v2.0.16 的漏。
-   取证（原版 HTML 解码后 16,087 段落）：
-   - StoryInit 仅 355 B，只跑 <<variablesStatic>>，且注明「在故事变量载入前执行、每个 $ 都是 undefined」；
-     新档真正的 $ 初始化入口是 Start → Start2 → <<variablesStart2>>（<<variablesStart>> 全库零调用者）。
-   - 因此判据是「段落前 6 行内做 .属性 写入的键 ∩ 新档初始化集合（gameStartOnly + variablesStart2）的差集」，
-     151 条子入口实测只剩两组真缺口（其余 .属性 读取属分支失真或已被既有分支覆盖）：
-     1) $gwylan：Forest Gwylan Lure 第 3 行 <<set $gwylan.lureDistance -= 5>>；原版只在
-        Widgets Named Npcs 里建壳，新档走不到 → undefined 上写入必 TypeError。
-     2) $pubfame：Hospital Keycard Receptionist 首屏 <<set $pubfame.hospital to {}>>；
-        原版只在 SV Pub Fame Intro 段建壳，新档走不到。
-   已复核无需兜底：$compound/$docks/$livestock/$harper_appointments 均在 <<variablesStart2>> 内新档必建；
-   $wraith 由 <<gameStartOnly>> 建壳（子键写入不崩，exit 等字段由 mbCEWraithShell 补齐）；
-   $island/$prison/$farm（含 Brothel 两段的 $farm 读取）已由既有分支处理。
-   一律「缺失才补、不覆盖已有进度」，字面量照抄原版。 */
+   取证（原版 HTML 解码后 16,087 段落）：StoryInit 仅 355 B，只跑 <<variablesStatic>>（此时每个 $ 都是 undefined），
+   新档真正的 $ 初始化入口是 Start → Start2 → <<variablesStart2>>。判据 =「段落前 6 行内做 .属性 写入的键 ∩ 新档
+   初始化集合（gameStartOnly + variablesStart2）的差集」，151 条子入口实测只剩两组真缺口：1) $gwylan（Forest Gwylan
+   Lure 第 3 行 <<set $gwylan.lureDistance -= 5>>，只在 Widgets Named Npcs 建壳 → undefined 上写入必 TypeError）；
+   2) $pubfame（Hospital Keycard Receptionist 首屏 <<set $pubfame.hospital to {}>>，只在 SV Pub Fame Intro 建壳）。
+   已复核无需兜底：$compound/$docks/$livestock/$harper_appointments 在 <<variablesStart2>> 必建；$wraith 由
+   <<gameStartOnly>> 建壳；$island/$prison/$farm 由既有分支处理。一律「缺失才补、不覆盖已有进度」，字面量照抄原版。 */
 function mbCEFillShapeV(dst, shape) {
 	if (!dst || typeof dst !== "object" || Array.isArray(dst)) { return shape; }
 	for (var k in shape) {

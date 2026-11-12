@@ -142,6 +142,19 @@ if (fixtureText) {
   console.log("SKIP: fixtures/scenes-widget.twee 缺失，跳过注册表过滤断言");
 }
 
+/* ================= 5. 正门并列主入口（v2.0.22 parallel 机制） ================= */
+section("5 正门并列主入口：森林商店正门与纯商店并列成行，不再只收在折叠里");
+const mle = api.mbCEListPlaceEntries;
+assert(typeof mle === "function", "mbCEListPlaceEntries 已导出（测试可走真实入口）");
+const entF = lg.filter(function (x) { return x.group.id === "forest_shop"; })[0] || null;
+const subsF = (typeof mle === "function" && entF) ? mle(entF) : [];
+const parEnt = subsF.filter(function (s) { return s.name === "Forest Shop Entrance"; })[0] || null;
+assert(!!parEnt, "子入口清单含 Forest Shop Entrance（实测 " + subsF.map(function (s) { return s.name; }).join(",") + "）");
+assert(!!parEnt && parEnt.parallel === true, "Forest Shop Entrance 标 parallel=true（渲染为与纯商店并列的主入口行）");
+assert(!!parEnt && String(parEnt.cn || "").indexOf("会有剧情") !== -1, "正门行中文提示点明「会有剧情」");
+const nonPar = subsF.filter(function (s) { return !s.parallel; });
+assert(nonPar.map(function (s) { return s.name; }).indexOf("Forest Shop Entrance") === -1, "折叠区不再重复正门（剩余 " + nonPar.length + " 项：" + nonPar.map(function (s) { return s.name; }).join(",") + "）");
+
 /* ================= 汇总 ================= */
 console.log("\n===== forest_shop_direct: " + passes + " PASS / " + failures + " FAIL =====");
 process.exit(failures ? 1 : 0);

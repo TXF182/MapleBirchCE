@@ -200,7 +200,10 @@
 			box.className = "mce-anchor-prompt";
 			/* v1.9.29 确认条 token 化：样式全部移入 07a-shell CSS 类（此前内联 #f5f0e0 米色/绿/灰，与面板黑金脱节；
 			   现走 --mce-gold-* token，换主题自动跟随） */
-			if (getTheme() === "starry") { box.classList.add("mce-theme-starry"); }
+			/* v2.0.23 四主题：确认条跟随当前主题挂 mce-theme-<name>（gold 无类）；
+			   旧写法只认 starry，切到 cyberpunk/jade 时条会退回默认暖金，与面板撞色。 */
+			var th = getTheme();
+			if (th && th !== "gold") { box.classList.add("mce-theme-" + th); }
 			var txt = document.createElement("span");
 			var timeTxt = meta.timeNote ? "｜时间 " + meta.timeNote : "";
 			var pre = pendingPreconds(P.key);

@@ -1795,7 +1795,13 @@ setTimeout(function () {
     const rootEl18 = document.querySelector("#mce-root");
     const tg18 = document.querySelector("#mce-toggle");
     assert(!!rootEl18 && !!tg18, "18 面板根与悬浮球存在（主题切换载体）");
-    assert(!!document.querySelector(".mce-theme-btn"), "18 header 主题按钮存在（✦，.mce-theme-btn）");
+    /* v2.1.0：主题按钮从 header 搬到「全局」页最上面，这条改判"头部不该再有它"，避免又长出第二个入口 */
+    assert(!document.querySelector(".mce-theme-btn"), "18 header 不再有主题按钮（v2.1.0 已搬到全局页顶）");
+    api.renderGlobal();
+    const picks18 = document.querySelectorAll('[data-pane="global"] .mce-theme-pick');
+    assert(picks18.length === 4, "18 全局页顶部四档主题选择器齐全（实得 " + picks18.length + "）");
+    assert(!!document.querySelector('[data-pane="global"]').firstElementChild.querySelector(".mce-theme-pick"),
+      "18 主题选择器是全局页第一块（不在业务分组之后）");
     /* 18.1 主题切换：类挂载 + localStorage 持久化 + 恢复 */
     api.setTheme("starry");
     assert(rootEl18.classList.contains("mce-theme-starry"), "18 setTheme(starry) → #mce-root 挂 .mce-theme-starry");

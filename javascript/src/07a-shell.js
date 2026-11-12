@@ -5,7 +5,7 @@
 	var curName = "";
 	var curInnerTab = "romance";
 	var initialized = false;
-	var mbCETheme = "gold"; /* v1.9.29 主题：gold 黑金 / starry 星空蓝 */
+	var mbCETheme = "gold"; /* v2.0.23 四主题：gold 黑金 / starry 星空蓝 / cyberpunk 赛博朋克 / jade 青瓷 */
 
 	function el(tag, cls, text) {
 		var node = document.createElement(tag);

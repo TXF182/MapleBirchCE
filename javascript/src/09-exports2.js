@@ -383,8 +383,8 @@
 				mbCEUiSave: mbCEUiSave,
 				mbCEUiLoad: mbCEUiLoad,
 				mbCEUiCollapsed: mbCEUiCollapsed,
-				/* v1.9.29 双主题：setTheme 切主题（starry/gold，自动持久化）；showAnchorPrompt 供外部/测试触发锚定确认条 */
-				setTheme: setTheme,
+				/* v2.0.23 四主题：setTheme 直设 / cycleTheme 循环（gold→starry→cyberpunk→jade，自动持久化）；showAnchorPrompt 供测试触发确认条 */
+				setTheme: setTheme, cycleTheme: cycleTheme, renderGlobal: renderGlobal,
 				getTheme: getTheme,
 				showAnchorPrompt: showAnchorPrompt,
 				hideAnchorPrompt: hideAnchorPrompt,

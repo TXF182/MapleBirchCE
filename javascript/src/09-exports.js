@@ -191,16 +191,8 @@
 
 		var header = el("div", "mce-header");
 		header.appendChild(el("span", "mce-title", "剧情条件解锁面板 v" + MCE_VERSION));
-		/* v1.9.29 主题切换按钮（✦ 星星图标）：黑金 ⇄ 星空蓝 循环，持久化 localStorage */
-		var themeBtn = el("button", "mce-theme-btn", "✦");
-		themeBtn.type = "button";
-		themeBtn.title = "切换主题：黑金 / 星空蓝";
-		themeBtn.addEventListener("click", function () {
-			var next = getTheme() === "starry" ? "gold" : "starry";
-			setTheme(next);
-			setStatus(next === "starry" ? "已切换：星空蓝 ✦ 愿星光指引你" : "已切换：黑金", "mce-ok");
-		});
-		header.appendChild(themeBtn);
+		/* v2.1.0 主题切换从头部搬到「全局」页最上面（mceRenderThemePicker，07a-shell3-fx.js）：
+		   头部原来那颗循环按钮玩家要连点三下才知道有几档，四档平铺后一档一颗、点哪颗是哪颗。 */
 		/* v1.8.12 错误收集红点（数量徽标，点击展开错误列表） */
 		var errBtn = el("button", "mce-errbtn", "0");
 		errBtn.type = "button";
@@ -257,7 +249,7 @@
 		mbCEUpdateErrBadge();
 
 		/* v1.9.29 主题恢复：mbCEUiLoad 已把持久化主题读入 state，ensureDom 后应用类（silent 不重复写） */
-		setTheme(mbCEUiState.theme === "starry" ? "starry" : "gold", true);
+		setTheme(mbCEThemeValid(mbCEUiState.theme) ? mbCEUiState.theme : "gold", true); /* v2.0.23 四主题恢复 */
 
 		closeBtn.addEventListener("click", close);
 		tabs.addEventListener("click", function (e) {

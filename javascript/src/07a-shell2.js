@@ -23,6 +23,12 @@
 	/** @type {any} */
 	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0", placeOpen: {} };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
+	/* v2.0.23 四主题：黑金 gold（默认，不挂类）/ 星空蓝 starry / 赛博朋克 cyberpunk / 青瓷 jade。
+	   设计参考 MapleLantern v1.1.8 src/style.css 的 amber / star / cyberpunk / jade 四套 token 原文；
+	   CE 的 gold 保持不变，只新增两套并把 starry 升级到 MapleLantern 的 star 数值。
+	   类名沿用 mce-theme-<name>，gold 无类（历史兼容：旧存档/旧 localStorage 只有 starry|gold）。 */
+	var MCE_THEMES = ["gold", "starry", "cyberpunk", "jade"];
+	function mbCEThemeValid(name) { return MCE_THEMES.indexOf(name) !== -1; }
 	function mbCEUiLoad() {
 		try {
 			var raw = (typeof localStorage !== "undefined" && localStorage) ? localStorage.getItem(mbCEUiStateKey) : null;
@@ -38,7 +44,7 @@
 				/* v1.9.0 场景页子页签持久化（场景直达/地点） */
 				if (obj.placesTab === "stage" || obj.placesTab === "direct") { mbCEUiState.placesTab = obj.placesTab; }
 				/* v1.9.29 主题与角色页搜索词持久化 */
-				if (obj.theme === "starry" || obj.theme === "gold") { mbCEUiState.theme = obj.theme; }
+				if (mbCEThemeValid(obj.theme)) { mbCEUiState.theme = obj.theme; } /* v2.0.23 白名单扩到四主题 */
 				if (typeof obj.charFilter === "string") { mbCEUiState.charFilter = obj.charFilter; charSearch = obj.charFilter; }
 				/* v2.0.7：diff 预览开关持久化（此前 mbCEUiLoad 无此分支，刷新页面后开关丢失 →
 				   玩家体感「预览没啥作用」）。只有明确存过 "1"/"0" 才恢复。 */
@@ -60,7 +66,7 @@
 				if (typeof partial.curName === "string") { mbCEUiState.curName = partial.curName; }
 				if (partial.innerTab === "romance" || partial.innerTab === "transform") { mbCEUiState.innerTab = partial.innerTab; }
 				if (partial.placesTab === "stage" || partial.placesTab === "direct") { mbCEUiState.placesTab = partial.placesTab; }
-				if (partial.theme === "starry" || partial.theme === "gold") { mbCEUiState.theme = partial.theme; }
+				if (mbCEThemeValid(partial.theme)) { mbCEUiState.theme = partial.theme; } /* v2.0.23 白名单扩到四主题 */
 				if (typeof partial.charFilter === "string") { mbCEUiState.charFilter = partial.charFilter; }
 				/* v2.0.7：diff 预览开关（"1"/"0"）与布尔入参都接受 */
 				if (partial.diffPreview === "1" || partial.diffPreview === "0" || partial.diffPreview === "true" || partial.diffPreview === "false" ||
@@ -80,20 +86,55 @@
 		mbCEUiSave({ collapsed: mbCEUiState.collapsed });
 	}
 
-	/* ============ v1.9.29 双主题：黑金（gold）⇄ 星空蓝（starry） ============ */
-	/* 切换只改 #mce-root 与悬浮球的主题类 + localStorage 持久化（token 覆盖在 07a-shell CSS 串）。
-	   silent=true 用于初始化恢复（mbCEUiLoad 已持久化到 state，恢复时不重复写）。 */
+	/* ============ v2.0.23 四主题：黑金（gold）/ 星空蓝（starry）/ 赛博朋克（cyberpunk）/ 青瓷（jade） ============
+	   切换只做三件事：置主题状态、按主题名挂/摘 mce-theme-* 类（三类别互斥，gold 三类全摘）、
+	   把主题名写到 documentElement 的 data-mce-theme（按压涟漪环挂在 body 层、不在 #mce-root 内，
+	   拿不到 root 的变量继承，只能靠 html 属性这条通道才能让「点击特效」跟着主题换色）。
+	   token 覆盖全在 07a-shell3-fx.js（MB_CSS += 追加，段序在 07a-shell.js 之后 → 同特异度后写生效），
+	   所以本文件不碰 CSS，07a-shell.js 的 400 行顶格约束不受影响。 */
+	var MCE_THEME_CLASSES = ["mce-theme-starry", "mce-theme-cyberpunk", "mce-theme-jade"];
 	function setTheme(name, silent) {
 		try {
-			var t = name === "starry" ? "starry" : "gold";
+			var t = mbCEThemeValid(name) ? name : "gold"; /* 非法/未知一律回落 gold，不写脏值 */
 			mbCETheme = t;
-			if (root && root.classList) { root.classList.toggle("mce-theme-starry", t === "starry"); }
-			if (toggleBtn && toggleBtn.classList) { toggleBtn.classList.toggle("mce-theme-starry", t === "starry"); }
+			var cls = t === "gold" ? "" : "mce-theme-" + t;
+			var nodes = [root, toggleBtn];
+			var i, j;
+			for (i = 0; i < nodes.length; i++) {
+				var n = nodes[i];
+				if (!n || !n.classList) { continue; }
+				for (j = 0; j < MCE_THEME_CLASSES.length; j++) { n.classList.remove(MCE_THEME_CLASSES[j]); }
+				if (cls) { n.classList.add(cls); }
+			}
+			/* 确认条是独立 DOM（挂 #story 内），有自己的一份就在这里同步；没有就等它下次创建时按 getTheme() 取。
+			   守卫 document：本函数在无 DOM 的实例（纯逻辑测试 / 早于 ensureDom）里也会被调，
+			   直接取 document.querySelector 会抛 TypeError，被外层 catch 吞成「回落 gold」——曾让 59.42 假失败。 */
+			/* 只判 document 本身在不在；不要写 document.querySelector 的存在性判断——
+			   TS 认定 DOM 上该方法恒有（TS2774），且假 DOM 该抛的仍要能兜住，故用 try 而不是 && 链。 */
+			var doc = (typeof document !== "undefined" && document) ? document : null;
+			var box = null;
+			if (doc) { try { box = doc.querySelector(".mce-anchor-prompt"); } catch (e) { box = null; } }
+			if (box && box.classList) {
+				for (j = 0; j < MCE_THEME_CLASSES.length; j++) { box.classList.remove(MCE_THEME_CLASSES[j]); }
+				if (cls) { box.classList.add(cls); }
+			}
+			if (doc && doc.documentElement) {
+				try { doc.documentElement.setAttribute("data-mce-theme", t); } catch (e) { /* 无 root 时忽略 */ }
+			}
 			if (!silent) { mbCEUiSave({ theme: t }); }
 			return t;
 		} catch (e) { return "gold"; }
 	}
 	function getTheme() { return mbCETheme; }
+	/* 主题按钮循环顺序：gold → starry → cyberpunk → jade → gold。
+	   顺序有讲究：黑金是默认，星空蓝是玩家最熟悉的第二态（放紧邻第一档，老玩家切一下就到）；
+	   赛博朋克与青瓷是新增的强风格，排在后面不干扰日常使用。 */
+	function cycleTheme() {
+		var cur = mbCETheme;
+		var idx = MCE_THEMES.indexOf(cur);
+		var next = MCE_THEMES[(idx + 1) % MCE_THEMES.length];
+		return setTheme(next);
+	}
 
 	/* ============ v1.8.12 面板内错误收集器（window error + console.error → 红点 + 堆栈 + 一键复制） ============ */
 	var mbCEErrors = [];
