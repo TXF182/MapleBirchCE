@@ -504,7 +504,7 @@ global.Story = { has: (n) => PLACE_NAMES.indexOf(n) !== -1, lookupWith: (fn) => 
 let lap10 = api.listAllPassages();
 assert(lap10.length === PLACE_NAMES.length, "listPlaceGroups 经 lookupWith 枚举全部段落, 实际 " + lap10.length);
 let pGroups = api.listPlaceGroups();
-assert(pGroups.length === 23, "场景分组 23 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组 + v2.0.22 森林商店）, 实际 " + pGroups.length);
+assert(pGroups.length === 24, "场景分组 24 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组 + v2.0.22 森林商店 + v2.1.3 惠特尼家）, 实际 " + pGroups.length);
 let brV7 = pGroups.find(x => x.group.id === "brothel");
 assert(!!brV7 && brV7.group.main === "Brothel Basement" && brV7.items.length === 0 && brV7.group.name.indexOf("妓院") === 0, "v2.0.0.007 妓院组存在（主场景 Brothel Basement=地下妓院；模拟段落表无 Brothel 段 → items 空）, 实际 " + JSON.stringify(brV7 && brV7.group.main));
 let lvV7 = pGroups.find(x => x.group.id === "remy_livestock");
@@ -5957,7 +5957,10 @@ try {
   V63.museumAntiqueJournalHints = [{ k: "antiquebox" }];
   V63.feats = { currentSave: {}, soft: false, locked: false };
   const r632 = api63.mbCEVanillaAntiqueCollect();
-  assert(r632.ok === true && r632.got === 4, "63.10 收齐：2 件古董 + 2 幅画（原已 found 的不重复计数）");
+  assert(r632.ok === true && r632.got === 3,
+    "63.10 只收「未发现」：1 件古董 + 2 幅画（原 found 不计、talk 不拉回）");
+  assert(V63.museumAntiques.antiques.antiquecrystal === "talk",
+    "63.10b 非 notFound 态（talk=已谈话未发展）原样保留，不被强制改回 found（v2.1.2 判据收紧）");
   assert(V63.museumAntiques.antiques.antiquesilverring === "found" && V63.museumAntiques.paintings.paintingward === "found",
     "63.11 全部写 found（已发现未上交），不是 museum（不上交、不计入柜位）");
   assert(V63.museumAntiques.museumCount === 1,

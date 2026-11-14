@@ -1,3 +1,4 @@
+/* 职责：特质 has 表达式懒编译缓存 —— 判定函数 / 条件变量清单 / 获得取消与满足写入 */
 /* 本体特质 has 表达式编译缓存（懒编译：判定函数 + 条件变量清单 + 可写数值清单） */
 var VANILLA_TRAITS_CACHE = null;
 function safeGetObj(root, path) {

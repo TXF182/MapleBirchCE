@@ -3,17 +3,40 @@
 		var pane = root.querySelector('[data-pane="global"]');
 		pane.textContent = "";
 		if (!frameworkReady()) {
-			pane.appendChild(el("div", "mce-err", "未检测到 Maplebirch 框架。"));
+			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架。"));
 			return;
 		}
 		/* v2.1.0 外观主题四档选择器：全局页第一块（在悬浮球锁定等业务分组之前）——
 		   换肤是玩家最想先做的动作，埋在中间要滚半天。 */
 		mceRenderThemePicker(pane);
+		mcRenderFabSettings(pane);
+		mcRenderBatchSec(pane);
+		mcRenderCollectSec(pane);
+		mcRenderTimeSec(pane);
+		mcRenderVowTraitSec(pane);
+		mcRenderCombatSec(pane);
+		mcRenderAutoMaintSec(pane);
+		mcRenderWorldCorruptSec(pane);
+		/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js）
+		   犯罪连案底一起清 / 古董只收集 + 成就 / 雷米疤面头衔 —— 三项各走独立 vcore 留痕，可在回退中心逐条还原 */
+		mbCERenderVanillaExt(pane);
+
+		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
+		mbCERenderLock(pane);
+		/* v2.0.0.002 潜伏者（07f-lurker.js）：捕捉上限等价解除 + 水烟馆冰箱（0–5）+ 农场蒸馏笼 */
+		mbCERenderLurker(pane);
+		/* v2.0.0.003 需求②：原版「你对什么感到不安?」直写（$uncomfortable，绕开 attitudesControl 重算门控） */
+		renderAttitudesGroup(pane);
+		/* v2.0.3 P4-1：统一回退中心（08c-undo-center.js）——收敛全部留痕回退入口 */
+		mbCEUndoCenterRender(pane);
+	}
+	/* 以下为 renderGlobal 的分组渲染器：v2.1.6 按区块拆出（区块间无共享局部变量，作用域不变） */
+	function mcRenderFabSettings(pane) {
 		/* v1.9.11+：悬浮入口固定按钮（锁定/解锁右下角金色「解锁」球的拖动；
 		   悬浮球是面板唯一入口，不提供隐藏——隐藏即死锁） */
 		var fabLocked = !!(toggleBtn && toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1");
-		var fabWrap = el("div", "mce-row");
-		var fabBtn = el("button", "mce-btn", fabLocked ? "解锁悬浮球拖动" : "锁定悬浮球拖动");
+		var fabWrap = el("div", MCE_CLS.row);
+		var fabBtn = el("button", MCE_CLS.btn, fabLocked ? "解锁悬浮球拖动" : "锁定悬浮球拖动");
 		fabBtn.type = "button";
 		fabBtn.title = fabLocked
 			? "悬浮球拖动已锁定（点击仍可开关面板）；点此解锁后可再次拖动"
@@ -36,62 +59,63 @@
 		/* v2.0.2 按键重排：原先"悬浮球行 + 一句提示 + 6 个金色按钮裸堆"占了整屏第一屏、且按钮语义混杂；
 		   现在把面板设置收进不编号的分组，批量按钮按「速成 / 收集」拆两块并走 2 列网格。 */
 		var fabGroup = mceNewGroup(pane, "面板设置", "悬浮入口 · 不占区块编号");
-		fabGroup.appendChild(el("div", "mce-row-lbl", "面板悬浮入口（右下角金色「解锁」球）"));
+		fabGroup.appendChild(el("div", MCE_CLS.rowLbl, "面板悬浮入口（右下角金色「解锁」球）"));
 		fabGroup.appendChild(fabWrap);
 		var chars = listCharacters();
-		fabGroup.appendChild(el("div", "mce-hint", "自动枚举角色 " + chars.length + " 个（本体 + 全部 MOD）。以下操作对全部角色生效。"));
-
-		/* ① 批量速成（全角色） */
-		var bsec = mceNewSec(pane, 1, "批量速成（全角色）", "对枚举到的全部角色（本体 + 全部 MOD）一次性补齐：数值 / 恋爱阶段 / 转化阶段 / 玩家扩展转化。扩展转化在 MOD 未加载时自动跳过并给出提示，不会报错。");
+		fabGroup.appendChild(el("div", MCE_CLS.hint, "自动枚举角色 " + chars.length + " 个（本体 + 全部 MOD）。以下操作对全部角色生效。"));
+	}
+	function mcRenderBatchSec(pane) {
+			var bsec = mceNewSec(pane, 1, "批量速成（全角色）", "对枚举到的全部角色（本体 + 全部 MOD）一次性补齐：数值 / 恋爱阶段 / 转化阶段 / 玩家扩展转化。扩展转化在 MOD 未加载时自动跳过并给出提示，不会报错。");
 		var bgrid = mceBtnGrid(bsec);
 		var b1 = el("button", "mce-btn mce-gold", "全部角色：一键补齐全部数值");
 		b1.type = "button";
 		b1.addEventListener("click", function () {
 			var r = globalFill();
-			setStatus("已补齐 " + r.characters + " 个角色共 " + r.stats + " 项数值", "mce-ok");
+			setStatus("已补齐 " + r.characters + " 个角色共 " + r.stats + " 项数值", MCE_CLS.ok);
 		});
 		var b2 = el("button", "mce-btn mce-gold", "全部角色：一键解锁全部恋爱阶段");
 		b2.type = "button";
 		b2.addEventListener("click", function () {
 			var r = globalRomance();
-			setStatus("恋爱阶段：" + r.fixed + " / " + r.total + " 已自动解锁", r.fixed > 0 ? "mce-ok" : "mce-err");
+			setStatus("恋爱阶段：" + r.fixed + " / " + r.total + " 已自动解锁", r.fixed > 0 ? MCE_CLS.ok : MCE_CLS.err);
 		});
 		var b3 = el("button", "mce-btn mce-gold", "全部角色：一键解锁全部转化阶段");
 		b3.type = "button";
 		b3.addEventListener("click", function () {
 			var r = globalTransform();
-			setStatus("已解锁 " + r.characters + " 个角色的 " + r.stages + " 个转化类型", "mce-ok");
+			setStatus("已解锁 " + r.characters + " 个角色的 " + r.stages + " 个转化类型", MCE_CLS.ok);
 		});
 		var b4 = el("button", "mce-btn mce-gold", "一键完成玩家扩展转化（兔子/人鱼等）");
 		b4.type = "button";
 		b4.addEventListener("click", function () {
 			var n = 0;
 			listExtTransforms().forEach(function (k) { if (completeExtTransform(k)) { n += 1; } });
-			setStatus(n > 0 ? "扩展转化已全部解锁（" + n + " 项）" : "未检测到扩展转化（MOD 未加载）", n > 0 ? "mce-ok" : "mce-err");
+			setStatus(n > 0 ? "扩展转化已全部解锁（" + n + " 项）" : "未检测到扩展转化（MOD 未加载）", n > 0 ? MCE_CLS.ok : MCE_CLS.err);
 		});
 		bgrid.appendChild(b1);
 		bgrid.appendChild(b2);
 		bgrid.appendChild(b3);
 		bgrid.appendChild(b4);
-
-		/* ② 收集解锁 */
-		var csec = mceNewSec(pane, 2, "收集解锁", "特殊服装（含对应故事）与食谱按原版解锁条件直写；未解锁项数量随 MOD 变化，点击后状态栏会报实际解锁件数。");
+	}
+	function mcRenderCollectSec(pane) {
+			var csec = mceNewSec(pane, 2, "收集解锁", "特殊服装（含对应故事）与食谱按原版解锁条件直写；未解锁项数量随 MOD 变化，点击后状态栏会报实际解锁件数。");
 		var cgrid = mceBtnGrid(csec);
 		var bc1 = el("button", "mce-btn mce-gold", "一键解锁所有特殊服装（含对应故事）");
 		bc1.type = "button";
 		bc1.addEventListener("click", function () {
 			var r = globalUnlockClothes();
-			setStatus("特殊服装：" + r.unlocked + " 件已解锁" + (r.stories > 0 ? "（补足对应故事 " + r.stories + " 项）" : ""), r.unlocked > 0 ? "mce-ok" : "mce-err");
+			setStatus("特殊服装：" + r.unlocked + " 件已解锁" + (r.stories > 0 ? "（补足对应故事 " + r.stories + " 项）" : ""), r.unlocked > 0 ? MCE_CLS.ok : MCE_CLS.err);
 		});
 		var bc2 = el("button", "mce-btn mce-gold", "一键解锁所有食谱");
 		bc2.type = "button";
 		bc2.addEventListener("click", function () {
 			var r = globalUnlockRecipes();
-			setStatus("食谱：" + r.unlocked + " 个已解锁", r.unlocked > 0 ? "mce-ok" : "mce-err");
+			setStatus("食谱：" + r.unlocked + " 个已解锁", r.unlocked > 0 ? MCE_CLS.ok : MCE_CLS.err);
 		});
 		cgrid.appendChild(bc1);
 		cgrid.appendChild(bc2);
-
+	}
+	function mcRenderTimeSec(pane) {
 		/* v1.9.13 时间调节区：快进即时生效，跳时段把时分设到指定点（日期/星期由引擎联动） */
 		var tsec = mceNewSec(pane, 3, "时间调节", "直接改游戏时钟、即时生效、不进留痕；快进按钮即时前进，跳时段按钮把时分设到指定点（日期 / 星期由引擎联动）。");
 		var tnow = mcTimeNow();
@@ -104,7 +128,7 @@
 			var b = el("button", "mce-btn mce-gold", d.n); b.type = "button";
 			b.addEventListener("click", function () {
 				var r = mcTimeAdvance(d.v);
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				renderGlobal();
 			});
 			tAdv.appendChild(b);
@@ -112,28 +136,30 @@
 		tsec.appendChild(tAdv);
 		var tJump = mceBtnGrid(tsec);
 		[{ n: "早 8:00", h: 8, m: 0 }, { n: "午 12:00", h: 12, m: 0 }, { n: "傍晚 18:00", h: 18, m: 0 }, { n: "夜 22:00", h: 22, m: 0 }, { n: "深 2:00", h: 2, m: 0 }].forEach(function (d) {
-			var b = el("button", "mce-btn", d.n); b.type = "button";
+			var b = el("button", MCE_CLS.btn, d.n); b.type = "button";
 			b.addEventListener("click", function () {
 				var r = mcTimeJump(d.h, d.m);
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				renderGlobal();
 			});
 			tJump.appendChild(b);
 		});
 		tsec.appendChild(tJump);
+	}
+	function mcRenderVowTraitSec(pane) {
 		/* v1.5.0：誓言修复 + NPC 特质获取（游戏「特质」页对应分组） */
 		var vsec = mceNewSec(pane, 4, "誓言修复 · NPC 特质", "誓言修复把神殿誓言（Temple Vow）与相关承诺状态按原版语义还原；NPC 特质获取时若不满足条件，直接把条件改为满足（游戏「特质」页立即显示）。「艾弗里的救星」支持两条线：原版线（高塔转烧毁）与庇护模式（不碰 avery_fate、保留大楼建造进度），且均可撤回。");
 		var vst = getVowStatus();
 		var vowTxt = "神殿誓言（Temple Vow）：" + (vst.temple === true ? "未破" : "已破（" + (vst.temple === false ? "未知" : String(vst.temple)) + "）");
 		if (vst.templePromised) { vowTxt += "；承诺对象：" + vst.templePromised; }
 		if (vst.templeRank) { vowTxt += "；神殿等级：" + vst.templeRank; }
-		var vrow = el("div", "mce-row");
-		vrow.appendChild(el("span", "mce-row-lbl", vowTxt));
+		var vrow = el("div", MCE_CLS.row);
+		vrow.appendChild(el("span", MCE_CLS.rowLbl, vowTxt));
 		var vbtn = el("button", "mce-btn mce-gold", "一键修复誓言");
 		vbtn.type = "button";
 		vbtn.addEventListener("click", function () {
 			var r = fixVows();
-			setStatus(r.message, "mce-ok");
+			setStatus(r.message, MCE_CLS.ok);
 			renderGlobal();
 		});
 		vrow.appendChild(vbtn);
@@ -146,8 +172,8 @@
 				/* v1.9.2：救星特质双模式 + 撤回（庇护模式不碰 avery_fate，大楼保留） */
 				var v2 = getV();
 				var shelterOn = v2.mceAveryShelter === true;
-				var row = el("div", "mce-row");
-				row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc + (shelterOn ? "　【庇护模式生效中：大楼保留建造进度】" : (t.owned ? "　【原版线：高塔烧毁】" : ""))));
+				var row = el("div", MCE_CLS.row);
+				row.appendChild(el("span", MCE_CLS.rowLbl, (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc + (shelterOn ? "　【庇护模式生效中：大楼保留建造进度】" : (t.owned ? "　【原版线：高塔烧毁】" : ""))));
 				if (t.owned) {
 					var rbtn = el("button", "mce-btn mce-red", "撤回（恢复操作前状态）");
 					rbtn.type = "button";
@@ -155,7 +181,7 @@
 					(function (t2) {
 						rbtn.addEventListener("click", function () {
 							var r = revertNpcTrait(t2.key);
-							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 							renderGlobal();
 						});
 					})(t);
@@ -167,7 +193,7 @@
 					(function (t2) {
 						b1.addEventListener("click", function () {
 							var r = grantNpcTrait(t2.key, "saved");
-							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 							renderGlobal();
 						});
 					})(t);
@@ -178,7 +204,7 @@
 					(function (t2) {
 						b2.addEventListener("click", function () {
 							var r = grantNpcTrait(t2.key, "shelter");
-							setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+							setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 							renderGlobal();
 						});
 					})(t);
@@ -189,38 +215,40 @@
 			}
 			/* v2.0.12 自查：avery_saviour 分支（上文 L146）已在同一 forEach 回调内 var row，
 			   此处再 var 属重复声明（ESLint no-redeclare）；var 不受块作用域约束，改用赋值复用。 */
-			row = el("div", "mce-row");
-			row.appendChild(el("span", "mce-row-lbl", (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc));
-			var btn = el("button", "mce-btn" + (t.owned ? "" : " mce-gold"), t.owned ? "已拥有" : "获取");
+			row = el("div", MCE_CLS.row);
+			row.appendChild(el("span", MCE_CLS.rowLbl, (t.owned ? "✓ " : "") + t.name + "（" + t.en + "）——" + t.desc));
+			var btn = el("button", MCE_CLS.btn + (t.owned ? "" : " mce-gold"), t.owned ? "已拥有" : "获取");
 			btn.type = "button";
 			btn.disabled = t.owned;
 			btn.addEventListener("click", function () {
 				var r = grantNpcTrait(t.key);
-				setStatus(r.ok ? r.message : r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.ok ? r.message : r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				renderGlobal();
 			});
 			row.appendChild(btn);
 			tbox.appendChild(row);
 		});
 		vsec.appendChild(tbox);
-
+	}
+	function mcRenderCombatSec(pane) {
 		/* v1.8.8：战斗终结（学 CombatTerminator 0.1：8 个战斗内一键按钮，直接写原版战斗值）。
 		   原模组为 TweeReplacer 注入到战斗 widget；此处为 MCE 全局页即时按钮，等价写入。
 		    v1.8.9：动作定义下沉至 03-global.js（COMBAT_ACTIONS/mcCombatAction），UI 只负责渲染。 */
 		var btsec = mceNewSec(pane, 5, "战斗终结", "学 CombatTerminator 0.1：以下按钮直接写原版战斗值，建议战斗中生效；「结束集群」在战斗外会把游戏时钟拨回当日 0 点，请勿误点。");
 		COMBAT_ACTIONS.forEach(function (d) {
-			var row = el("div", "mce-row");
-			row.appendChild(el("span", "mce-row-lbl", d.desc));
+			var row = el("div", MCE_CLS.row);
+			row.appendChild(el("span", MCE_CLS.rowLbl, d.desc));
 			var btn = el("button", "mce-btn mce-gold", d.name);
 			btn.type = "button";
 			btn.addEventListener("click", function () {
 				var r = mcCombatAction(d.key);
-				setStatus(r.ok ? "已执行「" + r.name + "」" : r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.ok ? "已执行「" + r.name + "」" : r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 			});
 			row.appendChild(btn);
 			btsec.appendChild(row);
 		});
-
+	}
+	function mcRenderAutoMaintSec(pane) {
 		/* v1.8.8：庄园自动维护（学 AutoClean 0.1.5）
 		   v1.9.x：一键按钮 → 自动开关。点击开关切换开启/关闭；开启即立即执行一次（即时生效），
 		   此后每日（Time.days 变化）由 mbCEOnPassageInit 自动执行。开关持久化 localStorage
@@ -235,8 +263,8 @@
 			{ key: "clean", name: "自动庄园打扫", desc: "艾弗里关系确立后：全部房间计数归零 + days_absent 归零" }
 		];
 		acItems.forEach(function (it) {
-			var row = el("div", "mce-row");
-			row.appendChild(el("span", "mce-row-lbl", it.desc));
+			var row = el("div", MCE_CLS.row);
+			row.appendChild(el("span", MCE_CLS.rowLbl, it.desc));
 			var btn = el("button", "mce-btn mce-gold", it.name + "（关）");
 			btn.type = "button";
 			var refresh = function () {
@@ -256,9 +284,9 @@
 					else if (it.key === "eden") { msg = it.name + "已开启，本次锁定 " + r.locked + " 项为 4"; }
 					else if (it.key === "restock") { msg = it.name + "已开启，本次肥皂" + (r.soap ? "=10" : "跳过") + "、药膏" + (r.salve ? "=10" : "跳过") + "、鹰塔木材" + (r.wood ? "=10" : "跳过"); }
 					else { msg = it.name + "已开启，本次执行完成"; }
-					setStatus(msg, r.error ? "mce-err" : "mce-ok");
+					setStatus(msg, r.error ? MCE_CLS.err : MCE_CLS.ok);
 				} else {
-					setStatus(it.name + "已关闭", "mce-err");
+					setStatus(it.name + "已关闭", MCE_CLS.err);
 				}
 				refresh();
 			});
@@ -277,8 +305,8 @@
 				Object.keys(Vt.mbCE_wrote).forEach(function (k) { if (k.indexOf("maint:") === 0) { mtKeys.push(k.slice(6)); } });
 			}
 		})();
-		var mtRow = el("div", "mce-row");
-		var mtLbl = el("span", "mce-row-lbl", mtKeys.length
+		var mtRow = el("div", MCE_CLS.row);
+		var mtLbl = el("span", MCE_CLS.rowLbl, mtKeys.length
 			? ("已记录 " + mtKeys.length + " 项维护写入：" + mtKeys.slice(0, 6).join(" / ") + (mtKeys.length > 6 ? " …" : ""))
 			: "暂无维护写入记录（开启任一维护项并实际改动数值后，在此显示并可回退）");
 		mtRow.appendChild(mtLbl);
@@ -289,13 +317,14 @@
 			mtUndoAll.title = "每项还原到维护写入前状态（写入前无该字段的直接删除）";
 			mtUndoAll.addEventListener("click", function () {
 				var ru = mbCEMaintUndoAll();
-				setStatus(ru.msg, ru.ok ? "mce-ok" : "mce-err");
+				setStatus(ru.msg, ru.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (ru.ok) { mtLbl.textContent = "已回退 " + ru.n + " 项维护写入（记录已清除）"; }
 			});
 			mtRow.appendChild(mtUndoAll);
 		}
 		acsec.appendChild(mtRow);
-
+	}
+	function mcRenderWorldCorruptSec(pane) {
 		/* v1.9.12：世界腐化（原版 World Corruption）数值调整
 		   原版键：V.world_corruption_hard（世界硬腐化，罪孽/净化计数，原版宏 worldCorruption("hard",n) 钳 -30~30，初始 2）
 		          V.world_corruption_soft（世界软腐化，世界异变程度，原版宏钳 0~100，初始 0）
@@ -311,7 +340,7 @@
 			ub.setAttribute("data-op", "wc-undo");
 			ub.addEventListener("click", function () {
 				var ru = placeStageUndo(it.key);
-				setStatus(ru.message, ru.ok ? "mce-ok" : "mce-err");
+				setStatus(ru.message, ru.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (ru.ok) {
 					var back = Number(getV() && getV()[it.key]) || 0;
 					val.textContent = String(back);
@@ -326,14 +355,14 @@
 			{ key: "world_corruption_hard", name: "世界硬腐化", min: -30 },
 			{ key: "world_corruption_soft", name: "世界软腐化", min: 0 }
 		].forEach(function (it) {
-			var row = el("div", "mce-row");
+			var row = el("div", MCE_CLS.row);
 			row.setAttribute("data-wckey", it.key);
 			var cur = Number(Vg && Vg[it.key]) || 0;
-			var lbl = el("span", "mce-row-lbl", it.name + "（" + it.key + "）当前 ");
+			var lbl = el("span", MCE_CLS.rowLbl, it.name + "（" + it.key + "）当前 ");
 			var val = el("span", "mce-value", String(cur));
 			lbl.appendChild(val);
 			row.appendChild(lbl);
-			var inp = el("input", "mce-inp");
+			var inp = el("input", MCE_CLS.inp);
 			inp.type = "number";
 			inp.value = String(cur);
 			inp.placeholder = String(cur);
@@ -342,7 +371,7 @@
 			apply.type = "button";
 			apply.addEventListener("click", function () {
 				var r = placeStageWrite(it.key, Number(inp.value), it.min, Infinity);
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (r.ok) {
 					val.textContent = String(r.after);
 					inp.value = String(r.after);
@@ -360,17 +389,4 @@
 			} catch (e) {}
 			wcsec.appendChild(row);
 		});
-
-		/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js）
-		   犯罪连案底一起清 / 古董只收集 + 成就 / 雷米疤面头衔 —— 三项各走独立 vcore 留痕，可在回退中心逐条还原 */
-		mbCERenderVanillaExt(pane);
-
-		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
-		mbCERenderLock(pane);
-		/* v2.0.0.002 潜伏者（07f-lurker.js）：捕捉上限等价解除 + 水烟馆冰箱（0–5）+ 农场蒸馏笼 */
-		mbCERenderLurker(pane);
-		/* v2.0.0.003 需求②：原版「你对什么感到不安?」直写（$uncomfortable，绕开 attitudesControl 重算门控） */
-		renderAttitudesGroup(pane);
-		/* v2.0.3 P4-1：统一回退中心（08c-undo-center.js）——收敛全部留痕回退入口 */
-		mbCEUndoCenterRender(pane);
 	}

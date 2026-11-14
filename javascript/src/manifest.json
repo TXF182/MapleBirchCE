@@ -24,6 +24,11 @@
       "note": "v2.0.12 写入留痕有界化 mbCEWroteTrim（结构门禁拆段：01-core 加错误池后 415 行超 400 上限）"
     },
     {
+      "file": "01c-fwgate.js",
+      "layer": "core",
+      "note": "v2.1.2 框架版本闸门 mbCEFrameworkGate / mbCECompareVersion / mbCEFrameworkGateOnce（结构门禁拆段：01-core 加闸门后 452 行超 400 上限；对标 CE 1.20.4 scriptEarly/framework_detector.js）"
+    },
+    {
       "file": "02-romance.js",
       "layer": "core"
     },
@@ -203,6 +208,11 @@
       "note": "v2.0.16 场景直达子入口表（group → entries，含显式中文标签与三重过滤）"
     },
     {
+      "file": "07d-places5.js",
+      "layer": "ui",
+      "note": "v2.1.5 场景直达组枚举（自 07d-places.js 迁出，原片 399→378 行）+ 结果缓存（三重指纹失效）"
+    },
+    {
       "file": "07e-scenes.js",
       "layer": "ui"
     },
@@ -281,6 +291,11 @@
     {
       "file": "07l-vanilla-ext.js",
       "layer": "ui"
+    },
+    {
+      "file": "07l-vanilla-ext-special.js",
+      "layer": "ui",
+      "note": "v2.1.2 特殊古董单列：MCE_VANILLA_SPECIAL_ANTIQUES + 状态中文 + mbCEVanillaAntiqueCollectOne + mbCEVanillaAntiqueSpecials（结构门禁拆段：07l 加本表后 449 行超 400 上限）"
     },
     {
       "file": "07l-vanilla-ext-view.js",

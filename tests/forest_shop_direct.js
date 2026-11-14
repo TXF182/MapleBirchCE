@@ -155,6 +155,109 @@ assert(!!parEnt && String(parEnt.cn || "").indexOf("会有剧情") !== -1, "正�
 const nonPar = subsF.filter(function (s) { return !s.parallel; });
 assert(nonPar.map(function (s) { return s.name; }).indexOf("Forest Shop Entrance") === -1, "折叠区不再重复正门（剩余 " + nonPar.length + " 项：" + nonPar.map(function (s) { return s.name; }).join(",") + "）");
 
+/* 追加段落：P 与 Story 索引必须同步，否则 mbCEPassageText 取不到正文（exclude 判据会全部判「可玩」） */
+function addPassages(list) {
+  list.forEach(function (p) { P.push(p); byName[p.name] = p; });
+  global.Story.size = P.length;
+}
+
+/* ================= 6. 惠特尼家成组（v2.1.3） ================= */
+section("6 惠特尼家：Whitney Home 前缀成组、主场景 Knock、不可直达段被剔除");
+addPassages([
+  { name: "Whitney Home Knock", text: "<<set $outside to 0>><<set $location to \"flats\">><<effects>>\n<<if Time.dayState is \"night\">><<link [[Leave|Barb Street]]>><<pass 2>><</link>><<<else>>><<link [[Enter|Whitney Home Enter]]>><</link>><<endif>>" },
+  { name: "Whitney Home Dawn Enter", text: "<<effects>><<if !$daily.whitney.breakfast_done>><<loadNPC 1 \"whitney_parent_flat\">><<person2>><<else>><<endif>><<link [[Next|Whitney Home Dawn Breakfast]]>><</link>>" },
+  { name: "Whitney Home Hang", text: "<<set $outside to 0>><<set $location to \"flats\">><<effects>><<whitney_home_events>>" },
+  { name: "Whitney Home Gang Sex", text: "<<if $sexstart is 1>><<set $sexstart to 0>><</if>><<link [[Next|Whitney Home Hang]]>><</link>>" },
+  { name: "Whitney Home Widgets", text: "<<widget \"whitney_home_events\">><<link [[Leave|Barb Street]]>><</link>><</widget>>" }
+]);
+const lg2 = api.listPlaceGroups();
+const ids2 = lg2.map(function (x) { return x.group.id; });
+const idxWh = ids2.indexOf("whitney_home");
+assert(idxWh >= 0, "存在 id=whitney_home 的组（Whitney Home 前缀此前完全缺失）");
+const gW = idxWh >= 0 ? lg2[idxWh].group : {};
+assert(gW.main === "Whitney Home Knock", "main = Whitney Home Knock（段内自带 outside/location 与各时段出口）");
+assert(typeof gW.exclude === "function", "组带 exclude 判据（战斗/性爱中继段不入组）");
+const eW = lg2.filter(function (x) { return x.group.id === "whitney_home"; })[0] || { items: [] };
+assert(eW.items[0] === "Whitney Home Knock", "首位是主场景（实测首位：" + (eW.items[0] || "-") + "）");
+assert(eW.items.indexOf("Whitney Home Dawn Enter") !== -1, "清晨进家段归入本组");
+assert(eW.items.indexOf("Whitney Home Hang") !== -1, "沙发闲聊段归入本组");
+assert(eW.items.indexOf("Whitney Home Gang Sex") === -1, "首宏 $sexstart 的中继段被剔除");
+assert(eW.items.indexOf("Whitney Home Widgets") === -1, "widget 定义段被剔除");
+
+/* ================= 7. 艾弗里庄园挂筛子（v2.1.3） ================= */
+section("7 艾弗里庄园：avery_mansion 挂 exclude，战斗/性爱中继段不再进列表");
+addPassages([
+  { name: "Mansion Bed", text: "<<set $location to \"mansion\">><<link [[Sleep|Mansion Sleep]]>><</link>>" },
+  { name: "Mansion Pool", text: "<<link [[Swim|Mansion Pool Swim]]>><</link>>" },
+  { name: "Mansion Dungeon Fight", text: "<<if $fightstart is 1>><<set $fightstart to 0>><</if>><<link [[Next|Mansion Dungeon]]>><</link>>" },
+  { name: "Mansion Return Flowers Sex", text: "<<if $sexstart is 1>><<set $sexstart to 0>><</if>><<link [[Next|Mansion Return]]>><</link>>" }
+]);
+const lg3 = api.listPlaceGroups();
+const idxAv = lg3.map(function (x) { return x.group.id; }).indexOf("avery_mansion");
+assert(idxAv >= 0, "avery_mansion 组仍在");
+const gA = idxAv >= 0 ? lg3[idxAv].group : {};
+assert(typeof gA.exclude === "function", "avery_mansion 已挂 exclude 判据（此前缺，46 段战斗/中继会被当直达项）");
+const eA = lg3.filter(function (x) { return x.group.id === "avery_mansion"; })[0] || { items: [] };
+assert(eA.items[0] === "Mansion Bed", "首位仍是主场景 Mansion Bed");
+assert(eA.items.indexOf("Mansion Pool") !== -1, "泳池段保留");
+assert(eA.items.indexOf("Mansion Dungeon Fight") === -1, "首宏 $fightstart 的地牢战斗段被剔除");
+assert(eA.items.indexOf("Mansion Return Flowers Sex") === -1, "首宏 $sexstart 的归家性爱中继段被剔除");
+
+/* ================= 8. 子入口白名单（v2.1.4） ================= */
+/* 背景：v2.1.3 的 whitney_home 组 note 写「留 258 段」，但 mbCEListPlaceEntries 对本组返回空清单
+   （PLACE_EXTRA_ENTRIES 无 whitney_home 键 → L266 直接 return out），面板实际只渲染 Knock 一行。
+   本节把「面板上真能点到几条」变成断言，防止数字与可达性再次脱钩。 */
+section("8 子入口白名单：惠特尼家补 12 条严格自足入口 / 艾弗里两条会报错的入口已替换");
+const WH_12 = [
+  "Whitney Home Dawn Breakfast Start", "Whitney Home Dawn Breakfast End",
+  "Whitney Home Dawn Breakfast Offer", "Whitney Home Dawn Shower Shy",
+  "Whitney Home Intro 2 Blindfolded", "Whitney Home Intro 2 Closer",
+  "Whitney Home Intro 3 Bedroom", "Whitney Home Intro 3 Drink",
+  "Whitney Home Examine Door", "Whitney Home Examine Curtains",
+  "Whitney Home School Walk", "Whitney Home Leave"
+];
+addPassages(WH_12.map(function (n) {
+  /* 每条 mock 都按真实形态给：先 slot0 落地（或无人称宏），再有显式出口 */
+  return { name: n, text: "<<effects>><<npc \"Whitney\">><<person1>><<He>> says.<br><<link [[Next|Whitney Home Hang]]>><</link>>" };
+}));
+assert(typeof api.mbCEListPlaceEntries === "function", "API 导出 mbCEListPlaceEntries（子入口清单是面板可达性的唯一来源，必须可断言）");
+const eW2 = api.listPlaceGroups().filter(function (x) { return x.group.id === "whitney_home"; })[0] || { items: [], group: {} };
+const subsW = api.mbCEListPlaceEntries(eW2);
+assert(subsW.length === 12, "惠特尼家渲染 12 条子入口（实测 " + subsW.length + "：" + subsW.map(function (s) { return s.name; }).join(",") + "）");
+assert(subsW.length > 0, "不再是空清单（v2.1.3 面板只有 Knock 一行是缺陷，不是设计）");
+subsW.forEach(function (s) {
+  assert(eW2.items.indexOf(s.name) !== -1, "白名单条目在组 items 内：" + s.name);
+});
+assert(subsW.map(function (s) { return s.name; }).indexOf("Whitney Home Knock") === -1, "主场景 Knock 不进子入口（L271 同一段去重）");
+assert(subsW.map(function (s) { return s.name; }).indexOf("Whitney Home Hang") === -1, "纯 hub 段 Hang（86 字符，正文只有 <<whitney_home_events>>）不进白名单");
+assert(subsW.map(function (s) { return s.name; }).indexOf("Whitney Home Gang Sex") === -1, "被 exclude 的性爱中继段即使误写进白名单也不会渲染（L273 二次过滤）");
+/* 反向：白名单顺序与断言清单逐条一致（多写/少写/乱序都会失败；内部变量不导出，只能经 API 反查） */
+assert(subsW.map(function (s) { return s.name; }).join("|") === WH_12.join("|"), "白名单 12 条与断言清单同序同集合（实测：" + subsW.map(function (s) { return s.name; }).join(",") + "）");
+assert(subsW.every(function (s) { return s.cn && s.cn.length > 0; }), "每条子入口都有中文短名（面板显示用）");
+
+/* 艾弗里：两条既有 RISK 入口（Mansion Dungeon Intro / Mansion Skyscraper Rise）段内无 slot0 落地，
+   直跳会触发 <<personselect>> 的 <<error "Undefined NPC in personselect 0">>。 */
+addPassages([
+  { name: "Mansion Dungeon", text: "<<set $location to \"avery_mansion\">><<avery_mansion>>\n<<link [[Next|Mansion Study]]>><</link>>" },
+  { name: "Mansion Enter", text: "<<set $outside to 0>><<effects>><<link [[Next|Mansion Garden]]>><</link>>" },
+  { name: "Mansion Bathroom", text: "<<set $bus to \"avery_bathroom\">><<avery_mansion>>\n<<avery_mansion_contents>>" },
+  { name: "Mansion Bedroom", text: "<<set $bus to \"avery_bedroom\">><<avery_mansion>>\n<<avery_mansion_contents>>" },
+  { name: "Mansion Display", text: "<<set $bus to \"avery_display\">><<avery_mansion>>\n<<avery_mansion_contents>>" },
+  { name: "Mansion Folder", text: "<<effects>><<wearProp \"paper sheet\">><<link [[Next|Mansion Study]]>><</link>>" },
+  { name: "Mansion Bathe", text: "<<effects>><<strip>><<wash>><<link [[Leave|Mansion Bathroom]]>><</link>>" },
+  { name: "Mansion Talk", text: "<<effects>><<npc \"Avery\">><<person1>><<link [[Next|Mansion Sleep]]>><</link>>" },
+  { name: "Mansion Dungeon Intro", text: "<<effects>><<He>> makes you wait." },
+  { name: "Mansion Skyscraper Rise", text: "<<bedclotheson \"Mansion Bed\">><<He>> examines your outfit." }
+]);
+const eA2 = api.listPlaceGroups().filter(function (x) { return x.group.id === "avery_mansion"; })[0] || { items: [], group: {} };
+const subsA = api.mbCEListPlaceEntries(eA2);
+const namesA = subsA.map(function (s) { return s.name; });
+assert(namesA.indexOf("Mansion Dungeon Intro") === -1, "Mansion Dungeon Intro 已从白名单移除（段内无人落地，直跳报 Undefined NPC）");
+assert(namesA.indexOf("Mansion Skyscraper Rise") === -1, "Mansion Skyscraper Rise 已从白名单移除（<<He>> 在 197 字符处且前无落地）");
+assert(namesA.indexOf("Mansion Dungeon") !== -1, "地牢改由 Mansion Dungeon 进入（<<avery_mansion>> widget 落地@1338 < 人称@1351）");
+assert(namesA.indexOf("Mansion Enter") !== -1, "庄园入口由 Mansion Enter 提供（18 条显式出口）");
+assert(subsA.length === 9, "艾弗里子入口仍为 9 条（替换而非净删，实测 " + subsA.length + "）");
+
 /* ================= 汇总 ================= */
 console.log("\n===== forest_shop_direct: " + passes + " PASS / " + failures + " FAIL =====");
 process.exit(failures ? 1 : 0);

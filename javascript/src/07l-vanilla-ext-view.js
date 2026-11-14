@@ -74,7 +74,7 @@
 			"朋友三项原版作弊的直写通道：① 犯罪记录连案底一起清；② 博物馆古董一次性收齐（只收集不上交，成就同步解锁）；③ 雷米头衔写「疤面」。全部写入留痕可在「统一回退中心」逐条还原。");
 		var V = getV();
 		if (!V) {
-			sec.appendChild(el("div", "mce-hint", "游戏尚未就绪，暂不可写。"));
+			sec.appendChild(el("div", MCE_CLS.hint, "游戏尚未就绪，暂不可写。"));
 			return;
 		}
 
@@ -96,7 +96,7 @@
 			ub.title = "还原到首次写入前状态";
 			ub.addEventListener("click", function () {
 				var ru = mbCEVanillaExtUndo(id);
-				setStatus(ru.message, ru.ok ? "mce-ok" : "mce-err");
+				setStatus(ru.message, ru.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (ru.ok) { redraw(); }
 			});
 			body.appendChild(ub);
@@ -108,10 +108,10 @@
 			clearBody(cBody);
 			var st = mbCEVanillaCrimeStats();
 			if (!st.has) {
-				cBody.appendChild(el("div", "mce-hint", "未找到 $crime（该存档没有犯罪记录结构）。"));
+				cBody.appendChild(el("div", MCE_CLS.hint, "未找到 $crime（该存档没有犯罪记录结构）。"));
 				return;
 			}
-			cBody.appendChild(el("div", "mce-hint",
+			cBody.appendChild(el("div", MCE_CLS.hint,
 				"当前：现存罪值合计 " + st.current + " · 案底合计 " + st.history + " · 案底次数合计 " + st.countHistory + " · 事件日志 " + st.events + " 条"));
 			var grid = mceBtnGrid(cBody);
 			var b = el("button", "mce-btn mce-gold", "一键清空全部犯罪记录（含案底）");
@@ -119,7 +119,7 @@
 			b.title = "current / count / daily / history / countHistory 全归零，事件日志清空";
 			b.addEventListener("click", function () {
 				var r = mbCEVanillaCrimeClear();
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (r.ok) { redrawCrime(); }
 			});
 			grid.appendChild(b);
@@ -129,15 +129,15 @@
 		redrawCrime();
 
 		/* ⑧-2 博物馆收藏 */
-		var aBody = makeBody("博物馆收藏", "原版 $museumAntiques：64 件古董 + 2 幅画作；写成「已发现未上交」不结算奖金");
+		var aBody = makeBody("博物馆收藏", "原版 $museumAntiques：63 件古董 + 2 幅画作；写成「已发现未上交」不结算奖金");
 		var redrawAntique = function () {
 			clearBody(aBody);
 			var st = mbCEVanillaAntiqueStats();
 			if (!st.has) {
-				aBody.appendChild(el("div", "mce-hint", "未找到 $museumAntiques（该存档还没进入博物馆线）。"));
+				aBody.appendChild(el("div", MCE_CLS.hint, "未找到 $museumAntiques（该存档还没进入博物馆线）。"));
 				return;
 			}
-			aBody.appendChild(el("div", "mce-hint",
+			aBody.appendChild(el("div", MCE_CLS.hint,
 				"当前：古董已发现 " + st.found + "/" + st.total + " · 已上交 " + st.museum + "/" + st.maxCount
 				+ " · 画作已发现 " + st.paintingsFound + "/" + st.paintings
 				+ " · 成就「It Belongs in a Museum」" + (st.feat ? "已解锁" : "未解锁")));
@@ -147,11 +147,56 @@
 			b2.title = "全部写成 found 态；不动 museumCount、不结算奖金；同时直写「It Belongs in a Museum」成就";
 			b2.addEventListener("click", function () {
 				var r = mbCEVanillaAntiqueCollect();
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (r.ok) { redrawAntique(); }
 			});
 			grid2.appendChild(b2);
-			aBody.appendChild(mceFoldHint("写成 found = 已发现未上交：博物馆柜子仍空、不结算金币，之后你愿意上交时再逐件走「上交」流程即可。成就在作弊模式下会被原版 earnFeat 门控拦掉（V.cheatsEnabled === true 直接 return），所以这里直接写进成就表。"));
+
+			/* v2.1.2 特殊古董三键：不参与「一键收齐」，各自一个收集键（排在「一键收齐」下面） */
+			aBody.appendChild(el("div", MCE_CLS.hint,
+				"以下三件特殊古董不参与「一键收齐」，需单独收集：黄金贞操带、象牙项链在原版有剧情牵连"
+				+ "（项链一旦写成已发现，原版 L188980 会把 $necklaceThief 判为 player）；"
+				+ "「诅咒硬币」在原版 63 件古董里没有对应键（CE 的 changeLog 声明了它，但其白名单里也没有）。"));
+			var gridSp = mceBtnGrid(aBody);
+			mbCEVanillaAntiqueSpecials().forEach(function (it) {
+				var sb;
+				if (it.key && it.exists) {
+					sb = el("button", MCE_CLS.btn, "收集" + it.label + "（" + it.statusZh + "）");
+					sb.type = "button";
+					sb.title = it.key === "antiqueivorynecklace"
+						? "只把这一件写成「已发现未上交」；若 $necklaceThief 未定义，会同步写为 player（原版 L188980 的等价判定）"
+						: "只把这一件写成「已发现未上交」；已上交 / 中间态不改写";
+					sb.addEventListener("click", function () {
+						var r = mbCEVanillaAntiqueCollectOne(it.key);
+						setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
+						if (r.ok && r.changed) { redrawAntique(); }
+					});
+					gridSp.appendChild(sb);
+					if (mbCEVanillaHasTrace("antique-" + it.key)) {
+						var ubSp = el("button", "mce-btn mce-red", "回退" + it.label);
+						ubSp.type = "button";
+						ubSp.title = "只还原这一件的收集（与其他件、与一键收齐互不影响）";
+						ubSp.addEventListener("click", function () {
+							var ru = mbCEVanillaExtUndo("antique-" + it.key);
+							setStatus(ru.message, ru.ok ? MCE_CLS.ok : MCE_CLS.err);
+							if (ru.ok) { redrawAntique(); }
+						});
+						gridSp.appendChild(ubSp);
+					}
+				} else {
+					sb = el("button", MCE_CLS.btn, "收集" + it.label + "（原版无此键）");
+					sb.type = "button";
+					sb.title = "原版 63 件古董里没有「诅咒硬币」对应键；此键只作说明，不写存档";
+					sb.addEventListener("click", function () {
+						setStatus("「诅咒硬币」在原版 0.5.12.13 的 $museumAntiques.antiques 63 件全集里没有对应键"
+							+ "（<<widget \"updateMuseumAntiques\">> L609341-609404），全 HTML 搜 antique*curse* 零命中；"
+							+ "CE 1.20.4 的 changeLog 声明排除此项，但其 58 件白名单里也没有对应键。这不是漏做，是该键不存在。", MCE_CLS.err);
+					});
+					gridSp.appendChild(sb);
+				}
+			});
+
+			aBody.appendChild(mceFoldHint("写成 found = 已发现未上交：博物馆柜子仍空、不结算金币，之后你愿意上交时再逐件走「上交」流程即可。成就在作弊模式下会被原版 earnFeat 门控拦掉（V.cheatsEnabled === true 直接 return），所以这里直接写进成就表。一键只写「未发现」的件，talk / museum / stolen / recovered 一律不改写。"));
 			undoBtn(aBody, "antique", redrawAntique);
 		};
 		redrawAntique();
@@ -162,10 +207,10 @@
 			clearBody(tBody);
 			var st = mbCEVanillaTitleStats();
 			if (!st.exists) {
-				tBody.appendChild(el("div", "mce-hint", "未找到 Remy（$NPCName 缺少该角色）。"));
+				tBody.appendChild(el("div", MCE_CLS.hint, "未找到 Remy（$NPCName 缺少该角色）。"));
 				return;
 			}
-			tBody.appendChild(el("div", "mce-hint",
+			tBody.appendChild(el("div", MCE_CLS.hint,
 				"当前：雷米「" + st.remyZh + "」（" + (st.remy || "空") + "）"
 				+ (st.fate ? " · $avery_fate=" + st.fate : "")
 				+ (st.harper ? " · Harper「" + mbCEVanillaTitleZh(st.harper) + "」" : "")
@@ -176,7 +221,7 @@
 			b3.title = "写 C.npc.Remy.title = \"scarred\"；飞升线同时补 Harper=silver fox、Avery=crimson hound";
 			b3.addEventListener("click", function () {
 				var r = mbCEVanillaRemyScar();
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (r.ok) { redrawTitle(); }
 			});
 			grid3.appendChild(b3);

@@ -1,3 +1,4 @@
+/* 职责：原版「你对什么感到不安?」直写 —— 5 项白名单 + 回退留痕 */
 	/* ============ v2.0.0.003 需求②：原版「你对什么感到不安?」直写 ============
 	   对照 DoL 0.5.12.13 本体逐行实证（game\Degrees of Lewdity.html）：
 	     · 默认值块 182418-182424：<<set $uncomfortable to {underwear:true, nude:true, prostituting:true, lewd:true, hypnosis:true}>>
@@ -79,13 +80,13 @@ function mbCEAttitudeHasTrace(key) {
 function renderAttitudesGroup(pane) {
 	if (!pane) { return; }
 	var box = el("div", "mce-grp");
-	box.appendChild(el("div", "mce-row-lbl", "原版态度：你对什么感到不安?（$uncomfortable，等价原版 cheat 面板同一屏）"));
-	box.appendChild(el("div", "mce-hint",
+	box.appendChild(el("div", MCE_CLS.rowLbl, "原版态度：你对什么感到不安?（$uncomfortable，等价原版 cheat 面板同一屏）"));
+	box.appendChild(el("div", MCE_CLS.hint,
 		"直接写最终生效值 $uncomfortable.*，不看 $attitudesControl.unlock* 门控——那组 unlock 每次刷新都会被原版 attitudesControlCheck 按真实数值重算覆盖，写它无效。门控条件只作说明展示。"));
 	var V = null;
 	try { V = getV(); } catch (e) { V = null; }
 	if (!V || !V.uncomfortable || typeof V.uncomfortable !== "object") {
-		box.appendChild(el("div", "mce-err", "存档里没有 $uncomfortable（请先读档；原版初始化后该对象才会存在）"));
+		box.appendChild(el("div", MCE_CLS.err, "存档里没有 $uncomfortable（请先读档；原版初始化后该对象才会存在）"));
 		pane.appendChild(box);
 		return;
 	}
@@ -98,15 +99,15 @@ function renderAttitudesGroup(pane) {
 		parts.lbl.textContent = parts.it.name + "：" + state;
 		parts.lbl.title = parts.it.effect + "\n原版门槛：" + parts.it.need + (g && g.ok ? "（当前已满足）" : "（当前未满足，本面板照样能改）");
 		parts.tog.textContent = (val === true) ? "解除不安" : "恢复不安";
-		parts.tog.className = (val === true) ? "mce-btn mce-gold" : "mce-btn";
+		parts.tog.className = (val === true) ? "mce-btn mce-gold" : MCE_CLS.btn;
 		var needUndo = mbCEAttitudeHasTrace(parts.it.key);
 		if (needUndo && !parts.undo) {
-			parts.undo = el("button", "mce-btn", "回退");
+			parts.undo = el("button", MCE_CLS.btn, "回退");
 			parts.undo.type = "button";
 			parts.undo.title = "还原为面板首次写入前的状态";
 			parts.undo.addEventListener("click", function () {
 				var r = mbCEAttitudeUndo(parts.it.key);
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				paintAttitudeRow(parts);
 			});
 			parts.row.appendChild(parts.undo);
@@ -116,13 +117,13 @@ function renderAttitudesGroup(pane) {
 		}
 	}
 	MB_CE_ATTITUDE_ITEMS.forEach(function (it) {
-		var parts = { it: it, row: el("div", "mce-row"), lbl: el("span", "mce-row-lbl", ""), tog: el("button", "mce-btn", ""), undo: null };
+		var parts = { it: it, row: el("div", MCE_CLS.row), lbl: el("span", MCE_CLS.rowLbl, ""), tog: el("button", MCE_CLS.btn, ""), undo: null };
 		parts.tog.type = "button";
 		parts.tog.title = it.effect;
 		parts.tog.addEventListener("click", function () {
 			var now = mbCEAttitudeGet(it.key) === true;
 			var r = mbCEAttitudeSet(it.key, !now);
-			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 			paintAttitudeRow(parts);
 		});
 		parts.row.appendChild(parts.lbl);
@@ -131,25 +132,25 @@ function renderAttitudesGroup(pane) {
 		painters.push(function () { paintAttitudeRow(parts); });
 		box.appendChild(parts.row);
 	});
-	var bulk = el("div", "mce-row");
+	var bulk = el("div", MCE_CLS.row);
 	var offAll = el("button", "mce-btn mce-gold", "全部解除不安（5 项取消勾选）");
 	offAll.type = "button";
 	offAll.addEventListener("click", function () {
 		var r = mbCEAttitudeSetAll(false);
-		setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 		painters.forEach(function (f) { try { f(); } catch (e2) { /* 单行刷新失败不影响其余 */ } });
 	});
 	bulk.appendChild(offAll);
-	var onAll = el("button", "mce-btn", "全部恢复不安（5 项勾选）");
+	var onAll = el("button", MCE_CLS.btn, "全部恢复不安（5 项勾选）");
 	onAll.type = "button";
 	onAll.addEventListener("click", function () {
 		var r = mbCEAttitudeSetAll(true);
-		setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 		painters.forEach(function (f) { try { f(); } catch (e2) { /* 单行刷新失败不影响其余 */ } });
 	});
 	bulk.appendChild(onAll);
 	box.appendChild(bulk);
-	box.appendChild(el("div", "mce-hint",
+	box.appendChild(el("div", MCE_CLS.hint,
 		"注意：这 5 项是原版的「态度」设定，改的是你自己对这些事的接受度；写入即改 $uncomfortable 本身，重开原版 cheat 页那一屏会按当前值显示（读的是同一个变量）。"));
 	pane.appendChild(box);
 }

@@ -1,3 +1,4 @@
+/* 职责：转化部件隐藏（外观层，纯原版字段，免除暴露惩罚） */
 /* ============================================================
  * 07j-transform-hide.js — R1/R2 转化部件「隐藏」作弊（外观层，纯原版字段）
  *
@@ -181,7 +182,7 @@ function renderTransformHideSec(pane) {
 		"「隐藏内在」= traits.*（尖牙/锐眼/追逐/炫耀/终身伴侣）；「隐藏翅膀」= 鸟/天使/堕落天使/恶魔的 wings（独立开关，互不影响）。" +
 		"实证：隐藏后原版大量场景的 `isnot \"hidden\"` 判定不再触发（NPC 看不见翅膀、不因尖牙发怵），但每次「重新隐藏」时非 traits 部件各 +15 创伤、panicattacks ≥ 2 会强制取消隐藏 —— 用「隐藏无惩罚」压掉。");
 	if (!parts || typeof parts !== "object") {
-		sec.appendChild(el("div", "mce-hint", "当前存档还没有转化部件表：先在游戏内触发任一转化（天使/恶魔/狼/猫/牛/狐/鸟/树精等），或直接在「阶段」页解锁一个转化阶段后再回来。"));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有转化部件表：先在游戏内触发任一转化（天使/恶魔/狼/猫/牛/狐/鸟/树精等），或直接在「阶段」页解锁一个转化阶段后再回来。"));
 		return;
 	}
 	var innerN = 0, hiddenInner = 0, wingsN = 0, hiddenWings = 0;
@@ -194,41 +195,41 @@ function renderTransformHideSec(pane) {
 	var hs = (V.mbCE_hide && typeof V.mbCE_hide === "object") ? V.mbCE_hide : {};
 
 	var mk = function (title, kind, total, hidden, note) {
-		var row = el("div", "mce-row");
-		var lbl = el("span", "mce-row-lbl", title + "（" + hidden + " / " + total + " 个部件处于隐藏）");
+		var row = el("div", MCE_CLS.row);
+		var lbl = el("span", MCE_CLS.rowLbl, title + "（" + hidden + " / " + total + " 个部件处于隐藏）");
 		lbl.title = note;
 		row.appendChild(lbl);
 		var on = el("button", "mce-btn mce-gold", "全部隐藏");
 		on.type = "button";
-		on.addEventListener("click", function () { var r = mbCEHideApply(kind, true); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); renderStagePane(); });
-		var off = el("button", "mce-btn", "全部取消隐藏");
+		on.addEventListener("click", function () { var r = mbCEHideApply(kind, true); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); renderStagePane(); });
+		var off = el("button", MCE_CLS.btn, "全部取消隐藏");
 		off.type = "button";
-		off.addEventListener("click", function () { var r = mbCEHideApply(kind, false); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); renderStagePane(); });
+		off.addEventListener("click", function () { var r = mbCEHideApply(kind, false); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); renderStagePane(); });
 		row.appendChild(on); row.appendChild(off);
 		if (hs[kind]) { row.appendChild(el("span", "mce-badge mce-on", "已开启")); }
 		sec.appendChild(row);
 	};
 	mk("隐藏内在（traits：尖牙/锐眼/追逐/炫耀/终身伴侣）", "inner", innerN, hiddenInner, "内在隐藏后 NPC 不会再因尖牙/锐眼等对你产生对应反应");
 	if (wingsN) { mk("隐藏翅膀（鸟 / 天使 / 堕落天使 / 恶魔）", "wings", wingsN, hiddenWings, "独立开关：只藏翅膀，不动其它部位；原版对翅膀隐藏有惩罚豁免"); }
-	else { sec.appendChild(el("div", "mce-hint", "翅膀：当前存档四系翅膀字段均未生成（还没有鸟类/天使/恶魔转化）。")); }
+	else { sec.appendChild(el("div", MCE_CLS.hint, "翅膀：当前存档四系翅膀字段均未生成（还没有鸟类/天使/恶魔转化）。")); }
 
 	/* 隐藏无惩罚 */
-	var npRow = el("div", "mce-row");
-	npRow.appendChild(el("span", "mce-row-lbl", "隐藏无惩罚（锁创伤 0）"));
+	var npRow = el("div", MCE_CLS.row);
+	npRow.appendChild(el("span", MCE_CLS.rowLbl, "隐藏无惩罚（锁创伤 0）"));
 	var npOn = (typeof mbCELockHas === "function") && mbCELockHas("trauma");
-	var npBtn = el("button", "mce-btn" + (npOn ? " mce-gold" : ""), npOn ? "无惩罚：已开启（点此关闭）" : "开启隐藏无惩罚");
+	var npBtn = el("button", MCE_CLS.btn + (npOn ? " mce-gold" : ""), npOn ? "无惩罚：已开启（点此关闭）" : "开启隐藏无惩罚");
 	npBtn.type = "button";
-	npBtn.addEventListener("click", function () { var r = mbCEHideNoPenalty(!npOn); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); renderStagePane(); });
+	npBtn.addEventListener("click", function () { var r = mbCEHideNoPenalty(!npOn); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); renderStagePane(); });
 	npRow.appendChild(npBtn);
 	sec.appendChild(npRow);
 
-	var fcRow = el("div", "mce-row");
-	fcRow.appendChild(el("span", "mce-row-lbl", "强制保持隐藏（防原版打回）"));
-	var fcBtn = el("button", "mce-btn" + (hs.force ? " mce-gold" : ""), hs.force ? "强制保持：已开启（点此关闭）" : "开启强制保持");
+	var fcRow = el("div", MCE_CLS.row);
+	fcRow.appendChild(el("span", MCE_CLS.rowLbl, "强制保持隐藏（防原版打回）"));
+	var fcBtn = el("button", MCE_CLS.btn + (hs.force ? " mce-gold" : ""), hs.force ? "强制保持：已开启（点此关闭）" : "开启强制保持");
 	fcBtn.type = "button";
 	fcBtn.title = "每秒校验一次：已被开启的类别若被原版写回 default（panicattacks ≥ 2 的隐藏失败），立即写回 hidden";
-	fcBtn.addEventListener("click", function () { var r = mbCEHideForce(!hs.force); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); renderStagePane(); });
+	fcBtn.addEventListener("click", function () { var r = mbCEHideForce(!hs.force); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); renderStagePane(); });
 	fcRow.appendChild(fcBtn);
 	sec.appendChild(fcRow);
-	sec.appendChild(el("div", "mce-hint", "组合用法：先点「全部隐藏」→ 再开「隐藏无惩罚」→ 若角色有恐慌发作（panicattacks ≥ 2）再开「强制保持隐藏」。三项都在本页，随存档保存；改动在「全局」页回退中心可整体还原。"));
+	sec.appendChild(el("div", MCE_CLS.hint, "组合用法：先点「全部隐藏」→ 再开「隐藏无惩罚」→ 若角色有恐慌发作（panicattacks ≥ 2）再开「强制保持隐藏」。三项都在本页，随存档保存；改动在「全局」页回退中心可整体还原。"));
 }

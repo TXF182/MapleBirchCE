@@ -3,7 +3,7 @@
 		/* v1.4.5：非恋爱候选角色不显示恋爱阶段（角色本身保留在角色一览）——
 		   只有能进恋人卡槽的角色才展示恋爱阶段与"恋人卡槽"条件 */
 		if (!isLoveCandidate(curName)) {
-			pane.appendChild(el("div", "mce-hint", "「" + displayNameEx(curName) + "」不是可确立恋人关系的角色，无可解锁的恋爱阶段。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "「" + displayNameEx(curName) + "」不是可确立恋人关系的角色，无可解锁的恋爱阶段。"));
 			return;
 		}
 		var stages = getRomanceStages(curName);
@@ -22,7 +22,7 @@
 					btn.addEventListener("click", function () {
 						var r = completeRomanceStage(curName, stg);
 						renderStagePane();
-						setStatus(r.ok ? "恋爱阶段已解锁" : (r.fixed ? "已写入，但条件仍为未达成" : "该条件依赖运行时逻辑，无法自动完成"), r.ok ? "mce-ok" : "mce-err");
+						setStatus(r.ok ? "恋爱阶段已解锁" : (r.fixed ? "已写入，但条件仍为未达成" : "该条件依赖运行时逻辑，无法自动完成"), r.ok ? MCE_CLS.ok : MCE_CLS.err);
 					});
 					head.appendChild(btn);
 				} else {
@@ -35,7 +35,7 @@
 						undBtn.addEventListener("click", function () {
 							var u = undoRomanceStage(curName, stg2);
 							renderStagePane();
-							setStatus(u ? "已回退：撤销「" + displayName(curName) + "」该阶段的标记写入" : "该阶段不可回退（真实达成或关系状态类）", u ? "mce-ok" : "mce-err");
+							setStatus(u ? "已回退：撤销「" + displayName(curName) + "」该阶段的标记写入" : "该阶段不可回退（真实达成或关系状态类）", u ? MCE_CLS.ok : MCE_CLS.err);
 						});
 					})(stg);
 					head.appendChild(undBtn);
@@ -53,7 +53,7 @@
 			});
 			sRom.appendChild(box);
 		} else {
-			pane.appendChild(el("div", "mce-hint", "该角色未注册框架恋爱剧情条件（romanceConditions 为空）。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "该角色未注册框架恋爱剧情条件（romanceConditions 为空）。"));
 		}
 
 		/* 原版恋爱阶段（格威岚 7 阶段，来自游戏原版 gwylanStatusCheck 体系） */
@@ -73,7 +73,7 @@
 					vbtn.addEventListener("click", function () {
 						var r = completeVanillaStage(curName, s.key);
 						renderStagePane();
-						setStatus(r.ok ? "「" + displayNameEx(curName) + "」" + s.label + " 已达成" : r.message, r.ok ? "mce-ok" : "mce-err");
+						setStatus(r.ok ? "「" + displayNameEx(curName) + "」" + s.label + " 已达成" : r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 					});
 					head.appendChild(vbtn);
 				} else {
@@ -86,7 +86,7 @@
 						vund.addEventListener("click", function () {
 							var u = undoVanillaStage(curName, s2.key);
 							renderStagePane();
-							setStatus(u.ok ? u.message : (u.message || "该阶段不可回退"), u.ok ? "mce-ok" : "mce-err");
+							setStatus(u.ok ? u.message : (u.message || "该阶段不可回退"), u.ok ? MCE_CLS.ok : MCE_CLS.err);
 						});
 					})(s);
 					head.appendChild(vund);
@@ -103,7 +103,7 @@
 		var types = listStageTypes(curName);
 		var exts = listExtTransforms();
 		if (!types.size && !exts.length) {
-			pane.appendChild(el("div", "mce-hint", "该角色未注册转化阶段。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "该角色未注册转化阶段。"));
 			/* v2.0.7：外观隐藏是 PC 全局部件，不依赖选中角色是否注册转化阶段 */
 			if (typeof renderTransformHideSec === "function") { renderTransformHideSec(pane); }
 			return;
@@ -119,10 +119,10 @@
 			head.appendChild(el("span", "mce-stage-name", typeCN(type) + "　成长 " + st.build + " / 阶段 " + st.level + " / " + max));
 			block.appendChild(head);
 			var build = el("div", "mce-build");
-			var m10 = el("button", "mce-btn", "-10");
+			var m10 = el("button", MCE_CLS.btn, "-10");
 			m10.type = "button";
 			m10.addEventListener("click", function () { adjustTransform(curName, type, -10); renderStagePane(); });
-			var p10 = el("button", "mce-btn", "+10");
+			var p10 = el("button", MCE_CLS.btn, "+10");
 			p10.type = "button";
 			p10.addEventListener("click", function () { adjustTransform(curName, type, 10); renderStagePane(); });
 			var unlock = el("button", "mce-btn mce-gold", "一键解锁全部阶段");
@@ -130,7 +130,7 @@
 			unlock.addEventListener("click", function () {
 				completeTransformStage(curName, type, max);
 				renderStagePane();
-				setStatus("「" + displayName(curName) + "」" + typeCN(type) + " 已解锁至最高阶段", "mce-ok");
+				setStatus("「" + displayName(curName) + "」" + typeCN(type) + " 已解锁至最高阶段", MCE_CLS.ok);
 			});
 			build.appendChild(m10);
 			build.appendChild(p10);
@@ -184,9 +184,9 @@
 				btn.title = "调用 MOD 公共 API setup.myTFSet 直接置为最高阶段";
 				btn.addEventListener("click", function () {
 					if (completeExtTransform(k)) {
-						setStatus("「" + nm + "」扩展转化已解锁至阶段 3", "mce-ok");
+						setStatus("「" + nm + "」扩展转化已解锁至阶段 3", MCE_CLS.ok);
 					} else {
-						setStatus("「" + nm + "」扩展转化完成失败（MOD 未加载或 API 缺失）", "mce-err");
+						setStatus("「" + nm + "」扩展转化完成失败（MOD 未加载或 API 缺失）", MCE_CLS.err);
 					}
 					renderStagePane();
 				});

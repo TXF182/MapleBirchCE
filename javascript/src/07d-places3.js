@@ -1,3 +1,4 @@
+/* 职责：剧情入口四组（象牙怨灵 / 万圣节 / 情人节 / 圣诞）+ 节日与怨灵状态保底 */
 /* 剧情入口四组（用户拍板 A 象牙怨灵 + B 节日三线）—— 结构门禁 S1 拆段。
    本片段只放「四组登记 + 节日/怨灵状态保底」；分组与渲染主逻辑仍在
    07d-places.js（PLACE_GROUPS / ensureSceneStateFor）与 07d-places2.js（renderPlacesDirect）。
@@ -141,6 +142,71 @@ function mbCEIsUnplayableEntry(nm, text) {
 	for (var j = 0; j < PLACE_GROUPS.length; j++) { if (PLACE_GROUPS[j].id === "gwylan_garden") { idx = j; break; } }
 	if (idx >= 0) { PLACE_GROUPS.splice(idx, 0, g); } else { PLACE_GROUPS.push(g); }
 })();
+/* v2.1.3 用户点名「惠特尼的公寓 / 艾弗里庄园里还有没有没解锁的」：原版段落族 `Whitney Home`（261 段）
+   此前一条都没收录（面板里整组点不到）—— 整组补进场景直达。
+   取证（本体 0.5.12.13，16,087 段逐条解析，%TEMP%\mce_playable_check.py 复跑）：前缀命中 261 段，可直达 258；
+   剔除 3 段（Gang Sex / Gang Window Sex / Hang Masturbation Sex），首宏为 `$sexstart` 的性爱中继，硬跳无上下文。
+   主场景取 `Whitney Home Knock`（2,706 字符）：首行即 <<set $outside to 0>><<set $location to "flats">><<effects>>，
+   night=无响应（Knock harder / Leave）、dawn=开门（Ask to come in / Ask how he is）、dusk=无人在家（Next）、
+   else=天气+上学日判定后 Enter/Leave —— 四条分支各有出口，任何时段直达都不会白屏。
+   不用 `Whitney Home Hang` 作 main：该段正文只有 <<whitney_home_events>>，依赖 widget 定义段（已被 exclude 剔除）。
+   状态依赖：Knock / Dawn Enter 读 `$daily.whitney`（day_knock / breakfast_done / shower_done）。
+   原版 StoryInit（HTML L183255）一次性 `<<set $daily to {...whitney: {}...}>>` 是全库唯一初始化点，
+   `unset $daily` 三处均只删子键（robin_in_cafe / robin.orphanageKitchen / fishing...），不存在整对象删除，
+   故 $daily.whitney 恒存在，直达无需另建壳（不覆盖玩家已有进度）。 */
+(function () {
+	var g = { id: "whitney_home", name: "惠特尼 · 家",
+		match: function (n) { return n.indexOf("Whitney Home") === 0; },
+		exclude: mbCEIsUnplayableEntry, main: "Whitney Home Knock",
+		note: "惠特尼的住处（芭芭拉街公寓）：清晨早餐/淋浴、初次进入三幕（Intro 1/2/3）、沙发闲聊（吉他/手机/头发/玩具）、帮派上门（窗户/零食/帽子/游戏）、翻查家具（门/箱子/窗帘/橱柜）、昼夜敲门各分支。Whitney Home 前缀实测 261 段，剔除 3 段战斗/性爱中继，组内 258 段；其中 12 段列入下方「更多入口」可安全直达，其余依赖事件上下文（NPC 未落地或须从事件内进入），不单列按钮。" };
+	PLACE_GROUPS.push(g);
+})();
+
+/* v2.1.4 惠特尼家子入口：v2.1.3 的 note 写「留 258 段」，但 mbCEListPlaceEntries 对本组返回空清单
+   ——`PLACE_EXTRA_ENTRIES` 没有 whitney_home 键时，07d-places4.js 的 L266 直接 `return out`，
+   于是面板只渲染 `Knock` 一行，其余 257 段玩家点不到。本块补这份白名单。
+   放本分片而不是 07d-places4.js：4.js 已到结构门禁 400 行上限（S1），3.js 尚有余量；
+   4.js 侧只把读取改成「PLACE_EXTRA_ENTRIES 为主、本对象为兜底」的双源合并，不新增行数。
+   入选判据（本体 0.5.12.13 逐段实测，261 段全扫）：
+     ① 段内有显式 `[[...|...]]` 出口（不靠 hub widget 现算出口）；
+     ② 首个 `<<person1>>`／代词宏（`<<He>>`/`<<he>>`/`<<his>>`/`<<him>>`/`<<Hes>>`…）之前，
+        已有写进 slot 0 的落地（`<<npc X>>` 或 `<<loadNPC 0 "X">>`）。
+        —— `<<personselect>>` 在 `!$NPCList[_n] or !$NPCList[_n].pronoun` 时直接
+        `<<error "Undefined NPC in personselect N">>`，所以直跳无落地段 = 红字报错，不是显示瑕疵；
+        `<<loadNPC 1 "X">>` 只填 slot 1，**不算落地**（Dawn Enter / Hang Toys 因此被排除）；
+     ③ 本段不写 `$whitney_home_stage`（单向游标 1→4，中段直跳会跳过首次登门三部曲）。
+   满足 ①② 者 28 段；再剔掉语义只是过渡的碎段（Knock Harder / Intro 2 Leave / Jam Try 等），取 12 条。
+   被排除的典型：`Hang`（86 字符，正文只有 `<<whitney_home_events>>`，出口全在 widget 且白天某些
+   weekday 时段 `whitneyoptions` 不给「离开公寓」）、`Dawn Enter`/`Hang Toys`（只落 slot 1）、
+   `Intro 3`（`<<person1>>` 在落地前）、145 段人称早于落地。 */
+var MB_CE_EXTRA_MORE = {
+	whitney_home: [
+		{ name: "Whitney Home Dawn Breakfast Start", cn: "清晨早餐（开场）" },
+		{ name: "Whitney Home Dawn Breakfast End", cn: "清晨早餐（收尾）" },
+		{ name: "Whitney Home Dawn Breakfast Offer", cn: "清晨早餐（提议）" },
+		{ name: "Whitney Home Dawn Shower Shy", cn: "清晨共浴（害羞）" },
+		{ name: "Whitney Home Intro 2 Blindfolded", cn: "初次登门（蒙眼）" },
+		{ name: "Whitney Home Intro 2 Closer", cn: "初次登门（走到门口）" },
+		{ name: "Whitney Home Intro 3 Bedroom", cn: "卧室" },
+		{ name: "Whitney Home Intro 3 Drink", cn: "客厅递饮" },
+		{ name: "Whitney Home Examine Door", cn: "卧室门后" },
+		{ name: "Whitney Home Examine Curtains", cn: "窗帘" },
+		{ name: "Whitney Home School Walk", cn: "一起上学" },
+		{ name: "Whitney Home Leave", cn: "离开公寓" }
+	]
+};
+
+/* 白名单双源读取：PLACE_EXTRA_ENTRIES（07d-places4.js，历史条目）优先，其次本分片的 MB_CE_EXTRA_MORE。
+   两处都为空 → 返回 null，由 mbCEListPlaceEntries 走「无 extra 即空清单」分支。
+   本函数在 3.js 定义、4.js 调用：分片拼接顺序为 places → places2 → places3 → places4（manifest.json 193/197/201/206 行），
+   且调用发生在面板渲染时（远晚于 4.js 执行），故 PLACE_EXTRA_ENTRIES 此刻必已赋值。 */
+function mbCEPlaceList(gid) {
+	var a = (typeof PLACE_EXTRA_ENTRIES === "object" && PLACE_EXTRA_ENTRIES) ? PLACE_EXTRA_ENTRIES[gid] : null;
+	var b = (typeof MB_CE_EXTRA_MORE === "object" && MB_CE_EXTRA_MORE) ? MB_CE_EXTRA_MORE[gid] : null;
+	if (a && a.length) { return a; }
+	if (b && b.length) { return b; }
+	return null;
+}
 
 /* 把存档日期推到节日窗口内（B 方案的时间通道）。
    为什么不直接置 $halloween = 1：原版每日例程是

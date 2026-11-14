@@ -12,7 +12,7 @@
 					if (openFlag && root && document.body.contains(root)) {
 						var at = root.querySelector(".mce-tabs button.mce-active");
 						if (at && (at.getAttribute("data-tab") === "mods" || at.getAttribute("data-tab") === "yanling")) { return; }
-						mceSchedule(render, 300);
+						mceSchedule(render, 300, null, function () { return !!(openFlag && root && document.body.contains(root)); }); /* v2.1.2 内层 guard：300ms 窗口内失效不渲染 */
 					}
 				}, "mbStageCE:refresh");
 			} catch (e) {}
@@ -23,8 +23,7 @@
 		if (initialized) { return; }
 		initialized = true;
 		if (typeof document === "undefined") { return; }
-		mountApi();
-	mbCEExportVcore();
+		mountApi(); mbCEExportVcore(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）与 mountApi 同步补齐 */
 		hookPassageOverride();
 		hookPassageInit();
 		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
@@ -34,6 +33,7 @@
 		mbCEUiLoad(); /* v1.8.12 持久化：恢复上次页签/搜索词/折叠状态 */
 		try { mbCEResumeTimers(); } catch (eY0) {} /* v2.0.0.006：已开启言灵开关的存档，注入后即生效 */
 		mbCEHookErrors(); /* v1.8.12 错误收集器：window error + console.error 进面板 */
+		mbCEFrameworkGateOnce(); /* v2.1.2 框架版本闸门：注入即体检，结论挂 window.__mceFrameworkGate（01c-fwgate.js） */
 		if (document.body) {
 			ensureDom();
 			hookRefresh();

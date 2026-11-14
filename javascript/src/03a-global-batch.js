@@ -1,3 +1,4 @@
+/* 职责：全局批量填充 —— 属性·恋爱·转化·衣物·配方一键拉满 */
 	/* ============ 全局批量 ============ */
 	function globalFill() {
 		var chars = listCharacters();

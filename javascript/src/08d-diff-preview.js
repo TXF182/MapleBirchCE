@@ -137,7 +137,7 @@
 			okBtn.title = "确认后按此 diff 落档（同时保留回退留痕）";
 			okBtn.addEventListener("click", function () {
 				var r = mbCEPreviewConfirm();
-				setStatus(r && r.message ? r.message : "已写入", (r && r.ok) ? "mce-ok" : "mce-err");
+				setStatus(r && r.message ? r.message : "已写入", (r && r.ok) ? MCE_CLS.ok : MCE_CLS.err);
 				mbCEPaneRefresh();
 			});
 			bar.appendChild(okBtn);
@@ -147,16 +147,16 @@
 				allBtn.title = "按队列顺序一次性落档全部待确认写入（每一项仍各自留痕、可单独回退）";
 				allBtn.addEventListener("click", function () {
 					var r = mbCEPreviewConfirmAll();
-					setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+					setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 					mbCEPaneRefresh();
 				});
 				bar.appendChild(allBtn);
 			}
-			var cancelBtn = el("button", "mce-btn", n > 1 ? "全部取消" : "取消");
+			var cancelBtn = el("button", MCE_CLS.btn, n > 1 ? "全部取消" : "取消");
 			cancelBtn.type = "button";
 			cancelBtn.addEventListener("click", function () {
 				var r = mbCEPreviewCancel();
-				setStatus(r.message, "mce-ok");
+				setStatus(r.message, MCE_CLS.ok);
 			});
 			bar.appendChild(cancelBtn);
 			host.appendChild(bar);

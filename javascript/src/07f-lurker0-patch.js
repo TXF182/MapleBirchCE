@@ -1,3 +1,4 @@
+/* 职责：潜伏者上限的文本解限引擎 —— 改写本体 passage 文本与 DOM */
 /* ============ v2.0.0.002 需求⑥：潜伏者捕捉上限 / 水烟馆冰箱上限 —— 文本解限引擎 ============
    原版硬约束（逐字取证自 DoL 0.5.12.13 的 Degrees of Lewdity.html）：
    A. 捕捉门控 5 处，同一形态：<<if $farm_stage gte 10 and $lurkers_held lt 1>> 包裹 "Hurl net"

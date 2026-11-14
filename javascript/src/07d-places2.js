@@ -71,7 +71,7 @@
 		} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 	}
 	function renderPlacesStage(pane) {
-		pane.appendChild(el("div", "mce-hint", "地点阶段任务（原版 $变量 直改，全部留痕可回退）："));
+		pane.appendChild(el("div", MCE_CLS.hint, "地点阶段任务（原版 $变量 直改，全部留痕可回退）："));
 		PLACE_STAGE_GROUPS.forEach(function (g) {
 			var block = el("div", "mce-grp");
 			var head = el("div", "mce-grp-t", g.name);
@@ -80,23 +80,23 @@
 			block.appendChild(el("div", "mce-stage-note", g.note));
 			g.items.forEach(function (it) {
 				var cur = placeStageRead(it.path);
-				var row = el("div", "mce-row");
+				var row = el("div", MCE_CLS.row);
 				row.setAttribute("data-stagekey", it.key);
 				row.title = it.note + "（当前 " + cur + " / 上限 " + it.max + "；阶段档位，写入钳制在上限内）";
-				var lbl = el("span", "mce-row-lbl", it.name + "　");
+				var lbl = el("span", MCE_CLS.rowLbl, it.name + "　");
 				var val = el("span", "mce-value", cur + " / " + it.max);
 				lbl.appendChild(val);
 				row.appendChild(lbl);
-				var mDec = el("button", "mce-btn", "−1");
+				var mDec = el("button", MCE_CLS.btn, "−1");
 				mDec.type = "button";
 				mDec.setAttribute("data-op", "dec");
 				mDec.addEventListener("click", function () {
 					var r = placeStageWrite(it.path, placeStageRead(it.path) - 1, 0, it.max);
 					renderPlaces();
 					if (r && r.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
-					else { setStatus(r && r.message ? r.message : "写入失败", "mce-err"); }
+					else { setStatus(r && r.message ? r.message : "写入失败", MCE_CLS.err); }
 				});
-				var mInc = el("button", "mce-btn", "+1");
+				var mInc = el("button", MCE_CLS.btn, "+1");
 				mInc.type = "button";
 				mInc.setAttribute("data-op", "inc");
 				mInc.addEventListener("click", function () {
@@ -106,7 +106,7 @@
 					var rInc = placeStageWrite(it.path, nx, 0, it.max);
 					renderPlaces();
 					if (rInc && rInc.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
-					else { setStatus(rInc && rInc.message ? rInc.message : "写入失败", "mce-err"); }
+					else { setStatus(rInc && rInc.message ? rInc.message : "写入失败", MCE_CLS.err); }
 				});
 				var mMax = el("button", "mce-btn mce-gold", "拉满");
 				mMax.type = "button";
@@ -115,7 +115,7 @@
 					var rMax = placeStageWrite(it.path, it.max, 0, it.max);
 					renderPlaces();
 					if (rMax && rMax.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2：成功才闪 */
-					else { setStatus(rMax && rMax.message ? rMax.message : "写入失败", "mce-err"); }
+					else { setStatus(rMax && rMax.message ? rMax.message : "写入失败", MCE_CLS.err); }
 				});
 				row.appendChild(mDec);
 				row.appendChild(mInc);
@@ -130,7 +130,7 @@
 						mUndo.addEventListener("click", function () {
 							var r = placeStageUndo(it.path);
 							renderPlaces();
-							setStatus(r.message || "", r.ok ? "mce-ok" : "mce-err");
+							setStatus(r.message || "", r.ok ? MCE_CLS.ok : MCE_CLS.err);
 							if (r && r.ok) { mbCEFlashAfterRender(it.key); } /* v1.9.14 效果2 */
 						});
 						row.appendChild(mUndo);
@@ -140,7 +140,7 @@
 			});
 			pane.appendChild(block);
 		});
-		pane.appendChild(el("div", "mce-hint", "拉满 = 置为原版上限值；「−1/+1」逐步推进；写入记录在 V.mbCE_wrote（place: 前缀）可回退。"));
+		pane.appendChild(el("div", MCE_CLS.hint, "拉满 = 置为原版上限值；「−1/+1」逐步推进；写入记录在 V.mbCE_wrote（place: 前缀）可回退。"));
 		/* v2.0.7：R3 小岛生存作弊 + R4 地下妓院角色（07k-island-npc.js）挂在本子页签末尾 */
 		if (typeof renderIslandSec === "function") { renderIslandSec(pane); }
 		if (typeof renderNpcUndergroundSec === "function") { renderNpcUndergroundSec(pane); }
@@ -208,7 +208,7 @@
 			}
 			pane.appendChild(block);
 		});
-		pane.appendChild(el("div", "mce-hint", "共枚举 " + total + " 个可直达段落（已按组精简：主场景常显，同组的子场景收在「更多入口」里点开才逐行展开；其余段落只计入统计）。点击「直达」立即跳转，不打断存档。"));
+		pane.appendChild(el("div", MCE_CLS.hint, "共枚举 " + total + " 个可直达段落（已按组精简：主场景常显，同组的子场景收在「更多入口」里点开才逐行展开；其余段落只计入统计）。点击「直达」立即跳转，不打断存档。"));
 		/* v2.0.10：原版调试报告开关 —— 好友实测「雷米农场野兽战 ERROR: Unexpected $$NPCList[0].pronoun」
 		   取证（本体 0.5.12.13 三个 widget 段落逐字核对）：
 		     Widgets State Man @rel1196、Widgets Combat Man-Combat @rel160511、Widgets Text @rel51459。
@@ -219,21 +219,21 @@
 		   这里给一个开关把它关掉（写 $options.debugdisable="t"），想排查原版逻辑时可再打开。 */
 		var dbgSec = mceNewSec(pane, 1, "原版调试报告（$options.debugdisable）",
 			"关掉后战斗/状态块不再打印原版开发向诊断（如野兽战的「ERROR: Unexpected $$NPCList[0].pronoun」）。这是设置项，不进留痕；游戏内「设置 → 调试报告」也能手动改回。");
-		var dbgRow = el("div", "mce-row");
+		var dbgRow = el("div", MCE_CLS.row);
 		var dbgNow = (V && V.options && V.options.debugdisable !== undefined) ? String(V.options.debugdisable) : "（未设置）";
-		dbgRow.appendChild(el("span", "mce-row-lbl", "当前值：" + dbgNow + "（t = 关闭诊断，f = 显示诊断）"));
+		dbgRow.appendChild(el("span", MCE_CLS.rowLbl, "当前值：" + dbgNow + "（t = 关闭诊断，f = 显示诊断）"));
 		var dbgWrite = function (val, label) {
 			var Vd = getV();
-			if (!Vd) { setStatus("尚未进入游戏，无法写入设置", "mce-err"); return; }
+			if (!Vd) { setStatus("尚未进入游戏，无法写入设置", MCE_CLS.err); return; }
 			if (typeof Vd.options !== "object" || Vd.options === null) { Vd.options = {}; }
 			Vd.options.debugdisable = val;
-			setStatus("原版调试报告已" + label + "（$options.debugdisable=" + val + "）", "mce-ok");
+			setStatus("原版调试报告已" + label + "（$options.debugdisable=" + val + "）", MCE_CLS.ok);
 			renderPlaces();
 		};
 		var bDbgOff = el("button", "mce-btn mce-gold", "关闭调试报告");
 		bDbgOff.type = "button";
 		bDbgOff.addEventListener("click", function () { dbgWrite("t", "关闭"); });
-		var bDbgOn = el("button", "mce-btn", "打开（排查用）");
+		var bDbgOn = el("button", MCE_CLS.btn, "打开（排查用）");
 		bDbgOn.type = "button";
 		bDbgOn.addEventListener("click", function () { dbgWrite("f", "打开"); });
 		dbgRow.appendChild(bDbgOff);
@@ -267,10 +267,10 @@
 	}
 		var lintSec = mceNewSec(pane, 2, "段落体检（宏结构）",
 			"只读扫描：遍历全部段落（含所有 MOD 改写后的运行时文本），统计 if / switch / link / widget / for / capture 的开闭配对，列出不配对的段落。用于定位「cannot find a closing tag for macro <<if>>」「child tag <<elseif>> outside parent」「no usable links」这类只在运行时才出现的段落损坏。不改任何文本、不动存档。");
-		var lintRow = el("div", "mce-row");
+		var lintRow = el("div", MCE_CLS.row);
 		var bLint = el("button", "mce-btn mce-gold", "开始体检");
 		bLint.type = "button";
-		var lintCopy = el("button", "mce-btn", "复制结果");
+		var lintCopy = el("button", MCE_CLS.btn, "复制结果");
 		lintCopy.type = "button";
 		var lintDesc = el("div", "mce-stage-txt", "点「开始体检」后在此列出结果。");
 		var lintBody = el("div", "");
@@ -291,24 +291,24 @@
 					var line = bad[j].name + " :: " + bad[j].msg + " :: len=" + bad[j].len;
 					lintCache = lintCache + line + "\n";
 					if (j < maxShow) {
-						var row = el("div", "mce-row");
-						row.appendChild(el("span", "mce-row-lbl", line));
+						var row = el("div", MCE_CLS.row);
+						row.appendChild(el("span", MCE_CLS.rowLbl, line));
 						lintBody.appendChild(row);
 					}
 				}
 				if (bad.length > maxShow) {
-					lintBody.appendChild(el("div", "mce-hint", "（仅显示前 " + maxShow + " 条，完整结果请点「复制结果」）"));
+					lintBody.appendChild(el("div", MCE_CLS.hint, "（仅显示前 " + maxShow + " 条，完整结果请点「复制结果」）"));
 				}
-				setStatus("段落体检完成：异常 " + bad.length + " 段", bad.length ? "mce-err" : "mce-ok");
-			} catch (e) { setStatus("体检失败：" + mbCEErr(e), "mce-err"); }
+				setStatus("段落体检完成：异常 " + bad.length + " 段", bad.length ? MCE_CLS.err : MCE_CLS.ok);
+			} catch (e) { setStatus("体检失败：" + mbCEErr(e), MCE_CLS.err); }
 		});
 		lintCopy.addEventListener("click", function () {
 			try {
-				if (!lintCache) { setStatus("请先点「开始体检」", "mce-err"); return; }
+				if (!lintCache) { setStatus("请先点「开始体检」", MCE_CLS.err); return; }
 				if (navigator.clipboard && navigator.clipboard.writeText) {
-					navigator.clipboard.writeText(lintCache).then(function () { setStatus("结果已复制到剪贴板", "mce-ok"); }, function () { setStatus("复制失败，请手动选中文本", "mce-err"); });
-				} else { setStatus("当前环境不支持剪贴板，请手动选中文本", "mce-err"); }
-			} catch (e) { setStatus("复制失败：" + mbCEErr(e), "mce-err"); }
+					navigator.clipboard.writeText(lintCache).then(function () { setStatus("结果已复制到剪贴板", MCE_CLS.ok); }, function () { setStatus("复制失败，请手动选中文本", MCE_CLS.err); });
+				} else { setStatus("当前环境不支持剪贴板，请手动选中文本", MCE_CLS.err); }
+			} catch (e) { setStatus("复制失败：" + mbCEErr(e), MCE_CLS.err); }
 		});
 		lintRow.appendChild(bLint);
 		lintRow.appendChild(lintCopy);
@@ -343,15 +343,15 @@
 					}
 				}
 				var entry = (typeof WORLD_UNLOCKS === "object" && WORLD_UNLOCKS[w.gid] && WORLD_UNLOCKS[w.gid].entry) ? WORLD_UNLOCKS[w.gid].entry : "";
-				var row = el("div", "mce-row");
-				row.appendChild(el("span", "mce-row-lbl", (gname || w.gid) + "　" + w.path + "：" + (w.before === undefined ? "（原本无）" : String(w.before)) + " → " + String(w.after) + (entry ? "　（" + entry + "）" : "")));
+				var row = el("div", MCE_CLS.row);
+				row.appendChild(el("span", MCE_CLS.rowLbl, (gname || w.gid) + "　" + w.path + "：" + (w.before === undefined ? "（原本无）" : String(w.before)) + " → " + String(w.after) + (entry ? "　（" + entry + "）" : "")));
 				var ubtn = el("button", "mce-btn mce-red", "撤回");
 				ubtn.type = "button";
 				ubtn.setAttribute("data-op", "world-undo");
 				(function (gid) {
 					ubtn.addEventListener("click", function () {
 						var ru = mbCEWorldUndo(gid);
-						setStatus(ru.msg, ru.ok ? "mce-ok" : "mce-err");
+						setStatus(ru.msg, ru.ok ? MCE_CLS.ok : MCE_CLS.err);
 						if (ru.ok) { renderPlaces(); }
 					});
 				})(w.gid);

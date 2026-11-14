@@ -1,3 +1,4 @@
+/* 职责：FertilityExpansion 孩子个体数值写入层 —— 养育四项 / 先天四项（四项齐全再 patch） */
 /* ============ v2.0.0.002 收敛轮：孩子个体数值写入层（养育四项 / 先天四项）============ 
    从 04a-15-fert-children.js 拆出（原文件 407 行会越过评分 C3 的 ≤400 满分档）。
    模组 EdenCheats.saveSkills / saveInnate 的 patch 要求四项齐全（eden-cheats.js:189 numeric(patch[k]) 对缺项抛错，

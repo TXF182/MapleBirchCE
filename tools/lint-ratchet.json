@@ -1,0 +1,11 @@
+{
+  "note": "复杂度 / 遮蔽 / 未使用变量的存量基线（棘轮：只减不增）。由 tools/check_lint_ratchet.js --write-baseline 生成；上调必须在评审中说明原因。",
+  "updatedAt": "2026-11-14",
+  "target": "javascript/maplebirchce.js",
+  "baseline": {
+    "complexity": 157,
+    "no-shadow": 18,
+    "no-unused-vars": 7,
+    "max-lines-per-function": 12
+  }
+}

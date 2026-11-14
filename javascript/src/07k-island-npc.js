@@ -1,3 +1,4 @@
+/* 职责：小岛生存 / 营地作弊 + 地下妓院角色送入 */
 /* ============================================================
  * 07k-island-npc.js — R3 小岛生存/营地作弊 + R4 地下妓院「角色送进去」（原版字段）
  *
@@ -159,9 +160,9 @@ function renderIslandSec(pane) {
 		"注意：$island.home 与建造物是**字符串档位**（rocky_hillock|waterfall|gulch、\"\"|simple|basic|advanced），其它是数字；" +
 		"tide / tide_distance / explore(\"none\"/…) 是瞬时探索态，不做直写以免打断正在进行的事件。");
 	if (!isl) {
-		sec.appendChild(el("div", "mce-hint", "当前存档还没有 $island（没上过岛）：点下面任一「写入」会自动建壳并补齐三处营地对象，之后再进岛不会报错。"));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有 $island（没上过岛）：点下面任一「写入」会自动建壳并补齐三处营地对象，之后再进岛不会报错。"));
 	} else {
-		sec.appendChild(el("div", "mce-hint", "当前：营地 " + ((isl.home === "waterfall") ? "瀑布" : (isl.home === "gulch") ? "峡谷" : "岩石小丘") +
+		sec.appendChild(el("div", MCE_CLS.hint, "当前：营地 " + ((isl.home === "waterfall") ? "瀑布" : (isl.home === "gulch") ? "峡谷" : "岩石小丘") +
 			" ｜ 隐蔽 " + (isl.hide == null ? "—" : isl.hide) + " ｜ 核桃 " + (isl.walnut == null ? "—" : isl.walnut) +
 			" ｜ 木材 " + (isl.wood == null ? "—" : isl.wood) + " ｜ 已探索 " + (Array.isArray(isl.explore_locations) ? isl.explore_locations.length : 0) + " / 6"));
 	}
@@ -176,33 +177,33 @@ function renderIslandSec(pane) {
 			seg.forEach(function (k) { c = (c == null) ? undefined : c[k]; });
 			cur = (typeof c === "number") ? c : 0;
 		} catch (e) { cur = 0; }
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-islandkey", it.path);
-		var lbl = el("span", "mce-row-lbl", it.name + "（当前 " + cur + " / 上限 " + it.max + "）　");
+		var lbl = el("span", MCE_CLS.rowLbl, it.name + "（当前 " + cur + " / 上限 " + it.max + "）　");
 		lbl.title = it.note;
 		row.appendChild(lbl);
-		var inp = el("input", "mce-inp");
+		var inp = el("input", MCE_CLS.inp);
 		inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(cur);
 		inp.placeholder = "目标值";
 		inp.title = it.note;
-		var btn = el("button", "mce-btn", "写入"); btn.type = "button";
+		var btn = el("button", MCE_CLS.btn, "写入"); btn.type = "button";
 		btn.addEventListener("click", function () {
 			var r = mbCEIslandNumWrite(it, inp.value);
 			renderPlaces();
-			setStatus(r && r.message ? r.message : "写入失败", r && r.ok ? "mce-ok" : "mce-err");
+			setStatus(r && r.message ? r.message : "写入失败", r && r.ok ? MCE_CLS.ok : MCE_CLS.err);
 		});
 		var maxB = el("button", "mce-btn mce-gold", "拉满"); maxB.type = "button";
 		maxB.title = "置为原版上限 " + it.max;
 		maxB.addEventListener("click", function () {
 			var r = mbCEIslandNumWrite(it, it.max);
 			renderPlaces();
-			setStatus(r && r.message ? r.message : "写入失败", r && r.ok ? "mce-ok" : "mce-err");
+			setStatus(r && r.message ? r.message : "写入失败", r && r.ok ? MCE_CLS.ok : MCE_CLS.err);
 		});
 		row.appendChild(inp); row.appendChild(btn); row.appendChild(maxB);
 		try {
 			if (V && V.mbCE_wrote && V.mbCE_wrote["place:" + it.path]) {
 				var un = el("button", "mce-btn mce-red", "回退"); un.type = "button";
-				un.addEventListener("click", function () { var r = placeStageUndo(it.path); renderPlaces(); setStatus(r.message || "", r.ok ? "mce-ok" : "mce-err"); });
+				un.addEventListener("click", function () { var r = placeStageUndo(it.path); renderPlaces(); setStatus(r.message || "", r.ok ? MCE_CLS.ok : MCE_CLS.err); });
 				row.appendChild(un);
 			}
 		} catch (e) {}
@@ -212,9 +213,9 @@ function renderIslandSec(pane) {
 	/* 2) 营地位置 */
 	var gHome = mceNewGroup(sec, "营地位置（$island.home）", "原版三选，直接改主场景文案与建造父键");
 	MB_CE_ISLAND_HOMES.forEach(function (h) {
-		var b = el("button", "mce-btn" + ((isl && isl.home === h.v) ? " mce-gold" : ""), h.n + (isl && isl.home === h.v ? "（当前）" : ""));
+		var b = el("button", MCE_CLS.btn + ((isl && isl.home === h.v) ? " mce-gold" : ""), h.n + (isl && isl.home === h.v ? "（当前）" : ""));
 		b.type = "button";
-		b.addEventListener("click", function () { var r = mbCEPlaceWriteRaw("island.home", h.v, false); renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); });
+		b.addEventListener("click", function () { var r = mbCEPlaceWriteRaw("island.home", h.v, false); renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); });
 		gHome.appendChild(b);
 	});
 
@@ -222,10 +223,10 @@ function renderIslandSec(pane) {
 	var gLoc = mceNewGroup(sec, "已探索地点（$island.explore_locations）", "原版六值；含 bay 才能出现木筏建造");
 	MB_CE_ISLAND_LOCS.forEach(function (l) {
 		var has = !!(isl && Array.isArray(isl.explore_locations) && isl.explore_locations.indexOf(l.v) !== -1);
-		var row = el("div", "mce-row");
-		row.appendChild(el("span", "mce-row-lbl", l.n + "（" + l.v + "）"));
-		var on = el("button", "mce-btn" + (has ? " mce-gold" : ""), has ? "已解锁（点此移除）" : "解锁"); on.type = "button";
-		on.addEventListener("click", function () { var r = mbCEIslandLocToggle(l.v, !has); renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); });
+		var row = el("div", MCE_CLS.row);
+		row.appendChild(el("span", MCE_CLS.rowLbl, l.n + "（" + l.v + "）"));
+		var on = el("button", MCE_CLS.btn + (has ? " mce-gold" : ""), has ? "已解锁（点此移除）" : "解锁"); on.type = "button";
+		on.addEventListener("click", function () { var r = mbCEIslandLocToggle(l.v, !has); renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); });
 		row.appendChild(on);
 		gLoc.appendChild(row);
 	});
@@ -233,7 +234,7 @@ function renderIslandSec(pane) {
 	allLoc.type = "button";
 	allLoc.addEventListener("click", function () {
 		var r = mbCEPlaceWriteRaw("island.explore_locations", MB_CE_ISLAND_LOCS.map(function (x) { return x.v; }), false);
-		renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 	});
 	gLoc.appendChild(allLoc);
 
@@ -242,31 +243,31 @@ function renderIslandSec(pane) {
 	var gBuild = mceNewGroup(sec, "建造物档位（$island[" + (curHome === "waterfall" ? "瀑布" : curHome === "gulch" ? "峡谷" : "岩石小丘") + "].*）",
 		"原版三档 simple / basic / advanced；写的是当前营地那一份，切营地后各自独立");
 	MB_CE_ISLAND_BUILDS.forEach(function (b) {
-		var row = el("div", "mce-row");
-		row.appendChild(el("span", "mce-row-lbl", b.n));
+		var row = el("div", MCE_CLS.row);
+		row.appendChild(el("span", MCE_CLS.rowLbl, b.n));
 		MB_CE_ISLAND_BUILD_LV.forEach(function (lv) {
 			var path = "island." + curHome + "." + b.part;
 			var curV = "";
 			try { curV = (V.island[curHome] && typeof V.island[curHome][b.part] === "string") ? V.island[curHome][b.part] : ""; } catch (e) { curV = ""; }
-			var btn = el("button", "mce-btn" + (curV === lv.v ? " mce-gold" : ""), lv.n);
+			var btn = el("button", MCE_CLS.btn + (curV === lv.v ? " mce-gold" : ""), lv.n);
 			btn.type = "button";
 			btn.addEventListener("click", function () {
 				mbCEIslandV();
 				var r = mbCEPlaceWriteRaw(path, lv.v, false);
-				renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 			});
 			row.appendChild(btn);
 		});
 		gBuild.appendChild(row);
 	});
-	gBuild.appendChild(el("div", "mce-hint", "建造物直接置档等价于「已建成该档」：原版 Island Build 只读档位决定可用选项与心情/隐蔽加成，不做额外前置校验。写完后进岛营地页即可看到对应选项。"));
+	gBuild.appendChild(el("div", MCE_CLS.hint, "建造物直接置档等价于「已建成该档」：原版 Island Build 只读档位决定可用选项与心情/隐蔽加成，不做额外前置校验。写完后进岛营地页即可看到对应选项。"));
 
 	/* 5) 岛民面具解锁快捷 */
 	var gMask = mceNewGroup(sec, "岛民套装解锁", "原版 specialClothes「islander」= $islander_mask is 100");
 	var bMask = el("button", "mce-btn mce-gold", "解锁岛民面具套装"); bMask.type = "button";
 	bMask.addEventListener("click", function () {
 		var r = mbCEPlaceWriteRaw("islander_mask", 100, false);
-		renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 	});
 	gMask.appendChild(bMask);
 }
@@ -288,9 +289,9 @@ function renderNpcUndergroundSec(pane) {
 		"惠特妮 / 凯拉尔 / 贝利 不是被关，而是**越狱后**由 Widgets Underground 的 dungeonescape 按条件设置 *ReunionScene = \"dungeon\" 触发地下重逢。" +
 		"所以这里对非 Robin 角色写的是原版真实的重逢标记（等价于「把 TA 也安排进地下剧情」），Robin 则可用 robin 槽直接关进牢房。");
 	if (!ub) {
-		sec.appendChild(el("div", "mce-hint", "当前存档还没有 $undergroundbrothel（没进过地下）：点任一写入会自动建壳（escape=0 / robin=false），进地下不会报错。"));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有 $undergroundbrothel（没进过地下）：点任一写入会自动建壳（escape=0 / robin=false），进地下不会报错。"));
 	} else {
-		sec.appendChild(el("div", "mce-hint", "当前：越狱进度 " + (ub.escape == null ? "—" : ub.escape) + " / 19 ｜ Robin 在牢房 " + (ub.robin ? "是" : "否") + " ｜ 已逃出 " + (V.undergroundbrothelescaped ? "是" : "否")));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前：越狱进度 " + (ub.escape == null ? "—" : ub.escape) + " / 19 ｜ Robin 在牢房 " + (ub.robin ? "是" : "否") + " ｜ 已逃出 " + (V.undergroundbrothelescaped ? "是" : "否")));
 	}
 	function ensureUb() {
 		var Vx = getV();
@@ -301,9 +302,9 @@ function renderNpcUndergroundSec(pane) {
 	}
 	var gRe = mceNewGroup(sec, "地下重逢场景（*ReunionScene = \"dungeon\"）", "越狱后原版会按这些标记播放对应角色的地下重逢");
 	MB_CE_NPC_REUNION.forEach(function (n) {
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		var cur = (V && typeof V[n.key] === "string") ? V[n.key] : "";
-		var lbl = el("span", "mce-row-lbl", n.name + (cur ? "（当前 " + cur + "）" : "（未设置）"));
+		var lbl = el("span", MCE_CLS.rowLbl, n.name + (cur ? "（当前 " + cur + "）" : "（未设置）"));
 		lbl.title = n.need;
 		row.appendChild(lbl);
 		var b = el("button", "mce-btn mce-gold", cur === "dungeon" ? "已设置（点此清除）" : "设为地下重逢");
@@ -316,16 +317,16 @@ function renderNpcUndergroundSec(pane) {
 				if (n.extra) { mbCEPlaceWriteRaw(n.extra.path, n.extra.val, false); }
 				r = mbCEPlaceWriteRaw(n.key, "dungeon", false);
 			}
-			renderPlaces(); setStatus(r.message + (r.ok && n.need ? "；" + n.need : ""), r.ok ? "mce-ok" : "mce-err");
+			renderPlaces(); setStatus(r.message + (r.ok && n.need ? "；" + n.need : ""), r.ok ? MCE_CLS.ok : MCE_CLS.err);
 		});
 		row.appendChild(b);
 		gRe.appendChild(row);
 	});
-	gRe.appendChild(el("div", "mce-hint", "提示：这些标记只决定「越狱后播放谁的重逢」，不会把角色放进牢房（原版没有这个能力）。若只想看那段剧情，设完标记后从下方「越狱进度」置 19 并在游戏内点 Escape。"));
+	gRe.appendChild(el("div", MCE_CLS.hint, "提示：这些标记只决定「越狱后播放谁的重逢」，不会把角色放进牢房（原版没有这个能力）。若只想看那段剧情，设完标记后从下方「越狱进度」置 19 并在游戏内点 Escape。"));
 	if (typeof getV === "function") {
 		var V2 = getV();
 		if (V2 && typeof V2.whitneyromance !== "undefined" && V2.whitneyromance !== 1) {
-			gRe.appendChild(el("div", "mce-hint", "惠特妮：当前 $whitneyromance = " + V2.whitneyromance + "（不是 1），点上面的按钮时会自动置 1。"));
+			gRe.appendChild(el("div", MCE_CLS.hint, "惠特妮：当前 $whitneyromance = " + V2.whitneyromance + "（不是 1），点上面的按钮时会自动置 1。"));
 		}
 	}
 
@@ -337,35 +338,35 @@ function renderNpcUndergroundSec(pane) {
 	ubNum.forEach(function (it) {
 		var cur = 0;
 		try { var seg = it.path.split("."); var c = V; seg.forEach(function (k) { c = (c == null) ? undefined : c[k]; }); cur = (typeof c === "number") ? c : 0; } catch (e) { cur = 0; }
-		var row = el("div", "mce-row");
-		var lbl = el("span", "mce-row-lbl", it.name + "（当前 " + cur + " / " + it.max + "）");
+		var row = el("div", MCE_CLS.row);
+		var lbl = el("span", MCE_CLS.rowLbl, it.name + "（当前 " + cur + " / " + it.max + "）");
 		lbl.title = it.note;
 		row.appendChild(lbl);
-		var inp = el("input", "mce-inp"); inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(cur); inp.title = it.note;
-		var b = el("button", "mce-btn", "写入"); b.type = "button";
-		b.addEventListener("click", function () { ensureUb(); var r = placeStageWrite(it.path, inp.value, 0, it.max, false); renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); });
+		var inp = el("input", MCE_CLS.inp); inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(cur); inp.title = it.note;
+		var b = el("button", MCE_CLS.btn, "写入"); b.type = "button";
+		b.addEventListener("click", function () { ensureUb(); var r = placeStageWrite(it.path, inp.value, 0, it.max, false); renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); });
 		var mx = el("button", "mce-btn mce-gold", "拉满"); mx.type = "button";
-		mx.addEventListener("click", function () { ensureUb(); var r = placeStageWrite(it.path, it.max, 0, it.max, false); renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); });
+		mx.addEventListener("click", function () { ensureUb(); var r = placeStageWrite(it.path, it.max, 0, it.max, false); renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); });
 		row.appendChild(inp); row.appendChild(b); row.appendChild(mx);
 		gUb.appendChild(row);
 	});
-	var rowRobin = el("div", "mce-row");
-	rowRobin.appendChild(el("span", "mce-row-lbl", "把 Robin 关进地下牢房（$undergroundbrothel.robin，原版唯一真实牢房槽）"));
+	var rowRobin = el("div", MCE_CLS.row);
+	rowRobin.appendChild(el("span", MCE_CLS.rowLbl, "把 Robin 关进地下牢房（$undergroundbrothel.robin，原版唯一真实牢房槽）"));
 	var hasRobin = !!(ub && ub.robin);
-	var bRobin = el("button", "mce-btn" + (hasRobin ? " mce-gold" : ""), hasRobin ? "已在牢房（点此放走）" : "关进去");
+	var bRobin = el("button", MCE_CLS.btn + (hasRobin ? " mce-gold" : ""), hasRobin ? "已在牢房（点此放走）" : "关进去");
 	bRobin.type = "button";
 	bRobin.addEventListener("click", function () {
 		ensureUb();
 		var r = mbCEPlaceWriteRaw("undergroundbrothel.robin", !hasRobin, false);
-		renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 	});
 	rowRobin.appendChild(bRobin);
 	gUb.appendChild(rowRobin);
-	var rowEsc = el("div", "mce-row");
-	rowEsc.appendChild(el("span", "mce-row-lbl", "标记「已逃出地下妓院」（$undergroundbrothelescaped，解锁 underground_brothel 套装条件）"));
+	var rowEsc = el("div", MCE_CLS.row);
+	rowEsc.appendChild(el("span", MCE_CLS.rowLbl, "标记「已逃出地下妓院」（$undergroundbrothelescaped，解锁 underground_brothel 套装条件）"));
 	var bEsc = el("button", "mce-btn mce-gold", "置为已逃出"); bEsc.type = "button";
-	bEsc.addEventListener("click", function () { var r = mbCEPlaceWriteRaw("undergroundbrothelescaped", true, false); renderPlaces(); setStatus(r.message, r.ok ? "mce-ok" : "mce-err"); });
+	bEsc.addEventListener("click", function () { var r = mbCEPlaceWriteRaw("undergroundbrothelescaped", true, false); renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); });
 	rowEsc.appendChild(bEsc);
 	gUb.appendChild(rowEsc);
-	gUb.appendChild(el("div", "mce-hint", "「关进去」只写 robin 槽：游戏内进入地下牢房还需要从 Bailey 的出售/抓捕剧情走；本功能用于补测地下线剧情与套装条件。"));
+	gUb.appendChild(el("div", MCE_CLS.hint, "「关进去」只写 robin 槽：游戏内进入地下牢房还需要从 Bailey 的出售/抓捕剧情走；本功能用于补测地下线剧情与套装条件。"));
 }

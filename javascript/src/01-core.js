@@ -1,6 +1,10 @@
+/* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.1";
+	var MCE_VERSION = "2.1.6";
+	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
+	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
+	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
 	/* v2.0.4 类型债清理：catch 变量在 strict 下是 unknown，内联读 .message 会报 TS2339/TS18046。
 	   此处收口为单一取值函数，语义与内联写法完全一致（有 message 用 message，否则用原值）。 */
 	/** @param {any} e @returns {any} */
@@ -51,6 +55,8 @@
 		var mb = resolveMB();
 		return !!(mb && mb.npc);
 	}
+
+	/* 框架版本闸门已拆到 01c-fwgate.js（v2.1.2，结构门禁 S1）：mbCEFrameworkGate / mbCECompareVersion / mbCEFrameworkGateOnce */
 
 	/* ============ 数值定义（通用标准，非角色硬编码） ============ */
 	/** @type {Array<{key: string, label: string, fill: number, max: number, min?: number, custom?: boolean}>} */

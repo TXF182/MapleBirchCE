@@ -1,3 +1,4 @@
+/* 职责：潜伏者捕捉上限 + 水烟馆冰箱上限 —— 状态写入与渲染 */
 /* ============ v2.0.0.002 需求⑥：潜伏者捕捉狂（无上限）+ 水烟馆冰箱（无上限） ============
    原版取证见同批次 07f-lurker0-patch.js 头部（逐字取自 DoL 0.5.12.13）：
      捕捉门控 5 处 `$farm_stage gte 10 and $lurkers_held lt 1`；
@@ -119,49 +120,49 @@ function mbCERenderLurker(pane) {
 	mbCELurkerEnsureTimer();
 	var st = mbCELurkerState();
 	var sec = mceNewSec(pane, 9, "潜伏者", "原版上限来自 twee 门控（不是数值上限）：捕捉 `$farm_stage gte 10 and $lurkers_held lt 1`（5 处）、存冰箱 `$lurkers_held gte 1 and $hookah.lurkers lt 5`、冰箱文案只映射 1–5。CE 在 SugarCube 启动前改这些 passage 文本（不动磁盘上的任何模组包），手持与冰箱都可累积到任意只。改法为「等长替换」（右补空格，字符总数不变）——汉化包按字符偏移逐条匹配译文，长度一变就会整段落回英文（v2.0.4 修复）。汉化在场时冰箱 switch 原文保留（>5 只原版文案显示 no，真实数量看本面板数值），否则改写成真实数值。未命中时可用下方「自动搬运」保底：手上常空，等价无限次捕捉。");
-	if (!st.ok) { sec.appendChild(el("div", "mce-err", st.message)); return; }
+	if (!st.ok) { sec.appendChild(el("div", MCE_CLS.err, st.message)); return; }
 	var rows = [
 		{ path: "lurkers_held", name: "手持潜伏者（无上限）", cur: st.held, note: "原版 ≥1 即不再出网；解限后不再受限" },
 		{ path: "hookah.lurkers", name: "水烟馆冰箱（无上限）", cur: st.fridge, note: "≥1 可消耗换 50 juice；未装汉化时显示真实数量，装汉化时 >5 保留原版 no（真实数量看本行数值）" },
 		{ path: "lurkers_stored", name: "农场蒸馏笼", cur: st.stored, note: "farm_stage ≥9 时每 7 天 1 只 → 1 瓶" }
 	];
 	rows.forEach(function (r) {
-		var row = el("div", "mce-row");
-		row.appendChild(el("span", "mce-row-lbl", r.name + "（当前 " + (r.cur == null ? "—" : r.cur) + "）"));
-		var inp = el("input", "mce-inp");
+		var row = el("div", MCE_CLS.row);
+		row.appendChild(el("span", MCE_CLS.rowLbl, r.name + "（当前 " + (r.cur == null ? "—" : r.cur) + "）"));
+		var inp = el("input", MCE_CLS.inp);
 		inp.type = "text"; inp.inputmode = "decimal"; inp.value = (r.cur == null) ? "0" : String(r.cur);
 		inp.title = r.note;
 		var b = el("button", "", "应用"); b.type = "button";
 		b.addEventListener("click", function () {
 			var raw = String(inp.value || "").trim();
-			if (!/^-?\d+(?:\.\d+)?$/.test(raw)) { setStatus("请输入数字", "mce-err"); return; }
+			if (!/^-?\d+(?:\.\d+)?$/.test(raw)) { setStatus("请输入数字", MCE_CLS.err); return; }
 			var res = mbCELurkerSet(r.path, Number(raw));
-			setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
 			renderGlobal();
 		});
 		var und = el("button", "", "回退"); und.type = "button";
 		und.addEventListener("click", function () {
 			var res = undoCheatModValue("player-self", "p:lurker:" + r.path);
-			setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
 			renderGlobal();
 		});
 		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
 		sec.appendChild(row);
 	});
-	var actRow = el("div", "mce-row");
+	var actRow = el("div", MCE_CLS.row);
 	var rep = el("button", "mce-btn mce-gold", "重新应用解限补丁"); rep.type = "button";
 	rep.title = "DOM 通道已过时点时改 Story 文本重试（普通剧情入口有效，widget 定义无法覆盖）";
 	rep.addEventListener("click", function () {
 		var r = mbCELurkerRepatch();
-		setStatus(r.message, r.ok ? "mce-ok" : "mce-warn");
+		setStatus(r.message, r.ok ? MCE_CLS.ok : "mce-warn");
 		renderGlobal();
 	});
-	var sw = el("button", st.auto ? "mce-btn mce-gold" : "mce-btn", st.auto ? "自动搬运：开" : "自动搬运：关");
+	var sw = el("button", st.auto ? "mce-btn mce-gold" : MCE_CLS.btn, st.auto ? "自动搬运：开" : "自动搬运：关");
 	sw.type = "button";
 	sw.title = "补丁未命中时的保底：每 0.5 秒把手持潜伏者转入冰箱/蒸馏笼，手上常空 → 捕捉不再被 1 只卡住";
 	sw.addEventListener("click", function () {
 		var r = mbCELurkerSetAuto(!st.auto);
-		setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 		renderGlobal();
 	});
 	actRow.appendChild(rep); actRow.appendChild(sw);
@@ -170,7 +171,7 @@ function mbCERenderLurker(pane) {
 	if (st.lockHeld) { lockNote += " · 手持已锁定（自动搬运整轮暂停）"; }
 	if (st.lockFridge) { lockNote += " · 冰箱已锁定（跳过冰箱这站）"; }
 	if (st.lockStored) { lockNote += " · 蒸馏笼已锁定（跳过笼这站）"; }
-	sec.appendChild(el("div", "mce-hint",
+	sec.appendChild(el("div", MCE_CLS.hint,
 		mbCELurkerPatchLabel(st) + "；累计捕获 " + (st.captured == null ? "—" : st.captured) + " 只；自动搬运累计 " + mbCELurkerMovedText() + " 只" + lockNote));
 }
 /* v2.0.0.005 清理：原 mbCELurkerAutoLabel() 删除（拆分期遗留死代码）——上方「自动搬运：开/关」

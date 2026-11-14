@@ -69,6 +69,20 @@ function Get-GitExe {
   return $null
 }
 
+# 文件 SHA256（大写十六进制、无分隔符，与历史缓存的 Get-FileHash 格式一致）。
+# 为什么不用 Get-FileHash：本机 pre-commit 调起的 pwsh 会话里该 cmdlet 会 CommandNotFound，
+# 导致 -Check 恒 miss、每次 commit 白跑一遍全链。改走 .NET，只依赖程序集不依赖 cmdlet 提供程序。
+function Get-FileSha256([string]$path) {
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Open,
+      [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    try {
+      return ([BitConverter]::ToString($sha.ComputeHash($fs)) -replace '-', '')
+    } finally { $fs.Dispose() }
+  } finally { $sha.Dispose() }
+}
+
 function Get-Fingerprint {
   $lines = New-Object 'System.Collections.Generic.List[string]'
   $rootLen = $root.Length + 1
@@ -87,7 +101,7 @@ function Get-Fingerprint {
         if ($rp -eq $ep -or $rp.StartsWith($ep + "/")) { $skip = $true; break }
       }
       if ($skip) { continue }
-      $h = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash
+      $h = Get-FileSha256 $f.FullName
       $lines.Add($rp + " " + $h)
     }
   }
@@ -125,7 +139,7 @@ if ($Write) {
     schema        = 1
     fingerprint   = $fp
     artifact      = $artifactRel
-    artifactSha   = (Get-FileHash -LiteralPath $art -Algorithm SHA256).Hash
+    artifactSha   = (Get-FileSha256 $art)
     artifactBytes = (Get-Item -LiteralPath $art).Length
     head          = $head
     writtenAt     = (Get-Date).ToString("o")
@@ -177,7 +191,7 @@ if ($Check) {
     Write-Host "[verify-cache] 产物缺失 → 跑全链"
     exit 1
   }
-  $artSha = (Get-FileHash -LiteralPath $art -Algorithm SHA256).Hash
+  $artSha = Get-FileSha256 $art
   if ($artSha -ne $cache.artifactSha) {
     Write-Host "[verify-cache] 产物 SHA 与缓存不符 → 跑全链"
     exit 1

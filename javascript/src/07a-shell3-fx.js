@@ -1,3 +1,4 @@
+/* 职责：灯台视觉层 —— 按压涟漪 / 动效开关 / 主题选择器 */
 /* 07a-shell3-fx：v2.0.21 灯台视觉层（设计参考 MapleLantern v1.1.7 src/style.css 原文）。
    为什么独立成段，而不是补进 07a-shell.js：
    ① 07a-shell.js 已顶到 tools/build_js.js 结构门禁 S1 的单段 400 行上限；另行开段，不给自己开 structure-baseline 豁免；

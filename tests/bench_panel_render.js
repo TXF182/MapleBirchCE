@@ -71,7 +71,38 @@ const V = {
 global.V = V;
 global.State = { variables: V, passage: "Room" };
 global.setup = {};
-global.Story = { has: function () { return false; }, passages: [], size: 0, get: function () { return null; } };
+/* 段落 mock：必须与本体真实规模一致，否则压测抓不到「数据规模相关」的热点。
+   历史盲区（2026-11-14 四维审查实证）：此处原为 passages: []、size: 0、无 lookupWith，
+   listAllPassages() 只遍历 0 段 → places 页基线只有 2.1~11.6 ms；
+   而真实 16,087 段（本体 0.5.12.13 实测）下 listPlaceGroups() 为 133~193 ms。
+   即：热点不是没压，是压的数据规模为 0，退化在基线表上完全不可见。
+
+   现按真实规模合成 16,087 段：前缀从产物源码的 `indexOf("…") === 0` 形态自动抽取
+   （直接跟随 PLACE_GROUPS 的 match 实现，不硬编码前缀表、不会与源码失同步）。
+   命中率约 40%，使组内条目数与真实量级（24 组 / 4,748 条）可比。 */
+const BENCH_PASSAGE_COUNT = 16087;
+const _benchSrc = fs.readFileSync(path.join(__dirname, "..", "javascript", "maplebirchce.js"), "utf8");
+const _benchPrefixes = Array.from(new Set(
+  (_benchSrc.match(/indexOf\("([^"]{2,40})"\)\s*===\s*0/g) || [])
+    .map(function (s) { return s.slice(s.indexOf('"') + 1, s.lastIndexOf('"')); })
+));
+const BENCH_PASSAGES = (function () {
+  const out = [];
+  const base = _benchPrefixes.length ? _benchPrefixes : ["Orphanage Loft"];
+  for (let i = 0; i < BENCH_PASSAGE_COUNT; i++) {
+    if (i % 10 < 4) { out.push({ name: base[i % base.length] + (i % 5 === 0 ? " " + i : ""), text: "" }); }
+    else { out.push({ name: "Bench Filler " + i, text: "" }); }
+  }
+  return out;
+})();
+const _benchNameSet = new Set(BENCH_PASSAGES.map(function (p) { return p.name; }));
+global.Story = {
+  passages: BENCH_PASSAGES,
+  size: BENCH_PASSAGES.length,
+  has: function (n) { return _benchNameSet.has(n); },
+  get: function (n) { return _benchNameSet.has(n) ? { name: n, text: "" } : null; },
+  lookupWith: function (f) { return BENCH_PASSAGES.filter(f); }
+};
 global.passage = function () { return "Room"; };
 global.localStorage = window.localStorage;
 window.maplebirch = { npc: {}, temporary: {}, get: function () { return undefined; } };

@@ -1,3 +1,4 @@
+/* 职责：原版三档说话态度 + 选定后永久维持（1s 定时器 + 状态行） */
 	/* ============ v2.0.0.002 需求⑤：原版三档说话态度 + 选定后永久维持 ============
 	   原版取证（DoL 0.5.12.13，逐字取自 Degrees of Lewdity.html，非二手转述）：
 	   1) 三档控件 `<<widget "cheatsSpeechAttitude">>`（Cheats passage）：
@@ -159,43 +160,43 @@
 		var st = mbCEAttitudeState();
 		var curTier = st.lock ? mbCEAttitudeTier(st.value) : null;
 		var sec = mceNewSec(pane, (typeof idx === "number" && idx > 0) ? idx : 1, "说话态度", "原版三档（顺从 / 中立 / 反抗），选定后开启「维持」即每秒复位 $speech_attitude 并把顺从度拉回该档门槛内侧，永久维持；「解除维持」清除锁定但保留当前值，「解除并还原」恢复锁定前的态度与顺从度。");
-		var hint = el("div", "mce-hint", mbCEAttitudeStatusLine(st));
+		var hint = el("div", MCE_CLS.hint, mbCEAttitudeStatusLine(st));
 		hint.setAttribute("data-mce-att", "1");
 		sec.appendChild(hint);
 		var g = mceBtnGrid(sec);
 		MB_CE_ATTITUDE_TIERS.forEach(function (t) {
 			var on = !!(curTier && curTier.key === t.key);
-			var b = el("button", on ? "mce-btn mce-gold" : "mce-btn", (on ? "✓ " : "") + t.label);
+			var b = el("button", on ? "mce-btn mce-gold" : MCE_CLS.btn, (on ? "✓ " : "") + t.label);
 			b.type = "button";
 			b.title = t.gateNote + "；锚值 " + t.anchor;
 			b.addEventListener("click", function () {
 				var r = mbCEAttitudeApply(t.key);
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
 			});
 			g.appendChild(b);
 		});
 		var ctl = mceBtnGrid(sec);
-		var hold = el("button", st.hold ? "mce-btn mce-gold" : "mce-btn", st.hold ? "维持：开" : "维持：关");
+		var hold = el("button", st.hold ? "mce-btn mce-gold" : MCE_CLS.btn, st.hold ? "维持：开" : "维持：关");
 		hold.type = "button";
 		hold.title = "开启后每秒复位 $speech_attitude 到所选档，并把顺从度拉回该档门槛内侧";
 		hold.addEventListener("click", function () {
 			var r = mbCEAttitudeHold(!st.hold);
-			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 			if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
 		});
 		var rel = el("button", "", "解除维持"); rel.type = "button";
 		rel.title = "清除锁定（保留当前态度值）";
 		rel.addEventListener("click", function () {
 			var r = mbCEAttitudeRelease(false);
-			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 			if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
 		});
 		var back = el("button", "", "解除并还原"); back.type = "button";
 		back.title = "清除锁定，并把态度与顺从度恢复为首次锁定前的值";
 		back.addEventListener("click", function () {
 			var r = mbCEAttitudeRelease(true);
-			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 			if (typeof renderPlayerEdit === "function") { renderPlayerEdit(); }
 		});
 		ctl.appendChild(hold); ctl.appendChild(rel); ctl.appendChild(back);

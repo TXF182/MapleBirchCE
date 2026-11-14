@@ -78,9 +78,9 @@
 		return setCheatStage(modId, key, levels[0]);
 	}
 	function buildCheatTaskRow(m, t) {
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-mce-key", "tasks:" + t.key);
-		row.appendChild(el("span", "mce-row-lbl", t.name || t.key));
+		row.appendChild(el("span", MCE_CLS.rowLbl, t.name || t.key));
 		var b1 = el("button", "", "跳过任务"); b1.type = "button";
 		b1.addEventListener("click", function () { actCheat(skipCheatTask(m.modId, t.key), m.modId, "tasks:" + t.key); });
 		var b2 = el("button", "", "直接完成任务"); b2.type = "button";
@@ -98,9 +98,9 @@
 	function buildCheatStageRow(m, s) {
 		var levels = Array.isArray(s.levels) && s.levels.length ? s.levels : [0];
 		var labels = Array.isArray(s.labels) && s.labels.length ? s.labels : levels.map(function (lv) { return String(lv); });
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-mce-key", "stages:" + s.key);
-		row.appendChild(el("span", "mce-row-lbl", "阶段 · " + (s.name || s.key)));
+		row.appendChild(el("span", MCE_CLS.rowLbl, "阶段 · " + (s.name || s.key)));
 		var sel = el("select", "mce-sel");
 		levels.forEach(function (lv, i) {
 			var opt = el("option", "", labels[i] !== undefined ? labels[i] : String(lv));
@@ -119,14 +119,14 @@
 		return row;
 	}
 	function buildCheatAbilityRow(m, a) {
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-mce-key", "abilities:" + a.key);
 		var box = el("input", "");
 		box.type = "checkbox";
 		box.checked = !!cheatReadSafe(m.modId, a.varPath);
 		box.addEventListener("change", function () { actCheat(toggleCheatAbility(m.modId, a.key, box.checked), m.modId, "abilities:" + a.key); });
 		row.appendChild(box);
-		var abl = el("span", "mce-row-lbl", "能力 · " + (a.name || a.key));
+		var abl = el("span", MCE_CLS.rowLbl, "能力 · " + (a.name || a.key));
 		/* v1.9.13 排版：写入路径移出 label（折叠「说明」与悬停 title 均可查），label 变短不再挤压按钮区 */
 		if (a.varPath) { abl.title = a.varPath; }
 		row.appendChild(abl);
@@ -150,9 +150,9 @@
 		m.abilities.forEach(function (a) { g.count++; g.pending.push(function () { return buildCheatAbilityRow(m, a); }); });
 	}
 	function buildCheatSceneRow(m, s) {
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-mce-key", "scenes:" + s.key);
-		row.appendChild(el("span", "mce-row-lbl", s.name || s.key));
+		row.appendChild(el("span", MCE_CLS.rowLbl, s.name || s.key));
 		var b1 = el("button", "", "跳过此段剧情"); b1.type = "button";
 		b1.addEventListener("click", function () { actCheat(cheatSceneAction(m.modId, s.key, "scene_skip"), m.modId, "scenes:" + s.key); });
 		var b2 = el("button", "", "强制完成剧情"); b2.type = "button";
@@ -173,10 +173,10 @@
 			var arr = Array.isArray(curArr) ? curArr : [];
 			var rows = [];
 			if (!opts.length) {
-				rows.push(el("div", "mce-hint", (it.name || it.key) + "：未声明候选值（options 为空）。"));
+				rows.push(el("div", MCE_CLS.hint, (it.name || it.key) + "：未声明候选值（options 为空）。"));
 			}
 			opts.forEach(function (opt) {
-				var brow = el("div", "mce-row");
+				var brow = el("div", MCE_CLS.row);
 				brow.setAttribute("data-mce-key", "values:" + it.key + ":" + opt);
 				var box = el("input", "");
 				box.type = "checkbox";
@@ -185,7 +185,7 @@
 					actCheat(applyCheatModValue(m.modId, it.key, { value: opt, on: box.checked }), m.modId, "values:" + it.key + ":" + opt);
 				});
 				brow.appendChild(box);
-				var lbl = el("span", "mce-row-lbl", (it.name || it.key) + " · " + opt);
+				var lbl = el("span", MCE_CLS.rowLbl, (it.name || it.key) + " · " + opt);
 				if (it.varPath) { lbl.title = it.varPath; }
 				brow.appendChild(lbl);
 				var und = el("button", "", "回退"); und.type = "button";
@@ -195,12 +195,12 @@
 			});
 			return rows;
 		}
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-mce-key", "values:" + it.key);
-		var vlbl = el("span", "mce-row-lbl", it.name || it.key);
+		var vlbl = el("span", MCE_CLS.rowLbl, it.name || it.key);
 		if (it.varPath) { vlbl.title = it.varPath; }
 		row.appendChild(vlbl);
-		var inp = el("input", "mce-inp");
+		var inp = el("input", MCE_CLS.inp);
 		inp.type = it.type === "boolean" ? "checkbox" : "text";
 		if (it.type !== "boolean") {
 			/* v1.8.12 功能9+优化：text 输入使 +N / -N 相对语法可输入（number 输入框会拒绝 + 号），

@@ -2,6 +2,304 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.6（2026-11-14 四维审查剩余项收口：拆分巨型函数 + 类名常量表 + 分片头注 + 结构预警 + 缓存校验器修复）
+
+来源同上：`docs/code-review-20261114.md`。v2.1.5 只做了三项（缓存 / 压测规模 / 棘轮），
+本轮把剩下的可做项逐条落地；**P1-1 局部更新按收益/风险据实跳过**（理由见文末）。
+
+### 一、可读性：`renderGlobal` 375 行 → 32 行（P2）
+
+`08-npc-traits2.js` 的 `renderGlobal` 原来把 8 个分组（面板设置 / ①批量速成 / ②收集解锁 /
+③时间调节 / ④誓言修复·NPC 特质 / ⑤战斗终结 / ⑥庄园自动维护 / ⑦世界腐化）全部内联在单个函数体里。
+现在按区块拆为 `mcRenderFabSettings` / `mcRenderBatchSec` / `mcRenderCollectSec` / `mcRenderTimeSec` /
+`mcRenderVowTraitSec` / `mcRenderCombatSec` / `mcRenderAutoMaintSec` / `mcRenderWorldCorruptSec`，
+`renderGlobal` 只保留 pane 初始化 + `frameworkReady()` 守卫 + 主题选择器 + 8 次分组调用 + 尾部 5 个渲染接入。
+
+拆分前逐块核对**区块之间没有共享局部变量**（`fabLocked` / `chars` / `bsec` / `csec` / `tsec` / `vsec` /
+`btsec` / `acsec` / `mtKeys` / `wcsec` / `Vg` 均只在自己区块内使用），拆分后作用域不变（同处一个 IIFE），
+12+ 处 `renderGlobal()` 调用点的语义不变。
+
+副产物：ESLint 三项存量因此下降，棘轮基线同步下调 —— `max-lines-per-function` **13 → 12**、
+`no-shadow` **20 → 18**、`complexity` **158 → 157**（`no-unused-vars` 7 不变）。
+
+### 二、可读性：CSS 类名常量表（P2，555 处收口）
+
+过去 `"mce-err"` 135 次 / `"mce-ok"` 118 / `"mce-hint"` 82 / `"mce-row"` 68 / `"mce-row-lbl"` 57 /
+`"mce-btn"` 53 / `"mce-gold"` 24 / `"mce-inp"` 18 散在 30 个分片，改一个类名要全库替换。
+现在 `01-core.js` 定义 `MCE_CLS = { err, ok, hint, row, rowLbl, btn, gold, inp }`，**563 处字面量**换成常量引用，
+替换后源码残留纯字面量 **0**。
+
+只替换「完整引号字面量」，因此两类语境天然不受影响：组合串 `"mce-btn mce-gold"`（64 处）整体不等于单类名；
+选择器写法 `.mce-inp` / `".mce-row-lbl"` 带前导点，与 `"mce-inp"` 不匹配。
+组合串**本轮未拆**（拆成 `MCE_CLS.btn + " " + MCE_CLS.gold` 会改变代码形态，收益不抵风险），留待后续。
+
+> 实施中全链第 3 步抓到一处真实缺陷：批量替换把常量表**定义行自身**也换成了自引用
+> （`var MCE_CLS = { err: MCE_CLS.err, … }` → `MCE_CLS` 未定义时读 `.err` 抛 TypeError）。
+> 已还原为字面量并复跑全链。这是「批量替换必须由测试兜底」的实证。
+
+### 三、可维护性：80 分片全部补齐「职责：」头注（P3）
+
+审查时 46/79 分片无头注。本轮补 45 个（批量插入，未凭文件名臆造，逐个读过首 5 行 + 函数清单），
+另 2 个满行分片（`07a-shell.js` / `07d-places4.js`，余量 0）改用**首行同行改写**，行数不变。
+复核：**总片数 80 / 缺头注 0 / 超 400 行 0**。
+
+### 四、可维护性：结构门禁新增 S4 满载预警（P3，只报警不放宽）
+
+审查的「分片容量策略」原建议是「400 → 按职责边界重定」。**调大 `maxLines` 等于把门禁往回推**，
+只会让分片继续膨胀到更难拆——本轮换成让压力可见：`check_structure.js` 新增 S4，
+余量 ≤25 行（含余 0）时 WARN，**不阻断、exit 0**，文案指向两条既有出口（按职责拆段 / 续号白名单）。
+实测 9 项 WARN：`07a-shell` 0 / `07d-places4` 0 / `09-exports2` 0 / `01-core` 3 / `05b-modcheat-player` 7 /
+`08-npc-traits2` 8 / `07d-places2` 9 / `07h-render2` 16 / `07d-places` 21。
+
+### 五、工具链：修 `verify_cache.ps1` 的 `Get-FileHash` 恒 miss（上一轮如实上报的缺陷）
+
+pre-commit 调起的 pwsh 会话里 `Get-FileHash` 报 `CommandNotFound`，导致 `-Check` 恒 miss、
+每次 commit 白跑一遍全链。缺陷不止一处，共 **3 处调用**（`Get-Fingerprint` 内每文件哈希 / 写缓存时
+`artifactSha` / `-Check` 时产物哈希）。
+
+改为统一辅助函数 `Get-FileSha256([string]$path)`：`[System.Security.Cryptography.SHA256]::Create()` +
+`[IO.File]::Open(...)` + `[BitConverter]::ToString(...) -replace '-',''`，**输出大写十六进制无分隔符**
+（刻意与历史缓存格式对齐，避免旧缓存全部失配后首轮白跑全链）。
+实算 `javascript\maplebirchce.js` 得 `CCAAFE0C…AB615`，与权威值一致。
+
+### 六、验证
+
+- 全链 **13 步全绿**；35 个测试 / 4 组并行（墙钟 107.0 s，串行等效 355.6 s，加速 3.32x），失败 0
+- 覆盖率 **Statements 96.96% / Branches 81.42% / Functions 97.87%**（门槛 90 / 80 / 95）
+- 第 11 步「拼接 SHA == 产物 SHA」一致；键注册表 425 条 / 12 个适配器一致
+- 产物 **80 段 / 1,081,817 B / SHA256 `9ab66e58f3c9c70a1b1e95bb4f1ec306b080dcbf95e1dc99258192638bcff816`**
+- 结构门禁 80 段 / 缺头注 0 / 超 400 行 0 / S4 WARN 9 项（不阻断）
+
+### 未做项（如实声明）
+
+- **P1-1 `renderPlaces` / `renderGlobal` 局部更新（审查价值 5.4，最高）**：仍不做。理由与 v2.1.5 相同且未变——
+  `listPlaceGroups` 缓存已拿走 **95.7%** 的耗时（137.3 → 5.9 ms），剩余部分收益 <5%，
+  而局部更新要改 14+（places）/ 12+（global）处调用方的「全量重建后再刷新」语义，回归面覆盖全部 UI 测试。
+  **收益/风险不成比例**，不做比做对玩家更安全。若后续首帧真成为瓶颈，应连同详情面板一起重构，而不是单独改这一处。
+- 组合类名串（`"mce-btn mce-gold"` 等 302 处）未并入常量表。
+
+## v2.1.5（2026-11-14 四维审查后的整改：组枚举缓存 + 压测数据规模 + 复杂度棘轮）
+
+来源：`docs/code-review-20261114.md`（架构 / 可维护性 / 可读性 / 性能 四维实测审查）。
+本轮只做**证据最硬、改造面最窄**的三项；拆分巨型函数、CSS 常量表、局部更新按审查建议**未做**（理由见文末）。
+
+### 一、性能：`listPlaceGroups()` 结果缓存（P0，实测 137 ms → 5.9 ms）
+
+实测依据：本体 0.5.12.13 / 16,087 段 / 24 组，`listPlaceGroups` 单次 **133~193 ms**；
+成本拆解显示枚举 16,087 段只占 **4 ms（3%）**，24 组 × 16,087 段的 `g.match` 循环占 **131 ms（97%）**
+→ 缓存 `listAllPassages` 无用，必须缓存**组枚举结果**本身。
+
+改动：函数从 `07d-places.js` 迁到新分片 `07d-places5.js` 并加缓存，指纹三重失效
+（段落数 + `Story.size` + 首/中/末段名 + `PLACE_GROUPS.length`，全部 O(1)）。
+迁出后 `07d-places.js` 从 **399 → 378 行**，顺带缓解「4.js 满 400 行才把惠特尼白名单塞进 3.js」的容量挤压。
+
+`renderPlaces` 有 14+ 处调用点（页签切换 / 每个直达按钮回调 / 小岛写后刷新），每次都全量重建 →
+改动前玩家每点一次地点按钮付一次 137 ms。
+
+### 二、验证：压测注入真实段落规模（P0，修的是「看不见热点」）
+
+`tests/bench_panel_render.js` 的 `Story` mock 原为 `passages: []`、`size: 0`、无 `lookupWith`
+→ `listAllPassages()` 遍历 **0 段** → places 基线 2.1~11.6 ms，137 ms 热点在基线表上完全不可见。
+
+现注入 16,087 段（前缀从产物 `indexOf("…") === 0` 形态自动抽取，跟随 `PLACE_GROUPS` 实现、
+不硬编码不失同步），places 首次切页回到真实量级 **127.8 ms**，17 条断言仍 ALL PASS。
+`docs/benchmarks.md` 基线表已按新口径重写。
+
+### 三、可维护性：复杂度 / 遮蔽 / 未使用变量 棘轮（P1）
+
+存量实测（与审查完全一致）：`complexity>10` **158 个函数**、`no-shadow` **20 处**、
+`no-unused-vars` **7 条**（剔除 397 条 catch 参数误报）、`max-lines-per-function>120` **13 个**。
+
+新增 `tools/check_lint_ratchet.js` + 基线 `tools/lint-ratchet.json`，接入 `run_all.ps1` 第 **13/13** 步：
+存量固定，任一项上涨即 exit 1。不往 `eslint.config.js` 加规则，是因为该配置明写只做确定性错误检查，
+加 warn 会让 run_all 日志平白多出 2,700+ 条告警（`no-var` 2,532 条）且 warn 不阻断。
+
+`tools/structure-baseline.json` 的 `continuationAllowlist` 登记 `07d-places5.js`（续号命名，S2 规则要求登记）。
+
+### 四、未改的项（如实说明，不是遗漏）
+
+| 审查建议 | 为什么本轮不做 |
+|---|---|
+| `renderPlaces` / `renderGlobal` 改局部更新 | 14+ / 12+ 调用点的写后刷新语义各不相同，局部更新要逐个改调用方；回归面远大于收益，且缺少逐调用方的实机走查 |
+| 拆 `renderGlobal`（375 行）为分组渲染器 | 纯重构、无性能收益；`08-npc-traits2.js` 只剩 24 行余量，拆出的分组无处安放，需先改分片容量策略 |
+| CSS 类名抽常量表（`mce-err` 122 次等） | 122 处 × 多文件替换会让多数接近 400 行的分片直接破门禁，收益是可读性而非正确性 |
+| 46/79 分片补「职责：」头注 | 3 个分片已卡 400 行（`07a-shell` / `07d-places4` / `09-exports2`），加头注会破门禁 |
+| `var` 全量迁 `let/const` | 审查已明确不建议：纯风格、回归面极大，且连带 `ecmaVersion` 影响产物兼容性 |
+
+### 五、验证
+
+`run_all.ps1` **13/13 ALL CHECKS PASSED**；`tests/places_stage_state.js` **96 PASS / 0 FAIL**（新增 5 条缓存断言）；
+`tests/bench_panel_render.js` **17 条 ALL PASS**；拼接 SHA == 产物 SHA。
+
+## v2.1.4（2026-11-14 惠特尼家子入口可达性修复 + 艾弗里两条会报错的入口替换）
+
+v2.1.3 的 note 写「组内 258 段」，但**面板实际只渲染 1 行** —— 数字与可达性脱钩，本轮把两者对齐。
+
+### 一、惠特尼家：补 12 条严格自足子入口（P0，v2.1.3 的功能缺口）
+
+根因在 `mbCEListPlaceEntries`（`07d-places4.js` L261-278）：原实现只读 `PLACE_EXTRA_ENTRIES[group.id]`，
+该对象没有 `whitney_home` 键 → L266 `if (!list || !list.length ...) { return out; }` → 面板
+`mbCERenderPlaceSubs` 遇空清单直接 `return`，于是玩家只能点到主场景 `Knock`，其余 257 段不可达。
+
+补入 12 条（全部落在「严格自足」集合内，中文短名一并给）：
+
+清晨早餐（开场）/（收尾）/（提议）、清晨共浴（害羞）、初次登门（蒙眼）/（走到门口）、卧室、客厅递饮、
+卧室门后、窗帘、一起上学、离开公寓。
+
+**入选判据（本体 0.5.12.13 逐段实测，261 段全扫）**：
+
+1. 段内有显式 `[[...|...]]` 出口（不靠 hub widget 现算）；
+2. 首个 `<<person1>>`／代词宏（`<<He>>`/`<<he>>`/`<<his>>`/`<<him>>`/`<<Hes>>`…）之前，
+   已有写进 **slot 0** 的落地（`<<npc X>>` 或 `<<loadNPC 0 "X">>`）；
+3. 本段不写 `$whitney_home_stage`（单向游标 1→4，中段直跳会跳过首次登门三部曲）。
+
+判据 2 的事实源：`<<widget "personselect">>` 的 `<<if !$NPCList[_n] or !$NPCList[_n].pronoun>>` 分支
+直接 `<<error {message: "Undefined NPC in personselect " + _n ...}>>` —— 无落地段直跳是**红字报错**，
+不是显示瑕疵。`<<loadNPC 1 "X">>` 只填 slot 1，**不算落地**（`Dawn Enter` / `Hang Toys` 因此排除）。
+口径演进：只数大写 `<<He>>/<<His>>` → 46 段；补大小写变体 → 37 段；再把 `<<personN>>` 计入
+（它本身就会触发 personselect）→ **严格自足 28/261**，再剔过渡碎段取 12。
+
+被排除的典型：`Hang`（86 字符，正文只有 `<<whitney_home_events>>`，出口全在 widget，且白天某些
+weekday 时段 `whitneyoptions` 不给「离开公寓」）、`Intro 3`（`<<person1>>` 在落地前）、145 段人称早于落地。
+
+**落点选择**：`07d-places4.js` 已顶到结构门禁 400 行（`maxLines:400`、`lineAllowlist` 无豁免），
+故白名单数据放 `07d-places3.js` 的 `MB_CE_EXTRA_MORE`，4.js 只把 L265 换成一行
+`var list = mbCEPlaceList(entry.group.id);`，由 3.js 的 `mbCEPlaceList` 做双源合并
+（`PLACE_EXTRA_ENTRIES` 优先、`MB_CE_EXTRA_MORE` 兜底）。分片拼接顺序 places→places2→places3→places4，
+且调用发生在渲染期，故 4.js 赋值后 3.js 的函数仍读得到。
+
+### 二、艾弗里庄园：替换两条会报错的既有入口（P1，v2.1.3 起就在面板上）
+
+| 移除 | 原因 | 替换为 |
+|---|---|---|
+| `Mansion Dungeon Intro` | `<<effects>><<set $outside to 0>>` 后 `<<He>>` 已在 183 字符处、前无任何落地 → 直跳报 `Undefined NPC in personselect 0` | `Mansion Dungeon`（3,186 字符 / 11 出口，`<<avery_mansion>>` widget 落地@1338 < 人称@1351） |
+| `Mansion Skyscraper Rise` | 首行 `<<bedclotheson "Mansion Bed">>` 后 `<<He>>` 在 197 字符处 → 同样报错 | `Mansion Enter`（5,438 字符 / 19 出口，自足） |
+
+`Mansion Skyscraper` 全系列 12 段扫过，仅 `Dress Refuse 2` 与 `Dress Fight` 自足，语义都是
+「二次拒绝/反抗」中段，**无干净入口可替换**，故整系列不单列。子入口总数保持 9 条（替换而非净删）。
+
+同时澄清一个**假风险**：`Mansion Pool` / `Bathroom` / `Bedroom` / `Display` 四段 `link` 数为 0，
+看似死段，实为 `<<set $location>><<set $bus>><<set $avery_passage>><<effects>><<avery_mansion>><<avery_mansion_contents>>`
+—— 靠 widget 动态生成整屋出口，**不卡死**，`mbCEArrivalCheck` 也照常识别，保持原样。
+
+### 三、证据与复跑
+
+- 严格自足扫描（含 `<<personN>>`）：whitney **28/261**、avery **216/866**（脚本 `%TEMP%\mce_selfsuff2.py`）
+- 12 条候选段首条件逐条打印：`%TEMP%\mce_wl12.py`；两条 RISK 全文：`%TEMP%\mce_mansion_risk.py`
+- 4 条零链接段实证：`%TEMP%\mce_zero_link.py`；Skyscraper 12 段扫描：`%TEMP%\mce_sky.py`
+- `<<widget "npc">>` 全文（说明为何不能做 JS 侧通用 NPC 兜底：依赖 `$NPCNameList`/`initnpc`/
+  `initNNPCClothes`/`strapon`/`$npc.push`/`$npcnum.push`/`$npcrow.push`/`$pronoun` 一整套）：`%TEMP%\mce_npc_full.py`
+- 测试：`tests/forest_shop_direct.js` 第 8 节新增 25 条断言（48 → **73 PASS**），覆盖
+  「12 条同序同集合」「每条在组 items 内」「Hang 不进白名单」「两条 RISK 已移除且替换项在场」「艾弗里仍 9 条」
+
+## v2.1.3（2026-11-14 场景直达补「惠特尼 · 家」+ 艾弗里庄园挂可玩性筛子）
+
+用户点名两处「还有没有没解锁的」。取证结论：这两处都**不在**原版 `$scenes` 注册表里
+（注册表 Whitney 仅 12 键、Avery 仅 `AveryParkIntroduction`/`AveryHelicopter` 2 键），
+所以「剧情条件解锁面板」里本来就查不到 —— 缺口全在**段落直达层**。
+
+### 一、新增「惠特尼 · 家」组（原版 `Whitney Home` 261 段此前一条都没收录）
+
+`PLACE_GROUPS` 里此前没有任何 `Whitney Home` 前缀的 match，面板整组缺失（玩家一条都点不到）。补入 `whitney_home`：
+
+- 主场景 `Whitney Home Knock`（2,706 字符）：首行自带 `<<set $outside to 0>><<set $location to "flats">><<effects>>`，
+  night（无响应：Knock harder / Leave）、dawn（开门：Ask to come in / Ask how he is）、dusk（无人在家：Next）、
+  其余（天气 + 上学日判定后 Enter / Leave）四条分支**各有出口**，任何时段直达都不会白屏。
+- 不用 `Whitney Home Hang` 作主场景：该段正文只有 `<<whitney_home_events>>`，依赖 widget 定义段（已被筛子剔除）。
+- 判定筛子 `mbCEIsUnplayableEntry`：前缀 261 段 → 剔除 3（`Gang Sex` / `Gang Window Sex` / `Hang Masturbation Sex`，
+  首宏 `$sexstart` 的性爱中继）→ 保留 258。
+- 状态依赖 `$daily.whitney`（day_knock / breakfast_done / shower_done）：原版 StoryInit（HTML L183255）
+  一次性 `<<set $daily to {...whitney: {}...}>>` 是全库唯一初始化点，`unset $daily` 三处均只删子键
+  （`robin_in_cafe` / `robin.orphanageKitchen` / `fishing...`），不存在整对象删除 → 直达无需另建壳，也不覆盖玩家进度。
+- 组定义登记在 `07d-places3.js`（与 `forest_shop` 的 splice 注入同一位置层）：`07d-places.js` 已顶到结构门禁 400 行上限。
+
+### 二、艾弗里庄园挂上可玩性筛子（866 段里 46 段中继不再当直达项）
+
+`avery_mansion` 此前只有 `main` 与 9 条子入口、**没有 exclude** → 46 段战斗/性爱中继
+（`Mansion Dungeon Fight`、`Chase Fight`、`Housework * Sex·Rape`、`Return * Fight·Rape·Sex`、
+`Party Jordan End *`、`Passout Pair *` 等）会出现在子入口清单与「更多入口」里，直达后无上下文。
+按用户要求**不新增子房间入口**，只补筛子：前缀 866 → 剔除 46 → 保留 820，主场景 `Mansion Bed`
+与既有 9 条子入口（Pool / Bathroom / Bedroom / Display / Folder / Dungeon Intro / Bathe / Talk / Skyscraper Rise）全部保留。
+
+### 三、证据与复跑
+
+- 段落解析 + 前缀导出：`python %TEMP%\mce_export_prefix.py`（本体 16,087 段 → 命中 1,127：Whitney Home 261 / Mansion 866）。
+- 面板复刻（走真实函数，不是 fixture）：`$env:NODE_PATH="<repo>\node_modules"; node %TEMP%\mce_real_groups_probe.js`
+  → 输出 `whitney_home 261 / items 258 / 剔 3`、`avery_mansion 866 / items 820 / 剔 46` 与完整剔除清单，两处主场景均在组内。
+- 断言：`tests/forest_shop_direct.js` 新增第 6、7 两节共 15 条（组存在 / main 正确 / exclude 生效 / 首位是主场景 /
+  中继段与 widget 段被剔除 / 庄园泳池保留），单跑 **48 PASS / 0 FAIL**。
+
+## v2.1.2（2026-11-14 对标 CE 1.20.4 的三处收紧 + 特殊古董单列）
+
+对照 CE 1.20.4（tag `1.20.4` / commit `05d602f` / 资产 `cheat_extended.mod.zip` 609,712 B /
+SHA256 `980BA672661B0171923343DD03A242670FD3553208438355B5270E101AB8E134`）逐条评估后落地三项：
+修古董一键收集的排除判据、补框架版本闸门、给延迟渲染加内层校验。CE 那边不建议抄的四项理由见第五节。
+
+### 一、古董一键收集：判据从 `!== "found"` 收到 `=== "notFound"`（真 bug）
+
+旧实现遍历 `$museumAntiques.antiques` 全量写 `found`：
+
+```js
+Object.keys(ma.antiques).forEach(k => { if (ma.antiques[k] !== "found") { ma.antiques[k] = "found"; got++; } })
+```
+
+原版状态机（HTML L608803-608813 `museumAntiqueStatus`）有六态 `notFound / found / talk / museum / stolen / recovered`。
+旧判据把 `talk`（已谈话未发展）、`museum`（已上交、已计入 `museumCount` 与成就）、`stolen`、`recovered`
+**一律拉回 `found`** —— 玩家已完成的博物馆进度被清掉，成就条件 `museumCount == maxCount`（L104893）随之失配。
+画作（`paintings` 两件）同法同病。改后只动 `notFound`，其余态原样保留；`maxCount` 缺失时仍兜底补 63。
+
+### 二、两件特殊古董拆成独立收集键（用户要求的产品形态）
+
+CE 1.20.4 `changeLog.md` L41-47 声明排除三件（黃金貞操帶 / 象牙項鍊 / 詛咒硬幣），
+其 `game/Widgets cheat_extended.twee` L641-716 实际是 58 件显式白名单。求差集（原版 63 件 − CE 白名单）得**恰好两件**：
+
+- `antiquegoldchastitybelt`（黄金贞操带）：全 HTML 只在博物馆价格表 L190320 出现（同组 `+= 200000`），**无剧情副作用**。
+- `antiqueivorynecklace`（象牙项链）：**有硬副作用**——L188980 起每次 passage 都跑的初始化块
+  `<<if $necklaceThief is undefined>>` 三分支里，`antiqueivorynecklace isnot "notFound"` → `$necklaceThief = "player"`，
+  即把 Wraith 项链回收线判定成「玩家已发现」；另 L172246-172250 `fishingAntiqueAvailable` 要求 `!status || status === "notFound"`，
+  提前写 found 会让该件永久钓不到。
+- **「诅咒硬币」在原版 63 件里没有对应键**：全 HTML 搜 `antique[a-z]*curse[a-z]*` 零命中；`cursed` 命中的是服装属性字段
+  （L42842 `cursed: 0`）与 V 变量白名单（L27948），与古董无关。CE 自己的 58 件白名单里也没有对应键。**不做假键**。
+
+产品形态：一键收齐下面新增三键（`收集黄金贞操带（<当前态>）` / `收集象牙项链（<当前态>）` / `收集诅咒硬币（原版无此键）`），
+前两件各带独立回退键，第三件点击给可追溯说明、不写存档。
+
+数据层新增 `MCE_VANILLA_SPECIAL_ANTIQUES`（只放两件真实键）/ `MCE_VANILLA_ANTIQUE_STATE_ZH`（六态中文）/
+`mbCEVanillaAntiqueCollectOne(key)` / `mbCEVanillaAntiqueSpecials()`；面板文案「64 件古董」更正为 **63 件**（旧数字按 CE 白名单反推，是错的）。
+
+留痕 id 用 `antique-<key>`，与一键收齐的 `antique` 各自独立；项链的 `$necklaceThief` 只在本次真的写入（原值 undefined）
+且回退时现值仍是 `"player"` 才撤销 —— 不误删玩家之后推进的 `diver` 进度。
+
+### 三、框架版本闸门（`mbCEFrameworkGate`）
+
+此前全 `javascript/src` 无任何框架版本判据。CE 的 `scriptEarly/framework_detector.js` 79 行是
+`modUtils.getMod('maplebirch')` 取版本 → `parseVersion`/`compareVersions` → 与 `"3.2.5"` 比较 → 过低/未装各弹提示。
+
+本版照同法落地但**不阻断**：返回 `{ level: ok|missing|incompatible|old, version, missing[], tested, message }`，
+`missing` = 没装、`incompatible` = 缺 `get`/`npc`、`old` = 低于实测基线 `5.6.2`（`tools/_modcache/fw562`），否则 `ok`。
+结论挂 `window.__mceFrameworkGate`，非 `ok` 只 `console.warn` + 进错误池——本模组各功能自身已有「取不到就返回失败」的降级，
+硬闸门只会把还能用的功能一起锁死。
+
+### 四、`mceSchedule` 加内层校验（fail-closed）
+
+回调体原本只有 `bucket` 复位 + `try{fn()}catch{}`。调用点外层判据 `openFlag && root && document.body.contains(root)`
+只在调度那一刻成立，300ms 窗口内关面板 / 切页会让 `root` 脱离文档，回调仍往已卸载 DOM 渲染。
+签名加第四参 `guard`：回调内先 `guard()`，返回假或抛错都直接 `return`。调用点把同一份判据作为 guard 传下去。
+参考 CE `scripts/core/CE_mapView.js` L13-18 的 `generation === epoch && V === state && node?.isConnected` 三重判定。
+
+### 五、CE 那边评估后不抄的四项
+
+1. **Hook 重挂**（`CE_hookTool.js` L752-788 `:passagestart` + `recoveryEpoch` + `retry(5)`）：CE 遇的是切 passage 时 clone
+   `State.variables` 导致 Proxy 失效；本模组走 `07f-lock.js` 的 1s 轮询 + `:passagedisplay` 补齐，天然免疫，代价是 ≤1s 窗口。
+2. **防重复安装**：已有（`07f-pins4-hook.js` 命名空间先 off 再 on + `window.__mbCEUnfreezeHooked` 守卫）。
+3. **「移除简易框架支援」**：与本模组无冲突（全仓唯一匹配是 `07a-shell2.js` 的日志标签）。
+4. **三个快速言灵**：食谱 / 种子 / 古董本模组都有（`03a-global-batch.js` / `07i-yanling-actions.js` / `07l-vanilla-ext.js`）。
+
+### 六、验证
+
+新增 `tests/test_vanilla_antique_special.js`（12 组 / **63 断言**）。TDD 红绿：未改版本跑同文件得 5 条新 API 断言 FAIL
+（`git stash` 取红，恢复后绿）。
+
 ## v2.1.1（2026-11-12 地下城作弊残留拦截包判据重订）
 
 给「DoL 联机&地下城（DoLOnline 5.34）」的独立旁加载包 `DoLOnline-Guard.mod.zip`（v1.1.0）重订拦截判据，

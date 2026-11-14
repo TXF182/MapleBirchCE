@@ -1,3 +1,4 @@
+/* 职责：适配器：FertilityExpansion 1.7.0 声明 + 模组存在性判定 */
 /* ============ v2.0.0.002 新适配：FertilityExpansion 1.7.0（伊甸生育/子女大扩展） ============
    源码实证（GitHub Liliths-Legacy/DOL-FertilityExpansion-MOD@main，对照源码 _modcache/fert_tmp）：
    mods/FertilityExpansion/boot.json —— name "FertilityExpansion"、version "1.7.0"，

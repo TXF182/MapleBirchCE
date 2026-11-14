@@ -222,9 +222,9 @@
 		var list = mbCEUndoList();
 		var undoable = list.filter(function (it) { return !mbCEUndoBlocked(it.type); }).length;
 		/* v2.0.3 P4-2：写入前 diff 预览开关（门控在 04b 执行器，见 08d-diff-preview.js） */
-		var pvRow = el("div", "mce-row");
+		var pvRow = el("div", MCE_CLS.row);
 		var pvOn = mbCEPreviewEnabled();
-		var pvBtn = el("button", "mce-btn" + (pvOn ? " mce-gold" : ""), pvOn ? "写入前 diff 预览：已开启" : "写入前 diff 预览：已关闭");
+		var pvBtn = el("button", MCE_CLS.btn + (pvOn ? " mce-gold" : ""), pvOn ? "写入前 diff 预览：已开启" : "写入前 diff 预览：已关闭");
 		pvBtn.type = "button";
 		pvBtn.title = pvOn
 			? "当前每次写入都会先弹出「键 旧值 → 新值」确认条，点「确认写入」才落档；点此关闭直接写入"
@@ -232,7 +232,7 @@
 		pvBtn.addEventListener("click", function () {
 			mbCEUiState.diffPreview = pvOn ? "0" : "1";
 			try { mbCEUiSave({ diffPreview: mbCEUiState.diffPreview }); } catch (e) {}
-			setStatus("写入前 diff 预览已" + (pvOn ? "关闭（恢复直接写入）" : "开启（写入前先确认）"), "mce-ok");
+			setStatus("写入前 diff 预览已" + (pvOn ? "关闭（恢复直接写入）" : "开启（写入前先确认）"), MCE_CLS.ok);
 			renderGlobal();
 		});
 		pvRow.appendChild(pvBtn);
@@ -243,20 +243,20 @@
 		allBtn.title = "按时间倒序回退所有可回退的留痕；审计类（批量 / 言灵 / 关系状态）自动跳过";
 		allBtn.addEventListener("click", function () {
 			var r = mbCEUndoAll();
-			setStatus(r.msg, r.ok ? "mce-ok" : "mce-err");
+			setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 			renderGlobal();
 		});
 		top.appendChild(allBtn);
-		var refreshBtn = el("button", "mce-btn", "刷新清单");
+		var refreshBtn = el("button", MCE_CLS.btn, "刷新清单");
 		refreshBtn.type = "button";
 		refreshBtn.addEventListener("click", function () {
-			setStatus("留痕清单已刷新：" + mbCEUndoList().length + " 条", "mce-ok");
+			setStatus("留痕清单已刷新：" + mbCEUndoList().length + " 条", MCE_CLS.ok);
 			renderGlobal();
 		});
 		top.appendChild(refreshBtn);
-		sec.appendChild(el("div", "mce-hint", "当前留痕 " + list.length + " 条，其中可回退 " + undoable + " 条。留痕上限 400 条，超出按时间升序删最旧一半（旧操作的回退窗口随之关闭）。"));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前留痕 " + list.length + " 条，其中可回退 " + undoable + " 条。留痕上限 400 条，超出按时间升序删最旧一半（旧操作的回退窗口随之关闭）。"));
 		if (!list.length) {
-			sec.appendChild(el("div", "mce-hint", "暂无写入留痕：面板还没有写过任何东西，或已全部回退。"));
+			sec.appendChild(el("div", MCE_CLS.hint, "暂无写入留痕：面板还没有写过任何东西，或已全部回退。"));
 			return;
 		}
 		/* 按类型分组（组内按时间倒序，组按条数降序） */
@@ -272,37 +272,37 @@
 			var blocked = mbCEUndoBlocked(type);
 			var body = mceNewGroup(sec, mbCEUndoLabel(type), items.length + " 条" + (blocked ? " · 仅审计" : ""));
 			if (blocked) {
-				body.appendChild(el("div", "mce-hint", blocked));
+				body.appendChild(el("div", MCE_CLS.hint, blocked));
 			} else {
 				if (type === "lock") {
-					body.appendChild(el("div", "mce-hint", "回退 = 取消该数值的锁定 + 还原锁定前原值（只还原值不解除锁定，1 秒 tick 会立刻写回目标）。"));
+					body.appendChild(el("div", MCE_CLS.hint, "回退 = 取消该数值的锁定 + 还原锁定前原值（只还原值不解除锁定，1 秒 tick 会立刻写回目标）。"));
 				}
-				var gBtn = el("button", "mce-btn", "回退本组 " + items.length + " 项");
+				var gBtn = el("button", MCE_CLS.btn, "回退本组 " + items.length + " 项");
 				gBtn.type = "button";
 				gBtn.addEventListener("click", function () {
 					var r = mbCEUndoGroup(type);
-					setStatus(r.msg, r.ok ? "mce-ok" : "mce-err");
+					setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 					renderGlobal();
 				});
 				body.appendChild(gBtn);
 			}
 			items.slice(0, 24).forEach(function (it) {
-				var row = el("div", "mce-row");
+				var row = el("div", MCE_CLS.row);
 				/* 展示中文名（08e-undo-labels 解析），原始键留在 label 的 tooltip 里便于排障 */
 				var nm = mbCEUndoItemName(it.key, it);
-				var lbl = el("span", "mce-row-lbl", nm.length > 58 ? nm.slice(0, 58) + "…" : nm);
+				var lbl = el("span", MCE_CLS.rowLbl, nm.length > 58 ? nm.slice(0, 58) + "…" : nm);
 				lbl.title = it.key;
 				row.appendChild(lbl);
-				row.appendChild(el("span", "mce-hint", mbCEUndoFmtTime(it.t)));
+				row.appendChild(el("span", MCE_CLS.hint, mbCEUndoFmtTime(it.t)));
 				if (blocked) {
 					row.appendChild(el("span", "mce-badge", "不可回退"));
 				} else {
-					var b = el("button", "mce-btn", "回退");
+					var b = el("button", MCE_CLS.btn, "回退");
 					b.type = "button";
 					b.title = "还原「" + nm + "」为面板写入前状态（原始键 " + it.key + "）";
 					b.addEventListener("click", function () {
 						var r = mbCEUndoOne(it.key);
-						setStatus(r.msg, r.ok ? "mce-ok" : "mce-err");
+						setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 						renderGlobal();
 					});
 					row.appendChild(b);
@@ -310,7 +310,7 @@
 				body.appendChild(row);
 			});
 			if (items.length > 24) {
-				body.appendChild(el("div", "mce-hint", "（本组共 " + items.length + " 条，仅列出最近 24 条；「回退本组」会处理全部）"));
+				body.appendChild(el("div", MCE_CLS.hint, "（本组共 " + items.length + " 条，仅列出最近 24 条；「回退本组」会处理全部）"));
 			}
 		});
 	}

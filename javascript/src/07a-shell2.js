@@ -271,11 +271,11 @@
 			var text = mbCEErrors.map(function (e, i) { return "#" + (i + 1) + " " + e.msg + (e.n > 1 ? " ×" + e.n : "") + (e.src ? " @" + e.src : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
 			if (!text) { text = "（无错误记录）"; }
 			if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
-				navigator.clipboard.writeText(text).then(function () { setStatus("已复制 " + mbCEErrors.length + " 条错误到剪贴板", "mce-ok"); }, function () { setStatus("复制失败（浏览器限制），请手动选择", "mce-err"); });
+				navigator.clipboard.writeText(text).then(function () { setStatus("已复制 " + mbCEErrors.length + " 条错误到剪贴板", MCE_CLS.ok); }, function () { setStatus("复制失败（浏览器限制），请手动选择", MCE_CLS.err); });
 			} else {
 				setStatus("（共 " + mbCEErrors.length + " 条错误，详见上方列表）", "");
 			}
-		} catch (e) { setStatus("复制失败", "mce-err"); }
+		} catch (e) { setStatus("复制失败", MCE_CLS.err); }
 	}
 	function mbCEHookErrors() {
 		if (mbCEHookDone) { return; }

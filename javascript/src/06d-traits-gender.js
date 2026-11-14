@@ -1,3 +1,4 @@
+/* 职责：性别七键切换 + 玩家编辑页渲染 */
 /* 性别切换（v1.9.1 新功能：玩家自己页）——原版权威键实证（0.5.12.13 源码，自查轮补全）：
    七键：V.player.sex（"m"/"f"/"h"=herm，生殖器性别权威键，isGenitalMismatch/crossdressing/成就 Being a Boy 均读它）
          V.player.gender（社会性别，"m"/"f"/"h"，新游戏预设 herm=gender"h"）
@@ -68,7 +69,7 @@ function renderGenderBox(pane, V) {
 	var box = el("div", "mce-grp");
 	box.setAttribute("data-mce-gender", g);
 	box.appendChild(el("div", "mce-grp-t", "★ 性别切换（原版键 sex/gender/gender_body/penisExist/vaginaExist/penissize/ballsExist）当前：" + (GENDER_CN[g] || g)));
-	var brow = el("div", "mce-row");
+	var brow = el("div", MCE_CLS.row);
 	["m", "f", "a"].forEach(function (gv) {
 		var b = el("button", g === gv ? "mce-btn-active" : "", (GENDER_CN[gv] || gv) + (g === gv ? " ✓" : ""));
 		b.type = "button";
@@ -76,7 +77,7 @@ function renderGenderBox(pane, V) {
 		b.addEventListener("click", function () {
 			var res = applyPlayerGender(V, gv);
 			var isFail = typeof res === "string" && res.indexOf("FAIL") === 0;
-			setStatus(isFail ? res : "性别已切换为「" + (GENDER_CN[gv] || gv) + "」", isFail ? "mce-err" : "mce-ok");
+			setStatus(isFail ? res : "性别已切换为「" + (GENDER_CN[gv] || gv) + "」", isFail ? MCE_CLS.err : MCE_CLS.ok);
 			renderPlayerEdit();
 		});
 		brow.appendChild(b);
@@ -96,10 +97,10 @@ function renderPlayerEdit() {
 	back.type = "button";
 	back.addEventListener("click", function () { renderModCheats(); });
 	pane.appendChild(back);
-	pane.appendChild(el("div", "mce-hint", "【玩家自己 · 属性与特质】游戏属性面板数值快捷编辑 + 全部特质管理（含其他模组注入的特质，自动发现）。中文键名仅用于显示，写入仍用原键名。"));
-	var frow = el("div", "mce-row");
-	frow.appendChild(el("span", "mce-row-lbl", "关键词过滤："));
-	var finp = el("input", "mce-inp");
+	pane.appendChild(el("div", MCE_CLS.hint, "【玩家自己 · 属性与特质】游戏属性面板数值快捷编辑 + 全部特质管理（含其他模组注入的特质，自动发现）。中文键名仅用于显示，写入仍用原键名。"));
+	var frow = el("div", MCE_CLS.row);
+	frow.appendChild(el("span", MCE_CLS.rowLbl, "关键词过滤："));
+	var finp = el("input", MCE_CLS.inp);
 	finp.type = "text";
 	finp.value = curPlayerFilter || "";
 	finp.addEventListener("input", function () {
@@ -115,7 +116,7 @@ function renderPlayerEdit() {
 	renderQuickPanel(qwrap);
 	pane.appendChild(qwrap);
 	var V = getV();
-	if (!V) { pane.appendChild(el("div", "mce-err", "存档变量不可用。")); return; }
+	if (!V) { pane.appendChild(el("div", MCE_CLS.err, "存档变量不可用。")); return; }
 	var C = null;
 	try { if (typeof C !== "undefined" && C) { C = window.C || C; } } catch (e) {}
 	renderGenderBox(pane, V);

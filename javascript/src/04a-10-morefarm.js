@@ -1,3 +1,4 @@
+/* 职责：适配器：More Farm Upgrade 1.0.8 —— 11 项设施 / 农夫许可链 / 温室逐块 / 计时键兜底 */
 	/* 适配器：More Farm Upgrade（DOL-More-Farm-Upgrade-Mod v1.0.8，Qsx0391）
 	   功能（boot.json TweeReplacer 注入原版农场 + 源码实证）：新增 11 项设施升级
 	   （耕地机/播种机/收割机/施工机械/温室大棚/实验室/冷藏库/堆肥/农舍/坦克/地下室），

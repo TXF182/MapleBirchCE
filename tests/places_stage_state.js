@@ -400,6 +400,29 @@ const warnOld = api.mbCEPassageMacroWarn("X");
 assert(warnOld.indexOf("宏结构不配对") >= 0, "Story.passage 旧接口形态也能预检，实得 " + JSON.stringify(warnOld));
 global.Story = storyBak;
 
+/* 6k. 组枚举缓存（v2.1.5）：同一段落集复用结果，段落集变化必须重算
+   依据（2026-11-14 实测）：本体 16,087 段下 listPlaceGroups 单次 133~193 ms，其中 97% 花在
+   24 组 × 16,087 段的 g.match 循环；renderPlaces 有 14+ 处调用点（每次按钮回调都全量重建），
+   不缓存等于玩家每点一次地点按钮就付一次 137 ms。缓存失效判据见 07d-places5.js 头注释。 */
+section("组枚举缓存");
+const pgA = api.listPlaceGroups();
+const pgB = api.listPlaceGroups();
+assert(pgA === pgB, "同段落集第二次返回同一数组引用（缓存命中，未重算）");
+assert(pgA.length > 0, "组数非空（" + pgA.length + " 组，应为 PLACE_GROUPS 全长）");
+const pgACount = pgA.reduce(function (a, e) { return a + e.items.length; }, 0);
+global.Story = {
+  has: function (n) { return n === "Whitney Home CacheProbe"; },
+  passages: [{ name: "Whitney Home CacheProbe", text: "" }],
+  size: 1,
+  get: function (n) { return n === "Whitney Home CacheProbe" ? { name: n, text: "" } : null; }
+};
+const pgC = api.listPlaceGroups();
+assert(pgC !== pgA, "段落集变化后返回新数组（缓存失效重算）");
+assert(pgC.length === pgA.length, "组数不随段落集变化（恒 " + pgA.length + " 组）");
+const pgCCount = pgC.reduce(function (a, e) { return a + e.items.length; }, 0);
+assert(pgCCount > pgACount, "重算结果反映新段落集（条目 " + pgACount + " → " + pgCCount + "）");
+global.Story = storyBak;
+
 console.log("\nPLACES STAGE STATE: passed=" + passes + " failed=" + failures);
 if (failures) process.exit(1);
 process.exit(0);

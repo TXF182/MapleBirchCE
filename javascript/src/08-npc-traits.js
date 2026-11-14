@@ -1,3 +1,4 @@
+/* 职责：NPC 特质获取 + 誓言修复 + 时间推进（Now / Advance / Jump） */
 	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
 	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
 	var NPC_TRAITS = [

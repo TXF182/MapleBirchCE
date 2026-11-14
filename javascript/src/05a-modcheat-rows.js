@@ -1,3 +1,4 @@
+/* 职责：模组作弊行渲染 —— 分帧构建防长任务 ANR / 组懒展开 / 阶段控件 / 数值筛选 */
 	/* v1.9.4 问题2 根治：Mod 子页超长组时间分片构建（模块级状态，跨 renderModCheatDetail 渲染存活）。
 	   背景：DoL-Game-UI 每帧 rAF 全量样式扫描抢主线程，Mod 子页"全部展开"一次性建数百行 =
 	   单帧长任务 → 移动 WebView 滚动丢帧 / 长任务 ANR 闪退（用户实测）。
@@ -27,7 +28,7 @@
 				t.i++; built++;
 			}
 			if (t.i >= t.fns.length) {
-				if (t.failed) { t.body.appendChild(el("div", "mce-hint", "有 " + t.failed + " 行加载失败（适配器数据异常），已跳过。")); }
+				if (t.failed) { t.body.appendChild(el("div", MCE_CLS.hint, "有 " + t.failed + " 行加载失败（适配器数据异常），已跳过。")); }
 				modRowQueue.shift();
 			}
 			guard++;
@@ -90,19 +91,19 @@
 		var pane = root.querySelector('[data-pane="mods"]');
 		if (!pane) { return; }
 		pane.textContent = "";
-		pane.appendChild(el("div", "mce-hint", "本页面用于操控其他第三方模组新增的拓展内容，不修改游戏原版数据。下方为已识别到支持作弊控制的模组，点击模组名称进入对应控制子页面。"));
+		pane.appendChild(el("div", MCE_CLS.hint, "本页面用于操控其他第三方模组新增的拓展内容，不修改游戏原版数据。下方为已识别到支持作弊控制的模组，点击模组名称进入对应控制子页面。"));
 		/* v1.7.0：玩家自己编辑入口（玩家所有属性 + 模组加入属性，全量，数值与阶段可改） */
 		var pcard = el("div", "mce-card mce-sel");
 		var ptop = el("div", "mce-card-top");
 		ptop.appendChild(el("span", "mce-card-name", "▶ 玩家自己 · 属性与特质"));
 		ptop.appendChild(el("span", "mce-badge mce-on", "面板数值/特质可改"));
 		pcard.appendChild(ptop);
-		pcard.appendChild(el("div", "mce-hint", "游戏属性面板数值快捷编辑 + 全部特质管理（含其他模组注入的特质，自动发现；获取时条件不满足自动改为满足）。"));
+		pcard.appendChild(el("div", MCE_CLS.hint, "游戏属性面板数值快捷编辑 + 全部特质管理（含其他模组注入的特质，自动发现；获取时条件不满足自动改为满足）。"));
 		pcard.addEventListener("click", function () { renderPlayerEdit(); });
 		pane.appendChild(pcard);
 		var mods = getCheatMods();
 		if (!mods.length) {
-			pane.appendChild(el("div", "mce-err", "⚠ 暂未识别到可控制的第三方模组拓展内容，请加载对应模组后重试。"));
+			pane.appendChild(el("div", MCE_CLS.err, "⚠ 暂未识别到可控制的第三方模组拓展内容，请加载对应模组后重试。"));
 			return;
 		}
 		var list = el("div", "mce-cards");
@@ -149,18 +150,18 @@
 		modRowQueue.length = 0;
 		pane.textContent = "";
 		if (!m) {
-			pane.appendChild(el("div", "mce-err", "模组未识别（可能已卸载），请返回列表。"));
+			pane.appendChild(el("div", MCE_CLS.err, "模组未识别（可能已卸载），请返回列表。"));
 			return;
 		}
 		var back = el("button", "", "← 返回模组列表");
 		back.type = "button";
 		back.addEventListener("click", function () { curCheatModId = ""; modValueFilter = ""; renderModCheats(); });
 		pane.appendChild(back);
-		pane.appendChild(el("div", "mce-hint", "【" + m.modName + "】作弊控制"));
-		pane.appendChild(el("div", "mce-hint", "所有操作仅作用于 " + m.modName + " 的新增内容，不会改动游戏本体与其他模组数据。"));
+		pane.appendChild(el("div", MCE_CLS.hint, "【" + m.modName + "】作弊控制"));
+		pane.appendChild(el("div", MCE_CLS.hint, "所有操作仅作用于 " + m.modName + " 的新增内容，不会改动游戏本体与其他模组数据。"));
 		/* 折叠工具行：全部展开 / 全部收起（懒渲染下组体行按需补建） */
-		var toolRow = el("div", "mce-row");
-		toolRow.appendChild(el("span", "mce-row-lbl", "折叠工具："));
+		var toolRow = el("div", MCE_CLS.row);
+		toolRow.appendChild(el("span", MCE_CLS.rowLbl, "折叠工具："));
 		var bAllOpen = el("button", "", "全部展开"); bAllOpen.type = "button";
 		bAllOpen.setAttribute("data-mce-tool", "mods-open");
 		bAllOpen.addEventListener("click", function () {
@@ -186,8 +187,8 @@
 		pane.appendChild(toolRow);
 		/* v1.9.13 数值搜索框：仅该模组声明了数值项时显示；输入防抖重建（数值组过滤见 renderCheatValues） */
 		if (m.values.length) {
-			var fRow = el("div", "mce-row");
-			fRow.appendChild(el("span", "mce-row-lbl", "数值搜索："));
+			var fRow = el("div", MCE_CLS.row);
+			fRow.appendChild(el("span", MCE_CLS.rowLbl, "数值搜索："));
 			var fInp = el("input", "mce-search-inp");
 			fInp.type = "text";
 			fInp.value = modValueFilter;
@@ -241,7 +242,7 @@
 					try { appendRowNodes(grp.body, pend[i]()); } catch (e) { failed++; }
 				}
 				if (failed) {
-					grp.body.appendChild(el("div", "mce-hint", "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
+					grp.body.appendChild(el("div", MCE_CLS.hint, "有 " + failed + " 行加载失败（适配器数据异常），已跳过。"));
 				}
 				return;
 			}
@@ -264,7 +265,7 @@
 		if (m.values.length) { any = true; renderCheatValues(m, grpFor, buildModGrpRows); }
 		if (m.actions.length || typeof m.actionPanel === "function") { any = true; renderCheatActions(m, grpFor, buildModGrpRows); }
 		if (!any) {
-			pane.appendChild(el("div", "mce-hint", "该模组已识别但未声明可操控项（任务/阶段/剧情/数值均为空）。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "该模组已识别但未声明可操控项（任务/阶段/剧情/数值均为空）。"));
 		}
 		/* 组头统一补计数 + 展开态初始建行（与 06-traits 一致：收起的组保持空，等点击展开才建） */
 		Object.keys(groups).forEach(function (k) {
@@ -277,7 +278,7 @@
 	}
 	/* 行构建抽为独立小函数（返回 node，懒渲染闭包内执行；data-mce-key 与事件保持五巡局部刷新兼容） */
 	function actCheat(res, modId, key) {
-		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
+		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? MCE_CLS.ok : MCE_CLS.err);
 		/* 五巡：操作后局部刷新目标行（不再全量重建整个模组页——高频操作下 DOM churn 是卡顿/闪退累积源之一） */
 		/* 已删两层恒真判定（原 `if (modId && key)` 包住整块、其后再 `if (modId)` 包 renderModCheatDetail）：
 		   13 个调用点（05a2-modcheat-rows-build.js）全部传 m.modId 与 "tasks:"+t.key 这类字面拼接（至少含前缀故

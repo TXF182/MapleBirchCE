@@ -38,6 +38,9 @@
 		"prostitution", "resisting", "thievery", "petty", "trespassing"
 	];
 
+	/* 特殊古董常量（MCE_VANILLA_SPECIAL_ANTIQUES / 状态中文 / 单件收集 / 状态清单）
+	   已拆到 07l-vanilla-ext-special.js（v2.1.2，结构门禁 S1）；本段保留一键收齐与留痕。 */
+
 	function mbCEVanillaTitleZh(t) {
 		if (t === undefined || t === null || t === "") { return "（空）"; }
 		return MCE_VANILLA_TITLE_ZH[String(t)] || String(t);
@@ -130,13 +133,13 @@
 
 
 	/* ② 古董：一次性「收集」（状态写 found = 已找到未上交），不写 museum（不结算奖金、不动 museumCount）；
-	   成就直写 V.feats.currentSave（earnFeat 在作弊模式被门控，等不到原版结算）。 */
-	function mbCEVanillaAntiqueCollect() {
-		var V = getV();
-		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
-		var ma = mbCEVanillaAntiqueState();
-		if (!ma) { return { ok: false, message: "未找到 $museumAntiques（该存档还没进入博物馆线）" }; }
-		var before = {
+	   成就直写 V.feats.currentSave（earnFeat 在作弊模式被门控，等不到原版结算）。
+	   v2.1.2 两条判据修正（对标 CE 1.20.4 的写法 + 原版状态机）：
+	   ① 特殊古董（MCE_VANILLA_SPECIAL_ANTIQUES）跳过，由单件键各自处理；
+	   ② 只把 `notFound` 写成 `found` —— 旧实现用 `!== "found"` 会把 talk / museum / stolen / recovered
+	      一律拉回 found，等于把已上交进度和中间态清掉。 */
+	function mbCEVanillaAntiqueBefore(V, ma) {
+		var b = {
 			kind: "antique",
 			antiques: mbCEVanillaClone(ma.antiques),
 			paintings: mbCEVanillaClone(ma.paintings),
@@ -145,25 +148,38 @@
 			recoveredCount: ma.recoveredCount,
 			maxCount: ma.maxCount,
 			hints: mbCEVanillaClone(V.museumAntiqueJournalHints),
-			hadFeat: false
+			hadFeat: false,
+			/* 本次写入是否真的改了 $necklaceThief（只有真改过才在回退时撤销，避免误删玩家后续推进的进度） */
+			necklaceChanged: false
 		};
 		try {
-			before.hadFeat = !!(V.feats && V.feats.currentSave && V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM] !== undefined);
+			b.hadFeat = !!(V.feats && V.feats.currentSave && V.feats.currentSave[MCE_VANILLA_FEAT_MUSEUM] !== undefined);
 		} catch (eB) {}
+		return b;
+	}
+
+	function mbCEVanillaAntiqueCollect() {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		var ma = mbCEVanillaAntiqueState();
+		if (!ma) { return { ok: false, message: "未找到 $museumAntiques（该存档还没进入博物馆线）" }; }
+		var before = mbCEVanillaAntiqueBefore(V, ma);
 
 		var got = 0;
+		var skipped = [];
 		Object.keys(ma.antiques).forEach(function (k) {
-			if (ma.antiques[k] !== "found") { ma.antiques[k] = "found"; got++; }
+			if (Object.prototype.hasOwnProperty.call(MCE_VANILLA_SPECIAL_ANTIQUES, k)) { skipped.push(k); return; }
+			if (ma.antiques[k] === "notFound") { ma.antiques[k] = "found"; got++; }
 		});
-		/* 画作：museumPaintingGet 只认 notFound→found，写 found 即「已发现未上交」 */
+		/* 画作：museumPaintingGet 只认 notFound→found；同样只动 notFound，已上交态保持原样 */
 		if (ma.paintings && typeof ma.paintings === "object") {
 			Object.keys(ma.paintings).forEach(function (k) {
-				if (ma.paintings[k] !== "found") { ma.paintings[k] = "found"; got++; }
+				if (ma.paintings[k] === "notFound") { ma.paintings[k] = "found"; got++; }
 			});
 		}
 		/* maxCount 兜底：原版由一个 always-run widget 每次补，存档里可能还没跑过 */
 		if (!(Number(ma.maxCount) > 0)) { ma.maxCount = Object.keys(ma.antiques).length; }
-		/* 期刊提示指向「未发现位置」，全部 found 后失去意义（原版 found 迁移时也会逐条清） */
+		/* 期刊提示指向「未发现位置」，收集后失去意义（原版迁移时也会逐条清） */
 		try { V.museumAntiqueJournalHints = []; } catch (eH) { /* 清期刊提示失败 → 保留旧提示（仅展示冗余，不影响古董状态） */ }
 
 		var featOk = false;
@@ -179,15 +195,20 @@
 			}
 		} catch (eFeat) { featOk = false; }
 
-		mbCEVanillaTrace("antique", before, "museumAntiques", "博物馆古董一次性收集（found，不上交）+ 成就直写");
+		mbCEVanillaTrace("antique", before, "museumAntiques", "博物馆古董一次性收集（found，不上交，跳过特殊件）+ 成就直写");
 		var msg = got > 0
-			? "已收齐 " + got + " 件（古董 " + Object.keys(ma.antiques).length + " + 画作 " + (before.paintings ? Object.keys(before.paintings).length : 0) + "），状态为「已发现未上交」——不会结算博物馆奖金。"
-			: "古董已是全部「已发现未上交」状态，未重复写入。";
+			? "已收集 " + got + " 件（古董 " + Object.keys(ma.antiques).length + " + 画作 " + (before.paintings ? Object.keys(before.paintings).length : 0) + "），状态为「已发现未上交」——不会结算博物馆奖金。"
+			: "没有可收集的物件：其余已是未发现之外的状态（talk / museum / stolen / recovered），未重复写入。";
+		if (skipped.length) {
+			msg += " 特殊古董 " + skipped.length + " 件未纳入（" + skipped.map(function (k) { return MCE_VANILLA_SPECIAL_ANTIQUES[k]; }).join(" / ") + "），请在下方逐件收集。";
+		}
 		if (featNew) { msg += " 成就「It Belongs in a Museum」已解锁。"; }
-		else if (featOk) { msg += " 成就「It Belongs in a Museum」此前已解锁。" ; }
+		else if (featOk) { msg += " 成就「It Belongs in a Museum」此前已解锁。"; }
 		else { msg += " 成就写入失败：该存档缺少 $feats 结构。"; }
-		return { ok: true, got: got, feat: featNew, message: msg };
+		return { ok: true, got: got, skipped: skipped, feat: featNew, message: msg };
 	}
+
+	/* 特殊古董单件收集与状态清单：见 07l-vanilla-ext-special.js（v2.1.2，结构门禁 S1 拆段） */
 
 	function mbCEVanillaNpcIdx(name) {
 		try {
@@ -311,6 +332,11 @@
 					}
 				} catch (eF2) { /* 成就标记还原失败 → 保留现值（仅成就显示差异，不影响古董数据） */ }
 				delete V.mbCE_wrote[key];
+				/* 单件收集写项链时可能落了 $necklaceThief：只在「本次确实改过且现值仍是写入值」时撤销，
+				   避免把玩家之后推进的 diver 进度误删。 */
+				if (b.necklaceChanged) {
+					if (V.necklaceThief === "player") { try { delete V.necklaceThief; } catch (eN) {} }
+				}
 				return { ok: true, message: "已还原古董状态与成就标记" };
 			}
 			if (b.kind === "title") {

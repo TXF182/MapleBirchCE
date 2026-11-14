@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-Write-Host "[1/12] build_js（manifest 段序校验 + 单段预算 / 续号命名结构门禁）"
+Write-Host "[1/13] build_js（manifest 段序校验 + 单段预算 / 续号命名结构门禁）"
 $buildArgs = @("tools/build_js.js")
 if ($Pkg) { $buildArgs += @("--sync-pkg", $Pkg) }
 node @buildArgs
@@ -15,11 +15,11 @@ if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: build（manifest 与目录不一致
 node tools/check_structure.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: structure（单段超预算或续号命名，见上方 S1/S2；豁免须写进 tools/structure-baseline.json）" -ForegroundColor Red; exit 1 }
 
-Write-Host "[2/12] node --check"
+Write-Host "[2/13] node --check"
 node --check javascript/maplebirchce.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: syntax" -ForegroundColor Red; exit 1 }
 
-Write-Host "[3/12] ESLint 十规则（重复键/不可达/函数重赋值/松散相等/自赋值/恒定条件/不安全取反/贯穿/重复声明/未声明标识符）"
+Write-Host "[3/13] ESLint 十规则（重复键/不可达/函数重赋值/松散相等/自赋值/恒定条件/不安全取反/贯穿/重复声明/未声明标识符）"
 if (Test-Path -LiteralPath "node_modules\.bin\eslint.cmd") {
   & "node_modules\.bin\eslint.cmd" javascript/maplebirchce.js
   if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: eslint（先 npm install 后重跑；十规则见 eslint.config.js 头部，宿主导出已在 globals 声明）" -ForegroundColor Red; exit 1 }
@@ -48,9 +48,9 @@ if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: unit_modcheat_write（原版根拦�
 # c8 缺失时覆盖率门禁只能 WARN 跳过，此处必须真跑一遍兜底，不留验证空档。
 $hasC8 = Test-Path -LiteralPath "node_modules\.bin\c8.cmd"
 if ($hasC8) {
-  Write-Host "[4-7/12] 功能测试并入第 10 步覆盖率序列，此处不再重复（smoke_dom / test_mce / test_adapter_matrix / lock_resume / adapter_actions / functional_e2e / integration_gender）"
+  Write-Host "[4-7/13] 功能测试并入第 10 步覆盖率序列，此处不再重复（smoke_dom / test_mce / test_adapter_matrix / lock_resume / adapter_actions / functional_e2e / integration_gender）"
 } else {
-  Write-Host "[4-7/12] c8 未安装 → 直接执行功能测试（覆盖率序列跑不起来时的兜底）" -ForegroundColor Yellow
+  Write-Host "[4-7/13] c8 未安装 → 直接执行功能测试（覆盖率序列跑不起来时的兜底）" -ForegroundColor Yellow
 
   Write-Host "    DOM 冒烟 (jsdom)"
   node tests/smoke_dom.js
@@ -79,7 +79,7 @@ if ($hasC8) {
   Write-Host "    兜底功能测试全部通过"
 }
 
-Write-Host "[8/12] 适配器声明一致性（schema 校验 + 矩阵幂等 + 结构自洽 + 类型形态）"
+Write-Host "[8/13] 适配器声明一致性（schema 校验 + 矩阵幂等 + 结构自洽 + 类型形态）"
 node tools/validate_adapters.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: validate_adapters（字段白名单/必填/类型枚举/数值域/levels-labels/sync/varPath 形状，见上方 FAIL 行）" -ForegroundColor Red; exit 1 }
 node tools/gen_adapter_matrix.js --check
@@ -93,11 +93,11 @@ if (Test-Path -LiteralPath "tools\_modcache\STATE.json") {
   Write-Host "    WARN: tools\_modcache\STATE.json 缺失（未下载对照源码），类型形态核查跳过" -ForegroundColor Yellow
 }
 
-Write-Host "[9/12] 原版数字档位形态（07d-places PLACE_GROUPS 声明 vs 0.5.12.13 赋值形态；原版 HTML 缺失时 SKIP）"
+Write-Host "[9/13] 原版数字档位形态（07d-places PLACE_GROUPS 声明 vs 0.5.12.13 赋值形态；原版 HTML 缺失时 SKIP）"
 node tools/check_vanilla_types.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: check_vanilla_types（声明数字档位但原版是字符串枚举 → 面板写入会静默半失效，见工具输出）" -ForegroundColor Red; exit 1 }
 
-Write-Host "[10/12] 覆盖率门禁（c8：lines>=90 branches>=80 functions>=95，低于门槛即失败；分组并行跑同一套 31 项序列，--groups auto 按核数自适应）"
+Write-Host "[10/13] 覆盖率门禁（c8：lines>=90 branches>=80 functions>=95，低于门槛即失败；分组并行跑同一套 31 项序列，--groups auto 按核数自适应）"
 if (Test-Path -LiteralPath "node_modules\.bin\c8.cmd") {
   # --reporter=json：门禁跑完同时刷新 coverage/coverage-final.json（report_branch_gaps.js 的唯一数据源）；
   # 少了它，缺口报告读到的是上一次的快照，数字看着合理但已过期（静默失效）
@@ -106,7 +106,7 @@ if (Test-Path -LiteralPath "node_modules\.bin\c8.cmd") {
 } else {
   Write-Host "    WARN: c8 未安装（npm install 后启用），覆盖门禁跳过" -ForegroundColor Yellow
 }
-Write-Host "[11/12] 类型检查（产物侧 tsc -p tsconfig.json：allowJs+checkJs，0 错误才过；缺全局声明时改 types\*.d.ts，不改源码引用）+ src 侧分账（tsconfig.src.json strict:true 按文件棘轮）"
+Write-Host "[11/13] 类型检查（产物侧 tsc -p tsconfig.json：allowJs+checkJs，0 错误才过；缺全局声明时改 types\*.d.ts，不改源码引用）+ src 侧分账（tsconfig.src.json strict:true 按文件棘轮）"
 if (Test-Path -LiteralPath "node_modules\.bin\tsc.cmd") {
   & "node_modules\.bin\tsc.cmd" -p tsconfig.json
   if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: tsc（类型错误/未声明标识符，见上方输出；勿删引用，先确认是否引擎全局）" -ForegroundColor Red; exit 1 }
@@ -117,9 +117,13 @@ if (Test-Path -LiteralPath "node_modules\.bin\tsc.cmd") {
   Write-Host "    WARN: typescript 未安装（npm install 后启用），类型检查跳过" -ForegroundColor Yellow
 }
 
-Write-Host "[12/12] 键注册表一致性（keys.registry.json vs 04a-*.js；改适配器后须 node tools/gen_key_registry.js --write）"
+Write-Host "[12/13] 键注册表一致性（keys.registry.json vs 04a-*.js；改适配器后须 node tools/gen_key_registry.js --write）"
 node tools/gen_key_registry.js
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: key registry（注册表与源码漂移，见上方 ADDED/REMOVED/RENAMED 行）" -ForegroundColor Red; exit 1 }
+
+Write-Host "[13/13] 复杂度/遮蔽/未使用变量 棘轮（tools/check_lint_ratchet.js：存量固定，新代码超基线即失败；改基线须 node tools/check_lint_ratchet.js --write-baseline 并在评审说明）"
+node tools/check_lint_ratchet.js
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: lint 棘轮（复杂度/遮蔽/未使用变量超存量基线，见上方明细）" -ForegroundColor Red; exit 1 }
 
 Write-Host "ALL CHECKS PASSED" -ForegroundColor Green
 

@@ -1,3 +1,4 @@
+/* 职责：特殊剧情场景注册表解析 —— $scenes widget 文本 → JS 求值 → 阶段聚类 */
 	/* ============ 特殊剧情（DoL 场景注册表 $scenes / Scene Viewer 系统）
 	     方案A：不硬编码任何剧情。从游戏 Story 文本解析 `<<widget "scenes">>` 的注册表
 	     （MOD 经 TweeReplacer/ReplacePatcher 改动的场景同样被解析到），unlocked 表达式

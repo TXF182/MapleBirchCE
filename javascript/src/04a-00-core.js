@@ -1,3 +1,4 @@
+/* 职责：CHEAT_ADAPTERS 注册表容器（须先于各模组块执行，各块随后按 id 注册） */
 /* ============ v1.9.13 拆分：Mod 作弊适配器声明（CHEAT_ADAPTERS 注册表容器） ============
    原 04a-modcheat-adapters.js（80KB）按模组拆分为本文件（注册表声明）+ 04a-01..11-*.js（各模组块）。
    构建 tools/build_js.js 按文件名 sort() 拼接：04a-00-core.js 排最前，先执行 var CHEAT_ADAPTERS = {}，

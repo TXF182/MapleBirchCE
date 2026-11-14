@@ -3,13 +3,13 @@
 	function render() {
 		if (!root) { return; }
 		if (!frameworkReady()) {
-			setStatus("未检测到 Maplebirch 框架", "mce-err");
+			setStatus("未检测到 Maplebirch 框架", MCE_CLS.err);
 			return;
 		}
 		var pane = root.querySelector('[data-pane="char"]');
 		var chars = listCharacters();
 		if (!chars.length) {
-			setStatus("注册池为空：未枚举到角色", "mce-err");
+			setStatus("注册池为空：未枚举到角色", MCE_CLS.err);
 			return;
 		}
 		var prev = (curName || mbCEUiState.curName || "").toLowerCase();
@@ -31,7 +31,7 @@
 		};
 		var doRender = paneRenders[activeTab];
 		if (doRender) { doRender(); }
-		setStatus("就绪：" + chars.length + " 个角色", "mce-ok");
+		setStatus("就绪：" + chars.length + " 个角色", MCE_CLS.ok);
 	}
 
 	/* v1.9.14 效果6：关闭淡出定时器（open 复位时清掉，防关闭动画残留） */
@@ -231,7 +231,7 @@
 
 		/* v1.8.12 错误列表箱（header 红点下方） + 复制全部 */
 		var errBox = el("div", "mce-errbox");
-		var errTools = el("div", "mce-row");
+		var errTools = el("div", MCE_CLS.row);
 		var copyBtn = el("button", "", "复制全部错误"); copyBtn.type = "button";
 		copyBtn.addEventListener("click", mbCECopyErrors);
 		var clearBtn = el("button", "", "清空"); clearBtn.type = "button";
@@ -259,14 +259,21 @@
 		});
 	}
 
-	/* v1.8.12 功能13：渲染节流工具——高频触发合并为一次执行（面板打开期间 passage 切换/搜索输入均适用） */
+	/* v1.8.12 功能13：渲染节流工具——高频触发合并为一次执行（面板打开期间 passage 切换/搜索输入均适用）
+	   v2.1.2：加第四参 guard，回调执行前再做一次有效性校验（对标 CE 1.20.4 scripts/core/CE_mapView.js 的
+	   `generation === epoch && V === state && node.isConnected` 三重判定）。外层判据只在调度那一刻成立，
+	   300ms 窗口内关面板 / 切页会让 root 脱离文档；guard 不成立就整段跳过，不再往已卸载的 DOM 上渲染。
+	   guard 自身抛错按「失效」处理（fail-closed），不许把调度器一起炸掉。 */
 	var mceRenderTimer = null;
 	var mceSearchTimer = null;
-	function mceSchedule(fn, ms, bucket) {
+	function mceSchedule(fn, ms, bucket, guard) {
 		var t = bucket === "search" ? mceSearchTimer : mceRenderTimer;
 		if (t) { clearTimeout(t); }
 		t = setTimeout(function () {
 			if (bucket === "search") { mceSearchTimer = null; } else { mceRenderTimer = null; }
+			if (typeof guard === "function") {
+				try { if (!guard()) { return; } } catch (eG) { return; }
+			}
 			try { fn(); } catch (e) {}
 		}, ms || 60);
 		if (bucket === "search") { mceSearchTimer = t; } else { mceRenderTimer = t; }

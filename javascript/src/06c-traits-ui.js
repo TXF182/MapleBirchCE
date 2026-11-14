@@ -1,3 +1,4 @@
+/* 职责：特质页渲染 —— 同系列阶段合并 / 收藏 / 懒加载行 / 模组特质 */
 /* v1.8.3：同系列不同阶段特质合并（如受虐狂 4 档 / 施虐狂 4 档 / 各科成绩 4 档）——
    识别依据：同一分类下 has 表达式只含一个数字比较变量（is/gte/gt N），同变量归为一组，按阈值排序。
    渲染为「阶段下拉 + 应用 + 跳至最高 + 回退初始」，对齐 Mod作弊 子页阶段控件。 */
@@ -54,7 +55,7 @@ function renderTraitSeriesRow(body, series, V) {
 		sel.appendChild(o);
 	});
 	sel.value = String(curTier >= 0 ? series.series[curTier].val : 0);
-	var lbl = el("span", "mce-row-lbl", seriesName + "（当前 " + (curTier >= 0 ? traitDisplayName(series.series[curTier].t, V2) : "无") + "）");
+	var lbl = el("span", MCE_CLS.rowLbl, seriesName + "（当前 " + (curTier >= 0 ? traitDisplayName(series.series[curTier].t, V2) : "无") + "）");
 	var bApp = el("button", "", "应用"); bApp.type = "button";
 	bApp.addEventListener("click", function () {
 		var v = parseFloat(sel.value);
@@ -74,7 +75,7 @@ function renderTraitSeriesRow(body, series, V) {
 		var res = traitWriteValue(series.series[0].t, V2, series.path, "0");
 		actPlayer(res);
 	});
-	var row = el("div", "mce-row");
+	var row = el("div", MCE_CLS.row);
 	row.appendChild(lbl); row.appendChild(sel); row.appendChild(bApp); row.appendChild(bMax); row.appendChild(bInit);
 	body.appendChild(row);
 }
@@ -134,8 +135,8 @@ function renderTraitsSection(pane, V, C) {
 		return g;
 	}
 	/* v1.8.12 二轮优化：折叠工具行——全部展开 / 全部收起（点击时 groups 已渲染完成） */
-	var toolRow = el("div", "mce-row");
-	toolRow.appendChild(el("span", "mce-row-lbl", "折叠工具："));
+	var toolRow = el("div", MCE_CLS.row);
+	toolRow.appendChild(el("span", MCE_CLS.rowLbl, "折叠工具："));
 	var bAllOpen = el("button", "", "全部展开"); bAllOpen.type = "button";
 	bAllOpen.title = "展开特质管理区全部分类";
 	bAllOpen.addEventListener("click", function () {
@@ -232,7 +233,7 @@ function renderTraitsSection(pane, V, C) {
 function renderTraitRow(grp, t, V, C, isMod) {
 	var owned = traitOwned(t, V, C);
 	var nameZh = traitDisplayName(t, V);
-	var row = el("div", "mce-row");
+	var row = el("div", MCE_CLS.row);
 	/* v1.8.12 收藏置顶：☆ 收藏 / ★ 已收藏（数据存 V.mbCE_favTraits，CSS 类渲染兼容无 DOM 环境） */
 	var favNow = isFavTrait(t, V);
 	var bF = el("button", "mce-favstar" + (favNow ? " mce-fav" : ""), favNow ? "★" : "☆");
@@ -243,13 +244,13 @@ function renderTraitRow(grp, t, V, C, isMod) {
 		actPlayer(res);
 	});
 	row.appendChild(bF);
-	row.appendChild(el("span", "mce-row-lbl", (owned ? "● " : "○ ") + nameZh + (isMod ? "（模组）" : "")));
+	row.appendChild(el("span", MCE_CLS.rowLbl, (owned ? "● " : "○ ") + nameZh + (isMod ? "（模组）" : "")));
 	/* 描述（函数/模板源码型描述不展示，避免源码泄漏） */
 	var desc = isMod ? t.text : String(t.text || "");
 	desc = String(desc || "");
 	if (/^\s*\(?\s*\)\s*=>/.test(desc) || /^\s*function\b/.test(desc) || (desc.length > 300 && desc.indexOf("`") !== -1)) { desc = ""; }
 	if (desc) {
-		row.appendChild(el("span", "mce-hint", String(desc).slice(0, 90) + (String(desc).length > 90 ? "…" : "")));
+		row.appendChild(el("span", MCE_CLS.hint, String(desc).slice(0, 90) + (String(desc).length > 90 ? "…" : "")));
 	}
 	/* 获取 / 移除：原版与模组注入特质均可（v1.8.11 模组特质不再只读——
 	   字符串判定写变量直接获得/移除，函数判定走强制获得标记） */
@@ -272,7 +273,7 @@ function renderTraitRow(grp, t, V, C, isMod) {
 	t.values.forEach(function (v) {
 		var cur = safeGetObj(V, v.path);
 		var num = (typeof cur === "number") ? cur : 0;
-		var inp = el("input", "mce-inp");
+		var inp = el("input", MCE_CLS.inp);
 		inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(num);
 		inp.placeholder = "+N / -N 相对";
 		inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值";

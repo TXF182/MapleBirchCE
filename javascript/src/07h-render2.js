@@ -1,3 +1,4 @@
+/* 职责：剧情页渲染 —— 角色剧情分区 / 场景聚类 / renderScenes */
 	/* v2.0.0.002（C3 拆分回归修复）：sceneSectionKey / sceneStored / sceneSet 原本是 renderScenes() 的局部函数，
 	   而 renderSceneRegion 已拆到 07h-render3.js，跨文件调用会报 ReferenceError: sceneStored is not defined。
 	   三者只依赖模块级 mbCEUiState / mbCEUiSave，故提升到模块级供两处共用（语义与实现未变）。 */
@@ -18,9 +19,9 @@
 		head.appendChild(el("span", "mce-stage-name", "剧情进度（非场景事件状态）"));
 		block.appendChild(head);
 		var body = el("div", "mce-grp-body");
-		body.appendChild(el("div", "mce-hint", plots.intro));
+		body.appendChild(el("div", MCE_CLS.hint, plots.intro));
 		plots.items.forEach(function (it) {
-			var row = el("div", "mce-row");
+			var row = el("div", MCE_CLS.row);
 			row.appendChild(el("span", "mce-row-name", it.name));
 			var curBadge = el("span", "mce-badge mce-on", "");
 			var refreshCur = function () {
@@ -32,9 +33,9 @@
 			if (it.type === "range" || it.type === "select") {
 				var ctrl;
 				if (it.type === "range") {
-					var inp = el("input", "mce-inp");
+					var inp = el("input", MCE_CLS.inp);
 					inp.type = "number"; inp.min = String(it.min); inp.max = String(it.max); inp.step = String(it.step || 1); /* 剧情进度是进度档位：钳制在 [min,max]（用户澄清：仅"直接填数值"放开上限，进度保留） */
-					var apply = el("button", "mce-btn", "应用");
+					var apply = el("button", MCE_CLS.btn, "应用");
 					apply.type = "button";
 					apply.addEventListener("click", function () {
 						var v = parseFloat(inp.value);
@@ -42,7 +43,7 @@
 						if (v < it.min) { v = it.min; } if (v > it.max) { v = it.max; } /* 进度档位语义，钳制在上限内 */
 						setDotPath(it.varPath, v);
 						refreshCur();
-						setStatus(it.name + " → " + v, "mce-ok");
+						setStatus(it.name + " → " + v, MCE_CLS.ok);
 					});
 					row.appendChild(inp); row.appendChild(apply);
 				} else {
@@ -53,13 +54,13 @@
 						if (String(cv) === String(o[0])) { op.selected = true; }
 						sel.appendChild(op);
 					});
-					var applyS = el("button", "mce-btn", "应用");
+					var applyS = el("button", MCE_CLS.btn, "应用");
 					applyS.type = "button";
 					applyS.addEventListener("click", function () {
 						var v = parseInt(sel.value, 10);
 						setDotPath(it.varPath, v);
 						refreshCur();
-						setStatus(it.name + " → " + sel.value, "mce-ok");
+						setStatus(it.name + " → " + sel.value, MCE_CLS.ok);
 					});
 					row.appendChild(sel); row.appendChild(applyS);
 				}
@@ -67,7 +68,7 @@
 				var act = el("button", "mce-btn mce-gold", it.name);
 				act.type = "button";
 				act.addEventListener("click", function () {
-					setStatus(applyRolePlotAction(it.action), "mce-ok");
+					setStatus(applyRolePlotAction(it.action), MCE_CLS.ok);
 					if (it.action === "kylarSeen") {
 						var cv = getDotPath("kylarSeen");
 						curBadge.textContent = "当前: " + (Array.isArray(cv) ? cv.length + " 项标记" : "未设置");
@@ -100,13 +101,13 @@
 			stages.style.display = "none"; /* v1.3：剧情线默认收起（合在一起不展开），点线头展开 */
 			head.appendChild(el("span", "mce-stage-name", "剧情线「" + (line.items[0].def.name || line.prefix) + "」系列　已达成 " + done + " / " + line.items.length + "　（" + line.items.length + " 个阶段，收起）"));
 			/* 锚定整线（v1.9.23）：已标注触发地点的阶段按顺序入队，走到地点交互时依次触发，触发完自动完成 */
-			var linePin = el("button", "mce-btn", "锚定整线");
+			var linePin = el("button", MCE_CLS.btn, "锚定整线");
 			linePin.type = "button";
 			linePin.title = "把本系列全部阶段按顺序锚定：走到各阶段发生地点交互时弹确认条，触发完自动完成";
 			(function (line2) {
 				linePin.addEventListener("click", function () {
 					var pr = pinSceneLine(line2);
-					setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+					setStatus(pr.message, pr.ok ? MCE_CLS.ok : MCE_CLS.err);
 					renderScenes();
 				});
 			})(line);
@@ -144,13 +145,13 @@
 					(function (it2) {
 						unpinB.addEventListener("click", function () {
 							var was = unpinScene(it2.key);
-							setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
+							setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", MCE_CLS.ok);
 							renderScenes();
 						});
 					})(it);
 					sh.appendChild(unpinB);
 				} else {
-					var pinB = el("button", "mce-btn", "锚定");
+					var pinB = el("button", MCE_CLS.btn, "锚定");
 					pinB.type = "button";
 					if (anchorMeta && anchorMeta.location) {
 						pinB.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMeta.location) + "」" + (anchorMeta.timeNote ? "（时间 " + anchorMeta.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
@@ -161,7 +162,7 @@
 					(function (it2) {
 						pinB.addEventListener("click", function () {
 							var pr = pinScene(it2);
-							setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+							setStatus(pr.message, pr.ok ? MCE_CLS.ok : MCE_CLS.err);
 							renderScenes();
 						});
 					})(it);
@@ -178,14 +179,14 @@
 					(function (it2, st2) {
 						btn.addEventListener("click", function () {
 							var res = completeScene(it2.def);
-							setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
+							setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? MCE_CLS.ok : MCE_CLS.err);
 							renderScenes();
 						});
 					})(it, st);
 					sh.appendChild(btn);
 				}
 				/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
-				var dtB = el("button", "mce-btn", "直达触发");
+				var dtB = el("button", MCE_CLS.btn, "直达触发");
 				dtB.type = "button";
 				if (replaying) {
 					dtB.disabled = true;
@@ -199,7 +200,7 @@
 				(function (it2) {
 					dtB.addEventListener("click", function () {
 						var r = directTriggerScene(it2.key);
-						setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+						setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 						renderScenes();
 					});
 				})(it);
@@ -243,14 +244,14 @@
 					(function (it2) {
 						unpinS.addEventListener("click", function () {
 							var was = unpinScene(it2.key);
-							setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", "mce-ok");
+							setStatus(was ? "已取消锚定：「" + (it2.def.name || it2.key) + "」" : "该剧情不在锚定队列中", MCE_CLS.ok);
 							renderScenes();
 						});
 					})(it);
 					sh.appendChild(unpinS);
 				} else {
 					var anchorMetaS = sceneAnchorMeta(it.key, it.def);
-					var pinS = el("button", "mce-btn", "锚定");
+					var pinS = el("button", MCE_CLS.btn, "锚定");
 					pinS.type = "button";
 					if (anchorMetaS && anchorMetaS.location) {
 						pinS.title = "锚定此剧情：走到触发地点「" + locLabel(anchorMetaS.location) + "」" + (anchorMetaS.timeNote ? "（时间 " + anchorMetaS.timeNote + "）" : "") + "并交互时弹确认条，确认后触发，播放完标「已完成 ✓」";
@@ -261,7 +262,7 @@
 					(function (it2) {
 						pinS.addEventListener("click", function () {
 							var pr = pinScene(it2);
-							setStatus(pr.message, pr.ok ? "mce-ok" : "mce-err");
+							setStatus(pr.message, pr.ok ? MCE_CLS.ok : MCE_CLS.err);
 							renderScenes();
 						});
 					})(it);
@@ -275,14 +276,14 @@
 					(function (it2) {
 						b2.addEventListener("click", function () {
 							var res = completeScene(it2.def);
-							setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? "mce-ok" : "mce-err");
+							setStatus("「" + (it2.def.name || it2.key) + "」" + (res.ok ? "已解锁" : "未解锁：" + res.note), res.ok ? MCE_CLS.ok : MCE_CLS.err);
 							renderScenes();
 						});
 					})(it);
 					sh.appendChild(b2);
 				}
 				/* v1.9.30 直达触发：跳过地点判定/确认条，点即开始播放（复用 startAnchoredReplay 出口清理） */
-				var dtS = el("button", "mce-btn", "直达触发");
+				var dtS = el("button", MCE_CLS.btn, "直达触发");
 				dtS.type = "button";
 				if (replaying) {
 					dtS.disabled = true;
@@ -296,7 +297,7 @@
 				(function (it2) {
 					dtS.addEventListener("click", function () {
 						var r = directTriggerScene(it2.key);
-						setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+						setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 						renderScenes();
 					});
 				})(it);
@@ -312,9 +313,9 @@
 			container.appendChild(sblock);
 		}
 		if (!cluster.lines.length && !cluster.singles.length) {
-			container.appendChild(el("div", "mce-hint", "本分组无场景。"));
+			container.appendChild(el("div", MCE_CLS.hint, "本分组无场景。"));
 		} else {
-			container.appendChild(el("div", "mce-hint", "剧情线 " + lineTotal + " 条（已达成 " + lineDone + "），独立场景 " + singleTotal + " 个。"));
+			container.appendChild(el("div", MCE_CLS.hint, "剧情线 " + lineTotal + " 条（已达成 " + lineDone + "），独立场景 " + singleTotal + " 个。"));
 		}
 	}
 	function renderScenes() {
@@ -338,7 +339,7 @@
 			unBtn.title = "取消全部锚定触发，恢复原版随机触发；若正在重放则立即解冻并返回原位";
 			unBtn.addEventListener("click", function () {
 				var was = unpinScene();
-				setStatus(was ? "已回退：清空锚定触发队列，恢复原版随机触发" : "未处于锚定触发状态", "mce-ok");
+				setStatus(was ? "已回退：清空锚定触发队列，恢复原版随机触发" : "未处于锚定触发状态", MCE_CLS.ok);
 				renderScenes();
 			});
 			bh.appendChild(unBtn);
@@ -347,11 +348,11 @@
 		}
 		var r = getScenesDefs();
 		if (!Object.keys(r.defs).length) {
-			pane.appendChild(el("div", "mce-err", "未读取到场景注册表（$scenes）。"));
-			pane.appendChild(el("div", "mce-hint", "说明：本页读取游戏「场景查看器（Scene Viewer）」的注册表。请先在游戏菜单打开一次「场景」页面后返回；MOD 通过场景系统注册的剧情会随注册表自动出现。"));
+			pane.appendChild(el("div", MCE_CLS.err, "未读取到场景注册表（$scenes）。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "说明：本页读取游戏「场景查看器（Scene Viewer）」的注册表。请先在游戏菜单打开一次「场景」页面后返回；MOD 通过场景系统注册的剧情会随注册表自动出现。"));
 			return;
 		}
-		pane.appendChild(el("div", "mce-hint", "已读取场景注册表 " + Object.keys(r.defs).length + " 条" + (r.live ? "（实时求值解锁条件）" : "（读取存档缓存值）") + "。原版剧情按角色分组，MOD 注册剧情单独一组。绿色=已达成，红色=未达成，黄色=锁定/互斥提示。"));
+		pane.appendChild(el("div", MCE_CLS.hint, "已读取场景注册表 " + Object.keys(r.defs).length + " 条" + (r.live ? "（实时求值解锁条件）" : "（读取存档缓存值）") + "。原版剧情按角色分组，MOD 注册剧情单独一组。绿色=已达成，红色=未达成，黄色=锁定/互斥提示。"));
 		var allKeys = Object.keys(r.defs);
 		var vanillaKeys = allKeys.filter(function (k) { return isVanillaSceneKey(k); });
 		var modKeys = allKeys.filter(function (k) { return !isVanillaSceneKey(k); });

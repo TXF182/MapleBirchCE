@@ -1,3 +1,4 @@
+/* 职责：场景直达 —— PLACE_GROUPS 分组表 / 传送 / 到达校验 / 地点页渲染 */
 	/* ============ 特殊场景直达（用户点名 5 大场景 + 主从嵌套）
 	     不硬编码段落清单：按前缀/关键词在 Story 段落里动态枚举，MOD 新增段落自动收录；
 	     组 = 主场景，组内各段落 = 子场景，main 段落排最前并标注「主」。============ */
@@ -8,7 +9,7 @@
 		{ id: "kylar_manor", name: "凯拉尔 · 庄园", match: function (n) { return n.indexOf("Manor ") === 0; }, main: "Manor Hall", note: "凯拉尔家族的庄园大宅（大厅/花园/实验室/秘密房间）" },
 		{ id: "sydney_temple", name: "悉尼（Sydney）· 神殿居所", match: function (n) { return n.indexOf("Temple Sydney") === 0 || n.indexOf("Sydney Temple") === 0; }, main: "Temple Sydney", note: "神殿中悉尼的房间与祭坛场景（纯/堕两线都在此）" },
 		{ id: "sirris_places", name: "西里斯（Sirris）· 学校与成人商店", match: function (n) { return /sirris/i.test(n) || n === "Sydney Ride Home" || n === "Sydney Ride Temple"; }, main: "Adult Shop Approach Sirris", note: "西里斯常驻的科学教室与成人商店，以及开车接送的车程场景（悉尼的家长）" },
-		{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）" },
+		{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀实测 866 段，剔除 46 段战斗/性爱中继（Dungeon Fight/Flogger Sex、Chase Fight、Housework *Sex·Rape、Return *Fight·Rape·Sex、Party Jordan End *、Passout Pair * 等，首宏为 $fightstart/$sexstart/$molestationstart），留 820 段。" },
 		{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" },
 		/* v1.7.0：多伦公寓（Doren's flat，$location="flats"）+ 麋鹿街大院（Elk Compound，原版 73 段）。
 		   多伦公寓实证：Doren Entrance（入口，"You climb to Doren's flat"）、Doren Talk/Cry、Doren Shower 系列均在公寓内；
@@ -130,7 +131,7 @@ function mbCEHasUsableLinks() {
 					var curP = mbCECurrentPassage(); if (curP && curP !== target) { return; }
 					var ep = getEnginePlayFn();
 					if (ep && before) { ep.play.call(ep.e, before, true); }
-					setStatus("「" + target + "」直达失败：该段落没有可点链接（渲染期异常或前置状态缺失），已退回原处「" + before + "」。这个场景请从正常入口进入。", "mce-err");
+					setStatus("「" + target + "」直达失败：该段落没有可点链接（渲染期异常或前置状态缺失），已退回原处「" + before + "」。这个场景请从正常入口进入。", MCE_CLS.err);
 				} catch (e) {}
 			}, 250);
 		} catch (e) {}
@@ -258,7 +259,7 @@ function mbCEPassageMacroWarn(name) {
 function teleportTo(name) {
 		try {
 			if (!passageExists(name)) {
-				setStatus("段落不存在：「" + name + "」（可能未安装对应剧情 MOD）", "mce-err");
+				setStatus("段落不存在：「" + name + "」（可能未安装对应剧情 MOD）", MCE_CLS.err);
 				return;
 			}
 			var ep = getEnginePlayFn();
@@ -267,7 +268,7 @@ function teleportTo(name) {
 				var d2 = (typeof Engine);
 				var d3 = (typeof $);
 				var d4 = (typeof window !== "undefined" && window && window.SugarCube) ? (typeof window.SugarCube.Engine) : "no-sc";
-				setStatus("Engine 不可用（Engine=" + d2 + "，window.Engine=" + d1 + "，$=" + d3 + "，SugarCube.Engine=" + d4 + "）——若非游戏页面请先进入游戏", "mce-err");
+				setStatus("Engine 不可用（Engine=" + d2 + "，window.Engine=" + d1 + "，$=" + d3 + "，SugarCube.Engine=" + d4 + "）——若非游戏页面请先进入游戏", MCE_CLS.err);
 				return;
 			}
 			ensureAveryMansion(); /* 防崩：庄园状态对象可能延迟初始化，直达前兜底（缺失才建，不覆盖进度） */
@@ -286,37 +287,16 @@ function teleportTo(name) {
 			var beforeP = "";
 			try { beforeP = mbCECurrentPassage(); } catch (e0) {}
 			ep.play.call(ep.e, name, true);
-			setStatus("已传送至「" + name + "」", "mce-ok");
+			setStatus("已传送至「" + name + "」", MCE_CLS.ok);
 			mbCEArrivalCheck(beforeP, name); /* v2.0.10：无可用链接 → 自动退回原处，不把玩家卡死 */
 			var gidT = placeIdForPassage(name, name);
-			if (gidT) { applyWorldUnlock(gidT); setStatus("已传送至「" + name + "」并已解锁世界入口", "mce-ok"); }
+			if (gidT) { applyWorldUnlock(gidT); setStatus("已传送至「" + name + "」并已解锁世界入口", MCE_CLS.ok); }
 			/* v2.0.10-e：宏结构预检（只提示，不阻止；刻意放在成功文案之后，避免被覆盖） */
-			try { var mbW = mbCEPassageMacroWarn(name); if (mbW) { setStatus(mbW, "mce-err"); } } catch (e1) {}
-		} catch (e) { setStatus("传送失败：" + mbCEErr(e), "mce-err"); }
+			try { var mbW = mbCEPassageMacroWarn(name); if (mbW) { setStatus(mbW, MCE_CLS.err); } } catch (e1) {}
+		} catch (e) { setStatus("传送失败：" + mbCEErr(e), MCE_CLS.err); }
 	}
-	function listPlaceGroups() {
-		var ps = listAllPassages();
-		var seen = {};
-		return PLACE_GROUPS.map(function (g) {
-			var items = [];
-			for (var j = 0; j < ps.length; j++) {
-				var n = ps[j].name;
-				if (seen[n]) { continue; }
-				if (!g.match(n)) { continue; }
-				/* 不可安全直达的段不入组、也不占 seen —— 留给后面能匹配它的原组
-				   （例：「Kylar Halloween Start」是 widget 定义段，排最前的节日组不该抢） */
-				if (g.exclude && g.exclude(n, mbCEPassageText(n))) { continue; }
-				seen[n] = true;
-				items.push(n);
-			}
-			items.sort(function (a, b) {
-				var am = a === g.main ? 0 : 1, bm = b === g.main ? 0 : 1;
-				if (am !== bm) { return am - bm; }
-				return a.toLowerCase().localeCompare(b.toLowerCase());
-			});
-			return { group: g, items: items };
-		});
-	}
+	/* listPlaceGroups 已迁到 07d-places5.js（本片原 399 行，缓存改造需净增行；迁出后回落至 376 行，
+	   为 v2.1.4 那条「4.js 满 400 行才把惠特尼白名单塞进 3.js」的容量挤压留出余量） */
 	/* ============ v1.9.0 场景页双层子界面：场景直达 / 地点（地点阶段任务作弊区） ============ */
 	function renderPlaces() {
 		var pane = root.querySelector('[data-pane="places"]');

@@ -61,6 +61,20 @@ for (const f of Object.keys(lineAllow)) {
   if (s.lines <= MAX_LINES) warns.push("S1 基线项 " + f + " 已回落到 " + s.lines + " 行（阈值 " + MAX_LINES + "），可下调/移除基线");
 }
 
+/* S4 满载预警（WARN，不阻断）：把容量压力变成可见信号。
+   为什么是预警而不是放宽上限：调大 maxLines 等于把门禁往回推，只会让分片继续膨胀到更难拆。
+   真正的出口有两条且已有先例——① 按职责拆段（-data / -view / -hook 语义化命名，见 S2）；
+   ② 续号白名单（continuationAllowlist，插在 manifest 指定位置，不靠 X2/X3 挤排序）。
+   本告警只做一件事：在余量进入 25 行以内时提示「该规划拆段了」，不改变任何判据。 */
+const FULL_WARN_MARGIN = 25;
+for (const s of stats) {
+  if (Object.prototype.hasOwnProperty.call(lineAllow, s.file)) continue;
+  const left = MAX_LINES - s.lines;
+  if (left >= 0 && left <= FULL_WARN_MARGIN) {
+    warns.push("S4 " + s.file + " 余量仅 " + left + " 行（" + s.lines + "/" + MAX_LINES + "）：下次加功能前先规划拆段，勿就地加行");
+  }
+}
+
 /* S2 续号命名 */
 const diskSet = new Set(filesOnDisk);
 for (const f of filesOnDisk) {

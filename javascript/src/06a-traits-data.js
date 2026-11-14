@@ -1,3 +1,4 @@
+/* 职责：原版特质静态表（VANILLA_TRAITS_RAW，自本体 traits widget 逐项提取） */
 	/* 原版特质静态表（v1.8.0 自本体 traits widget 提取） */
 var VANILLA_TRAITS_RAW = [
     {"cat":"General Traits","name":"Virgin","has":"$player.virginity.vaginal is true and $player.virginity.penile is true","text":"Your purity recovers faster. Your virginity might be worth something."},

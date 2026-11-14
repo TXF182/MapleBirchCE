@@ -219,7 +219,7 @@
 			go.className = "mce-anchor-go";
 			go.addEventListener("click", function () {
 				var r = startAnchoredReplay(P);
-				if (!r.ok) { setStatus(r.message, "mce-err"); }
+				if (!r.ok) { setStatus(r.message, MCE_CLS.err); }
 				hideAnchorPrompt();
 			});
 			var skip = document.createElement("button");

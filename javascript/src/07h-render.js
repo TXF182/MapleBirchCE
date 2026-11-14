@@ -1,3 +1,4 @@
+/* 职责：剧情页「已完成 ✓」标记（isSceneCompleted） */
 	/* v1.9.23：锚定播放完成记录（mbCE_completedScenes）→ 剧情页条目显示「已完成 ✓」 */
 	function isSceneCompleted(key) {
 		try { var V = getV(); return !!(V && V.mbCE_completedScenes && V.mbCE_completedScenes[key]); } catch (e) { return false; }

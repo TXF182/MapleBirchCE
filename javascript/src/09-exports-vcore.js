@@ -8,9 +8,16 @@
 			var a = s.mbStageCE;
 			a.mbCEVanillaCrimeClear = mbCEVanillaCrimeClear;
 			a.mbCEVanillaAntiqueCollect = mbCEVanillaAntiqueCollect;
+			a.mbCEVanillaAntiqueCollectOne = mbCEVanillaAntiqueCollectOne;
+			a.mbCEVanillaAntiqueSpecials = mbCEVanillaAntiqueSpecials;
+			a.MCE_VANILLA_SPECIAL_ANTIQUES = MCE_VANILLA_SPECIAL_ANTIQUES;
 			a.mbCEVanillaRemyScar = mbCEVanillaRemyScar;
 			a.mbCEVanillaExtState = mbCEVanillaExtState;
 			a.mbCEVanillaExtUndo = mbCEVanillaExtUndo;
 			a.mbCERenderVanillaExt = mbCERenderVanillaExt;
+			/* v2.1.2 自检钩子：框架闸门与调度守卫无面板入口，导出供 tests/ 断言与实机探针复用 */
+			a.mbCEFrameworkGate = mbCEFrameworkGate;
+			a.mbCECompareVersion = mbCECompareVersion;
+			a.mceSchedule = mceSchedule;
 		} catch (e) {}
 	}

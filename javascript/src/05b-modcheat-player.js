@@ -1,3 +1,4 @@
+/* 职责：玩家属性全量编辑 —— V.player 递归 + 模组属性差集 + 快捷索引 / 预设模板 */
 	/* ============ v1.7.0 玩家属性全量编辑（Mod作弊 主容器页「玩家自己」入口）
 	       数据源：① V.player 全量（递归限深 3，循环引用防崩）；② 模组属性 = 运行时 V 顶层键
 	       - ORIGINAL_V_ROOT_KEYS - CHEAT_VANILLA_ROOTS - mbCE_*（与原版比对，只添加没有的）。
@@ -7,7 +8,7 @@
 	       mbCE_wrote 留痕 + 每项回退按钮。 ============ */
 	var curPlayerSection = "player";
 	function actPlayer(res, path) {
-		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
+		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? MCE_CLS.ok : MCE_CLS.err);
 		/* 六巡：快速面板数值操作局部刷新该行（不再全量重建 33 行 + 特质区）；特质类操作无 path → 全量重建 */
 		if (path) {
 			var pane = root.querySelector('[data-pane="mods"]');
@@ -236,7 +237,7 @@
 		var lk = row.querySelector('[data-mce-role="lock"]');
 		if (lk) {
 			var locked = (typeof mbCELockHas === "function") ? !!mbCELockHas(path) : false;
-			if (lk.classList) { lk.classList.toggle("mce-gold", locked); } else { lk.className = locked ? "mce-btn mce-gold" : ""; }
+			if (lk.classList) { lk.classList.toggle(MCE_CLS.gold, locked); } else { lk.className = locked ? "mce-btn mce-gold" : ""; }
 			lk.textContent = locked ? "已锁定" : "锁定";
 			lk.title = locked
 				? "该值已锁定（每 1 秒强制写回目标 " + mbCELockTarget(path) + "）；点击取消锁定"
@@ -246,7 +247,7 @@
 		if (gr) {
 			/* 持有判定对齐 grantWeapon：prof 值为 number 且 ≥1 = 已在手（原版 isnot undefined 外还挡住 0 值） */
 			var owned = (typeof cur === "number") && cur >= 1;
-			if (gr.classList) { gr.classList.toggle("mce-gold", owned); } else { gr.className = owned ? "mce-btn mce-gold" : "mce-btn"; }
+			if (gr.classList) { gr.classList.toggle(MCE_CLS.gold, owned); } else { gr.className = owned ? "mce-btn mce-gold" : MCE_CLS.btn; }
 			gr.textContent = owned ? "已获得" : "获得";
 			gr.title = owned
 				? "该武器已持有（熟练度 " + cur + "）；点此仍会补齐喷雾的容量与弹药"
@@ -256,11 +257,11 @@
 	function renderQuickRow(pane, it) {
 		var path = it.path, label = it.label;
 		var cur = quickReadValue(path);
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		/* 六巡：行带 data-mce-key——快速面板数值操作后 actPlayer 局部刷新该行，不再全量重建 33 行 + 特质区 */
 		row.setAttribute("data-mce-key", "quick:" + path);
-		row.appendChild(el("span", "mce-row-lbl", label + "（当前 " + (typeof cur === "number" ? cur : "—") + "）"));
-		var inp = el("input", "mce-inp");
+		row.appendChild(el("span", MCE_CLS.rowLbl, label + "（当前 " + (typeof cur === "number" ? cur : "—") + "）"));
+		var inp = el("input", MCE_CLS.inp);
 		inp.type = "text"; inp.inputmode = "decimal"; inp.value = (typeof cur === "number") ? String(cur) : "0";
 		inp.placeholder = "+N / -N 相对";
 		var rangeTxt = (typeof it.min === "number" && typeof it.max === "number") ? "；合理范围 " + it.min + "–" + it.max : "";
@@ -276,18 +277,18 @@
 		lk.setAttribute("data-mce-role", "lock");
 		lk.addEventListener("click", function () {
 			if (typeof mbCELockHas !== "function" || typeof mbCELockSet !== "function" || typeof mbCELockRemove !== "function") {
-				setStatus("锁定模块未加载（07f-lock.js）", "mce-err"); return;
+				setStatus("锁定模块未加载（07f-lock.js）", MCE_CLS.err); return;
 			}
 			if (mbCELockHas(path)) { actPlayer(mbCELockRemove(path), path); return; }
 			var tgt = quickTargetValue(inp.value, quickReadValue(path));
-			if (tgt == null) { setStatus("锁定需要具体目标值（也支持 +N / -N 相对写法）", "mce-err"); return; }
+			if (tgt == null) { setStatus("锁定需要具体目标值（也支持 +N / -N 相对写法）", MCE_CLS.err); return; }
 			actPlayer(mbCELockSet(path, tgt), path);
 		});
 		row.appendChild(inp); row.appendChild(b); row.appendChild(und); row.appendChild(lk);
 		/* v2.0.0.002 需求②：武器组每行加「获得」（非武器组不出现）
 		   v2.0.0.007：已持有（prof ≥1）→ 文案变「已获得」（原先固定「获得」，好友截图四即此） */
 		if (String(path).indexOf("prof.") === 0) {
-			var gr = el("button", "mce-btn", "获得");
+			var gr = el("button", MCE_CLS.btn, "获得");
 			gr.type = "button";
 			gr.setAttribute("data-mce-role", "grant");
 			gr.addEventListener("click", function () { actPlayer(grantWeapon(path), path); });
@@ -303,7 +304,7 @@
 		/* v1.9.13 预设模板：一键批量写入（逐项走 quickWrite 统一留痕，可单独回退）
 		   v2.0.3：改 mceNewSec 统一区块样式与编号（本页第 2 区块） */
 		var psec = mceNewSec(pane, 2, "一键方案（预设模板）", "整组批量写入（每个键各自留痕，可单独回退）；与下方各属性折叠组不冲突，预设只写固定档位。");
-		var pWrap = el("div", "mce-row");
+		var pWrap = el("div", MCE_CLS.row);
 		var presets = [
 			{ key: "max", name: "全属性拉满", desc: "全部核心/技能/性技能/成绩/武器写满 + 负面清零 + 名声清零" },
 			{ key: "fresh", name: "经典开局", desc: "资金 5000 + 技能/成绩/武器 100 + 负面清零 + 名声清零" }
@@ -313,13 +314,13 @@
 			b.title = p.desc;
 			b.addEventListener("click", function () {
 				var r = applyQuickPreset(p.key);
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				renderPlayerEdit();
 			});
 			pWrap.appendChild(b);
 		});
 		psec.appendChild(pWrap);
-		psec.appendChild(el("div", "mce-hint", "预设为固定值批量写入，逐项留痕（「回退」可逐项还原）；如需微调请在各分组手动改。"));
+		psec.appendChild(el("div", MCE_CLS.hint, "预设为固定值批量写入，逐项留痕（「回退」可逐项还原）；如需微调请在各分组手动改。"));
 		/* v2.0.3：mceNewSec 已把区块挂到 pane，无需再 append */
 		PANEL_QUICK_GROUPS.forEach(function (g) {
 			/* v1.9.16：属性分组改可折叠（学特质页 .mce-collapse-head 机制，mbCEUiCollapsed 持久化，默认收起） */
@@ -345,7 +346,7 @@
 				allG.title = "一次获得 防狼喷雾/短棍/鞭子/网/镐（写 prof 键 = 原版持有判定）；喷雾同时补容量 5 与满弹药";
 				allG.addEventListener("click", function () {
 					var r = grantAllWeapons();
-					setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+					setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 					renderPlayerEdit();
 				});
 				body.appendChild(allG);

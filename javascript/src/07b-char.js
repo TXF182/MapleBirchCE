@@ -1,3 +1,4 @@
+/* 职责：角色一览卡片 —— 按类型分子页 / 搜索实时过滤 / 懒建卡片 */
 	/* ---- 角色一览卡片（v1.9.0：按类型拆子页面，按钮展开/收起） ---- */
 	/* v1.9.29 角色页搜索词（mbCEUiLoad 恢复时同步；input 实时过滤后重建卡片） */
 	var charSearch = "";
@@ -17,7 +18,7 @@
 			var subHead = el("div", "mce-stage-head mce-line-head", title + "（" + list.length + "）");
 			body.appendChild(subHead);
 			if (list.length) { buildCharCards(body, null, list); }
-			else { body.appendChild(el("div", "mce-hint", "（暂无）")); }
+			else { body.appendChild(el("div", MCE_CLS.hint, "（暂无）")); }
 		}
 		sub("模组·恋爱角色", loveM);
 		sub("模组·普通角色", normM);
@@ -61,7 +62,7 @@
 		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* 重建后保持滚动位置（五巡一致） */
 		pane.textContent = "";
 		if (!frameworkReady()) {
-			pane.appendChild(el("div", "mce-err", "未检测到 Maplebirch 框架（window.maplebirch / setup.MapleBirch）。"));
+			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架（window.maplebirch / setup.MapleBirch）。"));
 			return;
 		}
 		var charsAll = listCharacters();
@@ -71,7 +72,7 @@
 		var charsKids = charsAll.filter(function (n) { return charCategory(n) === "edenChild"; });
 		var chars = charsAll.filter(function (n) { return charCategory(n) !== "edenChild"; });
 		if (!charsAll.length) {
-			pane.appendChild(el("div", "mce-hint", "注册池为空：未枚举到任何角色。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "注册池为空：未枚举到任何角色。"));
 			return;
 		}
 		/* v1.9.29 角色页搜索：与特质/Mod 数值搜索同款 .mce-search-inp；按原名/显示名实时过滤，词持久化 charFilter */
@@ -90,7 +91,7 @@
 		});
 		searchRow.appendChild(sInp);
 		pane.appendChild(searchRow);
-		var hint = el("div", "mce-hint", "");
+		var hint = el("div", MCE_CLS.hint, "");
 		pane.appendChild(hint);
 		var matchCount = 0;
 		CHAR_CATEGORIES.forEach(function (group) {
@@ -117,7 +118,7 @@
 				/* v1.9.0 自查优化：懒渲染——默认收起的组不建卡片 DOM，展开时才补建（head 点击回调内） */
 				if (open) { buildGroupCards(body, group, members); }
 			} else {
-				body.appendChild(el("div", "mce-hint", "（该分类暂无角色）"));
+				body.appendChild(el("div", MCE_CLS.hint, "（该分类暂无角色）"));
 			}
 			block.appendChild(body);
 			head.addEventListener("click", function () {

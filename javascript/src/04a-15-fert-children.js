@@ -1,3 +1,4 @@
+/* 职责：FertilityExpansion 孩子页数据层 —— 读数 / 年龄阶段 / 地点 / 召见 / 成年 */
 /* ============ v2.0.0.002 需求①③ + 玩家截图四条：FertilityExpansion 孩子页 ============
    位置：挂在 fertility-expansion 适配器面板的最下面（04a-14 的 mbCEFertRender 之后），
          孩子集中在这里做数值调整，不再散落在角色页。

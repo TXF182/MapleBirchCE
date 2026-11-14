@@ -1,3 +1,4 @@
+/* 职责：模组页「命令式动作」分组渲染 —— 适配器声明 actions 或 actionPanel 接管 */
 /* ============ v2.0.0.002：模组页「命令式动作」分组渲染（从 05a 拆出，守住单文件 ≤400 行） ============
    用途：适配器可以声明 actions（自己的"一键"按钮），或用 actionPanel 整体接管一组渲染。
    首个使用者是 FertilityExpansion：它自带 eden-cheats-ui.js（10 项作弊），CE 直接调用其
@@ -37,18 +38,18 @@ function mbCEAdapterAction(adapterId, actionKey, args) {
 }
 
 function mbCEActionRow(m, a) {
-	var row = el("div", "mce-row");
+	var row = el("div", MCE_CLS.row);
 	row.setAttribute("data-mce-key", "action:" + a.key);
-	row.appendChild(el("span", "mce-row-lbl", a.name));
+	row.appendChild(el("span", MCE_CLS.rowLbl, a.name));
 	var b = el("button", "mce-btn mce-gold", "执行");
 	b.type = "button";
 	b.title = a.note || "";
 	b.addEventListener("click", function () {
 		var res = mbCEAdapterRun(m, a.key, {});
-		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? "mce-ok" : "mce-err");
+		setStatus(res && res.message ? res.message : "操作完成", res && res.ok ? MCE_CLS.ok : MCE_CLS.err);
 	});
 	row.appendChild(b);
-	if (a.note) { row.appendChild(el("span", "mce-hint", a.note)); }
+	if (a.note) { row.appendChild(el("span", MCE_CLS.hint, a.note)); }
 	return row;
 }
 
@@ -60,7 +61,7 @@ function renderCheatActions(m, grpFor, buildModGrpRows) {
 		/* 适配器自带完整面板：面板里已有全部动作入口，不再重复铺一行一个按钮 */
 		g.pending.push(function () {
 			var box = el("div", "mce-col");
-			try { m.actionPanel(box, m); } catch (e) { box.appendChild(el("div", "mce-err", "动作面板渲染失败：" + mbCEErr(e))); }
+			try { m.actionPanel(box, m); } catch (e) { box.appendChild(el("div", MCE_CLS.err, "动作面板渲染失败：" + mbCEErr(e))); }
 			return box;
 		});
 		g.count += 1;

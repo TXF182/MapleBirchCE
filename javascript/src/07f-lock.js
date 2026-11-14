@@ -1,3 +1,4 @@
+/* 职责：数值固定 —— 锁定 / 回填 / 恢复 / 定时器 / 渲染 */
 /* ============================================================
  * 07f-lock.js — 数值固定（Lock Values）
  * 需求实证（玩家反馈 + 模组对照源码核对 dw257）：
@@ -250,9 +251,9 @@ function mbCERenderLock(pane) {
 	var presetPaths = {};
 	MB_CE_LOCK_PRESETS.forEach(function (p) { presetPaths[p.path] = true; });
 	var makeRow = function (it, locked, parent) {
-		var row = el("div", "mce-row");
+		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-lockpath", it.path);
-		var lbl = el("span", "mce-row-lbl", it.name + "（" + it.path + "）当前 ");
+		var lbl = el("span", MCE_CLS.rowLbl, it.name + "（" + it.path + "）当前 ");
 		var val = el("span", "mce-value", String(mbCELockRead(Vg, it.path) === undefined ? "—" : mbCELockRead(Vg, it.path)));
 		lbl.appendChild(val);
 		if (it.note) { lbl.appendChild(el("span", "mce-ab-note", " " + it.note)); }
@@ -266,16 +267,16 @@ function mbCERenderLock(pane) {
 		row.appendChild(lbl);
 		/* P1：自定义项标注来源，让玩家一眼看出这条不是预设、是被哪个页面锁上的 */
 		if (it.source) { row.appendChild(el("span", "mce-badge mce-src", it.source)); }
-		var inp = el("input", "mce-inp");
+		var inp = el("input", MCE_CLS.inp);
 		inp.type = "number";
 		inp.value = String(locked ? it.target : (Number(mbCELockRead(Vg, it.path)) || 0));
 		inp.placeholder = "目标值";
 		row.appendChild(inp);
-		var btn = el("button", "mce-btn" + (locked ? " mce-gold" : ""), locked ? "更新目标" : "锁定");
+		var btn = el("button", MCE_CLS.btn + (locked ? " mce-gold" : ""), locked ? "更新目标" : "锁定");
 		btn.type = "button";
 		btn.addEventListener("click", function () {
 			var r = mbCELockSet(it.path, Number(inp.value));
-			setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+			setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 			if (r.ok) { renderGlobal(); }
 		});
 		/* v1.9.15 输入框回车即提交（等价点击按钮） */
@@ -286,7 +287,7 @@ function mbCERenderLock(pane) {
 			ub.type = "button";
 			ub.addEventListener("click", function () {
 				var r = mbCELockRemove(it.path);
-				setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+				setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 				if (r.ok) { renderGlobal(); }
 			});
 			row.appendChild(ub);
@@ -323,21 +324,21 @@ function mbCERenderLock(pane) {
 		});
 		grp.appendChild(head);
 		grp.appendChild(body);
-		body.appendChild(el("div", "mce-hint", "这些不是预设项，是你在角色页（快速面板 / 转化）或 Mod 作弊页点过「锁定」后落到 $V.mbCE_lock 的；默认收起，展开可改目标值或取消。"));
+		body.appendChild(el("div", MCE_CLS.hint, "这些不是预设项，是你在角色页（快速面板 / 转化）或 Mod 作弊页点过「锁定」后落到 $V.mbCE_lock 的；默认收起，展开可改目标值或取消。"));
 		customs.forEach(function (li) {
 			makeRow({ path: li.path, name: mbCELockLabel(li.path), note: "", source: mbCELockSource(li.path) }, true, body);
 		});
 		sec.appendChild(grp);
 	}
 	/* 自由添加 */
-	var addRow = el("div", "mce-row");
-	addRow.appendChild(el("span", "mce-row-lbl", "自由添加（任意 varPath，按数值写回）："));
+	var addRow = el("div", MCE_CLS.row);
+	addRow.appendChild(el("span", MCE_CLS.rowLbl, "自由添加（任意 varPath，按数值写回）："));
 	var addPath = el("input", "mce-inp mce-path");
 	addPath.type = "text";
 	addPath.value = "";
 	addPath.placeholder = "如 more_love_interests.x.love";
 	addRow.appendChild(addPath);
-	var addVal = el("input", "mce-inp");
+	var addVal = el("input", MCE_CLS.inp);
 	addVal.type = "number";
 	addVal.value = "0";
 	addVal.placeholder = "目标值";
@@ -346,9 +347,9 @@ function mbCERenderLock(pane) {
 	addBtn.type = "button";
 	addBtn.addEventListener("click", function () {
 		var p = String(addPath.value || "").trim();
-		if (!p) { setStatus("请填写要固定的 varPath", "mce-err"); return; }
+		if (!p) { setStatus("请填写要固定的 varPath", MCE_CLS.err); return; }
 		var r = mbCELockSet(p, Number(addVal.value));
-		setStatus(r.message, r.ok ? "mce-ok" : "mce-err");
+		setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
 		if (r.ok) { renderGlobal(); }
 	});
 	/* v1.9.15 自由添加输入框回车即提交 */

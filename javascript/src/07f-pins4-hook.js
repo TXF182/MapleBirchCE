@@ -1,3 +1,4 @@
+/* 职责：passageoverride 与 passageinit 钩子 —— 锚定触发判定 / 解冻玩家属性 */
 	/* :passageoverride 钩子：固定触发判定（在 SugarCube 原版 redirect 之前改 passageArgs.name） */
 	function onPassageOverride(passageArgs) {
 		try {

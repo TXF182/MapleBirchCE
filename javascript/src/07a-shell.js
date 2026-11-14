@@ -1,4 +1,4 @@
-	/* ============ UI：右侧常驻黑色悬浮侧边面板（CE 样式，双层标签） ============ */
+	/* 职责：UI 壳层 —— 右侧常驻黑色悬浮侧边面板（CE 样式，双层标签）· 页签切换与开合 */
 	var root = null;
 	var toggleBtn = null;
 	var openFlag = false;

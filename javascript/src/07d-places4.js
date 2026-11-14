@@ -1,4 +1,4 @@
-/* 场景直达 · 子入口表（用户「凯拉尔庄园 note 里列了 大厅/花园/实验室/秘密房间，
+/* 职责：场景直达子入口表 —— 组 id → 子入口清单（用户「凯拉尔庄园 note 里列了 大厅/花园/实验室/秘密房间，
    却不给各自直达按钮」的诉求）—— 结构门禁 S1 拆段。
    本段只放「组 id → 子入口清单」与过滤函数；分组定义/主场景/note 仍在
    07d-places.js，渲染在 07d-places2.js，可玩性判据在 07d-places3.js。
@@ -84,16 +84,16 @@ var PLACE_EXTRA_ENTRIES = {
 		{ name: "Sydney Ride Home", cn: "送回家（车程）" },
 		{ name: "Sydney Ride Temple", cn: "送往神殿（车程）" }
 	],
-	avery_mansion: [
+	avery_mansion: [ /* v2.1.4 替换两条会报错的入口：Mansion Dungeon Intro / Mansion Skyscraper Rise 段内都没有写进 slot 0 的 NPC 落地，<<He>> 一出现就触发 <<personselect>> 的 "Undefined NPC in personselect 0"；改用地牢 Mansion Dungeon（<<avery_mansion>> widget 落地@1338 < 人称@1351）与 Mansion Enter（18 条显式出口）。 */
 		{ name: "Mansion Pool", cn: "泳池" },
 		{ name: "Mansion Bathroom", cn: "浴室" },
 		{ name: "Mansion Bedroom", cn: "卧室" },
 		{ name: "Mansion Display", cn: "陈列室" },
 		{ name: "Mansion Folder", cn: "档案" },
-		{ name: "Mansion Dungeon Intro", cn: "地牢入口" },
+		{ name: "Mansion Dungeon", cn: "地牢" },
 		{ name: "Mansion Bathe", cn: "沐浴" },
 		{ name: "Mansion Talk", cn: "交谈" },
-		{ name: "Mansion Skyscraper Rise", cn: "摩天楼" }
+		{ name: "Mansion Enter", cn: "庄园入口" }
 	],
 	/* v2.0.22：森林商店主场景是纯商店段 Forest Shop；正门 Forest Shop Entrance（带 _shopEvent 格威岚登场）列子入口，要剧情时自选。 */
 	forest_shop: [{ name: "Forest Shop Entrance", cn: "正门（含格威岚登场，会有剧情）", parallel: true }],
@@ -262,7 +262,7 @@ function mbCEListPlaceEntries(entry) {
 	var out = [];
 	try {
 		if (!entry || !entry.group || !entry.group.id) { return out; }
-		var list = (typeof PLACE_EXTRA_ENTRIES === "object" && PLACE_EXTRA_ENTRIES) ? PLACE_EXTRA_ENTRIES[entry.group.id] : null;
+		var list = mbCEPlaceList(entry.group.id); /* v2.1.4：白名单双源（4.js 已满 400 行，惠特尼家那份落在 07d-places3.js 的 MB_CE_EXTRA_MORE） */
 		if (!list || !list.length || !Array.isArray(entry.items)) { return out; }
 		for (var i = 0; i < list.length; i++) {
 			var it = list[i] || {};
@@ -287,7 +287,7 @@ function mbCERenderPlaceSubs(block, entry) {
 		var pr = el("div", "mce-stage mce-place-row mce-parallel"), phead = el("div", "mce-stage-head");
 		phead.appendChild(el("span", "mce-dot", ""));
 		phead.appendChild(el("span", "mce-stage-name", "正门　" + s.name + (s.cn ? "　（" + s.cn + "）" : "")));
-		var pb = el("button", "mce-btn", "直达");
+		var pb = el("button", MCE_CLS.btn, "直达");
 		pb.type = "button"; pb.title = "跳转到段落：" + s.name;
 		(function (t) { pb.addEventListener("click", function () { teleportTo(t); }); })(s.name);
 		phead.appendChild(pb); pr.appendChild(phead); block.appendChild(pr);
@@ -312,7 +312,7 @@ function mbCERenderPlaceSubs(block, entry) {
 		var head = el("div", "mce-stage-head");
 		head.appendChild(el("span", "mce-dot", ""));
 		head.appendChild(el("span", "mce-stage-name", s.name + (s.cn ? "　（" + s.cn + "）" : "")));
-		var btn = el("button", "mce-btn", "直达");
+		var btn = el("button", MCE_CLS.btn, "直达");
 		btn.type = "button";
 		btn.title = "跳转到段落：" + s.name;
 		(function (target) {

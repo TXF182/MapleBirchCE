@@ -1,3 +1,4 @@
+/* 职责：阶段页 —— 数据卡 + 双层内层标签 */
 	/* ---- 阶段页：数据卡 + 双层内层标签 ---- */
 	function renderStagePane() {
 		var pane = root.querySelector('[data-pane="stage"]');
@@ -7,7 +8,7 @@
 			curName = chars[0] || "";
 		}
 		if (!curName) {
-			pane.appendChild(el("div", "mce-hint", "无角色可选。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "无角色可选。"));
 			return;
 		}
 		var npc = findNpcEx(curName);
@@ -24,8 +25,8 @@
 		badge.title = "state: " + st.state;
 		head.appendChild(badge);
 		card.appendChild(head);
-		if (st.found) { card.appendChild(el("div", "mce-hint", "游戏状态 state = " + stateCN(st.state))); }
-		if (!npc) { card.appendChild(el("div", "mce-hint", "未在 V.NPCName / V.per_npc 中找到该角色的运行时对象（仅注册池存在）。")); }
+		if (st.found) { card.appendChild(el("div", MCE_CLS.hint, "游戏状态 state = " + stateCN(st.state))); }
+		if (!npc) { card.appendChild(el("div", MCE_CLS.hint, "未在 V.NPCName / V.per_npc 中找到该角色的运行时对象（仅注册池存在）。")); }
 
 		/* 数值行（含 ±10） */
 		var defs = statDefsFor(curName);
@@ -33,13 +34,13 @@
 			var row = el("div", "mce-statrow");
 			row.appendChild(el("span", "mce-label", def.label));
 			row.appendChild(el("span", "mce-value", String(statValue(npc, curName, def))));
-			var m10 = el("button", "mce-btn", "-10");
+			var m10 = el("button", MCE_CLS.btn, "-10");
 			m10.type = "button";
 			m10.addEventListener("click", function () {
 				writeStat(npc, curName, def, statValue(npc, curName, def) - 10);
 				renderStagePane();
 			});
-			var p10 = el("button", "mce-btn", "+10");
+			var p10 = el("button", MCE_CLS.btn, "+10");
 			p10.type = "button";
 			p10.addEventListener("click", function () {
 				writeStat(npc, curName, def, statValue(npc, curName, def) + 10);
@@ -57,21 +58,21 @@
 		fillBtn.addEventListener("click", function () {
 			var n = fillStats(npc, curName);
 			renderStagePane();
-			setStatus("已补齐「" + displayNameEx(curName) + "」" + n + " 项数值", "mce-ok");
+			setStatus("已补齐「" + displayNameEx(curName) + "」" + n + " 项数值", MCE_CLS.ok);
 		});
 		var romBtn = el("button", "mce-btn mce-gold", "一键解锁全部恋爱阶段");
 		romBtn.type = "button";
 		romBtn.addEventListener("click", function () {
 			var r = unlockAllRomance(curName);
 			renderStagePane();
-			setStatus("「" + displayNameEx(curName) + "」恋爱阶段：新解锁 " + r.fixed + " / " + r.total, r.fixed > 0 ? "mce-ok" : "mce-err");
+			setStatus("「" + displayNameEx(curName) + "」恋爱阶段：新解锁 " + r.fixed + " / " + r.total, r.fixed > 0 ? MCE_CLS.ok : MCE_CLS.err);
 		});
 		var tfBtn = el("button", "mce-btn mce-gold", "一键解锁全部转化阶段");
 		tfBtn.type = "button";
 		tfBtn.addEventListener("click", function () {
 			var n = unlockAllTransform(curName);
 			renderStagePane();
-			setStatus("「" + displayNameEx(curName) + "」转化阶段解锁 " + n + " 个类型", "mce-ok");
+			setStatus("「" + displayNameEx(curName) + "」转化阶段解锁 " + n + " 个类型", MCE_CLS.ok);
 		});
 		actions.appendChild(fillBtn);
 		actions.appendChild(romBtn);

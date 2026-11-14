@@ -1,3 +1,4 @@
+/* 职责：FertilityExpansion 自带作弊的等价实现 —— 代理 window.EdenCheats + 面板三块 */
 /* ============ v2.0.0.002 需求④：FertilityExpansion 自带作弊的等价实现 ============
    模组自带作弊的原始清单（逐字读自 _modcache\fert_tmp\...\modules\eden-cheats.js + eden-cheats-ui.js，
    1.7.0，非二手转述）：window.EdenCheats = { available, labour, parasites, children, choices, identity,
@@ -114,34 +115,34 @@ function mbCEFertRun(key, id, patch) {
 function mbCEFertRender(container) {
 	if (!container) { return; }
 	var ready = mbCEFertReady();
-	container.appendChild(el("div", "mce-hint",
+	container.appendChild(el("div", MCE_CLS.hint,
 		"直接调用模组自带的 window.EdenCheats（等价 eden-cheats-ui 的全部 10 项），门控、快照回滚与 feats.locked 语义与模组一致。"));
 	/* v2.0.0.003 需求①：这行红字是模组自己的原始提示，原文保留不动，只在后面接一句「我不同意」。
 	   用户 2026-11-07 明确要求保留原文（不是删掉），红字照旧显示，功能不再受它限制。 */
-	container.appendChild(el("div", "mce-err",
+	container.appendChild(el("div", MCE_CLS.err,
 		"模组要求先开启原版作弊页（cheatsEnabled / 原版 Cheats 面板处于打开状态）—— 我不同意。"));
 	/* API 缺失时才早退：此时不能断言「你已经开着原版作弊页」（那会把缺 API 说成已开启） */
-	if (!ready.ok) { container.appendChild(el("div", "mce-hint", ready.message)); return; }
-	container.appendChild(el("div", "mce-hint",
+	if (!ready.ok) { container.appendChild(el("div", MCE_CLS.hint, ready.message)); return; }
+	container.appendChild(el("div", MCE_CLS.hint,
 		ready.bypass
 			? "模组当前判为「未开启原版作弊页」：CE 每次调用时临时把 cheatsEnabled 置真满足它，返回后立刻还原原值，你不用真去开原版作弊页。"
 			: "你已经开着原版作弊页；即便不开，CE 也会在调用期间临时满足该前置，用完还原。"));
 	var list = mbCEFertChildren();
-	var sel = el("select", "mce-inp");
+	var sel = el("select", MCE_CLS.inp);
 	list.forEach(function (entry) { var o = el("option", "", mbCEFertChildLabel(entry)); o.value = String(entry[0]); sel.appendChild(o); });
-	var childRow = el("div", "mce-row");
-	childRow.appendChild(el("span", "mce-row-lbl", "目标孩子（" + list.length + " 个已出生）："));
+	var childRow = el("div", MCE_CLS.row);
+	childRow.appendChild(el("span", MCE_CLS.rowLbl, "目标孩子（" + list.length + " 个已出生）："));
 	childRow.appendChild(sel);
 	container.appendChild(childRow);
-	if (!list.length) { container.appendChild(el("div", "mce-hint", "当前没有已出生的孩子：先天/养成/重置/成年/删除需要先有孩子。")); }
+	if (!list.length) { container.appendChild(el("div", MCE_CLS.hint, "当前没有已出生的孩子：先天/养成/重置/成年/删除需要先有孩子。")); }
 	/* A 怀孕三项：不需要孩子 */
-	var groupA = el("div", "mce-row");
+	var groupA = el("div", MCE_CLS.row);
 	["fert_labour", "fert_parasite_fert", "fert_parasite_ripe"].forEach(function (k) {
 		var a = MB_CE_FERT_ACTIONS.filter(function (x) { return x.key === k; })[0];
 		var b = el("button", "mce-btn mce-gold", a.name); b.type = "button"; b.title = a.note;
 		b.addEventListener("click", function () {
 			var res = mbCEFertRun(k, "", null);
-			setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
 			renderModCheatDetail("fertility-expansion");
 		});
 		groupA.appendChild(b);
@@ -153,15 +154,15 @@ function mbCEFertRender(container) {
 	var innate0 = (rec0 && rec0.innate) ? rec0.innate : {};
 	var inputs = {};
 	function addField(parent, label, key, value) {
-		var row = el("div", "mce-row");
-		row.appendChild(el("span", "mce-row-lbl", label + "："));
-		var inp = el("input", "mce-inp");
+		var row = el("div", MCE_CLS.row);
+		row.appendChild(el("span", MCE_CLS.rowLbl, label + "："));
+		var inp = el("input", MCE_CLS.inp);
 		inp.type = "text"; inp.value = (value == null) ? "" : String(value);
 		inputs[key] = inp;
 		row.appendChild(inp);
 		parent.appendChild(row);
 	}
-	container.appendChild(el("div", "mce-hint", "先天属性（0–100 整数）与身份九项：留空按当前值提交（模组会校验可选值）"));
+	container.appendChild(el("div", MCE_CLS.hint, "先天属性（0–100 整数）与身份九项：留空按当前值提交（模组会校验可选值）"));
 	MB_CE_FERT_INNATE_KEYS.forEach(function (k) { addField(innateBox, "先天 " + k, k, innate0[k]); });
 	MB_CE_FERT_ID_KEYS.forEach(function (k) {
 		var cur = "";
@@ -182,7 +183,7 @@ function mbCEFertRender(container) {
 			if (!v) { if (typeof innate[k] === "number") { patch[k] = innate[k]; } else { missing.push(k); } }
 			else { patch[k] = v; }
 		});
-		if (missing.length) { setStatus("缺少先天属性：" + missing.join(" / ") + "（模组要求四项全填）", "mce-err"); return; }
+		if (missing.length) { setStatus("缺少先天属性：" + missing.join(" / ") + "（模组要求四项全填）", MCE_CLS.err); return; }
 		var api = mbCEFertApi(), child = null;
 		try { child = list.filter(function (e) { return String(e[0]) === String(sel.value); })[0]; } catch (e) { child = null; }
 		MB_CE_FERT_ID_KEYS.forEach(function (k) {
@@ -193,7 +194,7 @@ function mbCEFertRender(container) {
 		if (patch.species === undefined) { patch.species = (child && child[1] && child[1].species) || "human"; }
 		if (patch.gender === undefined) { patch.gender = (child && child[1] && child[1].gender) || "f"; }
 		var res = mbCEFertRun("fert_innate", String(sel.value), patch);
-		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
 		renderModCheatDetail("fertility-expansion");
 	});
 	container.appendChild(bInnate);
@@ -210,20 +211,20 @@ function mbCEFertRender(container) {
 			if (!v) { if (typeof training[k] === "number") { patch[k] = training[k]; } else { missing.push(k); } }
 			else { patch[k] = v; }
 		});
-		if (missing.length) { setStatus("缺少养成属性：" + missing.join(" / ") + "（模组要求四项全填）", "mce-err"); return; }
+		if (missing.length) { setStatus("缺少养成属性：" + missing.join(" / ") + "（模组要求四项全填）", MCE_CLS.err); return; }
 		var res = mbCEFertRun("fert_skills", String(sel.value), patch);
-		setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
 		renderModCheatDetail("fertility-expansion");
 	});
 	container.appendChild(bSkills);
-	var groupC = el("div", "mce-row");
+	var groupC = el("div", MCE_CLS.row);
 	["fert_reset", "fert_adult", "fert_remove", "fert_reset_reason", "fert_adult_reason"].forEach(function (k) {
 		var a = MB_CE_FERT_ACTIONS.filter(function (x) { return x.key === k; })[0];
 		var destructive = (k === "fert_reset" || k === "fert_remove");
-		var b = el("button", destructive ? "mce-btn" : "mce-btn", a.name); b.type = "button"; b.title = a.note;
+		var b = el("button", destructive ? MCE_CLS.btn : MCE_CLS.btn, a.name); b.type = "button"; b.title = a.note;
 		b.addEventListener("click", function () {
 			var res = mbCEFertRun(k, String(sel.value), null);
-			setStatus(res.message, res.ok ? "mce-ok" : "mce-err");
+			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
 			renderModCheatDetail("fertility-expansion");
 		});
 		groupC.appendChild(b);

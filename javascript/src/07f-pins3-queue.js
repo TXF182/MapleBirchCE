@@ -1,3 +1,4 @@
+/* 职责：锚定触发队列 —— 农场依赖剧情检测 / 场景入队 / 状态保底 */
 	/* 农场依赖剧情检测：startPassage=Scene Viewer passages 且 manualVariableChanges 执行 farm_work_update
 	   （其内部 V.farm.clearing -= 1，$farm 未初始化时直接崩场景查看器 → "setting 'clearing'"） */
 	function isFarmDependentScene(P) {
