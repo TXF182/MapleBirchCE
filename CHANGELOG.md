@@ -2,6 +2,28 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.11（2026-11-17 撤壳判据回归修复 + $avery_antiques 直达兜底）
+
+v2.1.10 发布后自查，回原版 HTML 逐偏移取证发现两处问题并修复。
+
+### 一、撤壳判据会误撤「刚进庄园就离开」的真档
+
+- **误判原因**：v2.1.10 的「零进度」判据查 `$avery_mansion` 的 9 个结构字段 + `party_state` + `recipe` + 塔进度。但 `avery_mansion_init`（@57578021，3866 B 全文）刚跑完时这些字段**全是默认值**，与 CE 壳无法区分。
+- **决定性判据**：init 内 `<<set $avery_tower.effects to []>>` 紧跟 `<<set $avery_tower.effects.pushUnique("theft")>>` —— 真档塔 effects 必含 `"theft"`，CE 壳建空数组。`mbCEAveryTowerEmpty()` 增加「effects 非空即非空壳」。
+- 排除的伪判据：`kitchen_stock` 会被原版 0.5.5.1 迁移自动补（`if $avery_mansion and !$avery_mansion.kitchen_stock`），壳同样有；`V.feats.currentSave.Kept` 因 `earnFeat` 在 `V.cheatsEnabled === true` / `V.debug` / `gamemode === "soft"` 时直接 return 而不可靠。
+- 误撤后果：`$avery_mansion` 删除后衣柜 `unlocked` 置 false，而迁移只在 `objectVersion.wardrobes < 16/17` 跑一次 → 玩家不再进庄园即永久锁死。
+
+### 二、$avery_antiques 缺失让直达「陈列古董」两段必崩
+
+- `Mansion Display Loosen` 直接读 `$avery_antiques.bolt` / `.bolts`，`Mansion Display Consider` 读 `$avery_antiques.exposed.includes(...)`，均无短路保护（Mansion 前缀 866 段中仅这 2 段引用）。
+- CE 壳不跑 `avery_antiques_init` → 场景直达选中任一段即 TypeError。
+- 修法：新增 `mbCEEnsureAveryAntiques()`，照原版 `avery_antiques_init`（448 B 全文）初值补 7 字段（已有不覆盖）；撤壳时一并撤 `$avery_antiques`。
+
+### 三、断言与门禁
+
+- 新增 3 条断言（14.10 真档指纹不撤且衣柜保持解锁 / 14.11 建壳补 antiques 且幂等 / 14.12 撤壳同撤 antiques）。
+- 版本三处同步 2.1.11；`run_all.ps1` 全链与 `pack.ps1` 三闸门见交付记录。
+
 ## v2.1.10（2026-11-17 开局解锁艾弗里庄园修复 + 悉尼亵渎仪式/食堂线新增直达）
 
 两条独立诉求一起落地：① 社区反馈「CE 有个 bug，开局解锁艾弗里庄园」（QQ 群截图）；② 贴吧问「悉尼亵渎仪式 / 身上写十六字箴言」这个剧情有没有，有就加到剧情直达里。

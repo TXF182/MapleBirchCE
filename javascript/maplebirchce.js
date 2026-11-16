@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.10";
+	var MCE_VERSION = "2.1.11";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -11780,6 +11780,10 @@ var SCENE_LOCATIONS = {
 			if (typeof V.avery_tower !== "object" || V.avery_tower === null) {
 				V.avery_tower = { progress: 0, effects: [], stage: 0, intro: 0 };
 			}
+			/* v2.1.11：$avery_antiques 兜底 —— Mansion Display Loosen / Mansion Display Consider 直接读
+			   $avery_antiques.bolts / .exposed（无短路保护，原版 avery_antiques_init 全文实证），
+			   壳不补则直达这两段必 TypeError。 */
+			mbCEEnsureAveryAntiques();
 			/* daily.avery 结构兜底（v1.3.3 → v1.5.1 强化）：本体 0.5.5.5 后 $daily.avery 由艾弗里线入口建为 {}，
 			   talk/ask 子对象仅在 avery_mansion_init / 0.5.7.1 版本迁移时创建；直达、重放、固定触发或新档未开
 			   艾弗里线时进入 Mansion 系段落（Mansion Talk 调 avery_daily_talk 读 $daily.avery.talk.chat、
@@ -11846,6 +11850,9 @@ var SCENE_LOCATIONS = {
 	/* v2.1.10：艾弗里塔零进度（塔对象缺失也算零 —— delete 不存在的键无副作用） */
 	function mbCEAveryTowerEmpty(tw) {
 		if (!tw || typeof tw !== "object") { return true; }
+		/* v2.1.11：真档 avery_mansion_init 必 pushUnique("theft") 进 $avery_tower.effects，壳建的是空数组 ——
+		   effects 非空即真档；否则「刚进庄园就离开」的真档会被误撤（mansion 字段全零 + tower 进度全零）。 */
+		if (Array.isArray(tw.effects) && tw.effects.length) { return false; }
 		if (tw.progress || tw.stage || tw.intro) { return false; }
 		return true;
 	}
@@ -11859,6 +11866,15 @@ var SCENE_LOCATIONS = {
 			var wd = V.wardrobes && V.wardrobes.avery_mansion;
 			if (wd && typeof wd === "object" && wd.unlocked === true) { wd.unlocked = false; }
 		} catch (e) { /* 衣柜结构异常：跳过撤回，不影响撤壳本身 */ }
+	}
+	/* v2.1.11：$avery_antiques 兜底（七字段照原版 avery_antiques_init 初值，绝不覆盖已有值） */
+	function mbCEEnsureAveryAntiques() {
+		try {
+			var V = getV();
+			if (!V) { return; }
+			if (typeof V.avery_antiques === "object" && V.avery_antiques !== null) { return; }
+			V.avery_antiques = { progress: 0, bolts: 10, bolt_progress: 0, exposed: [], stolen: [], noticed: [], confront: [] };
+		} catch (e) { /* 存档只读/被冻结 → 跳过，目标段落自身兜底 */ }
 	}
 	/* v2.1.10：CE 壳的「零进度」判据 —— 带标记直接认；旧版本壳无标记，用结构全零识别
 	   （真进过庄园的档必然有 days / 家具 / 派对 / 塔进度等任一非零值，不会被误判）。 */
@@ -11880,6 +11896,9 @@ var SCENE_LOCATIONS = {
 		if (!mbCEAveryLooksUnused(V.avery_mansion, V.avery_tower)) { return false; }
 		mbCEDelQuiet(V, "avery_mansion");
 		if (mbCEAveryTowerEmpty(V.avery_tower)) { mbCEDelQuiet(V, "avery_tower"); }
+		/* v2.1.11：壳顺带建的 $avery_antiques 一并撤，不留零进度残留；
+		   真档不会进本分支（tower.effects 含 theft → 判非壳）。 */
+		mbCEDelQuiet(V, "avery_antiques");
 		mbCEAveryUnlockOff(V);
 		return true;
 	}

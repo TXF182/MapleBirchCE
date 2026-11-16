@@ -1025,7 +1025,25 @@ assert(api.mbCEPruneAveryShell() === false && V.avery_mansion.days === 3 && V.av
 assert(api.mbCEIsAveryPassage("Mansion Bed") === true && api.mbCEIsAveryPassage("Avery") === true && api.mbCEIsAveryPassage("Avery's Room") === true, "14.9 Mansion / Avery / Avery's 前缀命中");
 assert(api.mbCEIsAveryPassage("SV Mansion") === true && api.mbCEIsAveryPassage("SV Avery Bath") === true, "14.9 SV Mansion / SV Avery 预览段命中");
 assert(api.mbCEIsAveryPassage("Manor Hall") === false && api.mbCEIsAveryPassage("Sydney Temple Corrupt") === false && api.mbCEIsAveryPassage("") === false, "14.9 非庄园段不命中（Manor / Sydney / 空串）");
-delete V.avery_mansion; delete V.avery_tower; delete V.daily;
+// 14.10) v2.1.11 回归自查：刚跑 avery_mansion_init 就离开的真档 —— mansion 结构字段全零，
+//        但 $avery_tower.effects 必有 "theft"（init pushUnique 实证），不得被当作壳撤掉
+V.avery_mansion = { version: 5, kitchen_stock: { normal: ["salt"], requested: [] }, schedule: "home", jobs: [], party_state: "waiting", days: 0, days_absent: 0, walk_cycle: 0, display_antiques: 0, food: "hamburger", food_last: "none", date_ready: false, date_seen: false, landry: 0, vault_progress: 0, kitchen_made: 0, recipe: [], attend: {} };
+V.avery_tower = { progress: 0, effects: ["theft"], stage: 0, intro: 0 };
+V.wardrobes = { avery_mansion: { unlocked: true } };
+assert(api.mbCEAveryLooksUnused(V.avery_mansion, V.avery_tower) === false, "14.10 真档指纹：$avery_tower.effects 含 theft → 不认作壳");
+assert(api.mbCEPruneAveryShell() === false && V.avery_mansion.version === 5 && V.wardrobes.avery_mansion.unlocked === true, "14.10 真档保留 + 衣柜保持 unlocked=true");
+// 14.11) $avery_antiques 兜底：Mansion Display Loosen/Consider 直接读 .bolts/.exposed（无短路保护）
+delete V.avery_antiques; delete V.avery_mansion; delete V.avery_tower;
+api.ensureAveryMansion();
+assert(V.avery_antiques && V.avery_antiques.bolts === 10 && V.avery_antiques.bolt_progress === 0 && Array.isArray(V.avery_antiques.exposed) && Array.isArray(V.avery_antiques.noticed) && Array.isArray(V.avery_antiques.confront), "14.11 建壳时补 $avery_antiques（bolts=10 / 四个数组照原版 init）");
+V.avery_antiques.bolts = 7; api.ensureAveryMansion();
+assert(V.avery_antiques.bolts === 7, "14.11 已有 $avery_antiques 不被覆盖（幂等）");
+// 14.12) 撤壳时一并撤 $avery_antiques，不留零进度壳资源
+V.avery_antiques = { progress: 0, bolts: 10 };
+V.avery_mansion = { mb_ce_shell: true, schedule: "home", jobs: [], party_state: "waiting" };
+V.wardrobes = { avery_mansion: { unlocked: true } };
+assert(api.mbCEPruneAveryShell() === true && V.avery_antiques === undefined, "14.12 撤壳同时撤 $avery_antiques（不残留零进度壳资源）");
+delete V.avery_antiques; delete V.avery_mansion; delete V.avery_tower; delete V.daily; delete V.wardrobes;
 
 // 15) 修正（v1.3）：世界入口解锁 + 循环修复 + 剧情线合并
 // 15.1) 世界入口解锁：直达/触发后写入原版进入条件变量
