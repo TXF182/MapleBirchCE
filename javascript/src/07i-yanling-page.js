@@ -119,6 +119,28 @@
 			mkBtn(s3g, "一键清零：全部负面名声", MCE_CLS.gold, mbCEYanlingPurgeFame, "学校 crossdress/herm + 城镇 fame 负面 8 项 + 衰减队列");
 			mkBtn(s3g, "一键拉满：正面名声", MCE_CLS.gold, mbCEYanlingMaxFame, "fame.good / business / scrap / social / model 各写 2000（实证 clamp 上限 2000；pregnancy 上限动态不写）");
 
+			/* ⑩ 枝叶变装（v2.1.8 玩家实测诉求：衣柜没有枝叶上衣和裙子、没得卖、「枝叶衣服没法进柜子」） */
+			var s10 = mceNewSec(gA, 10, "枝叶变装", "把当前上/下装换成原版 leaf shirt + leaf skirt（植物人 NPC 的枝叶上衣 / 枝叶裙，玩家侧无任何售卖渠道，所以衣柜与商店里永远刷不出来 —— 这是「衣柜又没有枝叶上衣和裙子」「没有卖的」「枝叶衣服没法进柜子」三句抱怨的共同成因）。被替换下来的原衣会逐件复制进衣柜，之后点「还原」把原衣换回身上并从衣柜回收那份副本。外套层（over_upper / over_lower）会一起收进衣柜：只换上/下装时外套会把枝叶完全遮住，看起来就像没生效。枝叶本体同时放一份进衣柜，以后不点本按钮也能直接从衣柜面板再穿。穿诅咒衣物时拒绝变装（原版禁止脱下）。");
+			var leafWorn = "—", leafRec = "无记录";
+			try {
+				var Vl = getV();
+				if (Vl && Vl.worn) {
+					leafWorn = ["over_upper", "over_lower", "upper", "lower"].map(function (sl) {
+						var w1 = Vl.worn[sl];
+						return sl + "：" + ((w1 && w1.name) ? String(w1.name) : "空");
+					}).join(" ｜ ");
+				}
+				var lrec = (Vl && Vl.mbCE_yanling && Vl.mbCE_yanling.leaf && typeof Vl.mbCE_yanling.leaf === "object") ? Vl.mbCE_yanling.leaf : null;
+				if (lrec) {
+					leafRec = "已变装（原衣 " + (Array.isArray(lrec.stored) ? lrec.stored.length : 0) + " 件在衣柜，枝叶副本 " + (Array.isArray(lrec.copied) ? lrec.copied.length : 0) + " 件）";
+				}
+			} catch (eL) { void eL; }
+			s10.appendChild(el("div", MCE_CLS.hint, "当前躯干槽：" + leafWorn));
+			s10.appendChild(el("div", MCE_CLS.hint, "变装状态：" + leafRec));
+			var s10g = mceBtnGrid(s10);
+			mkBtn(s10g, "变身：枝叶上衣 + 枝叶下衣", MCE_CLS.gold, mbCEYanlingLeafSuit, "4 躯干槽原衣进衣柜（带 mbCE_leafStored 标记）→ 上装写 leaf shirt、下装写 leaf skirt、外套层置裸；枝叶本体同时入柜（mbCE_leafCopy，按 name 防重复）");
+			mkBtn(s10g, "还原：换回原服装", "mce-red", mbCEYanlingLeafRevert, "按 $mbCE_yanling.leaf 记录还原 4 槽，并从衣柜回收带标记的原衣；枝叶副本保留可继续穿");
+
 			/* ④ 身体与衣物（对照 CheatExtend 1.1.3「快捷言灵」补入；v2.0.2 拆出 ⑤ 精神与体液） */
 			var s4 = mceNewSec(gB, 4, "身体与衣物", "一键烘干：$upperwet / $lowerwet / $underupperwet / $underlowerwet（原版初始化 182261-182267，debug 直写 60670-60682）。衣物加固：$worn.{upper,lower,under_upper,under_lower}.integrity 按该件 integrity_max 写满（上限取自 clothingData(slot,item,\"integrity_max\")，163772；不照抄 CE 的 +1000，避免超上限导致耐久显示破表）。");
 			var wetTxt = "—", durTxt = "—";

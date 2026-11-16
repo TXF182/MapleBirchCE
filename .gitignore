@@ -26,3 +26,5 @@ tools/_legacy/downloads/
 # 内部工作文档（不入 git / 不上传）
 MapleBirchCE-记忆存档-*.md
 MapleBirchCE-新模组适配计划-*.md
+# 归档的内部工作文档（过程记录，不入 git）
+docs/archive/

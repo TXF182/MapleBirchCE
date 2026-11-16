@@ -4,7 +4,7 @@
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.1.6**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.1.8**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -64,6 +64,7 @@
 
 ### 4. 场景直达页（特殊场景传送）
 - **8 组场景**直达：孤儿院阁楼 / 凯拉尔庄园 / 悉尼神殿 / 西里斯学校与商店 / 艾弗里庄园 / 格威岚花园与森林商店 / 多伦公寓与阁楼 / 麋鹿街大院。
+- **遇欲便利店组（v2.1.8）**：玩家私信里的「便利店」不是原版地点（原版与汉化包都没有这个词），归 `Dol-Optimization` 的「遇欲便利店」——段名 `Conveniencestore`，入口由 TweeReplacer 注入原版 `Domus Street`，店主 NPC「遇欲」（`Needmeet`，好感键 `$needmeet_romance`）。夜间只有玻璃反光与「离开」，白天才有柜台 / 货架 / 烟柜。未装该模组时本组显示「未匹配到主场景段落」。
 - **剧情直达四组（v2.0.15）**：象牙怨灵（65 段，主场景 `Wraith Test Start`）/ 万圣节（98 段，`Lake Halloween Party`）/ 情人节（112 段，`Avery Valentines`）/ 圣诞节（33 段，`Christmas Mirror`），入口按原版时间窗口预置日期与状态（`$wraith` 八字段、`$avery_valentines` 十七字段、`$phase=0`、`$cool=240`）。**不可安全直达的段不会出现在列表里**：`<<widget>>` 定义段（`Kylar Halloween Start` 等 4 个）与首宏即 `$molestationstart / $struggle_start / $fightstart / $sexstart` 的战斗中继段（共 32 个）一律过滤，实测剔除 36 段；判据是「顺序扫宏取第一个控制宏」，故 `Wolf Halloween 7`（首宏 `$phase`）、`Avery Valentines End` 这类含战斗变量的正常入口不会被误杀。麋鹿街大院同口径过滤 10 段。
 - **子入口状态兜底（v2.0.17）**：v2.0.16 的 151 条子入口里，有两条新档直跳会**真的崩**（对 `undefined` 做属性赋值）：`Forest Gwylan Lure` 第 3 行 `<<set $gwylan.lureDistance -= 5>>`，`Hospital Keycard Receptionist` 首屏 `<<set $pubfame.hospital to {}>>`。原因是原版 `StoryInit` 只有 355 B（只跑 `<<variablesStatic>>`），新档真正的 `$` 初始化入口是 `Start → Start2 → <<variablesStart2>>`，而 `$gwylan` 只在 `Widgets Named Npcs`、`$pubfame` 只在 `SV Pub Fame Intro` 建壳，新档走不到。现补 `mbCEEnsureEntryState`：按原版字面量补 `$gwylan` 十字段 + `lureDistance`（`Math.clamp($forest, 15, 100)`）与 `$pubfame {seen:[], tasksDone:[]}`，一律**只补缺失、不覆盖已有进度**。其余 `$compound/$docks/$livestock/$harper_appointments` 都在 `<<variablesStart2>>` 内新档必建、`$wraith` 由 `<<gameStartOnly>>` 建壳、`$island/$prison/$farm` 已有分支覆盖，故不动（判据 = 「段首 6 行内的写操作 ∩ 新档初始化集合」的差集，151 条只剩这 2 条）。
 - **子入口直达（v2.0.16）**：此前每组只有 1 个主场景按钮，note 里点名的子区域点不到。现 22 组共补 **151 条子入口按钮**（凯拉尔庄园 花园/实验室/父母房间/厨房/凯拉尔房间/庭院、艾弗里庄园 泳池/浴室/卧室/陈列室/档案/地牢/沐浴/交谈/摩天楼、湖畔 营地/湖岸/办公室/美人鱼/仪式/垂钓石/滑冰/水下/深处/遗迹囚牢/石匠、麋鹿街 11 条、精神病院 9 条、警局监狱 9 条、医院 9 条、悉尼神殿 9 条、海岛 9 条、情人节 9 条……见 CHANGELOG v2.0.16 明细）。象牙怨灵**显式不拆**（四套状态机依赖 `$wraith.state` 三态与月相，直跳会崩，只保留主入口）。**默认折叠**：主场景行下多一个「▸ 更多入口（N）」开关，点开才逐行展开——151 条全展开会把竖屏拉出上百行。展开状态随面板持久化（`placeOpen`）。**每条都有显式中文副标签**，不走子串匹配（`"show"` 会命中 `"Shower"`）。渲染前过三重判据（属于本组 items + 非主场景 + 首个控制宏可玩），模组缺段/改名时自动降级，不会点出空白页。
@@ -105,7 +106,8 @@
 - **⑦ 天气**：直调原版 `window.setWeather(type, true)`，给晴 / 阴 / 大雨 / 雷雨 4 档（**不写已废弃的 `$weather`**，0.5 起迁 `$weatherObj`）。
 - **⑧ 角色放逐**：格威岚走原版 scorned 线（state=scorned + 当日进度锁 + 9 天倒计时）/ 立即召回；凯拉尔 state=prison↔active；惠特尼 state=dungeon↔active。**不提供枷锁示众**（pillory 需 `$pillory_tenant` 联动，硬写会错位）。
 - **⑨ 监狱庇护**（v2.0.3）：原版 `$prison.protection` **不是数字档位**，而是枚举字符串 —— `""`（空串 = 无庇护，假值）/ `"scarred"`（已烙印，657114 等 17 处写入）/ `"tattooed"`（已纹身，仅 `is` 判定，全库无赋值点）。判定点 650845 `is "scarred"`、651145 `is "tattooed"`、654586-654587 `!$prison.protection` —— 写数字会让两个 `is` 都不匹配、`!protection` 也因真值不成立，庇护线**面板显示成功、游戏侧静默半失效**。故本区块直写字符串三档（疤痕 / 纹身 / 清除），并与「场景 · 地点」页监狱数字键（`attention_level` / `scarred_level` / `tattooed` / `hours_worked`）分开。`$prison` 未初始化（没进过监狱）时按中文提示拒绝，不凭空建对象。
-- **版面（v2.0.2 重排，v2.0.3 增 ⑨）**：原先 8 个区块平铺且编号错位（s1→s2→s3→s5→s6→s7→s8→s4、「说明与边界」错排在第 4 位却排在最后）→ 现按语义分 3 组（**A 着装与名声** ①②③ / **B 身体与数值** ④⑤⑥⑦ / **C 角色状态** ⑧⑨），按钮统一进 2 列网格，说明收进页尾可折叠块（默认 2 行摘要，点开看 6 条边界）。`mceSecMark()` 现对 `idx<=0` / 非数字返回空串（真正“不编号”），超字表回落阿拉伯数字。
+- **⑩ 枝叶变装**（v2.1.8）：一键把上装换 `leaf shirt`、下装换 `leaf skirt`；4 个躯干槽的原衣逐件深拷贝进衣柜打 `mbCE_leafStored`，「还原：换回原服装」再从衣柜倒序回收并换回身上。外套层（`over_upper` / `over_lower`）同时置裸——否则外套会把枝叶完全遮住；内层 `under_upper` / `under_lower` 不动。**原版 `setup.clothes` 里根本没有这两件**（它们只是植物人 NPC 的 outfit 部件，`T.npcClothesItems`），所以取件前先按 `plant top` / `plant skirt` 模板 clone 出 `variable` = `leafshirt` / `leafskirt`、`index` 齐备的完整 ClothesItem 注入玩家衣物表（缺 `variable` 时 `clothesIndex` 会 `Errors.report` 并 return 0，原版代码读到裸装 = 点了没效果）。注入幂等、由 `mbCEResumeTimers()` 每次翻页补一次，所以枝叶副本进柜后**不点按钮也能直接从原版衣柜再穿**。三种情况拒绝并给明确文案：穿诅咒衣物（直写 `$worn` 会绕过 `$_cursedPrevent`）、已在变装态重复点、借不到植物系模板。
+- **版面（v2.0.2 重排，v2.0.3 增 ⑨，v2.1.8 增 ⑩）**：原先 8 个区块平铺且编号错位（s1→s2→s3→s5→s6→s7→s8→s4、「说明与边界」错排在第 4 位却排在最后）→ 现按语义分 3 组（**A 着装与名声** ①②③⑩ / **B 身体与数值** ④⑤⑥⑦ / **C 角色状态** ⑧⑨），按钮统一进 2 列网格，说明收进页尾可折叠块（默认 2 行摘要，点开看 6 条边界）。`mceSecMark()` 现对 `idx<=0` / 非数字返回空串（真正“不编号”），超字表回落阿拉伯数字。
 
 ### 7b. 回退语义与留痕边界（v2.0.3）
 
@@ -182,7 +184,7 @@
 - **潜伏者搬运不再丢库存**：`hookah.lurkers` / `lurkers_stored` 为字符串时（导入存档、模组直接 `<<set>>` 常见），旧写法按 0 起算会把 `0+held` 覆盖上去（`"5"` + 手持 3 → 变 3，原有 5 只消失）。新增 `mbCELurkerReadable / mbCELurkerNum`：能解析成有限数的一律按数用，不可解析才按 0；状态回读同口径（非数值仍显示「—」，不伪造成 0）。
 - **只读接口不再写存档**：`mbCELurkerState()` 经 `mbCELockHas → mbCELockData` 会就地创建 `V.mbCE_lock`。新增 `mbCELockListRO()` 只读视图，`mbCELockHas / mbCELockTarget / 渲染取表` 全走它，建表只留 `mbCELockSet`。另修回退分支 `offOk` 预置 `true`（`hadLock` 真但解除失败时仍报「已取消锁定」）与还原异常时误删留痕（改为保留可重试）。
 
-## Mod作弊 适配器一览（当前版本 2.1.6）
+## Mod作弊 适配器一览（当前版本 2.1.8）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|

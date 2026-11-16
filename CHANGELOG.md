@@ -2,6 +2,110 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.8（2026-11-16 言灵页「枝叶变装」：leaf shirt + leaf skirt 一键换装 / 原衣入柜 / 一键还原）
+
+玩家实测反馈（贴吧 dol 吧私信）：衣柜里没有枝叶上衣和裙子、没有卖的、「枝叶衣服没法进柜子」，希望直接穿上。开发者给的方案：言灵页加一个把服装变成枝叶上衣 + 枝叶下衣的按钮，被替换的原衣进衣柜，回退时把原衣换回来。
+
+### 原版取证（DoL 0.5.12.13，字符偏移可复跑）
+
+- `leaf shirt` @19019946：`{ name: "leaf shirt", integrity_max: 100, word: "a", action: "pull" }`；`leaf skirt` @19028864：`{ name: "leaf skirt", integrity_max: 100, word: "a", action: "lift" }`。两件在原版是植物人 NPC 的 outfit 部件，通过 `npcAssignClothesToSet("leaf shirt", "lotus skirt")` @19048603 / `("leaf corset", "leaf skirt")` @19048771 分配，**玩家侧没有任何售卖渠道** → 衣柜与商店永远刷不出来，这是玩家三句抱怨的共同成因。
+- `setup.wardrobeSkip` @19938481 = `["naked","towel top","large towel","towel skirt","large towel bottom","plant skirt","plant top"]`——**不含 leaf shirt / leaf skirt**；被跳过的是 `plant top` / `plant skirt`。「枝叶衣服没法进柜子」的真实原因是没有获取途径，不是被名单挡住。
+- `V.wardrobe` 在 `clothingArrays()` @19004551 对全部 15 个 `setup.clothes_all_slots` 槽写 `[]` → 槽数组必然已存在，入柜不需要懒建。
+- 衣柜选择走 `window.selectWardrobe()` @16556351（末尾 `window.selectWardrobe = selectWardrobe`）：关闭 multipleWardrobes 返回 `V.wardrobe`，开启返回 `V.wardrobes[V.wardrobe_location]`。
+- `clothesDataTrimmer` @16559186 是**固定白名单删除**，不清自定义字段 → `mbCE_leafStored` / `mbCE_leafCopy` 标记能在存档里长期存活。
+- 换装语义：`V.worn[slot]` 是对象、裸装为 `clone(setup.clothes[slot][0])`（`givestartclothing` @19006097），必须深拷贝，不能把 setup 原型对象挂到存档上。
+
+### 新增（言灵页 A 组 ⑩ 枝叶变装）
+
+- 新分片 `javascript/src/07i-yanling-leaf.js`（manifest 81 段中位于 `07i-yanling-actions.js` 之后、`07i-yanling-page.js` 之前），导出 `mbCEYanlingLeafSuit()` / `mbCEYanlingLeafRevert()`。
+- **变身**：4 个躯干槽（`over_upper` / `over_lower` / `upper` / `lower`）原有的非 naked 衣物逐件深拷贝进衣柜（带 `mbCE_leafStored` 标记），然后上装槽写 `leaf shirt`、下装槽写 `leaf skirt`、其余躯干槽置裸；顺手把枝叶本体也放一份进衣柜（`mbCE_leafCopy` 标记，按 name 防重复），以后不点按钮也能从衣柜面板自由再穿。
+- **还原**：按 `$mbCE_yanling.leaf` 记录还原 4 槽（原为裸装的槽置回裸装），并从衣柜回收带标记的原衣；枝叶副本保留（玩家本来就想要它）。
+- 外套层一并收起是刻意的：只换 upper/lower 时外套会把枝叶完全遮住，玩家只会再报一次「没效果」。
+- 留痕：`V.mbCE_wrote["yanling:leaf_suit" / "yanling:leaf_revert"]`，before/after 只存名字摘要（不塞整件衣物对象，避免留痕区被撑爆）。
+- 边界：穿诅咒衣物（`cursed === 1`）拒绝变装——直写 `$worn` 会绕过 `generalUndress` 的 `$_cursedPrevent` 保护；已变装未还原时拒绝重复变装（防衣柜堆多份原衣）；`setup.clothes` 缺件时返回失败而不抛异常。
+
+### 新增（场景直达：遇欲便利店 Conveniencestore）
+
+同批私信的另一条诉求是「便利店的遇欲剧情，可以加个一键直达吗」。第一版按原版 `Supermarket` 落地是**错的**——原版与汉化包都没有「便利店」这个地名（`i18n.json` 60,050,399 字符里「便利店」0 命中），玩家指出「便利店是其他模组的」，回包取证确认归属：
+
+- `game\Dol-Optimization-v1.1.2.1.mod.zip` 的 `twee/game.twee` 有 `:: Conveniencestore`（全包唯一一段，段落总数 23），首宏 `<<fromopt>>`，非战斗可直达。
+- 入口由 TweeReplacer 注入原版 `Domus Street`：`findString` = `"|Orphanage]]>><<pass 1>><</link>>"`，`replace` 在其后追加 `<<link [[便利店 (0:01)|Conveniencestore]]>><<pass 1>><<unset $phase>><</link>>`（boot.json `tip` 标注「【1.0.9】遇欲便利店」）。
+- 店主 NPC 是「遇欲」（`Needmeet`）：段内 `<<npc Needmeet>> <<initnpc Needmeet>>`（受 `DolOptimization.full` 门控），`C.npc.Needmeet.love` 由「询问他手中的本子」置 1；好感数值是 `$needmeet_romance`（≥50 信赖、≥80 解锁恋爱线），CE 的 `opt_needmeet` 键早已覆盖（`04a-12-opt.js`）。
+- 段内 `Time.dayState is "night"` 分支只给玻璃反光 +「离开」，白天才有柜台 / 货架 / 烟柜三区。商品库存键 `daily.conveniencestoregoods.*`（避孕套 / 验孕棒）与 `opt_cs_condom` / `opt_cs_pregtest` 作弊键一致。
+
+`07d-places.js` 的 `PLACE_GROUPS` 新增 `conveniencestore` 组（match `Conveniencestore` 及其子段前缀，`main: "Conveniencestore"`）。模组未装时该 passage 不存在，渲染走既有的「未匹配到主场景段落（未安装对应 MOD 或版本差异）」提示，不会留一个点进去必然白屏的按钮。
+
+### 导出拆段（结构门禁）
+
+`09-exports2.js` 加两个导出后 403 行，超过单段 400 行上限（S1）。按 `09-exports-vcore.js` 同一先例拆出 `09-exports3-leaf.js`（`mbCEExportLeaf()`），manifest 由 81 段增至 **82 段**。
+
+踩到的坑：`09-exports2.js` 的 `})();` 在本文件末尾闭合 IIFE，新分片若排在它**之后**就落到 IIFE 外面，`getSetup()` 不可见 → `mbCEExportLeaf()` 静默 ReferenceError（测试表现为 `y66.yanlingLeafSuit is not a function`，产物里代码却全在）。因此 `09-exports3-leaf.js` 必须排在 `09-exports2.js` **之前**（现位于 `09-exports.js` 之后），并在 `mountApi()` 顶层调用后立即 `mbCEExportLeaf()` 补键——`init()` 在无 `document` 环境下会提前 return，只有顶层能兜底；该函数幂等。
+
+### 复核修正（真机缺陷：`setup.clothes` 里根本没有这两件）
+
+第一版只按 name 在 `setup.clothes` 里找 leaf shirt / leaf skirt，逐字节取证后确认这条路在真实环境恒失败：
+
+- 全 64,515,269 字符原版 HTML 里 `leaf shirt` / `leaf skirt` 各只有 3 处 —— `T.npcClothesItems.upper` / `.lower` 的定义、`npcAssignClothesToSet("leaf shirt","lotus skirt")` / `("leaf corset","leaf skirt")` 两次分配，**`setup.clothes`（玩家衣物表）里一件都没有**。
+- `setup.clothes` 由 `clothingDataInit()` @19003074 用 `initUpper()` / `initLower()` 等逐槽 push `new ClothesItem({...})` 构建；`setup.clothes_all_slots` @19003398 是 15 个槽名数组。
+- `clothesIndex(slot, item)` @16566855 按 `item.variable === itemToIndex.variable && item.modder === itemToIndex.modder` 匹配；缺 `variable` 时 `Errors.report(...)` 并 **return 0** → 原版大量 `setup.clothes[slot][clothesIndex(...)].xxx` 读到第 0 项（裸装），表现就是「点了没效果」。
+- 第一版单测把 leaf 直接塞进 mock 的 `setup.clothes`，属测试路径≠实机路径，所以是假绿。
+
+修法（`07i-yanling-leaf.js` 新增 4 个函数，`mbCEYanlingLeafSuit` 两处取件改走最后一个）：
+
+- `mbCEYanlingLeafTemplate(slot, preferred)`：只在**同一槽**里取 `plant top` / `plant skirt` 当字段模板（原版 @18705737 / @18214396 必备，字段最贴近植物系），不拿别的衣物凑字段。
+- `mbCEYanlingLeafInject(slot, name, variable, preferred)`：已存在即复用 → `clone` 模板 → 只改 `name` / `name_cap` / `variable`（`leafshirt` / `leafskirt`，必须唯一，否则与 `plant` 系在 `clothesIndex` 里撞车）/ `index`（= push 前的数组长度）→ 打 `mbCE_leafSynth` → push。
+- `mbCEYanlingLeafEnsure()`：幂等补齐 upper + lower 两件；借不到模板返回 null（上层给明确提示，不塞半成品）。
+- `mbCEYanlingLeafCloth(name)`：先查、查不到 ensure 再查。
+
+接线：`07f-lock.js` 的 `mbCEResumeTimers()` 末尾补一次 ensure —— 它是 `:passagedisplay` 与 `init()` 的统一入口，放这里才能覆盖「不打开 CE 面板、直接去原版衣柜穿枝叶副本」的路径（`setup` 每局重建、注入不进存档，所以每次加载都要补一次）。
+
+### 测试
+
+`tests/test_mce.js` 新增 66 段共 26 条断言（变装主流程 / 外套层置裸 / 内层不动 / 原衣入柜带标记 / 枝叶副本 / 留痕 / 重复拒绝 / 回退还原 / 回收原衣 / 副本保留 / 清记录 / 无记录失败 / 诅咒拒绝 / 缺件拒绝 / `wardrobeSkip` 同口径）。66 段 mock 照实机造（`plant top` / `plant skirt` 在位、leaf 缺席），新增 66.0（前置：玩家表里没有 leaf）/ 66.2b 与 66.2c（注入后 `variable` = `leafshirt` / `leafskirt`、`index` = 2、字段继承模板、`mbCE_leafSynth` = 1）/ 66.16b（拒绝时不写衣柜也不塞半成品）/ 66.18（多轮变装后注入仍幂等，leaf 各只有 1 份）；66.16 的文案断言由 `/没有/` 改为 `/模板/`。
+红绿双向验证：把产物里 `s.clothes[slot].push(item)` 换成空操作 → 66.1 / 66.2 / 66.2b / 66.2c / 66.5 / 66.6 / 66.7 共 7 条 FAIL、exit=1；恢复后 ALL TESTS PASSED。
+
+## v2.1.7（2026-11-16 修复「深度农场作弊不见了」：mod 存在性判据改用 ModLoader 真实注册表）
+
+玩家实测反馈（贴吧 dol 吧私信）：装了 More Farm Upgrade，Mod作弊页里「更多农场升级」整组消失。
+
+### 根因（两层，均已实证）
+
+1. **显示门禁**：`05a2-modcheat-rows-build.js:16` 对 `!ad.detect()` 直接 `continue`，不渲染任何占位——
+   detect 返回 false 就等于整组静默消失，玩家侧没有任何提示。
+2. **detect 判据过窄**：`04a-10-morefarm.js` 只探测 `V.farm.*` 等 17 个字段。而这些字段**不是模组在初始化
+   阶段创建的**：模组全部靠 TweeReplacer 注入原版农场 passage（`Farm Work` / `Farm Widgets` /
+   `Farm Upgrades *`，boot.json 70 条 params），玩家的农场没推进到对应节点，字段就不存在 → 整组消失。
+   源码侧 12 个 `$farm.*` 键在 19 个源文件中零缺失，但初始化阶段一个都不建。
+
+### 修复
+
+`detect()` 增加 ModLoader 注册表前置判据：`window.modUtils.getModListNameNoAlias()` 命中
+`MoreFarmUpgrade`（或 `getMod("MoreFarmUpgrade")` 命中）即视为已装；注册表不可用时退回原字段探测。
+写入侧保护不变——`V.farm` / `plots.farm[n]` 等父级缺失时面板仍拒绝写入并提示，不会写坏存档。
+
+**加固（自查发现，否则修复会被异常吞掉）**：注册表探测整段包在独立 try/catch（`catch (eReg) { void eReg; }`），
+异常只当「未命中」继续走字段探测。因为 `detect()` 外层是 `catch (e) { return false; }`，注册表 API 一旦抛异常
+冒到外层，即使模组已装、字段也在，照样判未装——整组再次消失。该语义由新增断言 `50.0c` 守住：注入重抛后
+实测 `FAIL: 50.0c ... 实际 未识别`，还原后回到 PASS。
+
+另：ESLint 配置 `ecmaVersion: 2018` 不支持可选 catch 绑定（`catch {}` 属 ES2019），首期写法触发
+`Parsing error: Unexpected token {`，已改为命名参数 + `void` 显式丢弃。
+
+### 顺带证伪的一处认知错误
+
+`mbCEHasModNamed()`（`04a-13-fert.js`）读的 `window.modDataValueZipList` **不是玩家装的 mod**，
+而是 LocalLoader 的**内置插件**列表（游戏 HTML 内嵌的 base64 zip 数组，见 `LocalLoader.load`）。
+玩家 mod 走 IndexedDB 加载链（`IndexedDBLoader.modDataIndexDBZipList`）。所以该 helper 对玩家 mod
+恒为 false；`fertility-expansion` 的 detect 一直靠后半段字段探测兜底才没出事。本次未改该 helper
+（避免扩大改动面），仅在此登记，后续如需修按同一判据替换。
+
+### 验证
+
+- 新增断言 `50.0`（装模组 + `V.farm` 未初始化 → 必须识别）/ `50.0b`（两者都无 → 不得误报）；
+  临时禁用修复后 `50.0` 实测变红（`实际 未识别`，exit 1），恢复后转绿，证明断言有效。
+- `run_all.ps1` 13 步全绿：覆盖率 Statements 96.96% / Branches 81.41% / Functions 97.87%；
+  拼接 SHA `31ff6ad36e94` == 产物 SHA；键注册表 425 条 / 12 适配器；复杂度四项棘轮未上升。
+
 ## v2.1.6（2026-11-14 四维审查剩余项收口：拆分巨型函数 + 类名常量表 + 分片头注 + 结构预警 + 缓存校验器修复）
 
 来源同上：`docs/code-review-20261114.md`。v2.1.5 只做了三项（缓存 / 压测规模 / 棘轮），

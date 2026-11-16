@@ -218,6 +218,10 @@ function mbCEResumeTimers() {
 	try { mbCEHideEnsureTimer(); } catch (eC) {}
 	try { mbCEAttitudeEnsureTimer(); } catch (eD) {}
 	try { mbCEYanlingEnsureTimer(); } catch (eE) {}
+	/* v2.1.8 复核：每页幂等补齐 leaf shirt / leaf skirt 到玩家衣物表（原版只把它们当 NPC outfit
+	   部件，setup.clothes 里没有；clothesIndex 按 variable+modder 匹配，不注入则衣柜里的枝叶副本
+	   穿上会被当裸装）。放这里而不是面板渲染，是为了覆盖「不打开 CE 面板直接去原版衣柜穿」的路径。 */
+	try { if (typeof mbCEYanlingLeafEnsure === "function") { mbCEYanlingLeafEnsure(); } } catch (eLf) {}
 }
 
 /* 锁定来源判定（P1：自定义锁定项默认收进折叠组，这里给每行标出「谁锁的」）：

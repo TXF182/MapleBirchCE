@@ -504,7 +504,7 @@ global.Story = { has: (n) => PLACE_NAMES.indexOf(n) !== -1, lookupWith: (fn) => 
 let lap10 = api.listAllPassages();
 assert(lap10.length === PLACE_NAMES.length, "listPlaceGroups 经 lookupWith 枚举全部段落, 实际 " + lap10.length);
 let pGroups = api.listPlaceGroups();
-assert(pGroups.length === 24, "场景分组 24 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组 + v2.0.22 森林商店 + v2.1.3 惠特尼家）, 实际 " + pGroups.length);
+assert(pGroups.length === 25, "场景分组 25 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组 + v2.0.22 森林商店 + v2.1.3 惠特尼家 + v2.1.8 遇欲便利店 conveniencestore）, 实际 " + pGroups.length);
 let brV7 = pGroups.find(x => x.group.id === "brothel");
 assert(!!brV7 && brV7.group.main === "Brothel Basement" && brV7.items.length === 0 && brV7.group.name.indexOf("妓院") === 0, "v2.0.0.007 妓院组存在（主场景 Brothel Basement=地下妓院；模拟段落表无 Brothel 段 → items 空）, 实际 " + JSON.stringify(brV7 && brV7.group.main));
 let lvV7 = pGroups.find(x => x.group.id === "remy_livestock");
@@ -4011,6 +4011,52 @@ assert(zhMismatch.length === 0, "49.9 快捷组 label 与 zhKey(path) 全一致�
 assert(api.zhKey("anxiety") === "焦虑" && api.zhKey("drunk") === "醉酒" && api.zhKey("english") === "语文" && api.zhKey("arousal") === "情欲", "49.9 新增/统一翻译键: anxiety=焦虑 drunk=醉酒 english=语文 arousal=情欲, 实际 " + api.zhKey("anxiety") + "/" + api.zhKey("drunk") + "/" + api.zhKey("english") + "/" + api.zhKey("arousal"));
 
 /* 50) MoreFarmUpgrade 适配器（DOL-More-Farm-Upgrade-Mod v1.0.8 适配轮）：农场 11 设施/资源/农夫键 */
+/* 50.0 装模组但农场字段未初始化：ModLoader 注册表命中即显示（防「作弊不见了」整组消失）
+   背景：$farm.* 由模组 TweeReplacer 注入原版 passage 后玩家推进才创建，纯字段探测会让新存档/未推进农场的
+   玩家整组看不到（05a2-modcheat-rows-build.js:16 对 detect false 直接 continue）。判据必须是 ModUtils 注册表
+   （getModListNameNoAlias），不能是 window.modDataValueZipList（那是 LocalLoader 的内置插件）。 */
+var mfNoField = (function () {
+	var saveWin = global.window;
+	var saveFarm = global.V.farm;
+	global.window = Object.assign({}, saveWin || {}, {
+		modUtils: { getModListNameNoAlias: function () { return ["MapleBirchCE", "MoreFarmUpgrade"]; } }
+	});
+	delete global.V.farm;
+	var hit = api.getCheatMods().filter(function (x) { return x.modId === "more-farm-upgrade"; })[0];
+	global.window = saveWin;
+	if (saveFarm !== undefined) { global.V.farm = saveFarm; } else { delete global.V.farm; }
+	return hit;
+})();
+assert(mfNoField && mfNoField.declared === true, "50.0 仅靠 ModUtils 注册表（V.farm 未初始化）也识别 more-farm-upgrade, 实际 " + (mfNoField ? mfNoField.declared : "未识别"));
+/* 50.0b 反向：注册表里没有该模组且字段未初始化 → 仍不显示（不产生误报） */
+var mfNoBoth = (function () {
+	var saveWin = global.window;
+	var saveFarm = global.V.farm;
+	global.window = Object.assign({}, saveWin || {}, {
+		modUtils: { getModListNameNoAlias: function () { return ["MapleBirchCE"]; } }
+	});
+	delete global.V.farm;
+	var hit = api.getCheatMods().filter(function (x) { return x.modId === "more-farm-upgrade"; })[0];
+	global.window = saveWin;
+	if (saveFarm !== undefined) { global.V.farm = saveFarm; } else { delete global.V.farm; }
+	return hit;
+})();
+assert(!mfNoBoth, "50.0b 无模组且无字段时不误报 more-farm-upgrade, 实际 " + (mfNoBoth ? "误报" : "未显示"));
+/* 50.0c 注册表 API 抛异常时不得吞掉字段探测：detect 外层 catch 是 return false，
+   若注册表异常冒到外层，装了模组+字段存在也会被判未装（整组再次消失）。 */
+var mfThrowing = (function () {
+	var saveWin = global.window;
+	var saveFarm = global.V.farm;
+	global.window = Object.assign({}, saveWin || {}, {
+		modUtils: { getModListNameNoAlias: function () { throw new Error("registry boom"); } }
+	});
+	global.V.farm = { compost: 1 };
+	var hit = api.getCheatMods().filter(function (x) { return x.modId === "more-farm-upgrade"; })[0];
+	global.window = saveWin;
+	if (saveFarm !== undefined) { global.V.farm = saveFarm; } else { delete global.V.farm; }
+	return hit;
+})();
+assert(mfThrowing && mfThrowing.declared === true, "50.0c 注册表抛异常时仍靠字段探测识别 more-farm-upgrade, 实际 " + (mfThrowing ? mfThrowing.declared : "未识别"));
 /* 50.1 探测命中：V.farm 扩展字段出现即识别 more-farm-upgrade */
 global.V.farm = { compost: 1 };
 var mf50 = api.getCheatMods().filter(function (x) { return x.modId === "more-farm-upgrade"; })[0];
@@ -6417,6 +6463,150 @@ try {
 } catch (e65) {
   failures++;
   console.error("FAIL: 65 v2.0.17 子入口状态兜底测试异常: " + (e65 && e65.stack ? e65.stack : e65));
+}
+
+// ===== 66 枝叶变装（v2.1.8）：leaf shirt / leaf skirt 换装 + 原衣入柜 + 一键还原 =====
+/* 取证依据（原版 0.5.12.13）：leaf shirt @19019946 / leaf skirt @19028864 是植物人 NPC 的 outfit 部件，
+   玩家无售卖渠道；setup.wardrobeSkip（@19938481）**不含**这两件（被挡的是 plant top / plant skirt）。
+   本组断言覆盖：4 躯干槽换装、外套层一并收起、原衣入柜带标记、枝叶副本入柜防重复、
+   重复变装拒绝、回退还原 + 回收原衣、无记录回退失败、诅咒衣物拒绝、服装表缺件拒绝、skip 名单同口径。 */
+try {
+  const origWin66 = global.window;
+  const y66 = setup.mbStageCE;
+  let ward66 = { space: 20, upper: [], lower: [], over_upper: [], over_lower: [], under_upper: [], under_lower: [] };
+  const mkSlot66 = name => ({ name: name, integrity: 100 });
+  /* 实机口径（v2.1.8 复核修正）：真实 setup.clothes 里**没有** leaf shirt / leaf skirt ——
+     原版只把它们当植物人 NPC 的 outfit 部件（T.npcClothesItems.upper/lower，字段仅 name/integrity_max/word/action），
+     玩家表里只有 plant top / plant skirt 这类完整 ClothesItem（带 variable/type/state/integrity…）。
+     clothesIndex 按 variable + modder 匹配，所以必须由 mbCEYanlingLeafEnsure 现场注入。
+     旧版 mock 直接把 leaf 塞进 setup.clothes 属测试路径≠实机路径，已改掉。 */
+  const mkPlant66 = (nm, slot, variable) => ({
+    name: nm, name_cap: nm.charAt(0).toUpperCase() + nm.slice(1), variable: variable,
+    slot: slot, integrity: 10, integrity_max: 10, fabric_strength: 20, reveal: 900,
+    word: "a", plural: 0, colour: 0, type: ["plant"], modder: null
+  });
+  global.window = {
+    setup: {
+      clothes_all_slots: ["over_upper", "over_lower", "upper", "lower", "under_upper", "under_lower"],
+      clothes: {
+        over_upper: [{ name: "naked", variable: "naked" }],
+        over_lower: [{ name: "naked", variable: "naked" }],
+        upper: [{ name: "naked", variable: "naked" }, mkPlant66("plant top", "upper", "plant")],
+        lower: [{ name: "naked", variable: "naked" }, mkPlant66("plant skirt", "lower", "plant")],
+        under_upper: [{ name: "naked", variable: "naked" }],
+        under_lower: [{ name: "naked", variable: "naked" }]
+      },
+      wardrobeSkip: ["naked", "towel top", "towel skirt", "large towel", "large towel bottom", "plant top", "plant skirt"]
+    },
+    selectWardrobe: function () { return ward66; }
+  };
+  assert(global.window.setup.clothes.upper.filter(x => x && x.name === "leaf shirt").length === 0,
+    "66.0 前置：真实玩家服装表里没有 leaf shirt（只有 plant top 模板）—— 这正是玩家「衣柜没有枝叶」的成因");
+  const bk66 = { worn: V.worn, yanling: V.mbCE_yanling, wrote: V.mbCE_wrote };
+  V.worn = {
+    over_upper: { name: "naked" },
+    over_lower: { name: "naked" },
+    upper: mkSlot66("shirt"),
+    lower: mkSlot66("skirt"),
+    under_upper: mkSlot66("bra"),
+    under_lower: mkSlot66("panties")
+  };
+  V.mbCE_yanling = { noCross: false, noTrait: false };
+  V.mbCE_wrote = {};
+
+  // 66.1~66.7 变装主流程
+  const r66a = y66.yanlingLeafSuit();
+  assert(r66a.ok === true, "66.1 变装返回 ok, 实际 " + JSON.stringify(r66a));
+  assert(V.worn.upper.name === "leaf shirt" && V.worn.lower.name === "leaf skirt",
+    "66.2 上/下装换成 leaf shirt + leaf skirt, 实际 " + V.worn.upper.name + " / " + V.worn.lower.name);
+  /* 66.2b 真注入断言：枝叶两件是"合成"进玩家服装表的，字段必须与原版 ClothesItem 同口径，
+     否则 clothesIndex(slot, item) 按 variable 匹配会落空（原版大量代码读 setup.clothes[slot][idx].xxx）。 */
+  const injUp66 = global.window.setup.clothes.upper.filter(x => x && x.name === "leaf shirt");
+  const injLo66 = global.window.setup.clothes.lower.filter(x => x && x.name === "leaf skirt");
+  assert(injUp66.length === 1 && injUp66[0].variable === "leafshirt" && injUp66[0].index === 2
+    && injUp66[0].integrity_max === 10 && injUp66[0].type[0] === "plant" && injUp66[0].mbCE_leafSynth === 1,
+    "66.2b 枝叶上衣由 plant top 模板注入玩家服装表（variable=leafshirt / index=2 / 字段继承 / synth 标记）, 实际 "
+    + JSON.stringify(injUp66.map(x => ({ v: x.variable, i: x.index }))));
+  assert(injLo66.length === 1 && injLo66[0].variable === "leafskirt" && injLo66[0].index === 2,
+    "66.2c 枝叶下衣由 plant skirt 模板注入（variable=leafskirt / index=2）, 实际 "
+    + JSON.stringify(injLo66.map(x => ({ v: x.variable, i: x.index }))));
+  assert(V.worn.over_upper.name === "naked" && V.worn.over_lower.name === "naked",
+    "66.3 外套层一并置 naked（只换内层时外套会遮住枝叶，玩家会再报「没效果」）");
+  assert(V.worn.under_upper.name === "bra" && V.worn.under_lower.name === "panties",
+    "66.4 内层（under_upper / under_lower）不被波及，只动 4 个躯干槽");
+  const upStored66 = ward66.upper.filter(x => x && x.mbCE_leafStored === 1);
+  assert(upStored66.length === 1 && upStored66[0].name === "shirt" && upStored66[0].integrity === 100,
+    "66.5 原上装进衣柜（带 mbCE_leafStored 标记且保留 integrity）, 实际 " + JSON.stringify(upStored66.map(x => x.name)));
+  const upCopy66 = ward66.upper.filter(x => x && x.mbCE_leafCopy === 1);
+  assert(upCopy66.length === 1 && upCopy66[0].name === "leaf shirt",
+    "66.6 枝叶上衣本体入柜（mbCE_leafCopy 标记，回应「枝叶衣服没法进柜子」）, 实际 " + upCopy66.length);
+  assert(!!(V.mbCE_wrote["yanling:leaf_suit"] && V.mbCE_wrote["yanling:leaf_suit"].before.worn.upper === "shirt"),
+    "66.7 变装按 yanling:leaf_suit 留痕且 before 存名字摘要");
+
+  // 66.8 重复变装拒绝（防衣柜堆多份原衣）
+  const r66b = y66.yanlingLeafSuit();
+  assert(r66b.ok === false && /还原/.test(String(r66b.msg)),
+    "66.8 已有记录时重复变装被拒并提示先还原, 实际 " + r66b.msg);
+
+  // 66.9~66.12 回退还原
+  const r66c = y66.yanlingLeafRevert();
+  assert(r66c.ok === true, "66.9 回退返回 ok, 实际 " + JSON.stringify(r66c));
+  assert(V.worn.upper.name === "shirt" && V.worn.lower.name === "skirt" && V.worn.over_upper.name === "naked",
+    "66.10 原衣换回身上（含外套层还原为 naked）, 实际 " + V.worn.upper.name + " / " + V.worn.lower.name);
+  assert(ward66.upper.filter(x => x && x.mbCE_leafStored === 1).length === 0,
+    "66.11 回退从衣柜回收带标记的原衣副本（不留重复件）");
+  assert(ward66.upper.filter(x => x && x.mbCE_leafCopy === 1).length === 1,
+    "66.12 枝叶副本保留（玩家本来就想要它，回退不删）");
+  assert(V.mbCE_yanling.leaf === undefined, "66.13 回退清空 $mbCE_yanling.leaf 记录");
+
+  // 66.14 无记录时回退失败
+  const r66d = y66.yanlingLeafRevert();
+  assert(r66d.ok === false, "66.14 无记录时回退返回失败且不抛异常, 实际 " + JSON.stringify(r66d));
+
+  // 66.15 诅咒衣物拒绝变装（直写 $worn 会绕过 generalUndress 的 $_cursedPrevent 保护）
+  V.worn.upper = { name: "cursed shirt", integrity: 100, cursed: 1 };
+  V.worn.lower = { name: "naked" };
+  ward66 = { space: 20, upper: [], lower: [], over_upper: [], over_lower: [] };
+  const r66e = y66.yanlingLeafSuit();
+  assert(r66e.ok === false && /诅咒/.test(String(r66e.msg)),
+    "66.15 穿着诅咒衣物时拒绝变装并说明原因, 实际 " + r66e.msg);
+  assert(ward66.upper.length === 0, "66.15b 拒绝时不对衣柜做任何写入（失败不留半截状态）");
+
+  // 66.16 连模板都没有时拒绝（合成不来就别硬塞半成品）
+  global.window.setup.clothes.upper = [{ name: "naked" }];
+  global.window.setup.clothes.lower = [{ name: "naked" }];
+  V.worn = { over_upper: { name: "naked" }, over_lower: { name: "naked" }, upper: { name: "shirt" }, lower: { name: "naked" } };
+  V.mbCE_yanling = { noCross: false, noTrait: false };
+  ward66 = { space: 20, upper: [], lower: [], over_upper: [], over_lower: [] };
+  global.window.selectWardrobe = function () { return ward66; };
+  const r66f = y66.yanlingLeafSuit();
+  assert(r66f.ok === false && /模板/.test(String(r66f.msg)),
+    "66.16 无 plant 模板可借时返回失败而非抛异常, 实际 " + r66f.msg);
+  assert(ward66.upper.length === 0 && global.window.setup.clothes.upper.length === 1,
+    "66.16b 拒绝时既不写衣柜，也不往玩家服装表里塞半成品");
+
+  // 66.17 wardrobeSkip 同口径 + 66.18 注入幂等
+  global.window.setup.clothes.upper = [{ name: "naked", variable: "naked" }, mkPlant66("plant top", "upper", "plant")];
+  global.window.setup.clothes.lower = [{ name: "naked", variable: "naked" }, mkPlant66("plant skirt", "lower", "plant")];
+  V.worn = { over_upper: { name: "naked" }, over_lower: { name: "naked" }, upper: { name: "towel top" }, lower: { name: "naked" } };
+  V.mbCE_yanling = { noCross: false, noTrait: false };
+  ward66 = { space: 20, upper: [], lower: [], over_upper: [], over_lower: [] };
+  global.window.selectWardrobe = function () { return ward66; };
+  const r66g = y66.yanlingLeafSuit();
+  assert(r66g.ok === true && ward66.upper.filter(x => x && x.name === "towel top").length === 0,
+    "66.17 wardrobeSkip 命中的衣物（towel top）不入柜，与 generalUndress 同口径");
+  assert(global.window.setup.clothes.upper.filter(x => x && x.name === "leaf shirt").length === 1
+    && global.window.setup.clothes.lower.filter(x => x && x.name === "leaf skirt").length === 1,
+    "66.18 多轮变装/还原后注入仍幂等：玩家服装表里 leaf 上衣/下衣各只有 1 份（不重复 push）");
+
+  // 收尾还原
+  V.worn = bk66.worn;
+  if (bk66.yanling === undefined) { delete V.mbCE_yanling; } else { V.mbCE_yanling = bk66.yanling; }
+  if (bk66.wrote === undefined) { delete V.mbCE_wrote; } else { V.mbCE_wrote = bk66.wrote; }
+  global.window = origWin66;
+} catch (e66) {
+  failures++;
+  console.error("FAIL: 66 枝叶变装测试异常: " + (e66 && e66.stack ? e66.stack : e66));
 }
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : "\n" + failures + " FAILURES");

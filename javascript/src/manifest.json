@@ -277,6 +277,10 @@
       "layer": "ui"
     },
     {
+      "file": "07i-yanling-leaf.js",
+      "layer": "ui"
+    },
+    {
       "file": "07i-yanling-page.js",
       "layer": "ui"
     },
@@ -329,6 +333,11 @@
     {
       "file": "09-exports.js",
       "layer": "export"
+    },
+    {
+      "file": "09-exports3-leaf.js",
+      "layer": "export",
+      "note": "v2.1.8 枝叶变装 2 键导出（必须在 09-exports2.js 的 IIFE 内、mountApi 顶调之前定义，否则顶层补齐时 ReferenceError）"
     },
     {
       "file": "09-exports-vcore.js",

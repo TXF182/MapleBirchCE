@@ -739,7 +739,7 @@ const ylSnap = function () {
 assert(typeof ylApi.renderYanling === "function", "renderYanling 已导出（拆分后渲染层仍在 exports 里）");
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS1 = ylSnap();
-assert(ylS1.groups === 3 && ylS1.blocks === 10, "言灵页 3 个分组 + 9 区块 + 1 说明块 = 10 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
+assert(ylS1.groups === 3 && ylS1.blocks === 11, "言灵页 3 个分组 + 10 区块（①无视着装 ②异装癖 ③名声 ⑩枝叶变装 ④身体衣物 ⑤精神体液 ⑥数值快补 ⑦天气 ⑧放逐 ⑨监狱）+ 1 说明块 = 11 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS2 = ylSnap();
 assert(JSON.stringify(ylS1) === JSON.stringify(ylS2), "连续重渲染幂等（分组/区块/按钮数不增长），实际 " + JSON.stringify(ylS1) + " vs " + JSON.stringify(ylS2));

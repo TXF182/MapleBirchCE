@@ -12,6 +12,29 @@
 	CHEAT_ADAPTERS["more-farm-upgrade"] = {
 		detect: function () {
 			try {
+				/* 「模组已装」必须查 ModLoader 的真实注册表，不能读 window.modDataValueZipList：后者是
+				   LocalLoader 的**内置插件**列表（游戏 HTML 内嵌的 base64 zip 数组，见 LocalLoader.load），
+				   玩家自己装的 mod 走的是 IndexedDB 加载链，不在该列表里，读它恒 false（mbCEHasModNamed 即踩此坑）。
+				   正确入口（ModUtils v2.101.1）：getModListNameNoAlias() 返回全部已加载 mod 的 boot.json name，
+				   getMod(name) 走 alias 匹配。任一命中即视为已装。
+				   为什么需要这一条：$farm.* 字段不是模组在初始化阶段创建的，而是它用 TweeReplacer 注入原版农场
+				   passage（Farm Work / Farm Widgets / Farm Upgrades *）后玩家实际推进才逐级落地；只靠字段探测会让
+				   「装了模组但农场尚未推进 / 换了新存档」的玩家整组作弊静默消失（05a2-modcheat-rows-build.js:16
+				   对 detect false 直接 continue，连占位都不渲染）。
+				   写入侧保护不变：V.farm / plots.farm[n] 等父级缺失时面板拒绝写入并提示，不会写坏存档。 */
+				var mu = (typeof window !== "undefined") ? window.modUtils : null;
+				if (mu) {
+					/* 注册表探测整段独立 try：ModUtils 任一 API 抛异常时只记为空过，继续走下面的字段探测，
+					   绝不能被外层 catch 吞成 return false（那等于「装了模组也被判未装」，修复白做）。 */
+					try {
+						var nm = (typeof mu.getModListNameNoAlias === "function") ? (mu.getModListNameNoAlias() || []) : [];
+						for (var ni = 0; ni < nm.length; ni++) {
+							var s = String(nm[ni] || "");
+							if (s === "MoreFarmUpgrade" || s.indexOf("MoreFarm") >= 0 || s.indexOf("More Farm") >= 0) { return true; }
+						}
+						if (typeof mu.getMod === "function" && mu.getMod("MoreFarmUpgrade")) { return true; }
+					} catch (eReg) { void eReg; /* 注册表不可用 → 退回字段探测（void 显式丢弃，避免未使用计数） */ }
+				}
 				var v = getV();
 				if (!v || !v.farm) { return false; }
 				return !!(

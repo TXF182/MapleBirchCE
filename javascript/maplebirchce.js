@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.6";
+	var MCE_VERSION = "2.1.8";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -2902,6 +2902,29 @@ var CHEAT_ADAPTERS = {};
 	CHEAT_ADAPTERS["more-farm-upgrade"] = {
 		detect: function () {
 			try {
+				/* 「模组已装」必须查 ModLoader 的真实注册表，不能读 window.modDataValueZipList：后者是
+				   LocalLoader 的**内置插件**列表（游戏 HTML 内嵌的 base64 zip 数组，见 LocalLoader.load），
+				   玩家自己装的 mod 走的是 IndexedDB 加载链，不在该列表里，读它恒 false（mbCEHasModNamed 即踩此坑）。
+				   正确入口（ModUtils v2.101.1）：getModListNameNoAlias() 返回全部已加载 mod 的 boot.json name，
+				   getMod(name) 走 alias 匹配。任一命中即视为已装。
+				   为什么需要这一条：$farm.* 字段不是模组在初始化阶段创建的，而是它用 TweeReplacer 注入原版农场
+				   passage（Farm Work / Farm Widgets / Farm Upgrades *）后玩家实际推进才逐级落地；只靠字段探测会让
+				   「装了模组但农场尚未推进 / 换了新存档」的玩家整组作弊静默消失（05a2-modcheat-rows-build.js:16
+				   对 detect false 直接 continue，连占位都不渲染）。
+				   写入侧保护不变：V.farm / plots.farm[n] 等父级缺失时面板拒绝写入并提示，不会写坏存档。 */
+				var mu = (typeof window !== "undefined") ? window.modUtils : null;
+				if (mu) {
+					/* 注册表探测整段独立 try：ModUtils 任一 API 抛异常时只记为空过，继续走下面的字段探测，
+					   绝不能被外层 catch 吞成 return false（那等于「装了模组也被判未装」，修复白做）。 */
+					try {
+						var nm = (typeof mu.getModListNameNoAlias === "function") ? (mu.getModListNameNoAlias() || []) : [];
+						for (var ni = 0; ni < nm.length; ni++) {
+							var s = String(nm[ni] || "");
+							if (s === "MoreFarmUpgrade" || s.indexOf("MoreFarm") >= 0 || s.indexOf("More Farm") >= 0) { return true; }
+						}
+						if (typeof mu.getMod === "function" && mu.getMod("MoreFarmUpgrade")) { return true; }
+					} catch (eReg) { void eReg; /* 注册表不可用 → 退回字段探测（void 显式丢弃，避免未使用计数） */ }
+				}
 				var v = getV();
 				if (!v || !v.farm) { return false; }
 				return !!(
@@ -8224,7 +8247,20 @@ function mceRenderThemePicker(pane) {
 		   Island 前缀段落：Island（hub）/ Island Explore / Island Sleep / Island Defeat / Island Build <档> <件> / Island Walnut 等。 */
 		{ id: "island", name: "海岛 · Island", match: function (n) {
 			return n === "Island" || n.indexOf("Island ") === 0;
-		}, main: "Island", note: "海岛生存线（营地三选/探索六处/建造/隐蔽/语言；生存数值与营地作弊见「地点」子页签）" }
+		}, main: "Island", note: "海岛生存线（营地三选/探索六处/建造/隐蔽/语言；生存数值与营地作弊见「地点」子页签）" },
+		/* v2.1.8 玩家「便利店的遇欲剧情 + 一键直达」：第一版按原版 Supermarket 落，玩家纠偏
+		   「便利店是其他模组的」→ 回包取证：`Dol-Optimization-v1.1.2.1.mod.zip` 的 `twee/game.twee`
+		   里有 `:: Conveniencestore`（全包唯一一段，首宏 `<<fromopt>>`，非战斗），boot.json 用 TweeReplacer
+		   把它挂进原版 `Domus Street`：findString = "|Orphanage]]>><<pass 1>><</link>>"，
+		   replace 追加 `<<link [[便利店 (0:01)|Conveniencestore]]>><<pass 1>><<unset $phase>><</link>>`。
+		   店主 NPC 是「遇欲」（Needmeet，`C.npc.Needmeet.love` 由「询问他手中的本子」置 1），
+		   恋爱线看 `$needmeet_romance`（≥50 信赖 / ≥80 解锁，CE 的 opt_needmeet 键已覆盖）。
+		   段内 `Time.dayState is "night"` 只给玻璃反光 + 离开，白天才有柜台/货架/烟柜；
+		   模组未装时该 passage 不存在，渲染走「未匹配到主场景段落」提示，不会留白按钮。 */
+		{ id: "conveniencestore", name: "遇欲便利店 · Conveniencestore（Dol-Optimization）", match: function (n) {
+			return n === "Conveniencestore" || n.indexOf("Conveniencestore ") === 0;
+		}, main: "Conveniencestore",
+		  note: "玩家口语「便利店」= Dol-Optimization 1.1.2.1 的「遇欲便利店」（入口经 TweeReplacer 注入原版 Domus Street，段名 Conveniencestore）。店主 NPC「遇欲」（Needmeet）：先「询问有什么」，再「询问他手中的本子」把 love 置 1；好感键 $needmeet_romance（≥50 信赖、≥80 解锁恋爱线，作弊在 Mod作弊页「最佳化」组）。夜间（Time.dayState is night）只有玻璃反光与「离开」，白天才有柜台/货架/烟柜三区；未装该模组时本组显示「未匹配到主场景段落」。" }
 	];
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
@@ -10423,6 +10459,10 @@ function mbCEResumeTimers() {
 	try { mbCEHideEnsureTimer(); } catch (eC) {}
 	try { mbCEAttitudeEnsureTimer(); } catch (eD) {}
 	try { mbCEYanlingEnsureTimer(); } catch (eE) {}
+	/* v2.1.8 复核：每页幂等补齐 leaf shirt / leaf skirt 到玩家衣物表（原版只把它们当 NPC outfit
+	   部件，setup.clothes 里没有；clothesIndex 按 variable+modder 匹配，不注入则衣柜里的枝叶副本
+	   穿上会被当裸装）。放这里而不是面板渲染，是为了覆盖「不打开 CE 面板直接去原版衣柜穿」的路径。 */
+	try { if (typeof mbCEYanlingLeafEnsure === "function") { mbCEYanlingLeafEnsure(); } } catch (eLf) {}
 }
 
 /* 锁定来源判定（P1：自定义锁定项默认收进折叠组，这里给每行标出「谁锁的」）：
@@ -13586,6 +13626,308 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 职责：言灵页（07i）枝叶变装 —— 当前上/下装换成 leaf shirt + leaf skirt，被替换的衣物进衣柜，可一键还原。 */
+	/* ============ 枝叶变装（玩家诉求：衣柜里没有枝叶上衣和裙子、没得卖、枝叶衣服没法进柜子） ============
+	   原版取证（DoL 0.5.12.13，字符偏移可复跑，全 64,515,269 字符 HTML 逐字节扫描）：
+	     · leaf shirt @19019946 定义 { name: "leaf shirt", integrity_max: 100, word: "a", action: "pull" }
+	       同块另有 leaf corset @19020040 / pine top / plant top / sundress
+	     · leaf skirt @19028864 定义 { name: "leaf skirt", integrity_max: 100, word: "a", action: "lift" }
+	       同块另有 evergreen dress / plant skirt / kimono bottoms
+	     · 这两件在原版是植物人 NPC 的 outfit 部件，分配走
+	       npcAssignClothesToSet("leaf shirt", "lotus skirt") @19048603、
+	       npcAssignClothesToSet("leaf corset", "leaf skirt") @19048771，
+	     **玩家侧没有任何售卖渠道** → 衣柜/商店永远取不到，这是玩家三句抱怨的共同成因。
+	     · setup.wardrobeSkip @19938481 = ["naked","towel top","large towel","towel skirt",
+	       "large towel bottom","plant skirt","plant top"] —— **不含 leaf shirt / leaf skirt**。
+	       所以「枝叶衣服没法进柜子」的成因不是被跳过名单挡住（被挡的是 plant top / plant skirt，不是 leaf），
+	       而是根本没有获取途径。入柜判据沿用原版 `if (!setup.wardrobeSkip.includes(name)) push(...)`，不自己发明规则。
+	     · V.wardrobe 在 clothingArrays() @19004551 对全部 setup.clothes_all_slots（@19003398，15 槽）初始化：
+	       V.wardrobe = { space: 20 } 之后 forEach 写 V.wardrobe[slot] = [] → **槽数组必然已存在**。
+	     · 衣柜选择走 window.selectWardrobe()（@16556351 定义，末尾 window.selectWardrobe = selectWardrobe）：
+	       关闭 multipleWardrobes 时直接返回 V.wardrobe，开启时返回 V.wardrobes[V.wardrobe_location]。
+	     · clothesDataTrimmer @16559186 是**固定白名单删除**（只删 name_cap / iconFile / cost 等已知键），
+	       不清自定义字段 → 本页 mbCE_leafStored / mbCE_leafCopy 标记能在存档里长期存活。
+	     · 装备槽语义：V.worn[slot] 是对象，裸装 = clone(setup.clothes[slot][0])（@19006097 givestartclothing），
+	       换装必须深拷贝，不能把 setup 原型对象直接挂到存档上。
+	   设计（对应用户给的方案：替换的衣服进衣柜，回退把替换掉的衣服换回来）：
+	     1) 变装：把 4 个躯干槽（over_upper / over_lower / upper / lower）原有的非 naked 衣物
+	        **逐件复制一份进衣柜**（带 mbCE_leafStored 标记，回退时按标记 + 同名回收），
+	        然后上装槽写 leaf shirt、下装槽写 leaf skirt，其余槽置 naked。
+	        —— 外套层必须一起收：只换 upper/lower 时玩家穿着外套会完全看不见枝叶，只会再报一次「没效果」。
+	        —— 顺手把枝叶本体也放一份进衣柜（带 mbCE_leafCopy 标记，按 name 防重复），
+	           以后不点本按钮也能从衣柜面板自由再穿，正面回应「枝叶衣服没法进柜子」。
+	     2) 回退：按 V.mbCE_yanling.leaf.slots 记录把 4 槽还原（原为 naked 的槽置回 naked），
+	        并从衣柜回收带 mbCE_leafStored 的同名项；枝叶副本保留（玩家本来就想要它）。
+	     3) 留痕：两段动作写 V.mbCE_wrote["yanling:leaf_suit" / "yanling:leaf_revert"]，
+	        before/after 只存名字摘要（不塞整件衣物对象，避免留痕区被撑爆）。
+	   边界：诅咒衣物（cursed is 1）拒绝变装 —— 直写 V.worn 会绕过 generalUndress 的 $_cursedPrevent 保护。 */
+
+	var MB_CE_LEAF_UP = "leaf shirt";
+	var MB_CE_LEAF_LO = "leaf skirt";
+	var MB_CE_LEAF_SLOTS = ["over_upper", "over_lower", "upper", "lower"];
+
+	/* 原版 setup：SugarCube 的 setup 在同一编译域可见，同时挂在 window 兜底 */
+	function mbCEYanlingSetupObj() {
+		try {
+			if (typeof setup !== "undefined" && setup && setup.clothes) { return setup; }
+		} catch (e) { void e; }
+		try {
+			if (typeof window !== "undefined" && window.setup && window.setup.clothes) { return window.setup; }
+		} catch (e2) { void e2; }
+		return null;
+	}
+
+	/* 深拷贝：优先 SugarCube 的 clone（原版换装一律用它），退回 JSON 往返 */
+	function mbCEYanlingDeep(obj) {
+		if (!obj || typeof obj !== "object") { return null; }
+		try {
+			if (typeof clone === "function") { return clone(obj); }
+		} catch (e) { void e; }
+		try {
+			if (typeof window !== "undefined" && typeof window.clone === "function") { return window.clone(obj); }
+		} catch (e2) { void e2; }
+		try { return JSON.parse(JSON.stringify(obj)); } catch (e3) { void e3; }
+		return null;
+	}
+
+	/* 按 name 在 setup.clothes 全槽数组里找（不靠偏移猜槽位，leaf 归属按数组 find 才稳） */
+	function mbCEYanlingClothFind(name) {
+		var s = mbCEYanlingSetupObj();
+		if (!s || !s.clothes) { return null; }
+		var slots = Array.isArray(s.clothes_all_slots) ? s.clothes_all_slots : Object.keys(s.clothes);
+		var i, j, arr;
+		for (i = 0; i < slots.length; i++) {
+			arr = s.clothes[slots[i]];
+			if (!Array.isArray(arr)) { continue; }
+			for (j = 0; j < arr.length; j++) {
+				if (arr[j] && arr[j].name === name) { return { slot: slots[i], item: arr[j] }; }
+			}
+		}
+		return null;
+	}
+
+	/* ============ 关键修正（v2.1.8 复核发现）：玩家衣物表里根本没有 leaf shirt / leaf skirt ============
+	   原版取证：全 64,515,269 字符 HTML 里 "leaf shirt" / "leaf skirt" 各只有 3 处 ——
+	     ① T.npcClothesItems.upper / .lower 定义（initNpcClothes，字段仅 name + integrity_max + word + action）
+	     ② npcAssignClothesToSet("leaf shirt","lotus skirt") / ("leaf corset","leaf skirt") 给植物人 NPC 套装。
+	   setup.clothes（玩家表，clothingDataInit 用 initUpper/initLower 的 new ClothesItem({...}) 构建）
+	   **一件都没有**。所以不能"在 setup.clothes 里按 name 找 leaf"，那条路在真实环境恒返回 null
+	   （第一版测试用 mock 把 leaf 直接塞进 setup.clothes，属于测试路径≠实机路径的假绿）。
+	   为什么必须真注入、不能只写 V.worn：clothesIndex(slot, item)（@16566855）按
+	     item.variable === itemToIndex.variable && item.modder === itemToIndex.modder 匹配；
+	   leaf 在 NPC 表里连 variable 都没有 → 写入 worn 后 clothesIndex 走 Errors.report 并 return 0，
+	   原版大量 `setup.clothes.slot[clothesIndex(...)].xxx` 读到裸装项，表现就是「点了没效果」。
+	   做法：借用同为植物系的 plant top（upper）/ plant skirt（lower）当字段模板（type/state/reveal/
+	   combat/integrity 语义最贴合枝叶），clone 后只改 name / name_cap / variable / index，push 进 setup.clothes。
+	   · variable 必须唯一（leafshirt / leafskirt），否则 clothesIndex 与 plant 系撞车；
+	   · index 必须等于 push 后的数组下标（clothingDataInit 的断言口径，虽然只在初始化跑一次）；
+	   · 幂等：已存在直接复用，绝不重复 push（重复会派生两份同名项、衣柜出现重影）；
+	   · 只改内存 setup（Setup 每局重建，不进存档、不进 V）→ 每次加载重跑一次即恢复。 */
+	/* 严格只借同一槽里的植物系原件（plant top / plant skirt，原版 @18705737 / @18214396 必备），
+	   借不到就失败并给出明确提示——不拿别的衣物凑字段（那会带出错误的 type/state 语义）。 */
+	function mbCEYanlingLeafTemplate(slot, preferred) {
+		var hit = mbCEYanlingClothFind(preferred);
+		return (hit && hit.slot === slot) ? hit.item : null;
+	}
+
+	function mbCEYanlingLeafInject(slot, name, variable, preferred) {
+		var s = mbCEYanlingSetupObj();
+		if (!s || !s.clothes || !Array.isArray(s.clothes[slot])) { return null; }
+		var hit = mbCEYanlingClothFind(name);
+		if (hit) { return hit.item; }
+		var tpl = mbCEYanlingLeafTemplate(slot, preferred);
+		if (!tpl) { return null; }
+		var item = mbCEYanlingDeep(tpl);
+		if (!item) { return null; }
+		item.name = name;
+		item.name_cap = name.charAt(0).toUpperCase() + name.slice(1);
+		item.variable = variable;
+		item.index = s.clothes[slot].length;
+		item.mbCE_leafSynth = 1;
+		s.clothes[slot].push(item);
+		return item;
+	}
+
+	/* 幂等补齐两件（找不到模板就返回 null，让上层给出明确提示而不是硬塞半成品） */
+	function mbCEYanlingLeafEnsure() {
+		var up = mbCEYanlingLeafInject("upper", MB_CE_LEAF_UP, "leafshirt", "plant top");
+		var lo = mbCEYanlingLeafInject("lower", MB_CE_LEAF_LO, "leafskirt", "plant skirt");
+		return (up && lo) ? { up: up, lo: lo } : null;
+	}
+
+	/* 先查、查不到再注入：所有取件入口统一走这里 */
+	function mbCEYanlingLeafCloth(name) {
+		var hit = mbCEYanlingClothFind(name);
+		if (hit) { return hit; }
+		mbCEYanlingLeafEnsure();
+		return mbCEYanlingClothFind(name);
+	}
+
+	/* 某槽的原版裸装实例（setup.clothes[slot][0]，clothingArrays 即用它初始化） */
+	function mbCEYanlingNakedItem(slot) {
+		var s = mbCEYanlingSetupObj();
+		try {
+			if (s && Array.isArray(s.clothes[slot]) && s.clothes[slot][0]) { return mbCEYanlingDeep(s.clothes[slot][0]); }
+		} catch (e) { void e; }
+		return null;
+	}
+
+	/* 当前生效的衣柜（跟随 $wardrobe_location；multipleWardrobes 关闭时就是 V.wardrobe） */
+	function mbCEYanlingWardrobePick(V) {
+		try {
+			if (typeof window !== "undefined" && typeof window.selectWardrobe === "function") {
+				var w = window.selectWardrobe();
+				if (w && typeof w === "object") { return w; }
+			}
+		} catch (e) { void e; }
+		if (V && V.wardrobe && typeof V.wardrobe === "object") { return V.wardrobe; }
+		return null;
+	}
+
+	/* 取衣柜某槽数组；原版 guaranteed 已建（clothingArrays），这里只做防御 */
+	function mbCEYanlingWardrobeSlot(w, slot) {
+		if (!w || typeof w !== "object") { return null; }
+		if (!Array.isArray(w[slot])) { w[slot] = []; }
+		return w[slot];
+	}
+
+	/* 原版入柜判据：setup.wardrobeSkip 命中则不入柜（与 generalUndress 同口径） */
+	function mbCEYanlingWardrobeSkip(name) {
+		var s = mbCEYanlingSetupObj();
+		try {
+			if (s && Array.isArray(s.wardrobeSkip)) { return s.wardrobeSkip.indexOf(name) !== -1; }
+		} catch (e) { void e; }
+		return false;
+	}
+
+	/* 变装：4 躯干槽原衣入柜 → 上/下装换 leaf → 其余槽置 naked → 枝叶副本入柜 */
+	function mbCEYanlingLeafSuit() {
+		try {
+			var V = getV();
+			if (!V || !V.worn || typeof V.worn !== "object") { return { ok: false, msg: "存档变量不可用" }; }
+			var st = mbCEYanlingState();
+			if (!st) { return { ok: false, msg: "存档变量不可用" }; }
+			if (st.leaf && typeof st.leaf === "object") {
+				return { ok: false, msg: "已经变装过一次；请先点「还原：换回原服装」再重复操作（避免衣柜里堆出多份原衣）" };
+			}
+			var up = mbCEYanlingLeafCloth(MB_CE_LEAF_UP);
+			var lo = mbCEYanlingLeafCloth(MB_CE_LEAF_LO);
+			if (!up || !lo) { return { ok: false, msg: "服装表缺少可用的植物系模板（plant top / plant skirt），无法合成 " + MB_CE_LEAF_UP + " / " + MB_CE_LEAF_LO + "；请确认游戏版本与 setup.clothes 已初始化" }; }
+			var w = mbCEYanlingWardrobePick(V);
+			if (!w) { return { ok: false, msg: "衣柜对象不可用（$wardrobe 未初始化）" }; }
+			var backup = {}, stored = [], beforeNames = {};
+			var i, slot, cur, nm, save, put, arr;
+			/* 1) 先记录 + 入柜（含即将被替换的 upper / lower 原衣） */
+			for (i = 0; i < MB_CE_LEAF_SLOTS.length; i++) {
+				slot = MB_CE_LEAF_SLOTS[i];
+				cur = V.worn[slot];
+				if (!cur || typeof cur !== "object") { backup[slot] = null; continue; }
+				nm = cur.name || "";
+				if (cur.cursed === 1) {
+					return { ok: false, msg: "当前 " + slot + " 穿着诅咒衣物（" + nm + "），原版禁止脱下；请先处理诅咒再变装" };
+				}
+				if (nm === "naked" || !nm) { backup[slot] = null; continue; }
+				save = mbCEYanlingDeep(cur);
+				if (!save) { return { ok: false, msg: "衣物复制失败（" + slot + "：" + nm + "）" }; }
+				backup[slot] = save;
+				beforeNames[slot] = nm;
+				if (mbCEYanlingWardrobeSkip(nm)) { continue; }
+				arr = mbCEYanlingWardrobeSlot(w, slot);
+				if (!arr) { continue; }
+				put = mbCEYanlingDeep(cur);
+				if (!put) { continue; }
+				put.mbCE_leafStored = 1;
+				arr.push(put);
+				stored.push(slot + ":" + nm);
+			}
+			/* 2) 换上身 */
+			var newUp = mbCEYanlingDeep(up.item), newLo = mbCEYanlingDeep(lo.item);
+			if (!newUp || !newLo) { return { ok: false, msg: "枝叶服装复制失败" }; }
+			V.worn[up.slot] = newUp;
+			V.worn[lo.slot] = newLo;
+			/* 3) 其余躯干槽置 naked（外套层不收会把枝叶完全遮住，玩家会再报「没效果」） */
+			var nk;
+			for (i = 0; i < MB_CE_LEAF_SLOTS.length; i++) {
+				slot = MB_CE_LEAF_SLOTS[i];
+				if (slot === up.slot || slot === lo.slot) { continue; }
+				nk = mbCEYanlingNakedItem(slot);
+				if (nk) { V.worn[slot] = nk; }
+			}
+			/* 4) 枝叶本体也放一份进衣柜（按 name 防重复，回退不回收） */
+			var copied = [], cUpArr, cLoArr, hasUp, hasLo, c1, c2;
+			cUpArr = mbCEYanlingWardrobeSlot(w, up.slot);
+			if (cUpArr) {
+				hasUp = false;
+				for (i = 0; i < cUpArr.length; i++) { if (cUpArr[i] && cUpArr[i].name === MB_CE_LEAF_UP) { hasUp = true; break; } }
+				if (!hasUp && !mbCEYanlingWardrobeSkip(MB_CE_LEAF_UP)) {
+					c1 = mbCEYanlingDeep(up.item);
+					if (c1) { c1.mbCE_leafCopy = 1; cUpArr.push(c1); copied.push(MB_CE_LEAF_UP); }
+				}
+			}
+			cLoArr = mbCEYanlingWardrobeSlot(w, lo.slot);
+			if (cLoArr) {
+				hasLo = false;
+				for (i = 0; i < cLoArr.length; i++) { if (cLoArr[i] && cLoArr[i].name === MB_CE_LEAF_LO) { hasLo = true; break; } }
+				if (!hasLo && !mbCEYanlingWardrobeSkip(MB_CE_LEAF_LO)) {
+					c2 = mbCEYanlingDeep(lo.item);
+					if (c2) { c2.mbCE_leafCopy = 1; cLoArr.push(c2); copied.push(MB_CE_LEAF_LO); }
+				}
+			}
+			/* 5) 记录（回退唯一依据）+ 留痕 */
+			st.leaf = { slots: backup, stored: stored, copied: copied, ts: Date.now() };
+			mbCEYanlingTrace("leaf_suit", { worn: beforeNames }, { worn: { upper: MB_CE_LEAF_UP, lower: MB_CE_LEAF_LO }, stored: stored.length, copied: copied.length });
+			var msg = "已换上枝叶装（" + up.slot + " → " + MB_CE_LEAF_UP + "，" + lo.slot + " → " + MB_CE_LEAF_LO + "）";
+			msg += "；原衣 " + stored.length + " 件已进衣柜";
+			msg += copied.length ? "；枝叶本体也已放入衣柜（以后可直接从衣柜再穿）" : "";
+			return { ok: true, msg: msg };
+		} catch (e) { return { ok: false, msg: "枝叶变装异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 回退：按记录还原 4 槽 + 回收当初入柜的原衣（枝叶副本保留，玩家本来就想拥有它） */
+	function mbCEYanlingLeafRevert() {
+		try {
+			var V = getV();
+			if (!V || !V.worn) { return { ok: false, msg: "存档变量不可用" }; }
+			var st = mbCEYanlingState();
+			if (!st || !st.leaf || typeof st.leaf !== "object") {
+				return { ok: false, msg: "没有可回退的变装记录（本档没有用过「枝叶变装」，或已经还原过）" };
+			}
+			var rec = st.leaf;
+			var restored = [], pulled = 0;
+			var w = mbCEYanlingWardrobePick(V);
+			var i, j, slot, b, cp, nk, token, p, sl, nm, arr;
+			/* 先回收衣柜里的原衣副本（趁玩家还没把它穿走） */
+			if (w && Array.isArray(rec.stored)) {
+				for (i = 0; i < rec.stored.length; i++) {
+					token = String(rec.stored[i]);
+					p = token.indexOf(":");
+					if (p < 0) { continue; }
+					sl = token.substring(0, p);
+					nm = token.substring(p + 1);
+					arr = Array.isArray(w[sl]) ? w[sl] : null;
+					if (!arr) { continue; }
+					for (j = arr.length - 1; j >= 0; j--) {
+						if (arr[j] && arr[j].mbCE_leafStored === 1 && arr[j].name === nm) { arr.splice(j, 1); pulled++; break; }
+					}
+				}
+			}
+			/* 还原穿着 */
+			for (i = 0; i < MB_CE_LEAF_SLOTS.length; i++) {
+				slot = MB_CE_LEAF_SLOTS[i];
+				b = (rec.slots && rec.slots[slot]) ? rec.slots[slot] : null;
+				if (b && typeof b === "object") {
+					cp = mbCEYanlingDeep(b);
+					if (cp) { V.worn[slot] = cp; restored.push(slot); }
+				} else {
+					nk = mbCEYanlingNakedItem(slot);
+					if (nk) { V.worn[slot] = nk; }
+				}
+			}
+			delete st.leaf;
+			mbCEYanlingTrace("leaf_revert", { restored: restored, pulled: pulled }, { leaf: null });
+			return { ok: true, msg: "已还原原服装（" + (restored.length ? restored.join(" / ") : "无") + "）；衣柜回收原衣 " + pulled + " 件（枝叶副本保留，可继续从衣柜穿）" };
+		} catch (e) { return { ok: false, msg: "枝叶还原异常：" + mbCEYanlingErr(e) }; }
+	}
 	/* 职责：言灵页（07i）渲染 —— A/B/C 三组九个区块 + 页尾说明折叠块 + 加载即起守卫。 */
 	/* 渲染：言灵页（7 号外层页签） */
 	function renderYanling() {
@@ -13706,6 +14048,28 @@ var SCENE_LOCATIONS = {
 			mkBtn(s3g, "一键清零：学校异装名声", MCE_CLS.gold, mbCEYanlingPurgeCross, "清 $schoolrep.crossdress 并删 $school_crossdress_message");
 			mkBtn(s3g, "一键清零：全部负面名声", MCE_CLS.gold, mbCEYanlingPurgeFame, "学校 crossdress/herm + 城镇 fame 负面 8 项 + 衰减队列");
 			mkBtn(s3g, "一键拉满：正面名声", MCE_CLS.gold, mbCEYanlingMaxFame, "fame.good / business / scrap / social / model 各写 2000（实证 clamp 上限 2000；pregnancy 上限动态不写）");
+
+			/* ⑩ 枝叶变装（v2.1.8 玩家实测诉求：衣柜没有枝叶上衣和裙子、没得卖、「枝叶衣服没法进柜子」） */
+			var s10 = mceNewSec(gA, 10, "枝叶变装", "把当前上/下装换成原版 leaf shirt + leaf skirt（植物人 NPC 的枝叶上衣 / 枝叶裙，玩家侧无任何售卖渠道，所以衣柜与商店里永远刷不出来 —— 这是「衣柜又没有枝叶上衣和裙子」「没有卖的」「枝叶衣服没法进柜子」三句抱怨的共同成因）。被替换下来的原衣会逐件复制进衣柜，之后点「还原」把原衣换回身上并从衣柜回收那份副本。外套层（over_upper / over_lower）会一起收进衣柜：只换上/下装时外套会把枝叶完全遮住，看起来就像没生效。枝叶本体同时放一份进衣柜，以后不点本按钮也能直接从衣柜面板再穿。穿诅咒衣物时拒绝变装（原版禁止脱下）。");
+			var leafWorn = "—", leafRec = "无记录";
+			try {
+				var Vl = getV();
+				if (Vl && Vl.worn) {
+					leafWorn = ["over_upper", "over_lower", "upper", "lower"].map(function (sl) {
+						var w1 = Vl.worn[sl];
+						return sl + "：" + ((w1 && w1.name) ? String(w1.name) : "空");
+					}).join(" ｜ ");
+				}
+				var lrec = (Vl && Vl.mbCE_yanling && Vl.mbCE_yanling.leaf && typeof Vl.mbCE_yanling.leaf === "object") ? Vl.mbCE_yanling.leaf : null;
+				if (lrec) {
+					leafRec = "已变装（原衣 " + (Array.isArray(lrec.stored) ? lrec.stored.length : 0) + " 件在衣柜，枝叶副本 " + (Array.isArray(lrec.copied) ? lrec.copied.length : 0) + " 件）";
+				}
+			} catch (eL) { void eL; }
+			s10.appendChild(el("div", MCE_CLS.hint, "当前躯干槽：" + leafWorn));
+			s10.appendChild(el("div", MCE_CLS.hint, "变装状态：" + leafRec));
+			var s10g = mceBtnGrid(s10);
+			mkBtn(s10g, "变身：枝叶上衣 + 枝叶下衣", MCE_CLS.gold, mbCEYanlingLeafSuit, "4 躯干槽原衣进衣柜（带 mbCE_leafStored 标记）→ 上装写 leaf shirt、下装写 leaf skirt、外套层置裸；枝叶本体同时入柜（mbCE_leafCopy，按 name 防重复）");
+			mkBtn(s10g, "还原：换回原服装", "mce-red", mbCEYanlingLeafRevert, "按 $mbCE_yanling.leaf 记录还原 4 槽，并从衣柜回收带标记的原衣；枝叶副本保留可继续穿");
 
 			/* ④ 身体与衣物（对照 CheatExtend 1.1.3「快捷言灵」补入；v2.0.2 拆出 ⑤ 精神与体液） */
 			var s4 = mceNewSec(gB, 4, "身体与衣物", "一键烘干：$upperwet / $lowerwet / $underupperwet / $underlowerwet（原版初始化 182261-182267，debug 直写 60670-60682）。衣物加固：$worn.{upper,lower,under_upper,under_lower}.integrity 按该件 integrity_max 写满（上限取自 clothingData(slot,item,\"integrity_max\")，163772；不照抄 CE 的 +1000，避免超上限导致耐久显示破表）。");
@@ -16749,6 +17113,19 @@ function renderAttitudesGroup(pane) {
 		}, ms || 60);
 		if (bucket === "search") { mceSearchTimer = t; } else { mceRenderTimer = t; }
 	}
+/* 职责：v2.1.8 枝叶变装导出（yanlingLeafSuit / yanlingLeafRevert）。
+   09-exports2.js 已顶到结构门禁 S1 的单段 400 行上限，故沿用 09-exports-vcore.js 的同一先例拆段：
+   mountApi() 把主导出表挂到 setup.mbStageCE 之后，由 mbCEExportLeaf() 补齐这两个键
+   （语义化文件名，不用 X2/X3 挤排序）。 */
+	function mbCEExportLeaf() {
+		try {
+			var s = getSetup();
+			if (!s || !s.mbStageCE) { return; }
+			var a = s.mbStageCE;
+			a.yanlingLeafSuit = mbCEYanlingLeafSuit;
+			a.yanlingLeafRevert = mbCEYanlingLeafRevert;
+		} catch (e) { void e; }
+	}
 /* 职责：v2.0.9 原版档案 / 收藏 / 头衔（vcore 六键）导出。
    09-exports2.js 的 mountApi() 会把主导出表挂到 setup.mbStageCE；此处在 mountApi 之后补齐 vcore 键
    （拆段原因：结构门禁 S1 单段 400 行上限；语义化文件名，不用 X2/X3 挤排序）。 */
@@ -16797,7 +17174,7 @@ function renderAttitudesGroup(pane) {
 		if (initialized) { return; }
 		initialized = true;
 		if (typeof document === "undefined") { return; }
-		mountApi(); mbCEExportVcore(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）与 mountApi 同步补齐 */
+		mountApi(); mbCEExportVcore(); mbCEExportLeaf(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）+ v2.1.8 枝叶变装导出，均与 mountApi 同步补齐 */
 		hookPassageOverride();
 		hookPassageInit();
 		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
@@ -17167,8 +17544,7 @@ function renderAttitudesGroup(pane) {
 			};
 		} catch (e) {}
 	}
-	mountApi();
-
+	mountApi(); mbCEExportLeaf(); /* 顶层挂表后即补齐枝叶 2 键：init() 在无 document 环境下会提前 return，只有此处能兜底；mbCEExportLeaf 幂等 */
 	init();
 })();
 

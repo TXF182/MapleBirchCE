@@ -69,7 +69,20 @@
 		   Island 前缀段落：Island（hub）/ Island Explore / Island Sleep / Island Defeat / Island Build <档> <件> / Island Walnut 等。 */
 		{ id: "island", name: "海岛 · Island", match: function (n) {
 			return n === "Island" || n.indexOf("Island ") === 0;
-		}, main: "Island", note: "海岛生存线（营地三选/探索六处/建造/隐蔽/语言；生存数值与营地作弊见「地点」子页签）" }
+		}, main: "Island", note: "海岛生存线（营地三选/探索六处/建造/隐蔽/语言；生存数值与营地作弊见「地点」子页签）" },
+		/* v2.1.8 玩家「便利店的遇欲剧情 + 一键直达」：第一版按原版 Supermarket 落，玩家纠偏
+		   「便利店是其他模组的」→ 回包取证：`Dol-Optimization-v1.1.2.1.mod.zip` 的 `twee/game.twee`
+		   里有 `:: Conveniencestore`（全包唯一一段，首宏 `<<fromopt>>`，非战斗），boot.json 用 TweeReplacer
+		   把它挂进原版 `Domus Street`：findString = "|Orphanage]]>><<pass 1>><</link>>"，
+		   replace 追加 `<<link [[便利店 (0:01)|Conveniencestore]]>><<pass 1>><<unset $phase>><</link>>`。
+		   店主 NPC 是「遇欲」（Needmeet，`C.npc.Needmeet.love` 由「询问他手中的本子」置 1），
+		   恋爱线看 `$needmeet_romance`（≥50 信赖 / ≥80 解锁，CE 的 opt_needmeet 键已覆盖）。
+		   段内 `Time.dayState is "night"` 只给玻璃反光 + 离开，白天才有柜台/货架/烟柜；
+		   模组未装时该 passage 不存在，渲染走「未匹配到主场景段落」提示，不会留白按钮。 */
+		{ id: "conveniencestore", name: "遇欲便利店 · Conveniencestore（Dol-Optimization）", match: function (n) {
+			return n === "Conveniencestore" || n.indexOf("Conveniencestore ") === 0;
+		}, main: "Conveniencestore",
+		  note: "玩家口语「便利店」= Dol-Optimization 1.1.2.1 的「遇欲便利店」（入口经 TweeReplacer 注入原版 Domus Street，段名 Conveniencestore）。店主 NPC「遇欲」（Needmeet）：先「询问有什么」，再「询问他手中的本子」把 love 置 1；好感键 $needmeet_romance（≥50 信赖、≥80 解锁恋爱线，作弊在 Mod作弊页「最佳化」组）。夜间（Time.dayState is night）只有玻璃反光与「离开」，白天才有柜台/货架/烟柜三区；未装该模组时本组显示「未匹配到主场景段落」。" }
 	];
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
