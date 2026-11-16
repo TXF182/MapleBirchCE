@@ -7,23 +7,19 @@
 		   用 unshift 插到本数组最前（listPlaceGroups 靠 seen 先占先得，"Lake Halloween Party" 否则会被 lake 组吃掉）。 */
 		{ id: "orphanage_loft", name: "孤儿院 · 阁楼", match: function (n) { return n.indexOf("Orphanage Loft") === 0; }, main: "Orphanage Loft", note: "孤儿院上方的阁楼（隐藏区域，Bailey 视线之外）" },
 		{ id: "kylar_manor", name: "凯拉尔 · 庄园", match: function (n) { return n.indexOf("Manor ") === 0; }, main: "Manor Hall", note: "凯拉尔家族的庄园大宅（大厅/花园/实验室/秘密房间）" },
-		{ id: "sydney_temple", name: "悉尼（Sydney）· 神殿居所", match: function (n) { return n.indexOf("Temple Sydney") === 0 || n.indexOf("Sydney Temple") === 0; }, main: "Temple Sydney", note: "神殿中悉尼的房间与祭坛场景（纯/堕两线都在此）" },
-		{ id: "sirris_places", name: "西里斯（Sirris）· 学校与成人商店", match: function (n) { return /sirris/i.test(n) || n === "Sydney Ride Home" || n === "Sydney Ride Temple"; }, main: "Adult Shop Approach Sirris", note: "西里斯常驻的科学教室与成人商店，以及开车接送的车程场景（悉尼的家长）" },
-		{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀实测 866 段，剔除 46 段战斗/性爱中继（Dungeon Fight/Flogger Sex、Chase Fight、Housework *Sex·Rape、Return *Fight·Rape·Sex、Party Jordan End *、Passout Pair * 等，首宏为 $fightstart/$sexstart/$molestationstart），留 820 段。" },
-		{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" },
+		/* v2.1.10：悉尼两线 + 悉尼神殿 + 西里斯四组已迁到 07d-places-sydney.js（结构门禁 S1 拆段）；
+		   顺序由那边 unshift 保证 sydney_defile / sydney_canteen 排在 sydney_temple 之前。
+		   艾弗里庄园与格威岚花园仍留在本处：两组前缀（"Mansion " / gwylan、Forest Shop）与前序组存在先占先得依赖，
+		   挪到最前会抢走 forest_shop 的段落（v2.0.22 拆出的森林商店组）。 */
+	{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀实测 866 段，剔除 46 段战斗/性爱中继（Dungeon Fight/Flogger Sex、Chase Fight、Housework *Sex·Rape、Return *Fight·Rape·Sex、Party Jordan End *、Passout Pair * 等，首宏为 $fightstart/$sexstart/$molestationstart），留 820 段。开局不再由 CE 建壳解锁（v2.1.10 修「开局解锁艾弗里庄园」），只有真进过庄园的存档才可见。" },
+	{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" },
 		/* v1.7.0：多伦公寓（Doren's flat，$location="flats"）+ 麋鹿街大院（Elk Compound，原版 73 段）。
 		   多伦公寓实证：Doren Entrance（入口，"You climb to Doren's flat"）、Doren Talk/Cry、Doren Shower 系列均在公寓内；
 		   Doren Loft 系列为孤儿院阁楼布置线（用户点名一并收录）；Doren Jog/Beach/School Infirmary 为户外/学校，不收。
 		   麋鹿街大院实证：Elk Compound 为入口（"You are in the compound on Elk Street"），Interior/Underground/Central/
 		   Wraith/Possessed/Station 等 70+ 子场景；Docks Compound 为码头大院，不收。 */
-		{ id: "doren_flat", name: "多伦 · 公寓与阁楼", match: function (n) {
-			return n === "Doren Entrance" || n === "Doren Talk" || n === "Doren Cry"
-				|| n.indexOf("Doren Shower") === 0 || n.indexOf("Doren Loft") === 0;
-		}, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
-		{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) {
-			return n.indexOf("Elk Compound") === 0;
-		}, exclude: mbCEIsUnplayableEntry, main: "Elk Compound",
-		  note: "麋鹿街大院：Elk Compound 前缀段实测 70 段（中央区/地下/水晶/车站/附身线）。其中怨灵相关只有 4 段（Wraith Give / Resist / Fight / Fight Finish），怨灵主线其余 64 段不带此前缀、不归本组。widget 定义段（Elk Compound Widgets）与战斗起始段（首宏 $fightstart / $molestationstart，共 9 段）不入组。" },
+	{ id: "doren_flat", name: "多伦 · 公寓与阁楼", match: function (n) { return n === "Doren Entrance" || n === "Doren Talk" || n === "Doren Cry" || n.indexOf("Doren Shower") === 0 || n.indexOf("Doren Loft") === 0; }, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
+	{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) { return n.indexOf("Elk Compound") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Elk Compound", note: "麋鹿街大院：Elk Compound 前缀段实测 70 段（中央区/地下/水晶/车站/附身线）。其中怨灵相关只有 4 段（Wraith Give / Resist / Fight / Fight Finish），怨灵主线其余 64 段不带此前缀、不归本组。widget 定义段（Elk Compound Widgets）与战斗起始段（首宏 $fightstart / $molestationstart，共 9 段）不入组。" },
 		/* v1.9.13 场景直达补充 6 组（段落前缀均经本体 0.5.12.13 实证） */
 		{ id: "asylum", name: "精神病院 · Asylum", match: function (n) {
 			return n === "Asylum" || n.indexOf("Asylum ") === 0;
@@ -180,6 +176,16 @@ function ensureSceneStateFor(name) {
 		if (typeof mbCEEnsureEntryState === "function") { mbCEEnsureEntryState(nm, V2); }
 		/* v2.0.22：森林商店本体直达补 $tryOn 壳（实现与取证见 07d-places4.js 的 mbCETryOnShell）。 */
 		if (typeof mbCETryOnShell === "function" && mbCETryOnShell(nm, V2)) { return; }
+		/* v2.1.10：悉尼线状态兜底 —— Sydney Temple Corrupt 首宏 <<sydneySchedule>> 调 JS sydneySchedule()，
+		   第一句就读 V.daily.sydney.punish；新档 daily.sydney 未建时直达会 TypeError、整段不渲染。
+		   只补缺失、不覆盖已有进度（缺键读 undefined 本身安全，关键是对象必须存在）。 */
+		if (/^(Sydney |Temple Sydney)/.test(nm)) {
+			if (typeof V2.daily !== "object" || V2.daily === null) { V2.daily = {}; }
+			if (typeof V2.daily.sydney !== "object" || V2.daily.sydney === null) {
+				V2.daily.sydney = { sex: 0, punish: 0, templeSkip: 0, writing: 0, walk: 0 };
+			}
+			return;
+		}
 		if (/^Prison/.test(nm)) { /* 无 \b：PrisonScarredInmate 一类无空格段名也命中 */
 			if (V2.prison && typeof V2.prison === "object") { return; } /* 已有进度：绝不调 init（避免 morning 被重置） */
 			var sc = (typeof window !== "undefined" && window && window.SugarCube) ? window.SugarCube : null;
@@ -284,7 +290,9 @@ function teleportTo(name) {
 				setStatus("Engine 不可用（Engine=" + d2 + "，window.Engine=" + d1 + "，$=" + d3 + "，SugarCube.Engine=" + d4 + "）——若非游戏页面请先进入游戏", MCE_CLS.err);
 				return;
 			}
-			ensureAveryMansion(); /* 防崩：庄园状态对象可能延迟初始化，直达前兜底（缺失才建，不覆盖进度） */
+			/* v2.1.10：仅目标段落属于庄园线时才兜底建壳 —— 原版以「$avery_mansion 对象存在」判定
+			   已进入过庄园，任意地点直达都建壳会让新档提前解锁庄园衣柜（玩家反馈「开局解锁艾弗里庄园」）。 */
+			if (mbCEIsAveryPassage(name)) { ensureAveryMansion(); }
 			ensureFarmState(); /* 防崩：farm_stage 已推进但 $farm 缺失时补空壳（社交页读 $farm.beasts/aggro） */
 			ensureSceneStateFor(name); /* v2.0.1：监狱/农场原版状态对象兜底（新档直达不崩） */
 			if (name === "Scene Viewer passages") {

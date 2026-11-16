@@ -29,7 +29,7 @@
 		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
 		hookUnfreezePlayerStats(); /* v1.8.19：播放结束自动清理（unfreeze = 场景播放结束，覆盖框架播放器） */
 		ensureFarmState(); /* 启动兜底：存档 farm_stage 已推进但 $farm 缺失 → 补空壳，社交页不再崩 */
-		ensureAveryMansion(); /* 启动兜底：$avery_mansion / $avery_tower / daily.avery.talk 缺失或残缺 → 补空壳（Mansion 段落防崩） */
+				mbCEPruneAveryShell();
 		mbCEUiLoad(); /* v1.8.12 持久化：恢复上次页签/搜索词/折叠状态 */
 		try { mbCEResumeTimers(); } catch (eY0) {} /* v2.0.0.006：已开启言灵开关的存档，注入后即生效 */
 		mbCEHookErrors(); /* v1.8.12 错误收集器：window error + console.error 进面板 */
@@ -164,7 +164,7 @@
 				applyWorldUnlockForScene: applyWorldUnlockForScene,
 				worldUndo: mbCEWorldUndo,
 				ensureFarmState: ensureFarmState,
-				ensureAveryMansion: ensureAveryMansion,
+								ensureAveryMansion: ensureAveryMansion, mbCEPruneAveryShell: mbCEPruneAveryShell, mbCEIsAveryPassage: mbCEIsAveryPassage, mbCEAveryLooksUnused: mbCEAveryLooksUnused,
 				ensureGwylanSceneState: ensureGwylanSceneState,
 				isGwylanGardenPassage: isGwylanGardenPassage,
 				/* v1.4.0 Mod作弊 */

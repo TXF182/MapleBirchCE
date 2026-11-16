@@ -55,6 +55,9 @@
 	};
 
 /* 组 id → 子入口白名单（顺序即面板显示顺序：按空间/行为就近排列，不排序） */
+/* v2.1.10：显式声明索引签名 —— 悉尼三组子入口表已迁到 07d-places-sydney.js 并在那边追加键，
+   否则 strict 下 `PLACE_EXTRA_ENTRIES.sydney_defile = …` 报 TS2339（对象字面量推断类型无该键）。 */
+/** @type {Object<string, Array<any>>} */
 var PLACE_EXTRA_ENTRIES = {
 	orphanage_loft: [
 		{ name: "Orphanage Loft Intro", cn: "阁楼入口" },
@@ -69,17 +72,7 @@ var PLACE_EXTRA_ENTRIES = {
 		{ name: "Manor Kylar Room", cn: "凯拉尔房间" },
 		{ name: "Manor Grounds", cn: "庭院" }
 	],
-	sydney_temple: [
-		{ name: "Sydney Temple Pure", cn: "纯洁线" },
-		{ name: "Sydney Temple Corrupt", cn: "堕落线" },
-		{ name: "Temple Sydney Pray", cn: "祈祷" },
-		{ name: "Sydney Temple Garden", cn: "神殿花园" },
-		{ name: "Temple Sydney Rosary", cn: "念珠" },
-		{ name: "Temple Sydney Wakeup", cn: "醒来" },
-		{ name: "Sydney Temple Punish", cn: "惩戒" },
-		{ name: "Temple Sydney Ask", cn: "询问" },
-		{ name: "Temple Sydney Walk", cn: "散步" }
-	],
+		/* v2.1.10：悉尼三组（亵渎仪式 / 食堂线 / 神殿居所）子入口已迁到 07d-places-sydney.js（结构门禁 S1 拆段） */
 	sirris_places: [
 		{ name: "Sydney Ride Home", cn: "送回家（车程）" },
 		{ name: "Sydney Ride Temple", cn: "送往神殿（车程）" }

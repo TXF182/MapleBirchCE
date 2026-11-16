@@ -213,6 +213,11 @@
       "note": "v2.1.5 场景直达组枚举（自 07d-places.js 迁出，原片 399→378 行）+ 结果缓存（三重指纹失效）"
     },
     {
+      "file": "07d-places-sydney.js",
+      "layer": "ui",
+      "note": "v2.1.10 悉尼/西里斯/艾弗里/格威岚五组 + 悉尼三组子入口（自 07d-places.js / 07d-places4.js 迁出，S1 拆段；unshift 保证 sydney_defile 排在 sydney_temple 之前）"
+    },
+    {
       "file": "07e-scenes.js",
       "layer": "ui"
     },

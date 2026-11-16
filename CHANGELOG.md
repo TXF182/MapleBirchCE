@@ -2,6 +2,36 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.10（2026-11-17 开局解锁艾弗里庄园修复 + 悉尼亵渎仪式/食堂线新增直达）
+
+两条独立诉求一起落地：① 社区反馈「CE 有个 bug，开局解锁艾弗里庄园」（QQ 群截图）；② 贴吧问「悉尼亵渎仪式 / 身上写十六字箴言」这个剧情有没有，有就加到剧情直达里。
+
+### 一、艾弗里庄园开局解锁（根因取证自上而下的全链）
+
+- **原版判据**（`game\Degrees of Lewdity.html` 字节扫描 + 反转义正则，全库命中 3 处）：`V.wardrobes` 迁移段 `if (V.avery_mansion) V.wardrobes.avery_mansion.unlocked = true;`（两处迁移分支）+ `avery_mansion_init` widget 尾部 `<<set $wardrobes.avery_mansion.unlocked to true>>`。也就是说 **「`$avery_mansion` 对象存在」本身就等于「已进入过庄园」** —— CE 启动建壳 → 迁移把 `unlocked` 置 true → 新档开局可见庄园衣柜与地点。
+- **修法**（三层）：① `ensureAveryMansion()` 建的壳打 `mb_ce_shell: true` 标记（真档由 `avery_mansion_init` 建、不带该键）；② 启动不再无条件建壳，改调 `mbCEPruneAveryShell()` 撤壳 —— 只撤「零进度」壳（带标记；旧版本无标记的壳按结构全零识别：`days`/`study_unlocked`/`folder`/`folder_gone`/`date_seen`/`vault_progress`/`landry`/`kitchen_made`/`display_antiques`/`party_state`/`recipe`/塔进度任一非零即判真档），并把被迁移置 true 的 `V.wardrobes.avery_mansion.unlocked` 撤回 `false`；③ 四处兜底调用点（`teleportTo` / 锚定重放 / 出口拦截 / 剧情触发前置）全部加 `mbCEIsAveryPassage()` 判定（`Mansion` / `Avery` / `Avery's` / `SV Mansion` / `SV Avery` 前缀），只有目标段落真属庄园线才建壳。
+- 净效果：新档开局没有庄园衣柜/地点；玩家实际触发 `Mansion Intro` 才解锁；老存档（真进过庄园）因结构非零永不被撤。
+
+### 二、悉尼两条线独立直达（原版取证）
+
+- **亵渎仪式**：`Sydney Temple Corrupt` 系列共 42 段（hub → `2` → `Lock`（`$lock=600` 撬锁或破门）→ `Pick` → `Search`（搜柜找铜钥匙）→ `Fight` / `Fight Finish`（战斗中继）→ `Sex` → `Sex Finish` → `End` 1..6 → `End Final`（Sirris 接人））。四道段内前置：悉尼须 `corrupt`、玩家贞操带须 `origin=temple`、`temple_rank` 至少 initiate、21 点后。
+- **食堂写字段**：`Sydney Canteen` 系列 7 段，主入口 `Bodywriting Allow`（「Sydney's pen trails up your arm」）。
+- **「十六字箴言」不存在对应条目（如实说明）**：`bodywriting_npc_sydney` widget 只会写 `Sinner` / `Purest Love` / `Lusty Sinners` / `Bound to Sydney` / `Sydney makes me :)` / `stud·beauty` / `handsome·pretty` / `insatiable` / `cute_boy·cute_girl`；全库 189 条 `bodywriting.writing` 中长度 16 的只有 `Sydney's Saviour` / `Eden's Companion` / `Avery's Monopoly` / `Witch's Familiar` / `All for my Alpha` / `Runs with Wolves` / `The Orphan Lover` / `Forever Yearning`，宗教词 `Repent` 42 处、`end is nigh` 0 处。**结论：那是中文玩家对「身上被写宗教/罪人标语」的民间俗称，不是官方条目** —— 组 note 里已写明，未编造。
+- 新增两组（排在 `sydney_temple` 之前，`listPlaceGroups` 靠 `seen` 先占先得）：`sydney_defile`（悉尼 · 亵渎仪式（神殿夜行），main `Sydney Temple Corrupt`，9 条子入口）、`sydney_canteen`（悉尼 · 食堂线（身上写字），main `Sydney Canteen Bodywriting Allow`，4 条子入口）。两组挂 `mbCEIsUnplayableEntry`，战斗中继段（首宏 `$fightstart`）自动不进列表。
+- 新增 `ensureSceneStateFor` 悉尼分支：`sydneySchedule()` 是 JS 函数（非 widget），第一句读 `V.daily.sydney.punish`，新档直达会 TypeError 整段不渲染 → 只补缺失的 `daily.sydney` 壳。
+
+### 三、实现与门禁（本版一并落地的结构性改动）
+
+- **拆段（结构门禁 S1）**：`07d-places.js` / `07d-places4.js` 各自逼近单段 400 行上限，新建语义化分片 `07d-places-sydney.js`（悉尼三组 + 西里斯组 + 三组子入口白名单），`unshift` 到 `PLACE_GROUPS` 最前保证 `sydney_defile` / `sydney_canteen` 先占先得；`manifest.json` 中 `07d-places5.js` 之后插入该条目（层 `ui`）。续号命名（`07d-places6.js`）被 S2 拒绝，故用语义化文件名。
+- **不能让所有新组都排最前**：`avery_mansion` / `gwylan_garden` 的匹配含 `Mansion` / `Forest Shop` 类前缀，挪到最前会抢走 `forest_shop`（v2.0.22 拆出的森林商店组）的段落 → `tests\forest_shop_direct.js` 与 `tests\test_mce.js`（「格威岚花园组 3 段主置顶」）实证 FAIL，两组留在 `07d-places.js` 原位。
+- **strict 类型债**：`PLACE_EXTRA_ENTRIES` 声明补 `/** @type {Object<string, Array<any>>} */`，新增三组子入口的 3 条 TS2339 归零（src 侧棘轮未上升，拼接 SHA == 产物 SHA）。
+- **复杂度棘轮**：新代码让 complexity 从 158 涨到 160（`mbCEAveryLooksUnused` 22 / `mbCEPruneAveryShell` 16），拆出 `MB_CE_AVERY_REAL_FIELDS` + `mbCEAveryFieldSet` / `mbCEAveryTowerEmpty` / `mbCEDelQuiet` / `mbCEAveryUnlockOff` 复归 158（未动 `--write-baseline`）。
+- **产物**：83 段 / 1,123,072 B / SHA256 `6d83682ad80264645b042cfb522f373ebfdfe5a933b73e3f9ee1fbf4bbc9a658`；`MapleBirchCE.mod.zip` 367,638 B / SHA256 `EF5329C05A62D780DF2865C594C20D348E58188787ABC17DF20A4AC528A5EE7E`（4 条目 / verifier 严格三项全通过）。
+
+### 测试
+
+新增 / 改口径断言 13 条：`14.1` 非庄园段（Manor Bed）不再建壳、`Mansion Bed` 才建且带 `mb_ce_shell`；`14.6` 撤壳 + 衣柜 `unlocked` 撤回；`14.7` 旧版无标记壳同样撤；`14.8` 真档不误删；`14.9` 五前缀判定；`10.2` 悉尼 `daily.sydney` 兜底与幂等；`10.0` 两组存在/顺序/exclude/items；`11.7b` 场景联动解锁归入 `sydney_defile`；`46.2` 新档加载不再建壳。分组总数 25→27、子入口组 23→25、子入口条数 152→165，全部按新口径更新。
+
 ## v2.1.9（2026-11-16 Mod作弊页「玩家自己」汉化 + 指向明确：生育模组先天/身份九项）
 
 玩家实测截图（CE 面板 v2.1.8，Mod作弊页「玩家自己」区块）：`先天 appearance / 先天 fitness / 先天 intelligence / 先天 temperament`、`身份 species / monster / beastTransform / divineTransform / gender …` 九项**英文键名裸露**，身份九项还是纯文本框（要玩家自己背可选值）。诉求：「处理一下，该汉化的汉化，指向明确一些」。

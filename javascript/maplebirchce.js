@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.9";
+	var MCE_VERSION = "2.1.10";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -8267,23 +8267,19 @@ function mceRenderThemePicker(pane) {
 		   用 unshift 插到本数组最前（listPlaceGroups 靠 seen 先占先得，"Lake Halloween Party" 否则会被 lake 组吃掉）。 */
 		{ id: "orphanage_loft", name: "孤儿院 · 阁楼", match: function (n) { return n.indexOf("Orphanage Loft") === 0; }, main: "Orphanage Loft", note: "孤儿院上方的阁楼（隐藏区域，Bailey 视线之外）" },
 		{ id: "kylar_manor", name: "凯拉尔 · 庄园", match: function (n) { return n.indexOf("Manor ") === 0; }, main: "Manor Hall", note: "凯拉尔家族的庄园大宅（大厅/花园/实验室/秘密房间）" },
-		{ id: "sydney_temple", name: "悉尼（Sydney）· 神殿居所", match: function (n) { return n.indexOf("Temple Sydney") === 0 || n.indexOf("Sydney Temple") === 0; }, main: "Temple Sydney", note: "神殿中悉尼的房间与祭坛场景（纯/堕两线都在此）" },
-		{ id: "sirris_places", name: "西里斯（Sirris）· 学校与成人商店", match: function (n) { return /sirris/i.test(n) || n === "Sydney Ride Home" || n === "Sydney Ride Temple"; }, main: "Adult Shop Approach Sirris", note: "西里斯常驻的科学教室与成人商店，以及开车接送的车程场景（悉尼的家长）" },
-		{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀实测 866 段，剔除 46 段战斗/性爱中继（Dungeon Fight/Flogger Sex、Chase Fight、Housework *Sex·Rape、Return *Fight·Rape·Sex、Party Jordan End *、Passout Pair * 等，首宏为 $fightstart/$sexstart/$molestationstart），留 820 段。" },
-		{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" },
+		/* v2.1.10：悉尼两线 + 悉尼神殿 + 西里斯四组已迁到 07d-places-sydney.js（结构门禁 S1 拆段）；
+		   顺序由那边 unshift 保证 sydney_defile / sydney_canteen 排在 sydney_temple 之前。
+		   艾弗里庄园与格威岚花园仍留在本处：两组前缀（"Mansion " / gwylan、Forest Shop）与前序组存在先占先得依赖，
+		   挪到最前会抢走 forest_shop 的段落（v2.0.22 拆出的森林商店组）。 */
+	{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀实测 866 段，剔除 46 段战斗/性爱中继（Dungeon Fight/Flogger Sex、Chase Fight、Housework *Sex·Rape、Return *Fight·Rape·Sex、Party Jordan End *、Passout Pair * 等，首宏为 $fightstart/$sexstart/$molestationstart），留 820 段。开局不再由 CE 建壳解锁（v2.1.10 修「开局解锁艾弗里庄园」），只有真进过庄园的存档才可见。" },
+	{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" },
 		/* v1.7.0：多伦公寓（Doren's flat，$location="flats"）+ 麋鹿街大院（Elk Compound，原版 73 段）。
 		   多伦公寓实证：Doren Entrance（入口，"You climb to Doren's flat"）、Doren Talk/Cry、Doren Shower 系列均在公寓内；
 		   Doren Loft 系列为孤儿院阁楼布置线（用户点名一并收录）；Doren Jog/Beach/School Infirmary 为户外/学校，不收。
 		   麋鹿街大院实证：Elk Compound 为入口（"You are in the compound on Elk Street"），Interior/Underground/Central/
 		   Wraith/Possessed/Station 等 70+ 子场景；Docks Compound 为码头大院，不收。 */
-		{ id: "doren_flat", name: "多伦 · 公寓与阁楼", match: function (n) {
-			return n === "Doren Entrance" || n === "Doren Talk" || n === "Doren Cry"
-				|| n.indexOf("Doren Shower") === 0 || n.indexOf("Doren Loft") === 0;
-		}, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
-		{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) {
-			return n.indexOf("Elk Compound") === 0;
-		}, exclude: mbCEIsUnplayableEntry, main: "Elk Compound",
-		  note: "麋鹿街大院：Elk Compound 前缀段实测 70 段（中央区/地下/水晶/车站/附身线）。其中怨灵相关只有 4 段（Wraith Give / Resist / Fight / Fight Finish），怨灵主线其余 64 段不带此前缀、不归本组。widget 定义段（Elk Compound Widgets）与战斗起始段（首宏 $fightstart / $molestationstart，共 9 段）不入组。" },
+	{ id: "doren_flat", name: "多伦 · 公寓与阁楼", match: function (n) { return n === "Doren Entrance" || n === "Doren Talk" || n === "Doren Cry" || n.indexOf("Doren Shower") === 0 || n.indexOf("Doren Loft") === 0; }, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
+	{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) { return n.indexOf("Elk Compound") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Elk Compound", note: "麋鹿街大院：Elk Compound 前缀段实测 70 段（中央区/地下/水晶/车站/附身线）。其中怨灵相关只有 4 段（Wraith Give / Resist / Fight / Fight Finish），怨灵主线其余 64 段不带此前缀、不归本组。widget 定义段（Elk Compound Widgets）与战斗起始段（首宏 $fightstart / $molestationstart，共 9 段）不入组。" },
 		/* v1.9.13 场景直达补充 6 组（段落前缀均经本体 0.5.12.13 实证） */
 		{ id: "asylum", name: "精神病院 · Asylum", match: function (n) {
 			return n === "Asylum" || n.indexOf("Asylum ") === 0;
@@ -8440,6 +8436,16 @@ function ensureSceneStateFor(name) {
 		if (typeof mbCEEnsureEntryState === "function") { mbCEEnsureEntryState(nm, V2); }
 		/* v2.0.22：森林商店本体直达补 $tryOn 壳（实现与取证见 07d-places4.js 的 mbCETryOnShell）。 */
 		if (typeof mbCETryOnShell === "function" && mbCETryOnShell(nm, V2)) { return; }
+		/* v2.1.10：悉尼线状态兜底 —— Sydney Temple Corrupt 首宏 <<sydneySchedule>> 调 JS sydneySchedule()，
+		   第一句就读 V.daily.sydney.punish；新档 daily.sydney 未建时直达会 TypeError、整段不渲染。
+		   只补缺失、不覆盖已有进度（缺键读 undefined 本身安全，关键是对象必须存在）。 */
+		if (/^(Sydney |Temple Sydney)/.test(nm)) {
+			if (typeof V2.daily !== "object" || V2.daily === null) { V2.daily = {}; }
+			if (typeof V2.daily.sydney !== "object" || V2.daily.sydney === null) {
+				V2.daily.sydney = { sex: 0, punish: 0, templeSkip: 0, writing: 0, walk: 0 };
+			}
+			return;
+		}
 		if (/^Prison/.test(nm)) { /* 无 \b：PrisonScarredInmate 一类无空格段名也命中 */
 			if (V2.prison && typeof V2.prison === "object") { return; } /* 已有进度：绝不调 init（避免 morning 被重置） */
 			var sc = (typeof window !== "undefined" && window && window.SugarCube) ? window.SugarCube : null;
@@ -8544,7 +8550,9 @@ function teleportTo(name) {
 				setStatus("Engine 不可用（Engine=" + d2 + "，window.Engine=" + d1 + "，$=" + d3 + "，SugarCube.Engine=" + d4 + "）——若非游戏页面请先进入游戏", MCE_CLS.err);
 				return;
 			}
-			ensureAveryMansion(); /* 防崩：庄园状态对象可能延迟初始化，直达前兜底（缺失才建，不覆盖进度） */
+			/* v2.1.10：仅目标段落属于庄园线时才兜底建壳 —— 原版以「$avery_mansion 对象存在」判定
+			   已进入过庄园，任意地点直达都建壳会让新档提前解锁庄园衣柜（玩家反馈「开局解锁艾弗里庄园」）。 */
+			if (mbCEIsAveryPassage(name)) { ensureAveryMansion(); }
 			ensureFarmState(); /* 防崩：farm_stage 已推进但 $farm 缺失时补空壳（社交页读 $farm.beasts/aggro） */
 			ensureSceneStateFor(name); /* v2.0.1：监狱/农场原版状态对象兜底（新档直达不崩） */
 			if (name === "Scene Viewer passages") {
@@ -9403,6 +9411,9 @@ function mbCEFestivalEntryState(nm, V) {
 	};
 
 /* 组 id → 子入口白名单（顺序即面板显示顺序：按空间/行为就近排列，不排序） */
+/* v2.1.10：显式声明索引签名 —— 悉尼三组子入口表已迁到 07d-places-sydney.js 并在那边追加键，
+   否则 strict 下 `PLACE_EXTRA_ENTRIES.sydney_defile = …` 报 TS2339（对象字面量推断类型无该键）。 */
+/** @type {Object<string, Array<any>>} */
 var PLACE_EXTRA_ENTRIES = {
 	orphanage_loft: [
 		{ name: "Orphanage Loft Intro", cn: "阁楼入口" },
@@ -9417,17 +9428,7 @@ var PLACE_EXTRA_ENTRIES = {
 		{ name: "Manor Kylar Room", cn: "凯拉尔房间" },
 		{ name: "Manor Grounds", cn: "庭院" }
 	],
-	sydney_temple: [
-		{ name: "Sydney Temple Pure", cn: "纯洁线" },
-		{ name: "Sydney Temple Corrupt", cn: "堕落线" },
-		{ name: "Temple Sydney Pray", cn: "祈祷" },
-		{ name: "Sydney Temple Garden", cn: "神殿花园" },
-		{ name: "Temple Sydney Rosary", cn: "念珠" },
-		{ name: "Temple Sydney Wakeup", cn: "醒来" },
-		{ name: "Sydney Temple Punish", cn: "惩戒" },
-		{ name: "Temple Sydney Ask", cn: "询问" },
-		{ name: "Temple Sydney Walk", cn: "散步" }
-	],
+		/* v2.1.10：悉尼三组（亵渎仪式 / 食堂线 / 神殿居所）子入口已迁到 07d-places-sydney.js（结构门禁 S1 拆段） */
 	sirris_places: [
 		{ name: "Sydney Ride Home", cn: "送回家（车程）" },
 		{ name: "Sydney Ride Temple", cn: "送往神殿（车程）" }
@@ -9804,6 +9805,56 @@ function mbCETryOnShell(nm, V2) {
 		mbCEPlaceGroupsCache = { fp: fp, groups: out };
 		return out;
 	}
+/* 职责：场景直达续段（v2.1.10 自 07d-places.js 迁出悉尼三组 + 西里斯组 + 拆出三组子入口白名单；
+   结构门禁 S1 拆段：07d-places.js / 07d-places4.js 均逼近单段上限 400 行）
+   四组用 unshift 插到 PLACE_GROUPS 最前，只为一件事：sydney_defile / sydney_canteen 必须排在 sydney_temple 之前
+   —— listPlaceGroups 靠 seen 先占先得，否则 sydney_temple 的 "Sydney Temple" 前缀会把 Corrupt 全系列 42 段一起
+   吃进去，玩家只能在大列表里翻。四组匹配前缀互不重叠（Sydney Temple Corrupt / Sydney Canteen /
+   Temple Sydney·Sydney Temple / sirris），提前判定不改变任何其他组的归属。
+   艾弗里庄园（"Mansion "）与格威岚花园（gwylan / Forest Shop）有与 kylar_manor / forest_shop 的先占先得依赖，
+   仍留在 07d-places.js 原位 —— 挪到最前会抢走 forest_shop 的段落，tests/forest_shop_direct.js 直接 FAIL（v2.1.10 实证）。 */
+	(function () {
+		var groups = [
+			{ id: "sydney_defile", name: "悉尼 · 亵渎仪式（神殿夜行）", match: function (n) { return n.indexOf("Sydney Temple Corrupt") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Sydney Temple Corrupt", note: "原版 Sydney Temple Corrupt 全链（42 段）：堕落后的悉尼夜里带你潜入神殿禁地 → 搜柜找铜钥匙 → 撬锁或破门 → 取出他的贞操带 → 祈祷室 → 结束后 Sirris 接人。段内自带四道前置（不满足会给提示，不会崩）：悉尼须为 corrupt 状态、玩家贞操带须为神殿出品（origin=temple）、temple_rank 至少 initiate、21 点后。战斗中继段（Fight / Fight Finish 首宏 $fightstart）已排除，请从上一段顺走。" },
+			{ id: "sydney_canteen", name: "悉尼 · 食堂线（身上写字）", match: function (n) { return n.indexOf("Sydney Canteen") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Sydney Canteen Bodywriting Allow", note: "原版食堂线 7 段：悉尼在食堂拿笔在你手臂/肩背写字。原版 widget bodywriting_npc_sydney 只会写 Sinner / Purest Love / Lusty Sinners / Bound to Sydney / Sydney makes me :) / stud·beauty / handsome·pretty / insatiable / cute_boy·cute_girl 这些固定短语，全文 189 条 bodywriting 里也没有「十六字箴言」这个条目 —— 那是中文玩家对这类宗教/罪人标语的俗称。本组含写字（主）/ 拒绝写字 / 鼓励 / 打岔 / 介入；战斗段 Sydney Canteen Fight 首宏 $fightstart 已排除。" },
+			{ id: "sydney_temple", name: "悉尼（Sydney）· 神殿居所", match: function (n) { return n.indexOf("Temple Sydney") === 0 || n.indexOf("Sydney Temple") === 0; }, main: "Temple Sydney", note: "神殿中悉尼的房间与祭坛场景（纯/堕两线都在此）。亵渎仪式（Corrupt 全链）与食堂写字段已拆到上面两组独立直达" },
+			{ id: "sirris_places", name: "西里斯（Sirris）· 学校与成人商店", match: function (n) { return /sirris/i.test(n) || n === "Sydney Ride Home" || n === "Sydney Ride Temple"; }, main: "Adult Shop Approach Sirris", note: "西里斯常驻的科学教室与成人商店，以及开车接送的车程场景（悉尼的家长）" },
+		];
+		for (var i = groups.length - 1; i >= 0; i--) { PLACE_GROUPS.unshift(groups[i]); }
+	})();
+	/* 子入口白名单续写：PLACE_EXTRA_ENTRIES 在 07d-places4.js 定义，键序不影响 items 顺序（items 直接取数组）。
+	   主场景不出现在子入口里（避免同段两个按钮）；战斗中继段由 mbCEIsUnplayableEntry 自动过滤。 */
+	/* v2.1.10 悉尼亵渎仪式全链子入口（按剧情顺序排列，玩家一路点下去） */
+	PLACE_EXTRA_ENTRIES.sydney_defile = [
+		{ name: "Sydney Temple Corrupt 2", cn: "潜入禁地" },
+		{ name: "Sydney Temple Corrupt Lock", cn: "上锁的门" },
+		{ name: "Sydney Temple Corrupt Pick", cn: "撬锁 / 破门" },
+		{ name: "Sydney Temple Corrupt Search", cn: "搜柜找钥匙" },
+		{ name: "Sydney Temple Corrupt Fight Finish", cn: "打斗结算" },
+		{ name: "Sydney Temple Corrupt Sex", cn: "祈祷室" },
+		{ name: "Sydney Temple Corrupt Sex Finish", cn: "高潮结算" },
+		{ name: "Sydney Temple Corrupt End", cn: "事后醒来" },
+		{ name: "Sydney Temple Corrupt End Final", cn: "结束（Sirris 接人）" }
+	];
+	/* v2.1.10 食堂线（身上写字）—— 主场景即写字段 Bodywriting Allow，其余是三个反应分支 */
+	PLACE_EXTRA_ENTRIES.sydney_canteen = [
+		{ name: "Sydney Canteen Bodywriting Stop", cn: "拒绝写字" },
+		{ name: "Sydney Canteen Encourage", cn: "鼓励" },
+		{ name: "Sydney Canteen Break", cn: "打岔" },
+		{ name: "Sydney Canteen Intervene", cn: "介入" }
+	];
+	/* 悉尼神殿居所子入口（自 07d-places4.js 迁出，内容不变） */
+	PLACE_EXTRA_ENTRIES.sydney_temple = [
+		{ name: "Sydney Temple Pure", cn: "纯洁线" },
+		{ name: "Sydney Temple Corrupt", cn: "堕落线" },
+		{ name: "Temple Sydney Pray", cn: "祈祷" },
+		{ name: "Sydney Temple Garden", cn: "神殿花园" },
+		{ name: "Temple Sydney Rosary", cn: "念珠" },
+		{ name: "Temple Sydney Wakeup", cn: "醒来" },
+		{ name: "Sydney Temple Punish", cn: "惩戒" },
+		{ name: "Temple Sydney Ask", cn: "询问" },
+		{ name: "Temple Sydney Walk", cn: "散步" }
+	];
 /* 职责：特殊剧情场景注册表解析 —— $scenes widget 文本 → JS 求值 → 阶段聚类 */
 	/* ============ 特殊剧情（DoL 场景注册表 $scenes / Scene Viewer 系统）
 	     方案A：不硬编码任何剧情。从游戏 Story 文本解析 `<<widget "scenes">>` 的注册表
@@ -11389,7 +11440,13 @@ var SCENE_LOCATIONS = {
 			if (isFarmDependentScene(P) && !farmStateReady()) {
 				return { ok: false, message: "「" + P.name + "」依赖农场系统状态（$farm 未初始化）：请先推进到艾利克斯农场线后再触发" };
 			}
-			ensureAveryMansion();
+			/* v2.1.10：只有重放目标涉及庄园段落才兜底建壳（原版以对象存在判定已进入庄园，
+			   无差别建壳等于替玩家提前解锁庄园衣柜） */
+			var needAvery = mbCEIsAveryPassage(entry);
+			if (!needAvery && Array.isArray(P.passages)) {
+				for (var avz = 0; avz < P.passages.length && !needAvery; avz++) { needAvery = mbCEIsAveryPassage(P.passages[avz]); }
+			}
+			if (needAvery) { ensureAveryMansion(); }
 			ensureFarmState();
 			/* v2.0.1：剧情触发（SV 预览链已解析为真实入口）同样兜底监狱/农场原版状态，
 			   避免新档触达 Prison* / Farm* 剧情段时深链读 $prison.* / $farm.* 抛 TypeError */
@@ -11712,7 +11769,12 @@ var SCENE_LOCATIONS = {
 					landry: 0, vault_progress: 0,
 					study_unlocked: 0, folder: 0, folder_gone: false,
 					kitchen_made: 0, recipe: [],
-					attend: {}
+					attend: {},
+					/* v2.1.10：CE 兜底壳标记。原版以「$avery_mansion 对象存在」判定已进入过庄园
+					   （V.wardrobes 迁移 `if (V.avery_mansion) V.wardrobes.avery_mansion.unlocked = true`
+					   + avery_mansion_init 尾部 unlocked=true），CE 提前建壳 = 新档开局就解锁庄园衣柜。
+					   带此标记的壳在启动时由 mbCEPruneAveryShell 撤掉；真档由 avery_mansion_init 建立，不带该键。 */
+					mb_ce_shell: true
 				};
 			}
 			if (typeof V.avery_tower !== "object" || V.avery_tower === null) {
@@ -11766,6 +11828,60 @@ var SCENE_LOCATIONS = {
 				}
 			}
 		} catch (e) { /* 艾弗里线结构兜底整体失败（存档只读/被冻结）→ 不阻断直达与重放，由目标段落自身兜底 */ }
+	}
+	/* v2.1.10：目标段落是否属艾弗里庄园线 —— 只有这些段落才需要 $avery_mansion 兜底。
+	   原版把「$avery_mansion 对象存在」当作已进入庄园的判据，无差别建壳等于替玩家解锁庄园。 */
+	function mbCEIsAveryPassage(name) {
+		var n = String(name || "");
+		if (!n) { return false; }
+		if (n.indexOf("Mansion") === 0 || n.indexOf("Avery") === 0 || n.indexOf("Avery's") === 0) { return true; }
+		return n.indexOf("SV Mansion") === 0 || n.indexOf("SV Avery") === 0;
+	}
+	/* v2.1.10：真档判据用到的「结构字段」表（任一为真即已进过庄园，CE 建的零进度壳不会有） */
+	var MB_CE_AVERY_REAL_FIELDS = ["days", "study_unlocked", "folder", "folder_gone", "date_seen", "vault_progress", "landry", "kitchen_made", "display_antiques"];
+	function mbCEAveryFieldSet(am) {
+		for (var i = 0; i < MB_CE_AVERY_REAL_FIELDS.length; i++) { if (am[MB_CE_AVERY_REAL_FIELDS[i]]) { return true; } }
+		return false;
+	}
+	/* v2.1.10：艾弗里塔零进度（塔对象缺失也算零 —— delete 不存在的键无副作用） */
+	function mbCEAveryTowerEmpty(tw) {
+		if (!tw || typeof tw !== "object") { return true; }
+		if (tw.progress || tw.stage || tw.intro) { return false; }
+		return true;
+	}
+	/* v2.1.10：delete 容错（存档被冻结/只读时退化为置 undefined） */
+	function mbCEDelQuiet(obj, key) {
+		try { delete obj[key]; return true; } catch (e) { obj[key] = undefined; return false; }
+	}
+	/* v2.1.10：衣柜 unlocked 撤回（原版 V.wardrobes 迁移会把 CE 壳的该键置 true） */
+	function mbCEAveryUnlockOff(V) {
+		try {
+			var wd = V.wardrobes && V.wardrobes.avery_mansion;
+			if (wd && typeof wd === "object" && wd.unlocked === true) { wd.unlocked = false; }
+		} catch (e) { /* 衣柜结构异常：跳过撤回，不影响撤壳本身 */ }
+	}
+	/* v2.1.10：CE 壳的「零进度」判据 —— 带标记直接认；旧版本壳无标记，用结构全零识别
+	   （真进过庄园的档必然有 days / 家具 / 派对 / 塔进度等任一非零值，不会被误判）。 */
+	function mbCEAveryLooksUnused(am, tw) {
+		if (!am || typeof am !== "object") { return false; }
+		if (am.mb_ce_shell === true) { return true; }
+		if (mbCEAveryFieldSet(am)) { return false; }
+		if (am.party_state && am.party_state !== "waiting") { return false; }
+		if (Array.isArray(am.recipe) && am.recipe.length) { return false; }
+		return mbCEAveryTowerEmpty(tw);
+	}
+	/* v2.1.10：撤销 CE 自己建的 avery_mansion 空壳（启动调用）。
+	   只撤「零进度」壳，真档不动；同步把被原版迁移置 true 的衣柜 unlocked 撤回，
+	   让新档的庄园衣柜/地点回到未解锁状态，玩家真正走 Mansion Intro 时才解锁。 */
+	function mbCEPruneAveryShell() {
+		var V = null;
+		try { V = getV(); } catch (e0) { return false; }
+		if (!V) { return false; }
+		if (!mbCEAveryLooksUnused(V.avery_mansion, V.avery_tower)) { return false; }
+		mbCEDelQuiet(V, "avery_mansion");
+		if (mbCEAveryTowerEmpty(V.avery_tower)) { mbCEDelQuiet(V, "avery_tower"); }
+		mbCEAveryUnlockOff(V);
+		return true;
 	}
 	function pinScene(it) {
 		try {
@@ -12149,8 +12265,7 @@ var SCENE_LOCATIONS = {
 			/* v1.5.1：Mansion 系段落兜底——无论以何种方式进入艾弗里庄园段落（场景直达、场景查看器重放、
 			   固定触发、第二天正常日常），只要 $daily.avery.talk 缺失，avery_daily_talk / Mansion Talk 正文
 			   都会 TypeError（reading 'chat'/'ignore'）；在固定触发判定前无条件兜底（缺失才建，不覆盖进度） */
-			if (typeof dest === "string" && dest.length > 0 &&
-				(dest.indexOf("Mansion") === 0 || dest.indexOf("Avery") === 0 || dest.indexOf("Avery's") === 0)) {
+			if (typeof dest === "string" && mbCEIsAveryPassage(dest)) {
 				ensureAveryMansion();
 			}
 			/* 原版重放结束（Scene Viewer End 且正处于重放）→ 记录场景解锁 + 清理已触发项 */
@@ -12320,8 +12435,13 @@ var SCENE_LOCATIONS = {
 			if (Array.isArray(P.passages) && P.passages.indexOf(dest) !== -1) { return; }
 			/* 防崩：农场依赖剧情且 $farm 未初始化 → 本次不触发（保留队列项，待农场线开启后自动可触发） */
 			if (isFarmDependentScene(P) && !farmStateReady()) { return; }
-			/* 防崩：艾弗里庄园/森林商店等段落依赖 $avery_mansion（可能延迟初始化）→ 触发前兜底 */
-			ensureAveryMansion();
+			/* v2.1.10：仅在剧情涉及庄园段落时才兜底建壳 —— 原版以「$avery_mansion 对象存在」
+			   判定已进入过庄园，无差别建壳会让新档提前解锁庄园衣柜 */
+			var needAvery = mbCEIsAveryPassage(P.startPassage);
+			if (!needAvery && Array.isArray(P.passages)) {
+				for (var avz = 0; avz < P.passages.length && !needAvery; avz++) { needAvery = mbCEIsAveryPassage(P.passages[avz]); }
+			}
+			if (needAvery) { ensureAveryMansion(); }
 			/* 防崩：农场依赖剧情需 $farm 结构存在（触发前兜底，缺失才补，不覆盖已有进度） */
 			ensureFarmState();
 			/* 启动原版重放：先执行场景初始变量 → 冻结属性 → 设 $replayScene → 重定向入口 */
@@ -17262,7 +17382,7 @@ function renderAttitudesGroup(pane) {
 		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
 		hookUnfreezePlayerStats(); /* v1.8.19：播放结束自动清理（unfreeze = 场景播放结束，覆盖框架播放器） */
 		ensureFarmState(); /* 启动兜底：存档 farm_stage 已推进但 $farm 缺失 → 补空壳，社交页不再崩 */
-		ensureAveryMansion(); /* 启动兜底：$avery_mansion / $avery_tower / daily.avery.talk 缺失或残缺 → 补空壳（Mansion 段落防崩） */
+				mbCEPruneAveryShell();
 		mbCEUiLoad(); /* v1.8.12 持久化：恢复上次页签/搜索词/折叠状态 */
 		try { mbCEResumeTimers(); } catch (eY0) {} /* v2.0.0.006：已开启言灵开关的存档，注入后即生效 */
 		mbCEHookErrors(); /* v1.8.12 错误收集器：window error + console.error 进面板 */
@@ -17397,7 +17517,7 @@ function renderAttitudesGroup(pane) {
 				applyWorldUnlockForScene: applyWorldUnlockForScene,
 				worldUndo: mbCEWorldUndo,
 				ensureFarmState: ensureFarmState,
-				ensureAveryMansion: ensureAveryMansion,
+								ensureAveryMansion: ensureAveryMansion, mbCEPruneAveryShell: mbCEPruneAveryShell, mbCEIsAveryPassage: mbCEIsAveryPassage, mbCEAveryLooksUnused: mbCEAveryLooksUnused,
 				ensureGwylanSceneState: ensureGwylanSceneState,
 				isGwylanGardenPassage: isGwylanGardenPassage,
 				/* v1.4.0 Mod作弊 */

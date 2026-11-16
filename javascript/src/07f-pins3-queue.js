@@ -96,7 +96,12 @@
 					landry: 0, vault_progress: 0,
 					study_unlocked: 0, folder: 0, folder_gone: false,
 					kitchen_made: 0, recipe: [],
-					attend: {}
+					attend: {},
+					/* v2.1.10：CE 兜底壳标记。原版以「$avery_mansion 对象存在」判定已进入过庄园
+					   （V.wardrobes 迁移 `if (V.avery_mansion) V.wardrobes.avery_mansion.unlocked = true`
+					   + avery_mansion_init 尾部 unlocked=true），CE 提前建壳 = 新档开局就解锁庄园衣柜。
+					   带此标记的壳在启动时由 mbCEPruneAveryShell 撤掉；真档由 avery_mansion_init 建立，不带该键。 */
+					mb_ce_shell: true
 				};
 			}
 			if (typeof V.avery_tower !== "object" || V.avery_tower === null) {
@@ -150,6 +155,60 @@
 				}
 			}
 		} catch (e) { /* 艾弗里线结构兜底整体失败（存档只读/被冻结）→ 不阻断直达与重放，由目标段落自身兜底 */ }
+	}
+	/* v2.1.10：目标段落是否属艾弗里庄园线 —— 只有这些段落才需要 $avery_mansion 兜底。
+	   原版把「$avery_mansion 对象存在」当作已进入庄园的判据，无差别建壳等于替玩家解锁庄园。 */
+	function mbCEIsAveryPassage(name) {
+		var n = String(name || "");
+		if (!n) { return false; }
+		if (n.indexOf("Mansion") === 0 || n.indexOf("Avery") === 0 || n.indexOf("Avery's") === 0) { return true; }
+		return n.indexOf("SV Mansion") === 0 || n.indexOf("SV Avery") === 0;
+	}
+	/* v2.1.10：真档判据用到的「结构字段」表（任一为真即已进过庄园，CE 建的零进度壳不会有） */
+	var MB_CE_AVERY_REAL_FIELDS = ["days", "study_unlocked", "folder", "folder_gone", "date_seen", "vault_progress", "landry", "kitchen_made", "display_antiques"];
+	function mbCEAveryFieldSet(am) {
+		for (var i = 0; i < MB_CE_AVERY_REAL_FIELDS.length; i++) { if (am[MB_CE_AVERY_REAL_FIELDS[i]]) { return true; } }
+		return false;
+	}
+	/* v2.1.10：艾弗里塔零进度（塔对象缺失也算零 —— delete 不存在的键无副作用） */
+	function mbCEAveryTowerEmpty(tw) {
+		if (!tw || typeof tw !== "object") { return true; }
+		if (tw.progress || tw.stage || tw.intro) { return false; }
+		return true;
+	}
+	/* v2.1.10：delete 容错（存档被冻结/只读时退化为置 undefined） */
+	function mbCEDelQuiet(obj, key) {
+		try { delete obj[key]; return true; } catch (e) { obj[key] = undefined; return false; }
+	}
+	/* v2.1.10：衣柜 unlocked 撤回（原版 V.wardrobes 迁移会把 CE 壳的该键置 true） */
+	function mbCEAveryUnlockOff(V) {
+		try {
+			var wd = V.wardrobes && V.wardrobes.avery_mansion;
+			if (wd && typeof wd === "object" && wd.unlocked === true) { wd.unlocked = false; }
+		} catch (e) { /* 衣柜结构异常：跳过撤回，不影响撤壳本身 */ }
+	}
+	/* v2.1.10：CE 壳的「零进度」判据 —— 带标记直接认；旧版本壳无标记，用结构全零识别
+	   （真进过庄园的档必然有 days / 家具 / 派对 / 塔进度等任一非零值，不会被误判）。 */
+	function mbCEAveryLooksUnused(am, tw) {
+		if (!am || typeof am !== "object") { return false; }
+		if (am.mb_ce_shell === true) { return true; }
+		if (mbCEAveryFieldSet(am)) { return false; }
+		if (am.party_state && am.party_state !== "waiting") { return false; }
+		if (Array.isArray(am.recipe) && am.recipe.length) { return false; }
+		return mbCEAveryTowerEmpty(tw);
+	}
+	/* v2.1.10：撤销 CE 自己建的 avery_mansion 空壳（启动调用）。
+	   只撤「零进度」壳，真档不动；同步把被原版迁移置 true 的衣柜 unlocked 撤回，
+	   让新档的庄园衣柜/地点回到未解锁状态，玩家真正走 Mansion Intro 时才解锁。 */
+	function mbCEPruneAveryShell() {
+		var V = null;
+		try { V = getV(); } catch (e0) { return false; }
+		if (!V) { return false; }
+		if (!mbCEAveryLooksUnused(V.avery_mansion, V.avery_tower)) { return false; }
+		mbCEDelQuiet(V, "avery_mansion");
+		if (mbCEAveryTowerEmpty(V.avery_tower)) { mbCEDelQuiet(V, "avery_tower"); }
+		mbCEAveryUnlockOff(V);
+		return true;
 	}
 	function pinScene(it) {
 		try {

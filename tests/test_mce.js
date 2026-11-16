@@ -504,7 +504,7 @@ global.Story = { has: (n) => PLACE_NAMES.indexOf(n) !== -1, lookupWith: (fn) => 
 let lap10 = api.listAllPassages();
 assert(lap10.length === PLACE_NAMES.length, "listPlaceGroups 经 lookupWith 枚举全部段落, 实际 " + lap10.length);
 let pGroups = api.listPlaceGroups();
-assert(pGroups.length === 25, "场景分组 25 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组 + v2.0.22 森林商店 + v2.1.3 惠特尼家 + v2.1.8 遇欲便利店 conveniencestore）, 实际 " + pGroups.length);
+assert(pGroups.length === 27, "场景分组 27 组（14 + v2.0.0.007 妓院/雷米牧场/雷米农场 + v2.0.7 海岛 Island + v2.0.15 怨灵/万圣节/情人节/圣诞 4 组 + v2.0.22 森林商店 + v2.1.3 惠特尼家 + v2.1.8 遇欲便利店 conveniencestore + v2.1.10 悉尼亵渎仪式/食堂线 2 组）, 实际 " + pGroups.length);
 let brV7 = pGroups.find(x => x.group.id === "brothel");
 assert(!!brV7 && brV7.group.main === "Brothel Basement" && brV7.items.length === 0 && brV7.group.name.indexOf("妓院") === 0, "v2.0.0.007 妓院组存在（主场景 Brothel Basement=地下妓院；模拟段落表无 Brothel 段 → items 空）, 实际 " + JSON.stringify(brV7 && brV7.group.main));
 let lvV7 = pGroups.find(x => x.group.id === "remy_livestock");
@@ -528,7 +528,20 @@ assert(og.items.length === 4 && og.items[0] === "Orphanage Loft", "阁楼组 4 �
 let kg = pGroups.find(x => x.group.id === "kylar_manor");
 assert(kg.items.length === 4 && kg.items[0] === "Manor Hall", "凯拉尔庄园组 4 段主置顶, 实际 " + JSON.stringify(kg.items));
 let sg = pGroups.find(x => x.group.id === "sydney_temple");
-assert(sg.group.name.indexOf("悉尼") === 0 && sg.items.length === 3 && sg.items[0] === "Temple Sydney", "悉尼神殿组 3 段主置顶, 实际 " + sg.group.name + " " + JSON.stringify(sg.items));
+assert(sg.group.name.indexOf("悉尼") === 0 && sg.items.length === 2 && sg.items[0] === "Temple Sydney", "悉尼神殿组 2 段主置顶（v2.1.10 Sydney Temple Corrupt 移入 sydney_defile 组）, 实际 " + sg.group.name + " " + JSON.stringify(sg.items));
+/* v2.1.10：悉尼两条线独立成组，且必须排在 sydney_temple 之前（seen 先占先得） */
+let gDef = pGroups.find(x => x.group.id === "sydney_defile");
+let gCan = pGroups.find(x => x.group.id === "sydney_canteen");
+let idxDef = pGroups.map(x => x.group.id).indexOf("sydney_defile");
+let idxST = pGroups.map(x => x.group.id).indexOf("sydney_temple");
+assert(!!gDef && gDef.group.main === "Sydney Temple Corrupt" && gDef.group.name.indexOf("亵渎") >= 0,
+	"亵渎仪式组存在（主场景 Sydney Temple Corrupt，中文组名含「亵渎」）, 实际 " + JSON.stringify(gDef && gDef.group));
+assert(!!gCan && gCan.group.main === "Sydney Canteen Bodywriting Allow" && gCan.group.name.indexOf("食堂") >= 0,
+	"食堂线组存在（主场景 Sydney Canteen Bodywriting Allow，组名含「食堂」）, 实际 " + JSON.stringify(gCan && gCan.group));
+assert(idxDef >= 0 && idxST >= 0 && idxDef < idxST, "亵渎组排在新神殿组之前（先占先得，不被 Sydney Temple 前缀吃掉）, 实际 def=" + idxDef + " temple=" + idxST);
+assert(gDef.items.length === 1 && gDef.items[0] === "Sydney Temple Corrupt", "mock 表下亵渎组只吃 Sydney Temple Corrupt（其余段不在 fixtures）, 实际 " + JSON.stringify(gDef.items));
+assert(!!gDef.group.exclude && typeof gDef.group.exclude === "function" && !!gCan.group.exclude && typeof gCan.group.exclude === "function",
+	"两组都挂 exclude（战斗中继段 Fight / Fight Finish 不进列表）");
 let sr = pGroups.find(x => x.group.id === "sirris_places");
 assert(sr.group.name.indexOf("西里斯") === 0 && sr.items.length === 4 && sr.items[0] === "Adult Shop Approach Sirris", "西里斯学校/商店组 4 段主置顶, 实际 " + sr.group.name + " " + JSON.stringify(sr.items));
 let ag = pGroups.find(x => x.group.id === "avery_mansion");
@@ -540,7 +553,7 @@ assert(totalItems === 39, "干扰段落不误入（v2.0.16 起含 Wolf Cave / Fa
 // 10.0) v2.0.16 场景直达子入口（用户「note 里点了名的子区域也该有直达按钮」）
 assert(typeof api.mbCEListPlaceEntries === "function" && typeof api.PLACE_EXTRA_ENTRIES === "object", "子入口表 PLACE_EXTRA_ENTRIES 与过滤函数已导出");
 const PXE = api.PLACE_EXTRA_ENTRIES;
-assert(Object.keys(PXE).length === 23, "子入口表覆盖全部 23 组, 实际 " + Object.keys(PXE).length);
+assert(Object.keys(PXE).length === 25, "子入口表覆盖全部 25 组（v2.1.10 新增 sydney_defile / sydney_canteen）, 实际 " + Object.keys(PXE).length);
 assert(Array.isArray(PXE.wraith) && PXE.wraith.length === 0, "象牙怨灵组显式不拆子入口（四套状态机依赖 $wraith.state 与月相，直跳会崩）");
 let subTotal = 0, subBadCn = [], subMainDup = [];
 Object.keys(PXE).forEach(k => {
@@ -551,7 +564,7 @@ Object.keys(PXE).forEach(k => {
     if (grp && it.name === grp.group.main) { subMainDup.push(it.name); }
   });
 });
-assert(subTotal === 152, "子入口总条数 152（22 组非空 + wraith 空；v2.0.22 森林商店正门 +1）, 实际 " + subTotal);
+assert(subTotal === 165, "子入口总条数 165（24 组非空 + wraith 空；v2.1.10 亵渎 9 条 + 食堂 4 条）, 实际 " + subTotal);
 assert(subBadCn.length === 0, "每条子入口都有非空中文标签（汉化硬约束：不许裸英文）, 违规 " + JSON.stringify(subBadCn));
 assert(subMainDup.length === 0, "子入口不得与主场景重名（避免同一段两个按钮）, 实际 " + JSON.stringify(subMainDup));
 assert(api.mbCEListPlaceEntries(kg).length === 3, "凯拉尔庄园子入口按 mock 段落表过滤后剩 3 条（Manor Garden/Lab/Kylar Room）, 实际 " + JSON.stringify(api.mbCEListPlaceEntries(kg)));
@@ -561,6 +574,16 @@ assert(api.mbCEListPlaceEntries(wf).length === 0, "狼群子入口在 mock 表�
 assert(api.mbCEListPlaceEntries({ group: { id: "no_such_group", main: "X" }, items: [] }).length === 0, "未知组 id 返回空数组且不抛错");
 let cn = api.placeNameCN ? api.placeNameCN("Orphanage Loft Kitchen") : "";
 assert(typeof cn === "string" && cn.indexOf("厨房") !== -1, "段落名中文提示：厨房, 实际 " + cn);
+/* v2.1.10：悉尼线状态兜底 —— 原版 sydneySchedule() 第一句就读 V.daily.sydney.punish，
+   新档直达 Sydney Temple Corrupt 时 $daily.sydney 缺失 → TypeError 整段不渲染 */
+delete V.daily;
+api.ensureSceneStateFor("Sydney Temple Corrupt");
+assert(V.daily && V.daily.sydney && V.daily.sydney.punish === 0 && V.daily.sydney.sex === 0,
+	"10.2 直达悉尼段补 $daily.sydney 壳（punish/sex=0）, 实际 " + JSON.stringify(V.daily && V.daily.sydney));
+V.daily.sydney.punish = 1; V.daily.sydney.sex = 7;
+api.ensureSceneStateFor("Sydney Canteen Bodywriting Allow");
+assert(V.daily.sydney.punish === 1 && V.daily.sydney.sex === 7, "10.2 $daily.sydney 已有进度不被覆盖（幂等）");
+delete V.daily;
 // teleportTo：无 Engine 时不抛错（setStatus 安全空转）
 api.teleportTo("Orphanage Loft");
 let played = null;
@@ -664,8 +687,9 @@ assert(V.replayScene && V.mbCE_queue[0].used === true, "确认触发队首并重
 const pa7 = { name: "Scene Viewer End" };
 api.onPassageOverride(pa7);
 assert(V.mbCE_queue.length === 1 && V.mbCE_queue[0].key === sec11.key, "顺序触发推进：剩最后一项");
-// 11.7b) 场景联动解锁：触发悉尼神殿剧情后，神殿组自动解锁（场景页可直达）
-assert(V.mbCE_unlockedPlaces && V.mbCE_unlockedPlaces.sydney_temple && V.mbCE_unlockedPlaces.sydney_temple.startPassage === "SV Sydney Temple Corrupt", "场景联动解锁：触发剧情后对应场景组解锁, 实际 " + JSON.stringify(V.mbCE_unlockedPlaces));
+// 11.7b) 场景联动解锁：触发悉尼神殿剧情后，亵渎仪式组自动解锁（场景页可直达）
+// v2.1.10：SV Sydney Temple Corrupt 的 startPassage 去掉 SV 前缀后归入 sydney_defile 组（原先落在 sydney_temple）
+assert(V.mbCE_unlockedPlaces && V.mbCE_unlockedPlaces.sydney_defile && V.mbCE_unlockedPlaces.sydney_defile.startPassage === "SV Sydney Temple Corrupt", "场景联动解锁：触发剧情后对应场景组解锁（v2.1.10 归入 sydney_defile）, 实际 " + JSON.stringify(V.mbCE_unlockedPlaces));
 window.wikifier("unfreezePlayerStats");
 delete V.replayScene;
 // 11.8) 回退（指定 key）：取消队列中指定剧情
@@ -938,18 +962,22 @@ delete V.farm;
 delete V.mbCE_queue;
 delete window.SugarCube;
 
-// 14) 修正（v1.2.1）：$avery_mansion/$avery_tower 缺失兜底（艾弗里庄园/森林商店直达防崩）
-// 14.1) 直达前兜底：V.avery_mansion 缺失 → teleportTo 建立结构（schedule/jobs/party_state 存在，不崩）
+// 14) 修正（v1.2.1）：$avery_mansion/$avery_tower 缺失兜底（艾弗里庄园直达防崩）
+// 14.1) v2.1.10 口径：只有目标段落属庄园线（Mansion / Avery / Avery's / SV Mansion / SV Avery 前缀）才建壳。
+//       非庄园段（Manor Bed 是凯拉尔庄园）直达不再建壳 —— 原版以「$avery_mansion 对象存在」判定已进入庄园。
 V.avery_mansion = undefined; V.avery_tower = undefined;
-global.Story = { has: (n) => n === "Manor Bed", lookupWith: () => [] };
+global.Story = { has: (n) => n === "Mansion Bed" || n === "Manor Bed", lookupWith: () => [] };
 window.SugarCube = { Engine: { play: (n, h) => { playedBack = n + ":" + !!h; } } };
 api.teleportTo("Manor Bed");
-assert(V.avery_mansion && V.avery_mansion.schedule === "home" && Array.isArray(V.avery_mansion.jobs) && V.avery_mansion.party_state === "waiting", "直达前 $avery_mansion 空壳生成（schedule/jobs/party_state）");
-assert(V.avery_tower && V.avery_tower.stage === 0, "$avery_tower 空壳生成（stage）");
+assert(V.avery_mansion === undefined && V.avery_tower === undefined, "14.1 非庄园段（Manor Bed）直达不建 avery_mansion 空壳（避免开局解锁庄园）");
+api.teleportTo("Mansion Bed");
+assert(V.avery_mansion && V.avery_mansion.schedule === "home" && Array.isArray(V.avery_mansion.jobs) && V.avery_mansion.party_state === "waiting", "14.1 Mansion 前缀段直达才建 $avery_mansion 空壳（schedule/jobs/party_state）");
+assert(V.avery_mansion.mb_ce_shell === true, "14.1 CE 建的壳带 mb_ce_shell 标记（启动时据此撤壳，真档无标记永不被误删）");
+assert(V.avery_tower && V.avery_tower.stage === 0, "14.1 $avery_tower 空壳生成（stage）");
 // 14.2) 幂等：已有对象不覆盖
 V.avery_mansion.my_progress = 42;
-api.teleportTo("Manor Bed");
-assert(V.avery_mansion.my_progress === 42 && V.avery_mansion.schedule === "home", "已有 $avery_mansion 不被覆盖（幂等）");
+api.teleportTo("Mansion Bed");
+assert(V.avery_mansion.my_progress === 42 && V.avery_mansion.schedule === "home", "14.2 已有 $avery_mansion 不被覆盖（幂等）");
 // 14.3) 固定触发艾弗里剧情前兜底：$avery_mansion 缺失 → onPassageOverride 触发时建立
 delete V.avery_mansion; delete V.avery_tower;
 V.mbCE_queue = [{ key: "AVERY", name: "Avery Mansion", startPassage: "Mansion Bed", passages: ["Mansion Bedroom"], manualVariableChanges: "<<set $sceneViewSwitch to 'avery_mansion'>>", used: false }];
@@ -971,6 +999,32 @@ V.daily.avery.talk.chat = 2;
 V.daily.avery.ask.science = true;
 api.ensureAveryMansion();
 assert(V.daily.avery.talk.chat === 2 && V.daily.avery.ask.science === true, "talk/ask 已有值不被覆盖（幂等）");
+delete V.avery_mansion; delete V.avery_tower; delete V.daily;
+
+// 14.6) v2.1.10：CE 壳撤除（玩家反馈「CE 有个 bug，开局解锁艾弗里庄园」）
+// 根因：CE 启动 ensureAveryMansion 建壳 → 原版 V.wardrobes 迁移见 $avery_mansion 存在即置 unlocked=true
+//       → 新档开局就有庄园衣柜/地点。修法：启动撤壳 + 撤回 wardrobe.unlocked，且只撤「零进度」壳。
+V.daily = {};
+V.wardrobes = { avery_mansion: { unlocked: true } };
+V.avery_mansion = { mb_ce_shell: true, schedule: "home", jobs: [], party_state: "waiting" };
+V.avery_tower = { stage: 0, progress: 0 };
+assert(api.mbCEAveryLooksUnused(V.avery_mansion, V.avery_tower) === true, "14.6 CE 壳（mb_ce_shell 标记）判定为零进度");
+assert(api.mbCEPruneAveryShell() === true, "14.6 撤壳返回 true");
+assert(V.avery_mansion === undefined && V.avery_tower === undefined, "14.6 空壳被删（avery_mansion / avery_tower）");
+assert(V.wardrobes.avery_mansion.unlocked === false, "14.6 衣柜 unlocked 撤回 false（开局不再显示庄园衣柜）");
+// 14.7) 老版本 CE 壳（无 mb_ce_shell 标记）靠结构全零识别
+V.avery_mansion = { schedule: "home", jobs: [], party_state: "waiting", days: 0, recipe: [] };
+V.avery_tower = undefined;
+assert(api.mbCEPruneAveryShell() === true && V.avery_mansion === undefined, "14.7 旧版无标记壳（结构全零）同样被撤");
+// 14.8) 真档（有进度）绝不误删
+V.avery_mansion = { schedule: "home", days: 3, folder: true, party_state: "done" };
+V.avery_tower = { progress: 2 };
+assert(api.mbCEAveryLooksUnused(V.avery_mansion, V.avery_tower) === false, "14.8 有 days/folder 进度 + 塔进度 → 不认作壳");
+assert(api.mbCEPruneAveryShell() === false && V.avery_mansion.days === 3 && V.avery_tower.progress === 2, "14.8 真档保留（撤壳返回 false）");
+// 14.9) 段落归属判定（五个前缀）
+assert(api.mbCEIsAveryPassage("Mansion Bed") === true && api.mbCEIsAveryPassage("Avery") === true && api.mbCEIsAveryPassage("Avery's Room") === true, "14.9 Mansion / Avery / Avery's 前缀命中");
+assert(api.mbCEIsAveryPassage("SV Mansion") === true && api.mbCEIsAveryPassage("SV Avery Bath") === true, "14.9 SV Mansion / SV Avery 预览段命中");
+assert(api.mbCEIsAveryPassage("Manor Hall") === false && api.mbCEIsAveryPassage("Sydney Temple Corrupt") === false && api.mbCEIsAveryPassage("") === false, "14.9 非庄园段不命中（Manor / Sydney / 空串）");
 delete V.avery_mansion; delete V.avery_tower; delete V.daily;
 
 // 15) 修正（v1.3）：世界入口解锁 + 循环修复 + 剧情线合并
@@ -3866,13 +3920,17 @@ const leaked46 = oldKeys46.filter(k => k in global.V && shellKeys46.indexOf(k) =
 assert(leaked46.length === 0, "46.1 新游戏 V 重建后 CE 专属键/作弊键 0 条继承, 实际 " + JSON.stringify(leaked46));
 assert(global.V.money !== 999999 && global.V.avery_fate !== "saved" && global.V.mceAveryShelter === undefined,
 	"46.1 作弊数值未污染新档（money≠999999 / avery_fate≠saved / 无庇护标记）");
-/* 46.2 新档加载 mod（重 eval 产物）：只建原版默认壳（avery_mansion/avery_tower/daily），不写 CE 自产键 */
+/* 46.2 新档加载 mod（重 eval 产物）：不再建 $avery_mansion / $avery_tower 空壳
+   （v2.1.10：原版以「$avery_mansion 对象存在」判定已进入过庄园，建壳等于替新档解锁庄园衣柜），
+   daily 等原版壳仍需存在 */
 eval(js);
 const newKeys46 = Object.keys(global.V);
 const newCEKeys46 = newKeys46.filter(k => /^mbCE_/i.test(k) || /^mce/i.test(k));
 assert(newCEKeys46.length === 0, "46.2 新档加载后 V 无 CE 自产键（含留痕/标记/队列）, 实际 " + JSON.stringify(newCEKeys46));
-assert(global.V.avery_mansion !== undefined && global.V.avery_tower !== undefined && global.V.daily !== undefined,
-	"46.2 新档加载建原版结构默认壳（avery_mansion/avery_tower/daily 存在）, 实际 " + newKeys46.join("/"));
+assert(global.V.avery_mansion === undefined && global.V.avery_tower === undefined && global.V.daily !== undefined,
+	"46.2 新档加载不再建 avery_mansion/avery_tower 空壳（避免开局解锁庄园）, 实际 avery_mansion=" + typeof global.V.avery_mansion + " avery_tower=" + typeof global.V.avery_tower + " keys=" + newKeys46.join("/"));
+assert(typeof setup.mbStageCE.mbCEPruneAveryShell === "function" && setup.mbStageCE.mbCEPruneAveryShell() === false,
+	"46.2 撤壳函数对空档返回 false（无壳可撤，不误建）");
 
 
 /* ============ 48）世界腐化数值调整（v1.9.12 全局页）：直写原版键 + 上限不钳制 + 下限保留 + 留痕回退 ============
