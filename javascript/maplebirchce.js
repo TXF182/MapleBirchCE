@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.8";
+	var MCE_VERSION = "2.1.9";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -3319,8 +3319,86 @@ var MB_CE_FERT_ACTIONS = [
 var MB_CE_FERT_INNATE_KEYS = ["appearance", "fitness", "intelligence", "temperament"];
 var MB_CE_FERT_SKILL_KEYS = ["knowledge", "fitness", "social", "awareness"];
 var MB_CE_FERT_ID_KEYS = ["species", "monster", "beastTransform", "divineTransform", "gender", "size", "hairColour", "eyeColour", "skinColour"];
+/* v2.1.9 汉化 + 指向明确：中文名与取值文案全部逐字取自模组自带 UI / 源码，不是转述。
+   中文名出处 eden-cheats-ui.js:151（先天四项）、:157（身份九项）；
+   值域出处 eden-cheats.js:138-147 choices()（species / gender / monster / beastTransform /
+   divineTransform / size / skinColour 为硬编码），hairColour / eyeColour / size 的默认项来自原版
+   PregnancyConstants.genePool（game HTML 偏移 15631738：hairColour / eyeColour / wolfFur / hawkFeather / childSize）。
+   为什么要建这两张表：模组 saveInnate 对身份九项逐 key 校验
+   `value !== before[key] && !options[key].includes(value)` → 抛「请选择支持的种族或外貌。」（eden-cheats.js:158）。
+   旧版 CE 用纯文本框，玩家只能凭猜英文值，填错即报错且没有提示；改成下拉后选项与模组同源，值不可能越界。 */
+var MB_CE_FERT_LABELS = {
+	appearance: "容貌", fitness: "体格", intelligence: "智力", temperament: "性格倾向",
+	knowledge: "知识", social: "社交", awareness: "警觉",
+	species: "基础种族", monster: "人形特征", beastTransform: "兽化特征",
+	divineTransform: "神圣特征", gender: "生理性别", size: "体型",
+	hairColour: "发色／毛色", eyeColour: "瞳色", skinColour: "肤色"
+};
+var MB_CE_FERT_VAL_CN = {
+	species: { human: "人类", wolf: "狼", hawk: "鹰" },
+	gender: { m: "男", f: "女", h: "间性" },
+	monster: { monster: "人形特征" },
+	beastTransform: { bird: "鸟", cat: "猫", fox: "狐", wolf: "狼", cow: "牛" },
+	divineTransform: { angel: "天使", fallen: "堕落", demon: "恶魔" },
+	size: { tiny: "极小", small: "小", normal: "正常", large: "大" },
+	skinColour: { light: "白", medium: "中", dark: "深", gyaru: "辣妹", ylight: "偏黄白", ymedium: "偏黄中", ydark: "偏黄深", ygyaru: "偏黄辣妹", ghostlyPale: "苍白" },
+	hairColour: { red: "红", jetblack: "乌黑", black: "黑", brown: "棕", softbrown: "浅棕", lightbrown: "淡棕", burntorange: "焦橙", blond: "金", softblond: "浅金", platinumblond: "铂金", ashyblond: "灰金", strawberryblond: "草莓金", ginger: "姜红", "dark brown": "深棕", grey: "灰", white: "白", tan: "黄褐" },
+	eyeColour: { purple: "紫", "dark blue": "深蓝", "light blue": "浅蓝", amber: "琥珀", hazel: "榛", green: "绿", "lime green": "青柠绿", red: "红", pink: "粉", grey: "灰", "light grey": "浅灰" }
+};
+/* 「保持当前值」哨兵。不能用空串兼作「不改」：monster / beastTransform / divineTransform 的合法值本身
+   就含空串（语义是「无」），两者撞车会导致「选了无」被当成「没动」。 */
+var MB_CE_FERT_KEEP = "__mce_keep";
+function mbCEFertLabel(k) { return MB_CE_FERT_LABELS[k] || k; }
+function mbCEFertValText(k, v) {
+	if (!v) { return "（无）"; }
+	var cn = MB_CE_FERT_VAL_CN[k];
+	return (cn && cn[v]) ? (cn[v] + "（" + v + "）") : String(v);
+}
+/* 选项优先取模组自身 choices()（发色/瞳色/体型随原版 genePool 动态），取不到时退化为静态表键集，
+   保证下拉恒有值可选 —— API 缺失只影响精度，不让整块不可用。 */
+function mbCEFertOptions(k, api, child) {
+	var arr = null;
+	try { if (api && child && typeof api.choices === "function") { arr = api.choices(child)[k]; } } catch (e) { arr = null; }
+	if (!arr || !arr.length) { var cn = MB_CE_FERT_VAL_CN[k]; arr = cn ? Object.keys(cn) : []; }
+	return arr;
+}
+/* 身份单行：下拉 + 首项「保持当前值」。当前值不在选项里（旧版本遗留值）时补一条，
+   否则 select 会静默落到第一个选项，玩家一保存就把值改掉。 */
+function mbCEFertIdRow(parent, k, cur, opt) {
+	var row = el("div", MCE_CLS.row);
+	row.setAttribute("data-mce-key", "fert.id:" + k);
+	row.appendChild(el("span", MCE_CLS.rowLbl, mbCEFertLabel(k) + "（" + k + "）："));
+	var sel2 = el("select", "mce-sel");
+	var keep = el("option", "", "（保持当前值）"); keep.value = MB_CE_FERT_KEEP; sel2.appendChild(keep);
+	var has = false;
+	opt.forEach(function (v) {
+		var o = el("option", "", mbCEFertValText(k, v)); o.value = String(v);
+		if (String(v) === String(cur)) { has = true; }
+		sel2.appendChild(o);
+	});
+	if (!has && cur) { var co = el("option", "", mbCEFertValText(k, cur) + " · 当前值不在模组选项内"); co.value = String(cur); sel2.appendChild(co); }
+	sel2.value = cur ? String(cur) : MB_CE_FERT_KEEP;
+	row.appendChild(sel2);
+	parent.appendChild(row);
+	return sel2;
+}
 function mbCEFertApi() {
 	try { return (typeof window !== "undefined" && window.EdenCheats) ? window.EdenCheats : null; } catch (e) { return null; }
+}
+/* v2.1.9：输入框登记表。键必须按域区分 —— 先天 fitness 与养育 fitness 同名，旧版共用 inputs[k]
+   会被后渲染的那份覆盖，保存先天时读到的其实是养育输入框（先天体格被静默写错值）。
+   每次渲染重建，域前缀：先天 in_ / 身份 id_ / 养育 sk_。 */
+var mbCEFertInputs = null;
+function mbCEFertAddField(parent, label, key, value, dictKey) {
+	var row = el("div", MCE_CLS.row);
+	row.setAttribute("data-mce-key", "fert.field:" + (dictKey || key));
+	row.appendChild(el("span", MCE_CLS.rowLbl, label + "："));
+	var inp = el("input", MCE_CLS.inp);
+	inp.type = "text"; inp.value = (value == null) ? "" : String(value); inp.placeholder = "0-100 整数";
+	mbCEFertInputs[dictKey || key] = inp;
+	row.appendChild(inp);
+	parent.appendChild(row);
+	return inp;
 }
 /* v2.0.0.003 需求①：不再要求玩家先开原版作弊页。
    模组侧有两道闸：available()（vars().cheatsEnabled === true 或原版 Cheats 面板 DOM 判据）和
@@ -3405,6 +3483,55 @@ function mbCEFertRun(key, id, patch) {
 	});
 }
 /* 面板：孩子下拉 + 10 项动作（先天/养成需要填表，其余一键） */
+/* v2.1.9 抽取自 mbCEFertRender（原函数 131 行，超 120 行上限）：先天四项 + 身份九项表单 */
+function mbCEFertRenderInnateBox(container, list, sel, rec0) {
+	var innateBox = el("div", "mce-grp");
+	var innate0 = (rec0 && rec0.innate) ? rec0.innate : {};
+	container.appendChild(el("div", MCE_CLS.hint,
+		"先天四项：0–100 整数，四项必须齐全（模组自己会拦缺项）；留空按当前值提交。"));
+	MB_CE_FERT_INNATE_KEYS.forEach(function (k) { mbCEFertAddField(innateBox, mbCEFertLabel(k) + "（" + k + "）", k, innate0[k], "in_" + k); });
+	container.appendChild(innateBox);
+	container.appendChild(el("div", MCE_CLS.hint,
+		"身份九项：下拉选项直接取模组 EdenCheats.choices()，与模组自带面板同源；选「保持当前值」则该项不提交。"));
+	var idBox = el("div", "mce-grp");
+	var api0 = mbCEFertApi(), kid0 = list.length ? list[0][1] : null;
+	MB_CE_FERT_ID_KEYS.forEach(function (k) {
+		var cur = "";
+		try { if (kid0 && api0 && typeof api0.identity === "function") { cur = api0.identity(kid0)[k] || ""; } } catch (e) { cur = ""; }
+		mbCEFertInputs["id_" + k] = mbCEFertIdRow(idBox, k, cur, mbCEFertOptions(k, api0, kid0));
+	});
+	container.appendChild(idBox);
+	container.appendChild(el("div", MCE_CLS.hint,
+		"模组的三条硬规则（eden-cheats.js:162/164/165，违反会被它直接拒绝）：① 基础种族选「人类」时，模组自动清空「人形特征」——猫/狐/牛用人类 + 兽化特征，狼/鹰可再选人形特征；② 该角色孕期未结束，不能改种族 / 人形特征 / 兽化特征 / 生理性别；③ 已成年结算的角色，不能再改成动物形态。"));
+	var bInnate = el("button", "mce-btn mce-gold", "保存先天属性与外貌"); bInnate.type = "button";
+	bInnate.addEventListener("click", function () {
+		var patch = {}, rec = mbCEFertRecord(String(sel.value));
+		var innate = (rec && rec.innate) ? rec.innate : {};
+		var missing = [];
+		MB_CE_FERT_INNATE_KEYS.forEach(function (k) {
+			var v = String(mbCEFertInputs["in_" + k].value || "").trim();
+			if (!v) { if (typeof innate[k] === "number") { patch[k] = innate[k]; } else { missing.push(mbCEFertLabel(k) + "（" + k + "）"); } }
+			else { patch[k] = v; }
+		});
+		if (missing.length) { setStatus("缺少先天属性：" + missing.join(" / ") + "（模组要求四项全填）", MCE_CLS.err); return; }
+		var child = null;
+		try { child = list.filter(function (e) { return String(e[0]) === String(sel.value); })[0]; } catch (e) { child = null; }
+		/* 「保持当前值」= 该项不进 patch：模组用 `patch[key] ?? before[key]` 自动沿用，避免 CE 补值补出与模组不一致的枚举。 */
+		MB_CE_FERT_ID_KEYS.forEach(function (k) {
+			var v = String(mbCEFertInputs["id_" + k].value == null ? "" : mbCEFertInputs["id_" + k].value);
+			/* 空串是 monster / beastTransform / divineTransform 的合法值（语义「无」），必须照传；
+			   只有哨兵才算「不改」。species 等 key 的选项集本身不含空串，不会产出空值。 */
+			if (v !== MB_CE_FERT_KEEP) { patch[k] = v; }
+		});
+		if (patch.species === undefined) { patch.species = (child && child[1] && child[1].species) || "human"; }
+		if (patch.gender === undefined) { patch.gender = (child && child[1] && child[1].gender) || "f"; }
+		var res = mbCEFertRun("fert_innate", String(sel.value), patch);
+		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+		renderModCheatDetail("fertility-expansion");
+	});
+	container.appendChild(bInnate);
+}
+
 function mbCEFertRender(container) {
 	if (!container) { return; }
 	var ready = mbCEFertReady();
@@ -3421,8 +3548,9 @@ function mbCEFertRender(container) {
 			? "模组当前判为「未开启原版作弊页」：CE 每次调用时临时把 cheatsEnabled 置真满足它，返回后立刻还原原值，你不用真去开原版作弊页。"
 			: "你已经开着原版作弊页；即便不开，CE 也会在调用期间临时满足该前置，用完还原。"));
 	var list = mbCEFertChildren();
-	var sel = el("select", MCE_CLS.inp);
+	var sel = el("select", "mce-sel");
 	list.forEach(function (entry) { var o = el("option", "", mbCEFertChildLabel(entry)); o.value = String(entry[0]); sel.appendChild(o); });
+	if (list.length) { sel.value = String(list[0][0]); }
 	var childRow = el("div", MCE_CLS.row);
 	childRow.appendChild(el("span", MCE_CLS.rowLbl, "目标孩子（" + list.length + " 个已出生）："));
 	childRow.appendChild(sel);
@@ -3441,67 +3569,21 @@ function mbCEFertRender(container) {
 		groupA.appendChild(b);
 	});
 	container.appendChild(groupA);
-	/* B 先天四项 + 身份九项 */
-	var innateBox = el("div", "mce-grp");
+	/* B 先天四项 + 身份九项（v2.1.9：中文化 + 下拉；表单一并抽函数，避免单函数超 120 行） */
 	var rec0 = list.length ? mbCEFertRecord(String(sel.value)) : null;
-	var innate0 = (rec0 && rec0.innate) ? rec0.innate : {};
-	var inputs = {};
-	function addField(parent, label, key, value) {
-		var row = el("div", MCE_CLS.row);
-		row.appendChild(el("span", MCE_CLS.rowLbl, label + "："));
-		var inp = el("input", MCE_CLS.inp);
-		inp.type = "text"; inp.value = (value == null) ? "" : String(value);
-		inputs[key] = inp;
-		row.appendChild(inp);
-		parent.appendChild(row);
-	}
-	container.appendChild(el("div", MCE_CLS.hint, "先天属性（0–100 整数）与身份九项：留空按当前值提交（模组会校验可选值）"));
-	MB_CE_FERT_INNATE_KEYS.forEach(function (k) { addField(innateBox, "先天 " + k, k, innate0[k]); });
-	MB_CE_FERT_ID_KEYS.forEach(function (k) {
-		var cur = "";
-		try {
-			var api = mbCEFertApi();
-			if (list.length && api && typeof api.identity === "function") { cur = api.identity(list[0][1])[k] || ""; }
-		} catch (e) { cur = ""; }
-		addField(innateBox, "身份 " + k, k, cur);
-	});
-	container.appendChild(innateBox);
-	var bInnate = el("button", "mce-btn mce-gold", "保存先天属性与外貌"); bInnate.type = "button";
-	bInnate.addEventListener("click", function () {
-		var patch = {}, rec = mbCEFertRecord(String(sel.value));
-		var innate = (rec && rec.innate) ? rec.innate : {};
-		var missing = [];
-		MB_CE_FERT_INNATE_KEYS.forEach(function (k) {
-			var v = String(inputs[k].value || "").trim();
-			if (!v) { if (typeof innate[k] === "number") { patch[k] = innate[k]; } else { missing.push(k); } }
-			else { patch[k] = v; }
-		});
-		if (missing.length) { setStatus("缺少先天属性：" + missing.join(" / ") + "（模组要求四项全填）", MCE_CLS.err); return; }
-		var api = mbCEFertApi(), child = null;
-		try { child = list.filter(function (e) { return String(e[0]) === String(sel.value); })[0]; } catch (e) { child = null; }
-		MB_CE_FERT_ID_KEYS.forEach(function (k) {
-			var v = String(inputs[k].value || "").trim();
-			if (v) { patch[k] = v; }
-			else if (api && child && typeof api.identity === "function") { patch[k] = api.identity(child[1])[k] || ""; }
-		});
-		if (patch.species === undefined) { patch.species = (child && child[1] && child[1].species) || "human"; }
-		if (patch.gender === undefined) { patch.gender = (child && child[1] && child[1].gender) || "f"; }
-		var res = mbCEFertRun("fert_innate", String(sel.value), patch);
-		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
-		renderModCheatDetail("fertility-expansion");
-	});
-	container.appendChild(bInnate);
+	mbCEFertInputs = {};
+	mbCEFertRenderInnateBox(container, list, sel, rec0);
 	/* C 养成四项 + 三个二次确认动作 */
 	var skillBox = el("div", "mce-grp");
 	var training = (rec0 && rec0.training && rec0.training.skills) ? rec0.training.skills : {};
-	MB_CE_FERT_SKILL_KEYS.forEach(function (k) { addField(skillBox, "养成 " + k, k, training[k]); });
+	MB_CE_FERT_SKILL_KEYS.forEach(function (k) { mbCEFertAddField(skillBox, mbCEFertLabel(k) + "（" + k + "）", k, training[k], "sk_" + k); });
 	container.appendChild(skillBox);
 	var bSkills = el("button", "mce-btn mce-gold", "保存养育属性"); bSkills.type = "button";
 	bSkills.addEventListener("click", function () {
 		var patch = {}, missing = [];
 		MB_CE_FERT_SKILL_KEYS.forEach(function (k) {
-			var v = String(inputs[k].value || "").trim();
-			if (!v) { if (typeof training[k] === "number") { patch[k] = training[k]; } else { missing.push(k); } }
+			var v = String(mbCEFertInputs["sk_" + k].value || "").trim();
+			if (!v) { if (typeof training[k] === "number") { patch[k] = training[k]; } else { missing.push(mbCEFertLabel(k) + "（" + k + "）"); } }
 			else { patch[k] = v; }
 		});
 		if (missing.length) { setStatus("缺少养成属性：" + missing.join(" / ") + "（模组要求四项全填）", MCE_CLS.err); return; }

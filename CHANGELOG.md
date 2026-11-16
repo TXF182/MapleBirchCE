@@ -2,6 +2,32 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.9（2026-11-16 Mod作弊页「玩家自己」汉化 + 指向明确：生育模组先天/身份九项）
+
+玩家实测截图（CE 面板 v2.1.8，Mod作弊页「玩家自己」区块）：`先天 appearance / 先天 fitness / 先天 intelligence / 先天 temperament`、`身份 species / monster / beastTransform / divineTransform / gender …` 九项**英文键名裸露**，身份九项还是纯文本框（要玩家自己背可选值）。诉求：「处理一下，该汉化的汉化，指向明确一些」。
+
+### 取证（全部读模组自带源码原文）
+
+- 中文名一手来源是**模组自己的 UI**，不是猜译：`tools\_modcache\fert_tmp\DOL-FertilityExpansion-MOD-main\mods\FertilityExpansion\modules\eden-cheats-ui.js` `:151` → `appearance 容貌 / fitness 体格 / intelligence 智力 / temperament 性格倾向`；`:157` → `species 基础种族 / monster 人形特征 / beastTransform 兽化特征 / divineTransform 神圣特征 / gender 生理性别 / size 体型 / hairColour 发色／毛色 / eyeColour 瞳色 / skinColour 肤色`。
+- 模组 `:158` 本来就是 `select(...)` 下拉，`:160-165` `syncMonsterChoice()`：`values.monster.disabled = values.species.value === "human"`（禁用时置 `""`）；`:166` 提示「人类本身已是人形；猫、狐、牛等使用人类基础种族与兽化特征。狼与鸟可选择人形特征。改种族会改变成长速度和养育资格。」
+- 值域与校验：`eden-cheats.js` `:138-147` `choices(child)`（species `human/wolf/hawk`、gender `m/f/h`、monster `""/monster`、beastTransform `""/bird/cat/fox/wolf/cow`、divineTransform `""/angel/fallen/demon`、size 取 `pool.childSize`、hairColour 为 `pool.hairColour + pool.wolfFur + pool.hawkFeather + "black"` 去重、eyeColour 取 `pool.eyeColour`、skinColour 9 档）；`:152-160` `saveInnate()` 逐 key `patch[key] ?? before[key]` 且 `if (value !== before[key] && !options[key].includes(value)) throw "请选择支持的种族或外貌。"`；`:162` human 清 monster；`:164` 孕期禁改；`:165` 已成年结算禁改动物形态；`:166` 先天四项 `numeric(patch[k],0,100,true)` 四项全有值且整数。
+- 原版值集合（`game\Degrees of Lewdity.html` 偏移 15631738 `genePool`）：`wolfFur` 4 / `hawkFeather` 2 / `eyeColour` 11 / `hairColour` 14 / `childSize` 4。
+
+### 新增 / 修正（`04a-14-fert-cheats.js`，195 → 322 行）
+
+- 新增 `MB_CE_FERT_LABELS`（15 键中文名，逐字取模组 `:151`/`:157`，含养育四项 knowledge 知识 / social 社交 / awareness 警觉）、`MB_CE_FERT_VAL_CN`（species / gender / monster / beastTransform / divineTransform / size / skinColour / hairColour / eyeColour 全值中文对照）、`MB_CE_FERT_KEEP = "__mce_keep"`。
+- 新增 `mbCEFertLabel(k)` / `mbCEFertValText(k,v)`（输出 `中文（原值）`）/ `mbCEFertOptions(k,api,child)`（**优先 `api.choices(child)[k]`**，取不到才回落静态表）/ `mbCEFertIdRow(...)`（生成下拉，首项「（保持当前值）」= 哨兵；当前值不在模组选项内时补一条「· 当前值不在模组选项内」防静默改值）。
+- 先天四项标签改 `容貌（appearance）` 式（中文在前、原键名在后做指向）；身份九项改下拉；新增三段 hint（先天四项必须 0–100 整数全填 / 选项与模组 `choices()` 同源 / 模组三条硬规则含 `:162`/`:164`/`:165` 行号 + 人类·猫狐牛·狼鹰的用法说明）。
+- 哨兵不同于空串：`monster` / `beastTransform` / `divineTransform` 的**合法值本身含空串**（语义「无」），所以「不改」不能复用空串；保存时 `if (v !== MB_CE_FERT_KEEP) { patch[k] = v; }`，空串照传。
+- **修掉一个静默错值缺陷**：旧版 `addField` 一律按 `key` 存 `inputs`，而先天 `fitness` 与养育四项的 `fitness` 同名 —— 后渲染的覆盖前者，点「保存先天属性与外貌」实际提交的是养育框里的值。现按域隔离（先天 `in_` / 身份 `id_` / 养育 `sk_`），`data-mce-key` 也用域前缀保证唯一，便于测试与外部定位。
+- 孩子下拉由 `MCE_CLS.inp`（84px 会截断「#7 名字（女）」）改 `mce-sel`，并显式回填首项 value。
+
+### 测试
+
+`tests\test_mce.js` 54.6v 组新增 **12 条断言**（接在 `savedAvail54` 还原行之后）：标签中文化（v1/v2/v3）、身份渲染为下拉（v4）、首项哨兵「（保持当前值）」（v5）、默认回显当前值（v6）、选项带中文对照（v7）、monster 合法空值在选项内（v8）、先天与养育 fitness 是两个独立输入框（v9）、保存取先天框不被养育框污染（v10）、「（无）」照传空串（v11）、选「保持当前值」的项不进 patch（v12）。
+
+> 注意：该节点的 `document` 是自定义 mock（`qsSel37`/`qsAll37` 只认 `[data-x="y"]` 单一属性选择器），组合选择器在 mock 下恒为空 —— 断言改用 `walk54v` 手工递归，不能照搬 jsdom 的 `div[key] select` 写法。
+
 ## v2.1.8（2026-11-16 言灵页「枝叶变装」：leaf shirt + leaf skirt 一键换装 / 原衣入柜 / 一键还原）
 
 玩家实测反馈（贴吧 dol 吧私信）：衣柜里没有枝叶上衣和裙子、没有卖的、「枝叶衣服没法进柜子」，希望直接穿上。开发者给的方案：言灵页加一个把服装变成枝叶上衣 + 枝叶下衣的按钮，被替换的原衣进衣柜，回退时把原衣换回来。

@@ -4531,6 +4531,85 @@ try {
   assert(global.V.cheatsEnabled === prevCheatFlag54 || (!hadCheatFlag54 && global.V.cheatsEnabled === undefined),
     "54.6w9b 抛错路径 cheatsEnabled 仍还原");
   global.window.EdenCheats.available = savedAvail54;
+  /* 54.6v v2.1.9 汉化 + 指向明确：标签改用模组自带 UI 的中文名（eden-cheats-ui.js:151/157）；
+     身份九项由纯文本框改下拉（选项与模组 choices() 同源，eden-cheats.js:138-147）；
+     「保持当前值」哨兵不进 patch（模组 patch[key] ?? before[key] 自行沿用）；
+     先天 fitness 与养成 fitness 不再共用同一个 inputs 键（旧版被后者覆盖 → 先天体格静默写错值）。
+     注意：本节 document 是自定义 mock（qsSel37/qsAll37 只认 [data-x="y"] 单一属性选择器），
+     所以遍历一律用 walk54v 手工递归，组合选择器在 mock 下恒为空。 */
+  function walk54v(node) {
+    const out = [];
+    (function rec(n) { (n.children || []).forEach(function (c) { out.push(c); rec(c); }); })(node);
+    return out;
+  }
+  function row54v(pane, key) {
+    return walk54v(pane).filter(function (n) { return n.getAttribute && n.getAttribute("data-mce-key") === key; })[0] || null;
+  }
+  function pick54v(parent, tag) {
+    return parent && parent.children ? (parent.children.filter(function (c) { return c.tagName === tag; })[0] || null) : null;
+  }
+  const prevEden54v = global.window.EdenCheats;
+  const kid54v = { name: "测试孩子", gender: "f", features: { beastTransform: "bird" } };
+  let lastPatch54v = null;
+  global.V.eden = global.V.eden || {};
+  global.V.eden.children = global.V.eden.children || {};
+  global.V.eden.children["7"] = global.V.eden.children["7"] || {};
+  global.V.eden.children["7"].innate = { appearance: 50, fitness: 50, intelligence: 50, temperament: 50 };
+  global.window.EdenCheats = {
+    available: function () { return true; },
+    children: function () { return [["7", kid54v]]; },
+    identity: function (c) {
+      return { species: "human", monster: "", beastTransform: c.features.beastTransform || "", divineTransform: "",
+        gender: c.gender, size: "normal", hairColour: "black", eyeColour: "green", skinColour: "light" };
+    },
+    choices: function () {
+      return { species: ["human", "wolf", "hawk"], gender: ["m", "f", "h"], monster: ["", "monster"],
+        beastTransform: ["", "bird", "cat", "fox", "wolf", "cow"], divineTransform: ["", "angel", "fallen", "demon"],
+        size: ["tiny", "small", "normal", "large"], hairColour: ["black", "brown"], eyeColour: ["green", "purple"],
+        skinColour: ["light", "dark"] };
+    },
+    saveInnate: function (id, patch) { lastPatch54v = patch; return { ok: true, message: "已保存" }; }
+  };
+  const pane54v = document.createElement("div");
+  fert54.actionPanel(pane54v, fert54);
+  const txt54v = pane54v.textContent;
+  assert(txt54v.indexOf("容貌（appearance）") >= 0 && txt54v.indexOf("性格倾向（temperament）") >= 0,
+    "54.6v1 先天四项标签用模组官方中文名（容貌/体格/智力/性格倾向）");
+  assert(txt54v.indexOf("先天 appearance") < 0 && txt54v.indexOf("身份 species") < 0,
+    "54.6v2 不再出现「先天 appearance」「身份 species」这类英文键名裸标签");
+  assert(txt54v.indexOf("基础种族（species）") >= 0 && txt54v.indexOf("发色／毛色（hairColour）") >= 0,
+    "54.6v3 身份九项标签用模组官方中文名");
+  const selSpecies54v = pick54v(row54v(pane54v, "fert.id:species"), "select");
+  assert(!!selSpecies54v && selSpecies54v.tagName === "select", "54.6v4 身份项渲染为下拉（不再是纯文本框）");
+  assert(!!selSpecies54v && selSpecies54v.children[0].value === "__mce_keep" && selSpecies54v.children[0].textContent === "（保持当前值）",
+    "54.6v5 下拉首项为「保持当前值」哨兵");
+  assert(!!selSpecies54v && selSpecies54v.value === "human", "54.6v6 下拉默认回显当前值, 实际 " + String(selSpecies54v && selSpecies54v.value));
+  const okHuman54v = !!selSpecies54v && selSpecies54v.children.filter(function (o) {
+    return o.value === "human" && o.textContent.indexOf("人类") >= 0;
+  }).length === 1;
+  assert(okHuman54v, "54.6v7 选项文案带中文对照（human（人类））");
+  const selMonster54v = pick54v(row54v(pane54v, "fert.id:monster"), "select");
+  assert(!!selMonster54v && selMonster54v.children.some(function (o) { return o.value === ""; }),
+    "54.6v8 monster 的合法空值「（无）」在选项里（与「保持当前值」用哨兵区分）");
+  const inFit54v = pick54v(row54v(pane54v, "fert.field:in_fitness"), "input");
+  const skFit54v = pick54v(row54v(pane54v, "fert.field:sk_fitness"), "input");
+  assert(!!inFit54v && !!skFit54v && inFit54v !== skFit54v,
+    "54.6v9 先天 fitness 与养成 fitness 是两个独立输入框（旧版共用 inputs.fitness）");
+  inFit54v.value = "44"; skFit54v.value = "88";
+  selMonster54v.value = "";
+  const selHair54v = pick54v(row54v(pane54v, "fert.id:hairColour"), "select");
+  if (selHair54v) { selHair54v.value = "__mce_keep"; }
+  const kidSel54v = walk54v(pane54v).filter(function (n) { return n.tagName === "select" && n.children && n.children.some(function (o) { return o.value === "7"; }); })[0];
+  if (kidSel54v) { kidSel54v.value = "7"; }
+  const btnSave54v = walk54v(pane54v).filter(function (n) { return n.tagName === "button" && n.textContent === "保存先天属性与外貌"; })[0];
+  try { btnSave54v.listeners.click[0](); } catch (e54v) { /* 保存后的面板重渲染在 mock 环境可能抛错，patch 已发出，不影响断言 */ }
+  assert(!!lastPatch54v && lastPatch54v.fitness === "44",
+    "54.6v10 保存先天读的是先天健身框（44），不被养成框（88）污染, 实际 " + String(lastPatch54v && lastPatch54v.fitness));
+  assert(!!lastPatch54v && lastPatch54v.monster === "",
+    "54.6v11 「（无）」照传空串（不是被当成「不改」而丢弃）");
+  assert(!!lastPatch54v && !Object.prototype.hasOwnProperty.call(lastPatch54v, "hairColour"),
+    "54.6v12 选「保持当前值」的项不进 patch（由模组 ?? before[key] 沿用）");
+  global.window.EdenCheats = prevEden54v;
   // 54.6y 需求②：原版「你对什么感到不安?」直写（绕开 attitudesControl 重算门控）
   const attKeys54 = api54.MB_CE_ATTITUDE_ITEMS.map(function (it) { return it.key; }).join(",");
   assert(attKeys54 === "underwear,nude,prostituting,lewd,hypnosis",

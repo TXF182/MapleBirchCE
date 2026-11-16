@@ -3,7 +3,7 @@
   "updatedAt": "2026-11-16",
   "target": "javascript/maplebirchce.js",
   "baseline": {
-    "complexity": 159,
+    "complexity": 158,
     "no-shadow": 18,
     "no-unused-vars": 7,
     "max-lines-per-function": 12
