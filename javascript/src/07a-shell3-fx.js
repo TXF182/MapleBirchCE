@@ -91,6 +91,13 @@ if (typeof document !== "undefined" && document && document.addEventListener) {
  *   所以 07a-shell.js 那 400 行顶格文件一个字都不用动。
  * ---------------------------------------------------------------- */
 
+/* ---- 悬浮球「解锁」二字可读性（v2.1.12，社区反馈 2026-11-17） ----
+ * 基础规则 #mce-toggle 的 color 走 --mce-txt-on-accent（近黑），是按"亮 accent 底"设计的；
+ * 但下面几个主题把球背景换成了深色渐变（cyber #0B2330→#05070F / jade #182421→#0A1110），
+ * 深字落深底，玩家看到的就是"解锁二字没了、以为又出 bug"。
+ * 故主题层的 #mce-toggle 必须自带 color（亮字 + 光晕和暗投影双保险），只改变量不够。
+ * starry 球中央色标 #5D74C9 对深字的近似对比约 4.8:1，仍在可读区间（玩家未反馈），维持原外观。 */
+
 /* ---- 赛博朋克：青 #00E5FF 主调 + 品红 #FF3D9A 副调，网格与斜切光带 ---- */
 MB_CSS +=
 	"#mce-root.mce-theme-cyberpunk{--mce-accent:#00E5FF;--mce-accent-hover:#7DF9FF;--mce-accent-dark:#0089A8;--mce-accent-55:rgba(0,229,255,.55);" +
@@ -118,6 +125,7 @@ MB_CSS +=
 	"#mce-root.mce-theme-cyberpunk .mce-tabs button.mce-active::after{background:linear-gradient(90deg,#FF3D9A,#00E5FF);box-shadow:0 0 10px rgba(0,229,255,.42)}" +
 	"#mce-root.mce-theme-cyberpunk .mce-title{letter-spacing:.12em;text-shadow:0 0 10px rgba(0,229,255,.22)}" +
 	"#mce-toggle.mce-theme-cyberpunk{background:linear-gradient(135deg,#0B2330,#09101E 62%,#05070F);border-color:rgba(0,229,255,.5);" +
+	"color:#E6F7FF;text-shadow:0 0 10px rgba(0,229,255,.55),0 1px 2px rgba(0,0,0,.85);" +
 	"box-shadow:0 0 18px rgba(0,229,255,.26),0 10px 26px rgba(0,0,0,.58)}" +
 	".mce-anchor-prompt.mce-theme-cyberpunk{background:#0A1120;color:#E6F7FF;border-bottom-color:#00E5FF}" +
 	".mce-anchor-prompt.mce-theme-cyberpunk button{background:#0A1120;color:#E6F7FF;border-color:rgba(0,229,255,.28)}" +
@@ -153,6 +161,7 @@ MB_CSS +=
 	"#mce-root.mce-theme-jade .mce-tabs button.mce-active::after{background:linear-gradient(90deg,#5FBFAC,rgba(200,255,242,.5));box-shadow:0 0 8px rgba(127,214,197,.4)}" +
 	"#mce-root.mce-theme-jade .mce-title{letter-spacing:.06em;text-shadow:0 0 8px rgba(95,191,172,.18)}" +
 	"#mce-toggle.mce-theme-jade{background:linear-gradient(135deg,#182421,#111A18 58%,#0A1110);border-color:rgba(95,191,172,.45);" +
+	"color:#C8FFF2;text-shadow:0 0 8px rgba(127,214,197,.45),0 1px 2px rgba(0,0,0,.85);" +
 	"box-shadow:0 0 16px rgba(95,191,172,.2),0 10px 26px rgba(0,0,0,.55)}" +
 	".mce-anchor-prompt.mce-theme-jade{background:#0E211C;color:#DCEAE4;border-bottom-color:#5FBFAC}" +
 	".mce-anchor-prompt.mce-theme-jade button{background:#141F1C;color:#E6EEE9;border-color:rgba(95,191,172,.28)}" +

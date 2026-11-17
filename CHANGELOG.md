@@ -2,6 +2,31 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.12（2026-11-17 青瓷 / 赛博朋克主题悬浮球「解锁」二字可读性修复）
+
+社区反馈（QQ 群，2026-11-17）：「青瓷和赛博朋克的解锁图标太黑」→「建议把这两个的解锁二字改成白色的」→「每次看还以为又出 bug 了解锁消失了」。
+
+### 一、根因：主题把球背景换成深色渐变，文字仍是「亮底专用」的近黑
+
+- 「解锁」二字的唯一常驻渲染点是右下角悬浮球：`09-exports.js:70` `el("button","","解锁")` + `id="mce-toggle"`。
+- 基础样式 `07a-shell.js:169-175`：`background:var(--mce-accent);color:var(--mce-txt-on-accent)`。
+- `--mce-txt-on-accent` 四主题：gold `#1A1206`、starry `#080C1A`、cyberpunk `#021014`、jade `#06130F` —— 全是近黑，为「亮 accent 底」配套。
+- 但 `07a-shell3-fx.js` 把 cyberpunk / jade 的球背景覆盖成深色渐变（`linear-gradient(135deg,#0B2330,#09101E 62%,#05070F)` / `…,#182421,#111A18 58%,#0A1110`），却没覆盖 `color` → 近黑字落近黑底。
+- 量化（近似感知亮度 0.299R+0.587G+0.114B，非 WCAG gamma 曲线）：cyberpunk 1.13:1、jade 1.31:1；可读线 4.5:1。
+- 特异度核实：`#mce-toggle.mce-theme-X`（1 id + 2 class）高于 `#mce-toggle:hover`（1 id + 1 class），主题下 hover 不换背景，因此补 `color` 生效且不会被反转。
+
+### 二、修法（只改 `07a-shell3-fx.js`；`07a-shell.js` 400 行满额不动）
+
+- cyberpunk：`color:#E6F7FF` + `text-shadow:0 0 10px rgba(0,229,255,.55),0 1px 2px rgba(0,0,0,.85)` → 9.05:1
+- jade：`color:#C8FFF2` + `text-shadow:0 0 8px rgba(127,214,197,.45),0 1px 2px rgba(0,0,0,.85)` → 6.97:1
+- 未改：gold（亮金底 `#E3B25F` + `#1A1206` 深字本就可读）、starry（球中央色标 `#5D74C9` 对 `#080C1A` 约 4.8:1，玩家未反馈，保留原外观）。
+- 未扩大改动面：其余用 `--mce-txt-on-accent` 的控件（`.mce-btn.mce-gold` / `.mce-sec-n` / `button.mce-active` / `.mce-btn-active` / `.mce-anchor-go` / `.mce-theme-pick.mce-on`）背景都是亮 `--mce-accent`，深字可读，一律不动。
+
+### 三、断言与产物
+
+- `tests/theme_four.js` 新增 5.16–5.19：主题层 `#mce-toggle` 必须自带显式 `color`，且「解锁」字与球中央色标的近似对比 ≥4.5:1。TDD 先红（修复前 2.22:1 / 2.81:1，取不到 `color` 时按黑计）后绿（9.05:1 / 6.97:1）。
+- 产物 1,125,221 B / SHA256 `84a5f78c2d371eca8f60893128c3e31a9146bb088896dcc87949384a336330f3`（83 段，order `94fe084b7ef2`）。
+
 ## v2.1.11（2026-11-17 撤壳判据回归修复 + $avery_antiques 直达兜底）
 
 v2.1.10 发布后自查，回原版 HTML 逐偏移取证发现两处问题并修复。

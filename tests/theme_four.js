@@ -124,6 +124,42 @@ assert(hasCss("linear-gradient(64deg"), "5.14 星空有 64° 第二条流星线"
 var starDots = (SOURCE.match(/radial-gradient\(\d+(?:\.\d+)?px \d+(?:\.\d+)?px at \d+% \d+%/g) || []).length;
 assert(starDots >= 12, "5.15 星空星点 ≥12 个（实得 " + starDots + "；面板 10 + 正文 3 + 卡片 2）");
 
+/* 5.16–5.19（v2.1.12，社区反馈 2026-11-17）：悬浮球「解锁」二字可读性。
+ * 事实链：基础规则 #mce-toggle 的 color 取 --mce-txt-on-accent（近黑，为"亮 accent 底"设计，07a-shell.js:157/169）；
+ * cyberpunk/jade 主题把球背景覆盖成深色渐变（07a-shell3-fx.js "#mce-toggle.mce-theme-*"），却没盖 color，
+ * 于是近黑字落近黑底 —— 玩家原话"每次看还以为又出 bug 了解锁消失了"。
+ * 判据：主题层 #mce-toggle 必须自带亮 color，且字与球中央色标的近似对比 ≥4.5:1。
+ * 亮度口径 0.299R + 0.587G + 0.114B（简化感知亮度，非 WCAG gamma 曲线；口径写清才能复查）。 */
+function mceRule(sel) {
+  var i = SOURCE.indexOf(sel);
+  return i < 0 ? "" : SOURCE.slice(i, SOURCE.indexOf("}", i) + 1);
+}
+function mceLum(hex) {
+  var v = parseInt(hex.slice(1), 16);
+  return ((v >> 16 & 255) * 0.299 + (v >> 8 & 255) * 0.587 + (v & 255) * 0.114) / 255;
+}
+function mceColor(rule) {
+  var m = rule.match(/color:\s*(#[0-9A-Fa-f]{6})/);
+  return m ? m[1] : "";
+}
+/* 球上文字落在渐变中央，取"标了百分比、最靠近 50%"的那个色标当文字底色 */
+function mceCenterBg(rule) {
+  var g = rule.match(/linear-gradient\([^)]*\)/);
+  var stops = g ? (g[0].match(/#[0-9A-Fa-f]{6}(\s+\d+%)?/g) || []) : [];
+  var pct = stops.filter(function (s) { return /\d+%/.test(s); });
+  return pct.length ? pct[Math.floor(pct.length / 2)] : (stops[0] || "");
+}
+function mceContrast(rule) {
+  var a = mceLum(mceColor(rule)), b = mceLum(mceCenterBg(rule).slice(0, 7));
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+var ruleCyber5 = mceRule("#mce-toggle.mce-theme-cyberpunk{");
+var ruleJade5 = mceRule("#mce-toggle.mce-theme-jade{");
+assert(ruleCyber5.indexOf("color:#") !== -1, "5.16 cyberpunk 悬浮球自带显式 color（不再继承近黑 --mce-txt-on-accent）");
+assert(mceContrast(ruleCyber5) >= 4.5, "5.17 cyberpunk 悬浮球「解锁」字/中央底色近似对比 " + mceContrast(ruleCyber5).toFixed(2) + ":1 ≥ 4.5（修复前 #021014 对 #09101E 只有 1.13:1）");
+assert(ruleJade5.indexOf("color:#") !== -1, "5.18 jade 悬浮球自带显式 color");
+assert(mceContrast(ruleJade5) >= 4.5, "5.19 jade 悬浮球「解锁」字/中央底色近似对比 " + mceContrast(ruleJade5).toFixed(2) + ":1 ≥ 4.5（修复前 #06130F 对 #111A18 只有 1.31:1）");
+
 section("6. 联动：确认条跟随 + 按压环取当前主题辉光");
 api.setTheme("cyberpunk");
 /* showAnchorPrompt(P, meta) 的真实签名：P 是场景注册表项（key/name），meta 是地点/时间元数据 */
