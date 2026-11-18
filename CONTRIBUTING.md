@@ -18,9 +18,9 @@
 # 2) 只改分片源码：javascript\src\*.js
 #    绝不手改 javascript\maplebirchce.js —— 那是构建产物
 
-# 3) 跑全链（12 步，2-4 分钟）
+# 3) 跑全链（13 步，2-4 分钟）
 .\tools\run_all.ps1
-#    build → node --check → ESLint 八规则 → DOM 冒烟 → 全量回归 → 功能级 E2E → 性别集成 → 适配器声明一致性 → 原版数字档位形态 → 覆盖率门禁（lines 90 / branches 70 / functions 95，内含稳定性循环与键核单测）→ tsc 类型检查 → 键注册表一致性
+#    build → node --check → ESLint 十规则 → DOM 冒烟 → 全量回归 → 功能级 E2E → 性别集成 → 适配器声明一致性 → 原版数字档位形态 → 覆盖率门禁（lines 90 / branches 80 / functions 95，内含稳定性循环与键核单测）→ tsc 类型检查 → 键注册表一致性 → 复杂度/遮蔽/未使用变量棘轮
 #    任何一步红都不算完成；末尾自动 codegraph sync
 #    改了适配器键（04a-*.js）先跑 npm run keys:write 更新 keys.registry.json，否则第 12 步会红
 

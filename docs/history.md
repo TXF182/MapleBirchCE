@@ -199,7 +199,7 @@ MapleBirchCE/（git 源码真相源）
 │   └── pre-commit                 # 提交前自动跑一键验证链，失败阻止提交
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                 # 远端 CI（push main / PR / 手动）：npm ci + 同一键链的 11 步（无 moli/打包/codegraph/原版 HTML）
+│       └── ci.yml                 # 远端 CI（push main / PR / 手动）：npm ci + 同口径 10 步（无 moli/打包/codegraph/原版 HTML）
 ├── tests/
 │   ├── smoke_dom.js               # jsdom 浏览器级 DOM 冒烟（19.17 地点×出口穷举 / 19.18 SHA256 同步 / 19.19 间接结束信号审计 / 19.20 多跳序列 / 19.21 注释信号剔除 / 19.22 直达态出口玩家路径）
 │   ├── data/
@@ -227,7 +227,7 @@ MapleBirchCE/（git 源码真相源）
 
 `githooks/pre-commit` 随仓库提交，且为 **fail-closed**：优先 `powershell.exe`，其次 `pwsh`，两者都没有则**阻止提交**（不再静默跳过整条验证链）。紧急绕过可用 `git commit --no-verify`（不推荐，自担风险）。
 
-**远端 CI**：`.github/workflows/ci.yml` 在 push 到 `main` / PR / 手动触发时跑与 `run_all.ps1` 同口径的 12 步（`npm ci` → build + 结构门禁 → `node --check` → ESLint 八规则 → 适配器声明门禁（schema + 矩阵幂等）→ DOM 冒烟 → 全量回归 + 声明矩阵 → E2E + 性别集成 → 面板开关稳定性循环 → 覆盖率门禁 90/80/95 → tsc → 键注册表一致性），跑在 `ubuntu-latest` + **node 22** 上（node 20 会让 jsdom@30 的传递依赖 `undici@8` 在 `require` 阶段报 `Cannot read properties of undefined (reading 'bind')`，见 `.learnings/ERRORS.md#ERR-20261106-011`）。原版 64MB HTML 不入库，因此依赖它的用例在 CI 上**按设计 SKIP**：smoke 的 19.5-19.8（剧情页 UI）与 19.14b、以及性别集成测试；矩阵（`tests/data/direct_exit_matrix.json`）随仓库走，19.17/19.19/19.20/19.21/19.22 等判据断言在 CI 上照常强制。**CI 口径覆盖率略低于本地**（缺原版 HTML 时这些用例 SKIP、不计覆盖），具体数值以该次 Actions 日志的 Coverage summary 为准。
+**远端 CI**：`.github/workflows/ci.yml` 在 push 到 `main` / PR / 手动触发时跑与 `run_all.ps1` 同口径的 **10 步**（`npm ci` → build + 结构门禁 → `node --check` → ESLint 十规则 → 适配器声明门禁（schema + 矩阵幂等）→ 声明结构自洽（check_claims）→ 声明类型形态（check_key_types）→ 原版数字档位形态 → tsc 类型检查 → 键注册表一致性 → 覆盖率门禁 90/80/95，覆盖率门禁内含全部功能测试），跑在 `ubuntu-latest` + **node 22** 上（node 20 会让 jsdom@30 的传递依赖 `undici@8` 在 `require` 阶段报 `Cannot read properties of undefined (reading 'bind')`，见 `.learnings/ERRORS.md#ERR-20261106-011`）。原版 64MB HTML 不入库，因此依赖它的用例在 CI 上**按设计 SKIP**：smoke 的 19.5-19.8（剧情页 UI）与 19.14b、以及性别集成测试；矩阵（`tests/data/direct_exit_matrix.json`）随仓库走，19.17/19.19/19.20/19.21/19.22 等判据断言在 CI 上照常强制。**CI 口径覆盖率略低于本地**（缺原版 HTML 时这些用例 SKIP、不计覆盖），具体数值以该次 Actions 日志的 Coverage summary 为准。
 
 **架构门禁（v2.0.4 P0-P4，外部评估五条落地的对应物）**
 

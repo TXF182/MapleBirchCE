@@ -72,7 +72,7 @@ jobs:
       - name: "[2/10] 产物语法检查"
         run: node --check javascript/maplebirchce.js
 
-      - name: "[3/10] ESLint 八规则"
+      - name: "[3/10] ESLint 十规则"
         run: npx eslint javascript/maplebirchce.js
 
       - name: "[4/10] 适配器声明门禁（schema + 矩阵幂等）"
