@@ -181,7 +181,7 @@ MapleBirchCE/（git 源码真相源）
 │   ├── src-types-baseline.json    # src 类型债务基线：26 文件 / 169 条真债务（隐式 any 家族 1019 条不计账）
 │   ├── lib/adapter_ir.js          # 适配器 IR 装载器：vm 沙箱按 manifest 段序跑 04a-*.js，取回 12 个适配器的真实 entry
 │   ├── validate_adapters.js       # 声明 schema 校验：字段白名单 / 必填 / 类型枚举 / 数值域 / levels-labels / sync / varPath 形状 / modId 一致 / detect 缺失
-│   ├── gen_adapter_matrix.js      # 声明驱动矩阵生成：442 条 / 1006 探针（--check 漂移检测 / --stdout）
+│   ├── gen_adapter_matrix.js      # 声明驱动矩阵生成：425 条 / 969 探针（--check 漂移检测 / --stdout）
 │   ├── audit_adapters.js          # 模组升级核对：扫描第三方模组源码 V 路径 vs 适配器声明
 │   ├── resolve_missing.js         # 缺失条目自动定案：对 audit 报告的每项自动判 KEEP/REVIEW/REMOVE（见下）
 │   ├── check_framework_api.js     # 框架兼容性核对：框架新版 inject_early.js 中 CE 依赖的 API 是否保留
@@ -191,7 +191,7 @@ MapleBirchCE/（git 源码真相源）
 │   ├── report_branch_gaps.js      # 分支覆盖归因：c8 JSON → 产物行号回落到 src 分片（--md / --top N）
 │   ├── run_all.ps1                # 一键验证链（见下）
 │   └── install-hooks.ps1          # 安装 pre-commit 钩子（core.hooksPath → githooks/）
-├── keys.registry.json             # 442 条 varPath 单一真源（13 适配器；gen_key_registry.js 生成，勿手改）
+├── keys.registry.json             # 425 条 varPath 单一真源（12 适配器；gen_key_registry.js 生成，勿手改）
 ├── tsconfig.json                  # tsc 类型闸门配置（allowJs+checkJs，检查拼接产物；不参与打包）
 ├── types/
 │   └── sugarcube-ambient.d.ts     # SugarCube/DoL 运行时全局声明（仅供 tsc，不打包）
@@ -205,7 +205,7 @@ MapleBirchCE/（git 源码真相源）
 │   ├── data/
 │   │   ├── direct_exit_matrix.json # 地点×出口组合矩阵：2158 条 (场景,当前段,Next目标) + 110 场景白名单（gen_direct_exit_matrix.py 产物，勿手改）
 │   │   └── direct_exit_matrix.meta.txt # 生成摘要（路径/bytes/srcHash/规模/规则分布/冲突数/间接结束信号审计）
-│   │   └── adapter_matrix.json    # 适配器声明矩阵：442 条 / 1006 探针 / 13 适配器（gen_adapter_matrix.js 产物，勿手改）
+│   │   └── adapter_matrix.json    # 适配器声明矩阵：425 条 / 969 探针 / 12 适配器（gen_adapter_matrix.js 产物，勿手改）
 │   ├── test_mce.js                # 全量回归（1,548 个 assert 调用；运行输出 PASS 计数 1,658，两者口径不同勿混用；读 git 源构建产物，可用 MCE_PKG_JS 覆盖）
 │   ├── test_adapter_matrix.js     # 声明矩阵回读（6,049 断言：写入→回读→留痕路径→sync 条件→undo 还原；可用 MCE_MATRIX / MCE_SRC_DIR 覆盖）
 │   └── package.json               # 历史遗留的测试依赖声明（jsdom 已提升到根 package.json devDependencies，CI 走根 npm ci）
@@ -215,7 +215,7 @@ MapleBirchCE/（git 源码真相源）
 **一键验证**（日常改完代码只需一条命令）：
 
 ```powershell
-.\tools\run_all.ps1            # build（manifest 段序 + 结构门禁）→ 语法 → ESLint → DOM 冒烟 → 全量回归 + 声明矩阵 → E2E → 性别集成 → 声明 schema 校验 + 矩阵幂等 + 声明一致性 → 原版档位 → 覆盖率 → tsc → 键注册表（12 步）
+.\tools\run_all.ps1            # build（manifest 段序 + 结构门禁）→ 语法 → ESLint → DOM 冒烟 → 全量回归 + 声明矩阵 → E2E → 性别集成 → 声明 schema 校验 + 矩阵幂等 + 声明一致性 → 原版档位 → 覆盖率 → tsc → 键注册表 → 复杂度/遮蔽/未使用变量棘轮（13 步）
 .\tools\run_all.ps1 -Pkg <打包源目录>   # 额外把构建产物同步到打包源
 ```
 
@@ -240,9 +240,9 @@ MapleBirchCE/（git 源码真相源）
 
 **原版 HTML 路径可覆盖**：`tests/smoke_dom.js` 与 `tests/integration_gender.js` 都按 `MCE_DOL_HTML` 环境变量取原版游戏 HTML，未设时回退到本机默认路径；文件不存在则相关段落 SKIP（不误报）。CI / 他人机器无需修改源码即可指定，例：`$env:MCE_DOL_HTML="D:\games\Degrees of Lewdity.html"; node tests/smoke_dom.js`。
 
-**代码检查（ESLint 八规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是不完整片段（段数随拆分变化，以 `build_js.js` 输出的 `(N 段, …)` 与 `order <指纹>` 为准），单文件解析必然失败）。八条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）/ 自赋值 / 恒定条件（`while(true)` 放行）/ 不安全取反 / switch 贯穿。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
+**代码检查（ESLint 十规则）**：`npm install` 后 `npm run lint`；检查对象是拼接产物 `javascript/maplebirchce.js`（`src/` 是不完整片段（段数随拆分变化，以 `build_js.js` 输出的 `(N 段, …)` 与 `order <指纹>` 为准），单文件解析必然失败）。十条规则只抓确定性错误：重复对象键 / 不可达代码 / 函数声明被重赋值 / 松散相等（`== null` 放行）/ 自赋值 / 恒定条件（`while(true)` 放行）/ 不安全取反 / switch 贯穿 / 重复声明 / 未声明标识符。配置见 `eslint.config.js`，已并入 `run_all.ps1` 第 3 步。
 
-**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js`（**新增段要先登记 `src/manifest.json`**，或跑 `node tools/build_js.js --write-manifest`）→ 改完适配器跑 `node tools/validate_adapters.js` 与 `node tools/gen_adapter_matrix.js`（后者会更新 `tests/data/adapter_matrix.json`，须一并提交，否则第 8 步 `--check` 报漂移）→ 一键命令 `.\tools\run_all.ps1`（12 步：build（段序 + 结构门禁）→ 语法 → ESLint → DOM 冒烟 → 全量回归 + 声明矩阵 → 功能 E2E → 性别集成 → 适配器声明 schema + 矩阵幂等 + 声明一致性 → 原版数字档位形态 → 覆盖率门禁 → **tsc 类型检查（产物侧 0 错误 + src 侧 strict 债务棘轮）** → **键注册表一致性**，末尾自动 `codegraph sync`）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 校验（verifier-hub 优先，本机无该包时自动走内置等价核对：条目集合精确匹配 + CRC 全量，判据相同）+ SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
+**日常开发流程（LRN-003 五步升级版）**：改 `javascript/src/*.js`（**新增段要先登记 `src/manifest.json`**，或跑 `node tools/build_js.js --write-manifest`）→ 改完适配器跑 `node tools/validate_adapters.js` 与 `node tools/gen_adapter_matrix.js`（后者会更新 `tests/data/adapter_matrix.json`，须一并提交，否则第 8 步 `--check` 报漂移）→ 一键命令 `.\tools\run_all.ps1`（13 步：build（段序 + 结构门禁）→ 语法 → ESLint → DOM 冒烟 → 全量回归 + 声明矩阵 → 功能 E2E → 性别集成 → 适配器声明 schema + 矩阵幂等 + 声明一致性 → 原版数字档位形态 → 覆盖率门禁 → **tsc 类型检查（产物侧 0 错误 + src 侧 strict 债务棘轮）** → **键注册表一致性** → **复杂度/遮蔽/未使用变量棘轮**，末尾自动 `codegraph sync`）→ 打包 `.\tools\pack.ps1`（zip 正斜杠 + verifier 校验（verifier-hub 优先，本机无该包时自动走内置等价核对：条目集合精确匹配 + CRC 全量，判据相同）+ SHA256）→ 交付（`dev.ps1` 自动装进 `game\`）。测试默认读 git 源构建产物（与打包源解耦）；需要核对打包源时设环境变量 `MCE_PKG_JS`。
 
 **第三方模组升级核对（audit_adapters.js）**：模组发布新版后，运行
 `node tools/audit_adapters.js <适配器id> <新源码目录>`，自动比对适配器声明的 varPath 与源码实际写入的 V 路径，输出缺失（改名/删除）/ 新增候选 / 覆盖率，辅助判断是否需要补适配。适配器 id：`revelation-the-book-of-return` / `dom_robin` / `deadwood-reblooms` / `more_love_interests` / `smartphone` / `cattery` / `more-farm-upgrade`。
@@ -279,12 +279,12 @@ MapleBirchCE/（git 源码真相源）
 
 复现：`npx tsc -p tsconfig.json`
 
-### 2. 键注册表（442 条 varPath 单一真源）
+### 2. 键注册表（425 条 varPath 单一真源）
 
-- **`keys.registry.json`**：13 个适配器 / **442 条** `{key, varPath}`，适配器按 modId 排序、条目保持源码顺序。逐适配器：cattery 47 / deadwood-reblooms 140 / dol-optimization 22 / dolmod 31 / dolonline 19 / dolsims 41 / dom_robin 14 / fertility-expansion 14 / more-farm-upgrade 37 / more_love_interests 1 / revelation-the-book-of-return 60 / smartphone 8 / wraiths-reflection 8。
+- **`keys.registry.json`**：**12 个适配器 / 425 条** `{key, varPath}`（2026-11-18 实测 `node tools/gen_key_registry.js --list`），适配器按 modId 排序、条目保持源码顺序。逐适配器：cattery 47 / deadwood-reblooms 140 / dol-optimization 22 / dolmod 31 / dolsims 41 / dom_robin 14 / fertility-expansion 14 / more-farm-upgrade 37 / more_love_interests 3 / revelation-the-book-of-return 60 / smartphone 8 / wraiths-reflection 8（合计 425）。Dolonline 的 19 条随 v2.1.1 撤除适配器一并移除。
 - **工具** `tools/gen_key_registry.js`：`--write` 生成/更新、`--list` 打印逐适配器计数、无参校验。校验逐条对比，漂移即 `exit 1`，并按 `ADDED / REMOVED / RENAMED`（同 key 不同 varPath）分类打印——**"键改名"从人肉排查 140 条 path 变成构建期报错**。
 - **接入点**：`run_all.ps1` 第 12 步、CI 第 9 步、`npm run check:keys`（改完适配器跑 `npm run keys:write` 再提交）。
-- **口径边界**：`keysWithoutVarPath = 3`（revelation 1 / dolonline 2）——这 3 条只有 key 与类型、没有上游 `varPath`，因此不参与写入路径存活核查；13 个适配器**均未声明** `actions:` 数组（`05a3-modcheat-actions.js` 的 `actions` 渲染分支因此无真实调用者）。
+- **口径边界**：`keysWithoutVarPath = 1`（revelation 的 `scenes` 场面直达项）——这 1 条只有 key 与类型、没有上游 `varPath`，因此不参与写入路径存活核查；12 个适配器**均未声明** `actions:` 数组（`05a3-modcheat-actions.js` 的 `actions` 渲染分支因此无真实调用者）。
 - **同层单测已入链（v2.0.4）**：`tests/test_keycheck.js`（**281 断言**，覆盖 `tools/lib/keycheck.js` 的归一化 / 编辑距离 / 动态键两侧闭合 / 证据分级 / 覆盖率口径）此前是**孤儿测试**——`run_all.ps1`、`run_coverage.js`、`ci.yml` 三处零命中，而 `check_claims` / `check_key_types` / `check_coverage` 三个工具都共用这层内核。现随 `run_coverage.js` 序列在本地第 10 步与 CI 第 10 步执行（不新增全链步号）。
 
 复现：`node tools/gen_key_registry.js`（校验）/ `--list`（计数）
@@ -293,13 +293,14 @@ MapleBirchCE/（git 源码真相源）
 
 实测（`npm run coverage` → `coverage/coverage-final.json` → `node tools/report_branch_gaps.js`）：
 
-| 指标 | 值 | 门禁 |
+| 指标 | 值（2026-11-18 实测 `npm run coverage`，ALL TESTS PASSED） | 门禁 |
 |---|---|---|
-| Statements | 97.50%（15189/15578） | ≥90 |
-| Branches | 81.41%（5651/6941） | ≥80 |
-| Functions | 98.85%（606/613） | ≥95 |
+| Statements | 97.14%（17272/17779） | ≥90 |
+| Branches | 81.16%（6141/7566） | ≥80 |
+| Functions | 97.96%（674/688） | ≥95 |
+| Lines | 97.14%（17272/17779） | ≥90 |
 
-（门禁原为 75/60/80，实测余量过大到"掉 13 个点仍绿"，2026-11-07 收紧到 90/80/95；CI 同阈值，缺原版 HTML 时数值以该次 Actions 日志为准。）
+（旧记录 97.50% / 81.41% / 98.85% 为 v2.0.8 时点，口径已按现跑替换；门禁原为 75/60/80，实测余量过大到"掉 13 个点仍绿"，2026-11-07 收紧到 90/80/95；CI 同阈值，缺原版 HTML 时数值以该次 Actions 日志为准。）
 
 - **68 个分片存在分支缺口**。c8 只认产物一个 key，`tools/report_branch_gaps.js` 按 `javascript/src/manifest.json` 的段序（与 `build_js.js` 同一真源，**不是文件名字典序**——两者有 3 对文件互换，按字典序会把缺口算到错的分片）与补尾换行规则重建「产物行号 → 源分片行号」映射后逐条归因：`&& / || / ?.` 短路兜底 320、防御性 `catch` 417、普通 if-else 131、不可达守卫 64、`typeof` 环境守卫 170、三元 188（合计 1290 条未覆盖分支臂）。
 - **测量抖动（实测，不是估算）**：同一口径两次跑得 80.19%（5487/6842）与 80.14%（5489/6849），分子 ±2、分母随新增分支变化（v2.0.12 的钳位新增 7 个分支点）；判「有没有丢覆盖」必须逐 branch 比对（`node %TEMP%\cov_diff.js A.json B.json`），只看总数会被 ±1 抖动骗过。
@@ -313,6 +314,6 @@ MapleBirchCE/（git 源码真相源）
 - **第二批可补测欠账已落地（2026-11-09 第二轮，plain 181 → 154）**：同一文件扩到 **67 条断言**，新增七组——① 06b 特质写入的 `isnot true/false/undefined/N`、`is undefined` 强制获得、`is "非数字串"` 原串写回、`lt` 边界共 13 条（走的是面板「获取/移除」同一函数，原版特质表没有这些 has 组合所以从未被喂到），外加 520 次 `traitEval` 喂满 512 条判定函数缓存验证整体重建；② 04c `auditAdapters` 的拒绝面（临时注入 3 个畸形适配器，断言后立即删除还原）：缺 modId / modId 与注册键不一致 / 缺 key / 缺 name / 缺 varPath / 空适配器告警；③ 08d 预览值格式化 `null`（L29）与 `JSON.stringify` 返回 `undefined` 回落 `String(v)`（L32，**确认条只渲染队首，两次入队会让断言取错对象**），以及 stage/scenes/char/yanling/无活动页五条分发臂；④ 07d 湖畔兜底补 `V.outside=1`（L209）与 Story 全无时宏预检返回空串（L229）；⑤ 08-npc-traits 的 `V.player` / `V.player.virginity` 缺失自建（L81/L82）与 `timeStamp` 非有限数按 0 起算（L138）；⑥ 07f-lock 锁定留痕缺 `before` 时补记首次真实值（L139）；⑦ 07f-lurker 三条锁态提示（手持/冰箱/蒸馏笼，L170-172）。实测 plain 181 → 154、分支覆盖 80.30% → **80.87%（5570/6888）**，`node tests/plain_branches.js` 全断言通过、`run_all.ps1` 12 步全绿。
 - **第三批可补测欠账已落地（2026-11-09 第三轮，plain 154 → 131）**：同一文件扩到 **96 条断言**，本轮五组——① 07e 场景注册表解析（widget 段落缺 `<<set $scenes to {`、大括号不闭合、Story 全文恢复块未闭合、`"rec1"` 定义整份返回、widget 与 V.scenes 同 key 不覆盖）；② 跨文件零散（06c `isModOnlyRoot("")`、07e-scenes2 未知动作）；③ 04b 列表写入门禁（原版根拒绝 / 宿主不存在拒绝 / 预览门控回调）；④ 07f-pins2 队列边界（播放中 passage end 不清理队列、旧版单固定同 key 去重、入口段落缺失直达回传失败）；⑤ 04a-15 孩子阶段/地点兜底（`edenDeleted` → removed、无 `development` 直写 `child.location`、只读 development 写不进 → 明确拒绝）与 03c 原版恋爱阶段回退（非 gwylan 返回 0、`seen` 未含该值仍回执、partners/romance 分支）。实测 plain 154 → **131**、分支覆盖 80.87% → **81.41%（5651/6941）**；差分工具确认消失 14 条、新增 0 条。**注意本轮分母 6888 → 6941（+53）**，净收益必须看 plain 明细差分而不是百分比。
 `01-core.js` 76.4%（51）/ `07f-pins2-anchor.js` 75.3%（47）/ `08c-undo-center.js` 78.0%（45）/ `04a-15-fert-children.js` 80.8%（42）/ `07d-places2.js` 73.2%（42）/ `07i-yanling-actions.js` 81.4%（42）/ `09-exports.js` 63.8%（38）/ `07h-render2.js` 73.6%（38）/ `05b-modcheat-player.js` 77.2%（37）/ `07f-pins3-queue.js` 78.7%（36）。
-- **口径提醒**：覆盖率数字随源码改动变化，本节数值对应**当前 HEAD 工作区**（2026-11-09 第三轮收口实测，分支总覆盖 81.41% = 5651/6941、Statements 97.50% = 15189/15578；同口径历史抖动 80.81% / 80.83% / 80.87%，分子 ±4 属已知抖动，判"有没有丢覆盖"必须逐 branch 比对）；`coverage/coverage-final.json` 由 `npm run coverage:gate` 每轮刷新，报告会拒绝早于产物的旧数据（exit 2），不会静默给过期数字；改码后请重跑 `npm run coverage:gate` 再看，不要引用本节旧数。
+- **口径提醒**：覆盖率数字随源码改动变化。**本节第 3 小节表格已按 2026-11-18 复测更新（Stmts 97.14% = 17272/17779、Branches 81.16% = 6141/7566）**；第 305–316 行的分片段数、plain 欠账明细仍是 **2026-11-09 第三轮收口快照**（81.41% = 5651/6941），按历史记录读，不要当现状引用。`coverage/coverage-final.json` 由 `npm run coverage:gate` 每轮刷新，报告会拒绝早于产物的旧数据（exit 2），不会静默给过期数字；改码后请重跑 `npm run coverage:gate` 再看。
 
 复现：`npm run coverage` && `node tools/report_branch_gaps.js --md --top 15`

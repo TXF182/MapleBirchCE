@@ -217,7 +217,7 @@
 | [AGENTS.md](AGENTS.md) | 分支纪律：§5 对照源码权威表与适配器键数、§6 mod 装载通道 | 改装配流程、加适配器前 |
 | [CHANGELOG.md](CHANGELOG.md) | 逐版本变更（发布 body 的来源） | 回溯某版本改了什么 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 提交流程、钩子、ESLint 十规则、全链 13 步 | 首次贡献/改工具链前 |
-| 本文档「[质量闸门与已知缺口台账](#质量闸门与已知缺口台账)」 | tsc 闸门、425 条键注册表、分支覆盖 80% 的逐项归因 | 想问"为什么不报错/到底测了多少"时 |
+| [docs/history.md](docs/history.md) 的「质量闸门与已知缺口台账」 | tsc 闸门、425 条键注册表、分支覆盖 80% 的逐项归因 | 想问"为什么不报错/到底测了多少"时 |
 
 **已知坑位**（消费端 `DoL-Project\.learnings\`）：
 - `ERRORS.md#ERR-20261106-016` — 把 zip 复制进 `game\` 就算装好模组（实机加载走 IndexedDB，且 `init` 计数是自举数不是 mod 数）

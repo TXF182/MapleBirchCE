@@ -1,7 +1,7 @@
 # 声明类型取证口径与不可得性证明
 
-> 生成：2026-11-06 ｜ 对应工具：`tools/check_key_types.js`
-> 本文解决的问题：把「NO_EVIDENCE 171 条」从「还没做」变成「已证明静态源码不可判定」，避免它被误读成缺陷，也避免为了降数字而放宽判据。
+> 生成：2026-11-06 ｜ 最近复测：2026-11-18（278 条 / NO_EVIDENCE 53）｜ 对应工具：`tools/check_key_types.js`
+> 本文解决的问题：把「NO_EVIDENCE」这类结果从「还没做」变成「已证明静态源码不可判定」，避免它被误读成缺陷，也避免为了降数字而放宽判据。
 
 ## 一、判据（三类证据，逐条独立）
 
@@ -13,24 +13,24 @@
 
 `classifyLiteral()` 把右值分成 number / string / boolean / array / object / null；`judge()` 只在「声明 list 却实测非数组」「声明 number 却实测非数字」「声明 boolean 遇到非布尔」时报 CONFLICT，`boolean` 遇 `number` 降级为 `WARN_BOOL_01`（模组用 0/1 非严格比较时属正常）。
 
-## 二、当前结果（276 条声明）
+## 二、当前结果（278 条声明）
 
 ```
 node tools/check_key_types.js
-→ 276 条：CONFLICT 0 / STRICT 0 / WARN_BOOL_01 1 / NO_EVIDENCE 51
+→ 278 条：CONFLICT 0 / STRICT 0 / WARN_BOOL_01 1 / NO_EVIDENCE 53
 ```
 
-> v2.0.0.001 首版为 NO_EVIDENCE 171；v2.0.2～v2.0.3 轮把判据扩展到 TS 字段声明、初始化对象字面量、`??` 惰性初始化后降到 **51 条**（2026-11-07 实测）。这 51 条已逐条取证，结论见第五节——**51/51 都找到了模组侧类型语义证据，0 条与声明冲突**，仍报 NO_EVIDENCE 的原因是判据的「访问形态」覆盖不足，不是声明错。
+> v2.0.0.001 首版为 NO_EVIDENCE 171；v2.0.2～v2.0.3 轮把判据扩展到 TS 字段声明、初始化对象字面量、`??` 惰性初始化后降到 **51 条**（2026-11-07 实测）；**2026-11-18 复测为 53 条**（总数 276→278，多出的 2 条是 more_love_interests 的 `options.mateForLifeDebuff` / `dragMode`，补证见 5.7）。这 53 条已全部逐条取证，结论见第五节——**53/53 都找到了模组侧类型语义证据，0 条与声明冲突**，仍报 NO_EVIDENCE 的原因是判据的「访问形态」覆盖不足，不是声明错。
 
 唯一 WARN：`wraiths-reflection | RefuseWR`，声明 boolean、证据 `wr134/.../ReturnNecklace.twee:376 → <<set $RefuseWR to 1`。已取证该键只用真值判定（`SchismWR.txt:3` 的 `!$RefuseWR` + `Shit.json5:78` 的 `<<unset>>`），boolean 语义正确，**不改**。
 
-`--json` 全量输出（69,350 B，276 条 verdict + evidence）可导出后按 verdict 过滤：
+`--json` 全量输出（75,207 B，278 条 verdict + evidence，2026-11-18 实测；旧记录 69,350 B / 276 条）可导出后按 verdict 过滤：
 
 ```powershell
 node tools/check_key_types.js --json > "$env:TEMP\kt.json"
 ```
 
-## 三、为什么 171 条拿不到证据：实测数据，不是推测
+## 三、为什么那 171 条（v2.0.0.001 时期）拿不到证据：实测数据，不是推测
 
 三个方向都试过，结论如下。
 
@@ -74,9 +74,9 @@ node "$env:TEMP\probe_usage_evidence.js" "$env:TEMP\kt.json" "tools\_modcache\ST
 
 - 报 `NO_EVIDENCE` ≠ 有问题：它表示「静态源码无法判定」，工具按保守策略不表态。
 - 真正的风险形态是 `STRICT_NUM` / `STRICT_BOOL`（声明与被严格比较的类型相反，面板写成功但模组判定恒假）。这类已 0 条，且 v2.0.0.001 已修两例真实静默失效。
-- 因此「功能语义正确性」的可验证部分已达 100%：**400+ 条声明的结构自洽 0 命中、类型冲突 0、严格失配 0**；剩余 171 条属静态不可判定，已用实测证明不可判定。
+- 因此「功能语义正确性」的可验证部分已达 100%：**400+ 条声明的结构自洽 0 命中、类型冲突 0、严格失配 0**；剩余项属静态不可判定，已用实测证明不可判定（2026-11-18 复测为 53 条，见第二节与 5.7）。
 
-## 五、v2.0.3 现状：51 条逐条取证（2026-11-07）
+## 五、v2.0.3 起 53 条逐条取证（51 条于 2026-11-07，2 条于 2026-11-18 补）
 
 判据扩展后剩 51 条。下表逐条给出**模组侧的类型语义证据**（证据文件均在 `tools/_modcache/<版本目录>/`，行号为本轮实测），结论列说明为什么 `collectEvidence()` 取不到它。
 
@@ -133,8 +133,15 @@ node "$env:TEMP\probe_usage_evidence.js" "$env:TEMP\kt.json" "tools\_modcache\ST
 | 47-50 | `science_exam` / `maths_exam` / `english_exam` / `history_exam` | number | `cityhall.js:410` `if (typeof V[key + "_exam"] !== "number") V[key + "_exam"] = 0;`；`computer.js:508` 同构 | ✓ 动态拼接键 + `typeof` 显式数字校验（最强证据） |
 | 51 | `ngplusCycle` | number | `dolmod0990/moduel/system/ngplus.twee:69` `<<if def $ngplusCycle and $ngplusCycle gte 1>>`；`:70` `<<print $ngplusCycle + 1>>` | ✓ 算术 + 数字比较（由 `script/ngplus.js` 运行时写入） |
 
-### 5.6 结论
+### 5.6 more_love_interests（2，2026-11-18 补）
 
-- **51/51 找到模组侧类型语义证据，0 条与声明类型冲突**（与 CONFLICT 0 一致）。
+| # | varPath | 声明 | 模组侧证据 | 结论 |
+|---|---|---|---|---|
+| 52 | `options.mateForLifeDebuff` | boolean | `mli0180/game/more_love_interest_main.twee:98` `<<checkbox "$options.mateForLifeDebuff" false true autocheck>>`（默认 false，勾选写 true）；`more_love_interest_box.twee:39/80` 与 `More_Love_Interest_Mod_Drag.js:20/34` 均为真值判定 `… && V.options.mateForLifeDebuff` | ✓ 真值判定；`$options` 由本体初始化，父链缺失时写入器优雅拒绝 |
+| 53 | `dragMode` | boolean | `more_love_interest_main.twee:109` `<<set $dragMode to $dragMode ? undefined : true>>`（toggle 为 true / unset）；`:108` 三元取值、`box.twee:9/63` `<<if $dragMode>>` | ✓ 真值判定，undefined 视为选项模式 |
+
+### 5.7 结论
+
+- **53/53 找到模组侧类型语义证据，0 条与声明类型冲突**（与 CONFLICT 0 一致）。
 - 取不到证据的共同原因是**访问形态**不在判据内：`C.npc.` 框架别名、`value(name, default)` 辅助写入、`??=`、`++/--`、`+=/-=`、算术运算（`*` `/`）、非字面 RHS（`Time.days`）、动态拼接键（`key+"_exam"`、`[_args[0].name]`）、点号数字下标。
 - 未放宽判据的理由：`C.npc.` 别名与点号下标若直接采信会同时放进误判风险（前者依赖框架运行时映射、后者与 `plots.farm.0.*` 同形但语义不同）；本轮选择「文档逐条取证」而不是「为降数字改判据」——与 3.2 的结论一致。

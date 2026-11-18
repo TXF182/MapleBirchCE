@@ -116,7 +116,7 @@
 | 新增断言 `tests/forest_shop_direct.js` | **34 PASS / 0 FAIL**（组序、主场景、子入口、widget 段排除、`$tryOn` 四态、`placeHolder` 过滤、EXTRA 不误伤、正门并行 5 条） |
 | `tests/test_mce.js` | **ALL TESTS PASSED**（27.10 口径改 110 + 新增「名单不含 placeHolder」「`isVanillaSceneKey` 判否」两条） |
 | 结构门禁 | 78 段，单段上限 400（`07d-places4.js` 顶格 400），豁免 0，续号白名单 11 → **通过** |
-| `run_all.ps1` 12 步 | **ALL CHECKS PASSED**（含 tsc 0 错误、src strict 债务 0、键注册表 470 条一致） |
+| `run_all.ps1` 12 步 | **ALL CHECKS PASSED**（含 tsc 0 错误、src strict 债务 0、键注册表 470 条一致）｜**注：470 条与 12 步是当时口径；Dolonline 撤除后为 425 条 / 12 适配器，全链现为 13 步** |
 | 覆盖率 | lines 97.34%（16378/16825）/ branches 81.56%（5927/7267）/ functions 98.43%（630/640），门槛 90 / 80 / 95 |
 | 打包 | **343,054 B** / SHA256 `C531217EAD1EB2FC95EE36709F9C5BB9ED3FB5F617CF79758D3B5D60D41624E4`；verifier exact 4/4 + 集合相等 + CRC 全量 |
 | 产物 JS | 78 段 / 1,057,014 B / SHA256 `D2891CC466A284A246841ECE7AF97C5465F888D63FB609F80498FAC135DC1AB4` / order `87c15759aeac` |
