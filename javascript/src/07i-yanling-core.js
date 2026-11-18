@@ -200,6 +200,73 @@
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 怀孕名声上限解锁（2026-11-18 原版 clamp 取证轮）：名声上限 = clamp(总生育,1,8)*250，只写 $fame.pregnancy 会被
+	   famepregnancy / fameclamp 当场压回，所以必须抬 sexStats.vagina.pregnancy.totalBirthEvents。
+	   写阴道 8 → 两通道合计 8 → 上限 8*250=2000；后庭不动（anus.totalBirthEvents ≥1 会顺带解锁
+	   「肛孕」判定 playerAwareTheyCanBePregnant，这个副作用不该由本按钮替玩家决定）。
+	   只抬不降：已有 ≥8（例如已经拿到 Gaia 档的 20 次）不往回写。 */
+	var mbCEYanlingPregFameCount = 8;
+	function mbCEYanlingUncapPregnancyFame() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var vs = V.sexStats;
+			var vp = vs && vs.vagina && vs.vagina.pregnancy;
+			if (!vp || typeof vp !== "object") { return { ok: false, msg: "本存档无 $sexStats.vagina.pregnancy（尚未初始化）" }; }
+			if (!V.fame || typeof V.fame !== "object") { return { ok: false, msg: "本存档无 $fame 对象（原版 182504-182518 初始化）" }; }
+			var cur = Number(vp.totalBirthEvents);
+			var before = { totalBirthEvents: vp.totalBirthEvents, famePregnancy: V.fame.pregnancy };
+			if (!(cur >= mbCEYanlingPregFameCount)) { vp.totalBirthEvents = mbCEYanlingPregFameCount; }
+			/* 上限已抬够，直接写满；幂等写入同值无副作用，before 已留原值可回退 */
+			V.fame.pregnancy = 2000;
+			/* 留痕只记首次：重复点击后撤销仍能回到「改之前」的原值 */
+			mbCEYanlingTraceKeep("uncap_pregnancy_fame", before, { totalBirthEvents: vp.totalBirthEvents, famePregnancy: 2000 });
+			/* 上限只按阴道计数算：后庭计数只会让合计更高，而阴道 8 已顶到 clamp 上限 2000，结论不受影响 */
+			var cap = Math.min(Math.max(Number(vp.totalBirthEvents), 1), 8) * 250;
+			return { ok: true, msg: "怀孕名声已解锁并拉满（阴道生育计数 " + String(vp.totalBirthEvents) + " → 名声上限 " + String(cap) + "，名声已写 2000；后庭计数未动）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 留痕「只记首次」：重复点同一个拉满按钮不覆盖最初 before。
+	   否则第二次点击会把 before 写成「第一次点击后」的值，撤销等于原地打转（玩家看到撤销无效）。 */
+	function mbCEYanlingTraceKeep(op, before, after) {
+		var V = getV();
+		var prev = V && V.mbCE_wrote && V.mbCE_wrote["yanling:" + op];
+		if (prev && prev.before) { return false; }
+		mbCEYanlingTrace(op, before, after);
+		return true;
+	}
+
+	/* 还原辅助：把 obj[key] 还原成 val；val 为 undefined 说明原态就是「键不存在」，走 delete
+	   （写 undefined 会被 SugarCube 当成一个值存下来，后续 clamp 会得到 NaN）。 */
+	function mbCEYanlingRestoreKey(obj, key, val) {
+		if (!obj || typeof obj !== "object") { return false; }
+		if (val === undefined) {
+			try { delete obj[key]; } catch (e) { obj[key] = undefined; }
+		} else { obj[key] = val; }
+		return true;
+	}
+
+	/* 撤销怀孕名声上限解锁（2026-11-18 回退补齐）。
+	   缺口来源：全局撤销中心把 yanling 类型显式禁用（08c-undo-center.js:30「言灵改写在对应开关处撤销」），
+	   而言灵页只有开关配了撤销 —— 本按钮不配自带回退就会「点了回不去」，违背「新功能写入默认支持回退」。
+	   数据源只有 yanling:uncap_pregnancy_fame 的 before（不猜原值，没留痕就明确拒绝）。 */
+	function mbCEYanlingRestorePregnancyFame() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var rec = V.mbCE_wrote && V.mbCE_wrote["yanling:uncap_pregnancy_fame"];
+			if (!rec || !rec.before) { return { ok: false, msg: "没有可撤销的留痕（先点一次「一键拉满：怀孕名声」）" }; }
+			var vs = V.sexStats;
+			var vp = vs && vs.vagina && vs.vagina.pregnancy;
+			if (!vp) { return { ok: false, msg: "本存档无 $sexStats.vagina.pregnancy（尚未初始化）" }; }
+			var curBirth = vp.totalBirthEvents;
+			mbCEYanlingRestoreKey(vp, "totalBirthEvents", rec.before.totalBirthEvents);
+			mbCEYanlingRestoreKey(V.fame, "pregnancy", rec.before.famePregnancy);
+			return { ok: true, msg: "已撤销：生育计数 " + String(curBirth) + " → " + String(rec.before.totalBirthEvents) + "，怀孕名声回 " + String(rec.before.famePregnancy) + "（留痕保留，可重复撤销）" };
+		} catch (e) { return { ok: false, msg: "撤销异常：" + mbCEYanlingErr(e) }; }
+	}
+
 	/* 守卫：开关开启期间每秒把存量压回 0（防读档后残留、防战斗/舞蹈中途恢复判定）。
 	   全部包在 try 内 —— 回调里的任何异常都不能每秒抛一次（见 ui-tick-refresh-scope-guard）。 */
 	function mbCEYanlingTick() {

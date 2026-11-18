@@ -95,7 +95,7 @@
 			s2.appendChild(rowT);
 
 			/* ③ 负面名声清零 */
-			var s3 = mceNewSec(gA, 3, "负面名声清零", "学校名声仅 crossdress / herm 两键（schoolrep 346656-346682）；城镇名声取 V.fame 负面 8 项（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp），并同步删除 V.fameDecay / V.fameDecayTimer 的衰减队列项，避免清零后又被队列改回。正面项（scrap / good / business / social / model）由本区块第二个按钮单独拉满到 2000（290894-290895 clamp 与 306924-306928 numberStepper max 双实证）。");
+			var s3 = mceNewSec(gA, 3, "负面名声清零", "学校名声仅 crossdress / herm 两键（schoolrep 346656-346682）；城镇名声取 V.fame 负面 8 项（sex / prostitution / rape / bestiality / pregnancy / impreg / exhibitionism / pimp），并同步删除 V.fameDecay / V.fameDecayTimer 的衰减队列项，避免清零后又被队列改回。正面项（scrap / good / business / social / model）由「一键拉满：正面名声」按钮单独拉满到 2000（290894-290895 clamp 与 306924-306928 numberStepper max 双实证）；怀孕名声另有独立按钮，因为它的上限不是 2000，而是 clamp(总生育,1,8)*250 —— 只写名声会被 famepregnancy / fameclamp 当场压回，必须先抬 sexStats.vagina.pregnancy.totalBirthEvents。");
 			var schTxt = "—";
 			try {
 				if (V && V.schoolrep && typeof V.schoolrep === "object") {
@@ -117,6 +117,8 @@
 			var s3g = mceBtnGrid(s3);
 			mkBtn(s3g, "一键清零：学校异装名声", MCE_CLS.gold, mbCEYanlingPurgeCross, "清 $schoolrep.crossdress 并删 $school_crossdress_message");
 			mkBtn(s3g, "一键清零：全部负面名声", MCE_CLS.gold, mbCEYanlingPurgeFame, "学校 crossdress/herm + 城镇 fame 负面 8 项 + 衰减队列");
+			mkBtn(s3g, "一键拉满：怀孕名声（先抬上限）", MCE_CLS.gold, mbCEYanlingUncapPregnancyFame, "名声上限 = clamp(总生育,1,8)*250，只写名声会被 famepregnancy/fameclamp 当场压回；本按钮把 sexStats.vagina.pregnancy.totalBirthEvents 抬到 8（上限 2000）再写 fame.pregnancy=2000。副作用：生育次数显示 8、特质跳 Broodmother(8–19)、处女膜判定转 false、公开名声任务目标升到 2000；schism/scarlet 处女膜恢复会把计数清零，上限随之塌回 250。后庭计数不动（避免顺带解锁肛孕判定）。");
+			mkBtn(s3g, "撤销：怀孕名声上限", MCE_CLS.gold, mbCEYanlingRestorePregnancyFame, "按留痕 yanling:uncap_pregnancy_fame 的 before 还原 sexStats.vagina.pregnancy.totalBirthEvents 与 fame.pregnancy；原态是「键不存在」时走 delete（避免写 undefined 被 clamp 成 NaN）。留痕只记首次点击前，重复拉满不会覆盖最初原值，所以撤销总能回到「改之前」。全局撤销中心不解言灵类（08c-undo-center.js:30），回退入口只有这里。");
 			mkBtn(s3g, "一键拉满：正面名声", MCE_CLS.gold, mbCEYanlingMaxFame, "fame.good / business / scrap / social / model 各写 2000（实证 clamp 上限 2000；pregnancy 上限动态不写）");
 
 			/* ⑩ 枝叶变装（v2.1.8 玩家实测诉求：衣柜没有枝叶上衣和裙子、没得卖、「枝叶衣服没法进柜子」） */

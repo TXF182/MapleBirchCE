@@ -2,6 +2,39 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.13（2026-11-18 怀孕名声上限解锁 + 回退补齐）
+
+玩家连问「怀孕名声上限是多少 / 不到生育次数会不会被锁」→ 回原版源码取证后落地，并补齐撤销通道。
+
+### 一、机制（0.5.12.13 源码直读，非推测）
+
+- 累加点 `famepregnancy`（54 处调用）：`$fame.pregnancy += _args[0]` 后 `Math.clamp($fame.pregnancy, 0, Math.clamp(playerNormalPregnancyTotal() + 1, 1, 8) * 250)`。
+- 兜底 `fameclamp`（5 处）：`Math.clamp($fame.pregnancy, 0, Math.clamp(playerNormalPregnancyTotal(), 1, 8) * 250)`，不带 +1、更严。
+- `playerNormalPregnancyTotal()` = 阴道 + 后庭 `totalBirthEvents` 之和（全库 59 处引用）。
+- 结论：上限 = `clamp(正常生育次数,1,8) × 250` → **250–2000**。没生过最多 250，生满 7 次（记 8）才到 2000；直接写 `$fame.pregnancy = 2000` 会被当场压回，属「写值静默失效、不报错」。
+
+### 二、实现（言灵页 ③ 区块）
+
+- 「一键拉满：怀孕名声（先抬上限）」：`sexStats.vagina.pregnancy.totalBirthEvents` 抬到 8（**只抬不降**，已有 10 次不回写），再写 `fame.pregnancy = 2000`；后庭计数不动（不替玩家决定「肛孕」解锁）。
+- 「撤销：怀孕名声上限」：按留痕 `yanling:uncap_pregnancy_fame` 的 before 还原两项；原态是「键不存在」时走 delete（避免写 undefined 被 clamp 成 NaN）。
+- 留痕改「只记首次」（`mbCEYanlingTraceKeep`）：重复点拉满不覆盖最初 before —— 否则第二次点击后撤销等于原地打转。
+- 缺口来源：全局撤销中心把 `yanling` 类型显式禁用（`08c-undo-center.js:30`），言灵页只有开关自带撤销，所以本按钮必须自带回退。
+
+### 三、同类 clamp 盘点（`Math.clamp` 全库 785 处 / 第三参非字面量 181 处）
+
+- 只有 `fame.pregnancy` 是「上限由另一条进度决定」，值得一键完成。
+- 其余两类不做突破入口：
+  - 硬编码常量（抬 max 也无效）：tiredness 2000（`fatigueClamp` 内溢出判定同写死 2000）、pain 200、delinquency 0–1000、drugged 0–1000。
+  - 可写 max 变量（改 max 可绕过，但破坏压力→创伤、疲劳→昏倒等状态机）：stress / trauma / arousal / control / willpower / oxygen / cool / drunk / spray / semen_max / milk_max。
+- 遗留（未改，待玩家拍板）：面板「负面状态」9 项声明 `max: 999999`，其中 6 项写超会被原版压回，属 UI 文案误导。
+
+### 四、断言与产物
+
+- `tests/yanling_state.js`：新增 5b（10 条）+ 5c（6 条）+「重复点击不覆盖最初 before」1 条 → **69/0**。
+- 全链 13 步全绿；覆盖率 97.15 / 81.11 / 97.97 / 97.15（branches 6158/7592，新增分支使分母 +14）；棘轮 complexity 158 未涨（新函数首版 11，用 `!(x>=n)` 替代 `isFinite||`、直接写值替代 `!==` 判断、去掉通道合计降回 10）。
+- 产物 1,131,272 B / SHA256 `cb25c075efadfdc6cec1acaf7e3353a4c999f02148cccbae2170fb57938d9bf6`（83 段，order `94fe084b7ef2`）。
+- 发布包 370,540 B / SHA256 `2A65D1C4CF5C67791EE63360BDD47054DAB1DD672E1C7870A5A6FBAFB688A838`（4 条目全正斜杠，verifier 严格三项 4/4）。
+
 ## v2.1.12（2026-11-17 青瓷 / 赛博朋克主题悬浮球「解锁」二字可读性修复）
 
 社区反馈（QQ 群，2026-11-17）：「青瓷和赛博朋克的解锁图标太黑」→「建议把这两个的解锁二字改成白色的」→「每次看还以为又出 bug 了解锁消失了」。

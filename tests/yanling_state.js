@@ -151,6 +151,47 @@ assert(V.fame.pregnancy === undefined, "pregnancy 不写（上限动态，见源
 const mf2 = api.yanlingMaxFame();
 assert(mf2.ok === true && /实际改写 0 项/.test(mf2.msg), "二次拉满 → 改写 0 项（幂等）");
 
+/* ================= 5b. 怀孕名声上限解锁 ================= */
+section("5b 怀孕名声上限");
+V.sexStats = { vagina: { pregnancy: { totalBirthEvents: 2, motherStatus: "none" } }, anus: { pregnancy: { totalBirthEvents: 0 } } };
+V.fame.pregnancy = 500;
+const up = api.yanlingUncapPregnancyFame();
+assert(up.ok === true, "解锁返回 ok");
+assert(V.sexStats.vagina.pregnancy.totalBirthEvents === 8, "生育计数抬到 8（fameclamp 上限随之为 2000）");
+assert(V.fame.pregnancy === 2000, "怀孕名声写 2000（上限已抬够，不会再被压回）");
+assert(/上限 2000/.test(up.msg), "消息按两通道合计算上限（8×250=2000）");
+assert(V.mbCE_wrote["yanling:uncap_pregnancy_fame"].before.totalBirthEvents === 2, "留痕记录抬升前的生育次数（可回退）");
+assert(V.mbCE_wrote["yanling:uncap_pregnancy_fame"].before.famePregnancy === 500, "留痕记录抬升前的怀孕名声");
+/* 只抬不降：已有 10 次（Gaia 档）不往回写 */
+V.sexStats.vagina.pregnancy.totalBirthEvents = 10;
+const up2 = api.yanlingUncapPregnancyFame();
+assert(up2.ok === true && V.sexStats.vagina.pregnancy.totalBirthEvents === 10, "已有 10 次不被降回 8（只抬不降）");
+assert(V.mbCE_wrote["yanling:uncap_pregnancy_fame"].before.totalBirthEvents === 2, "重复点击不覆盖最初 before（撤销仍能回到改之前）");
+assert(V.sexStats.anus.pregnancy.totalBirthEvents === 0, "后庭计数保持 0（不替玩家解锁肛孕判定）");
+/* 缺 sexStats.vagina.pregnancy → 明确拒绝 */
+const savedSex = V.sexStats;
+V.sexStats = undefined;
+const up3 = api.yanlingUncapPregnancyFame();
+assert(up3.ok === false && /无 \$sexStats/.test(up3.msg), "无 sexStats 时明确拒绝（不造空壳）");
+V.sexStats = savedSex;
+
+/* ================= 5c. 撤销怀孕名声上限（回退补齐） ================= */
+section("5c 撤销怀孕名声上限");
+/* 到这里计数是 10、名声 2000，最初留痕仍是 2 / 500（5b 已验证 TraceKeep 不覆盖） */
+const rs1 = api.yanlingRestorePregnancyFame();
+assert(rs1.ok === true, "撤销返回 ok");
+assert(V.sexStats.vagina.pregnancy.totalBirthEvents === 2, "生育计数还原到改之前（2）");
+assert(V.fame.pregnancy === 500, "怀孕名声还原到改之前（500）");
+assert(/→ 2/.test(rs1.msg), "消息报出还原后的计数（玩家可核对）");
+const rs2 = api.yanlingRestorePregnancyFame();
+assert(rs2.ok === true && V.sexStats.vagina.pregnancy.totalBirthEvents === 2 && V.fame.pregnancy === 500, "重复撤销幂等（留痕保留）");
+/* 留痕缺失 → 拒绝，不猜原值、不写任何键 */
+const savedPrec = V.mbCE_wrote["yanling:uncap_pregnancy_fame"];
+V.mbCE_wrote["yanling:uncap_pregnancy_fame"] = undefined;
+const rs3 = api.yanlingRestorePregnancyFame();
+assert(rs3.ok === false && /没有可撤销的留痕/.test(rs3.msg), "无留痕时拒绝撤销（不猜原值）");
+V.mbCE_wrote["yanling:uncap_pregnancy_fame"] = savedPrec;
+
 /* ================= 6. tick 守卫 ================= */
 section("6 1s 守卫 tick");
 V.crossdressing = 2; V.schoolrep.crossdress = 3; V.school_crossdress_message = "back";
