@@ -20,6 +20,9 @@
 		/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js）
 		   犯罪连案底一起清 / 古董只收集 + 成就 / 雷米疤面头衔 —— 三项各走独立 vcore 留痕，可在回退中心逐条还原 */
 		mbCERenderVanillaExt(pane);
+		/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js）
+		   房租/欠租、学校出勤、地块催熟、避孕套数量、玩家纹身清除与标记 —— 独立 vcore-econ 留痕，可逐条回退 */
+		mbCERenderVanillaEcon(pane);
 
 		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
 		mbCERenderLock(pane);

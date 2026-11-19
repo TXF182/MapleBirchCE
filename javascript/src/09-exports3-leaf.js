@@ -9,5 +9,23 @@
 			var a = s.mbStageCE;
 			a.yanlingLeafSuit = mbCEYanlingLeafSuit;
 			a.yanlingLeafRevert = mbCEYanlingLeafRevert;
+			/* v2.1.14 经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-data.js） */
+			a.vanillaEconStats = mbCEVanillaEconStats;
+			a.vanillaEconRentDays = mbCEVanillaEconRentDays;
+			a.vanillaEconRentDebt = mbCEVanillaEconRentDebt;
+			a.vanillaEconClearDebt = mbCEVanillaEconClearDebt;
+			a.vanillaEconAttend = mbCEVanillaEconAttend;
+			a.vanillaEconAttendAll = mbCEVanillaEconAttendAll;
+			a.vanillaEconMissedClear = mbCEVanillaEconMissedClear;
+			a.vanillaEconRipen = mbCEVanillaEconRipen;
+			a.vanillaEconRipenAll = mbCEVanillaEconRipenAll;
+			a.vanillaEconCondoms = mbCEVanillaEconCondoms;
+			a.vanillaEconCondomsAdd = mbCEVanillaEconCondomsAdd;
+			a.vanillaEconTattooClear = mbCEVanillaEconTattooClear;
+			a.vanillaEconTattooMark = mbCEVanillaEconTattooMark;
+			a.vanillaEconTattooClearAll = mbCEVanillaEconTattooClearAll;
+			/* 回退按 id 走统一分发：先查 vcore 留痕再按 kind 还原（测试与诊断直接调这一个入口） */
+			a.vanillaEconUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
+			a.renderVanillaEcon = mbCERenderVanillaEcon;
 		} catch (e) { void e; }
 	}

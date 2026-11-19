@@ -312,6 +312,21 @@
       "note": "全局页 ⑧ 统计与区块渲染（07l 视图层，结构门禁拆段）"
     },
     {
+      "file": "07m-vanilla-econ-data.js",
+      "layer": "ui",
+      "note": "经济/学业/农田/消耗品/纹身五项直写通道 + vcore-econ 留痕（全局页 ⑪ 数据层，结构门禁拆段）"
+    },
+    {
+      "file": "07m-vanilla-econ-undo.js",
+      "layer": "ui",
+      "note": "vcore-econ 回退处理器（kind 映射表，由 mbCEVanillaExtUndo 委派；结构门禁拆段）"
+    },
+    {
+      "file": "07m-vanilla-econ-view.js",
+      "layer": "ui",
+      "note": "全局页 ⑪ 区块渲染（全中文 + 科目/地块/部位下拉，结构门禁拆段）"
+    },
+    {
       "file": "08-npc-traits.js",
       "layer": "ui"
     },

@@ -63,6 +63,62 @@
 		if (openFlag) { close(); } else { open(); }
 	}
 
+	/* v2.1.14 悬浮球拖动坐标换算（手机端偏移修复）
+	   DoL 的「缩放」设置给 body 打 CSS zoom（options.zoom，50–200%，默认 100；原版 widget zoom() 实证
+	   `$("body").css("zoom", value + "%")`）。zoom 下 getBoundingClientRect()/clientX 给的是
+	   「缩放后的视口坐标」，而 style.left/top 写的是「未缩放布局坐标」——原样互写会被再缩一次：
+	   zoom<100 球落在手指左上、zoom>100 落右下，且越靠边偏得越多（手机端默认就会用非 100 缩放）。
+	   修法：读/写全部换算到布局坐标，位移按同一系数归一。 */
+	function mbCEToggleZoomScale() {
+		try {
+			var z = (typeof window !== "undefined" && window.getComputedStyle) ? parseFloat(window.getComputedStyle(document.body).zoom) : NaN;
+			return (isFinite(z) && z > 0) ? z : 1;
+		} catch (e) { return 1; }
+	}
+	/* 小工具：取有限数值，否则用默认（减少分支，满足复杂度棘轮） */
+	function mbCEToggleNum(v, d) {
+		var n = parseFloat(v);
+		return (isFinite(n) ? n : d);
+	}
+	/* 纯函数（供单测直接喂数值）：布局基准位 + 视口位移 → 布局 left/top，并钳进视口
+	   入参全部是「布局坐标/布局尺寸」：baseLeft/baseTop 为已换算的布局起点，bw/bh 为布局宽高；
+	   zs 为 body zoom（视口宽高与位移在这里归一） */
+	function mbCEToggleLayoutPos(baseLeft, baseTop, dx, dy, zs, vw, vh, bw, bh) {
+		var z = mbCEToggleNum(zs, 1);
+		if (!(z > 0)) { z = 1; }
+		var w = mbCEToggleNum(vw, 1280) / z;
+		var h = mbCEToggleNum(vh, 720) / z;
+		var bwl = mbCEToggleNum(bw, 52), bhl = mbCEToggleNum(bh, 52);
+		if (!(bwl > 0)) { bwl = 52; }
+		if (!(bhl > 0)) { bhl = 52; }
+		return {
+			left: Math.max(0, Math.min(Math.max(0, w - bwl - 4), mbCEToggleNum(baseLeft, 0) + mbCEToggleNum(dx, 0) / z)),
+			top: Math.max(0, Math.min(Math.max(0, h - bhl - 4), mbCEToggleNum(baseTop, 0) + mbCEToggleNum(dy, 0) / z))
+		};
+	}
+	/* body style 里的 zoom 变化监听（DoL 缩放 50–120% 浮动，改设置不触发 resize）：
+	   只在 zoom 实际变化时回调一次，其余 style 抖动不打扰 */
+	function mbCEToggleWatchZoom(getClamp) {
+		try {
+			if (typeof window.MutationObserver !== "function" || !document.body) { return null; }
+			var last = mbCEToggleZoomScale();
+			var obs = new window.MutationObserver(function () {
+				var z = mbCEToggleZoomScale();
+				if (z !== last) { last = z; getClamp(); }
+			});
+			obs.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+			return obs;
+		} catch (e) { return null; }
+	}
+	function mbCEToggleEnsureZoomWatch(btn, getClamp) {
+		try {
+			window.mbCEToggleReclampNow = getClamp;
+			if (btn.__mbCEZoomBound) { return; }
+			btn.__mbCEZoomBound = mbCEToggleWatchZoom(getClamp) || "none";
+		} catch (e) {}
+	}
+	try { window.mbCEToggleZoomScale = mbCEToggleZoomScale; window.mbCEToggleLayoutPos = mbCEToggleLayoutPos; } catch (eExp) {}
+
 	function ensureDom() {
 		if (root && document.body && document.body.contains(root)) { return; }
 		injectCSS();
@@ -81,10 +137,12 @@
 		   位置恢复与窗口 resize 都走这里（拖动过程中的钳位另在 pointermove 内，同一套边界）。 */
 		function tgClampPos() {
 			try {
-				var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
-				var h = (typeof window !== "undefined" && window.innerHeight) || 720;
+				/* v2.1.14：innerWidth / rect 是「缩放后视口坐标」，left/top 存的是布局坐标 → 边界与球尺寸都要除以 zoom */
+				var z = mbCEToggleZoomScale();
+				var w = ((typeof window !== "undefined" && window.innerWidth) || 1280) / z;
+				var h = ((typeof window !== "undefined" && window.innerHeight) || 720) / z;
 				var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : null;
-				var bw = (r && r.width) || 56, bh = (r && r.height) || 56;
+				var bw = (((r && r.width) || 56) / z), bh = (((r && r.height) || 56) / z);
 				var l = parseInt(tgSt.left, 10), t = parseInt(tgSt.top, 10);
 				if (!isFinite(l) || !isFinite(t)) { return; } /* 从未拖过（right/bottom 定位）→ 不动 */
 				tgSt.left = Math.max(0, Math.min(w - bw - 4, l)) + "px";
@@ -116,7 +174,7 @@
 				}
 			}
 		} catch (e) { /* 读不到悬浮球偏好（隐私模式/配额满/JSON 损坏）→ 保留默认位置与显示状态 */ }
-		var drag = { on: false, moved: false, sx: 0, sy: 0, l: 0, t: 0, bw: 56, bh: 56, nx: 0, ny: 0, raf: 0 };
+		var drag = { on: false, moved: false, sx: 0, sy: 0, l: 0, t: 0, bw: 52, bh: 52, nx: 0, ny: 0, raf: 0, zs: 1 };
 		/* v1.9.11+ 自查：绑定守卫——ModLoader 热重载复用同一 #mce-toggle 时跳过重复 addEventListener，
 		   否则 click 监听堆叠会导致一次点击多次开关面板 */
 		if (!toggleBtn.__mbCEBound) {
@@ -124,10 +182,12 @@
 			if (toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1") { return; }
 			drag.on = true; drag.moved = false;
 			drag.sx = ev.clientX; drag.sy = ev.clientY;
-			var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : { left: 0, top: 0, width: 56, height: 56 };
-			drag.l = r.left; drag.t = r.top;
-			drag.bw = r.width || 56; drag.bh = r.height || 56;
+			/* v2.1.14：先切 mce-dragging（压掉 :active 的 transform:scale(.94)）再读矩形，按下瞬间不跳位 */
 			try { toggleBtn.classList.add("mce-dragging"); } catch (e2) {}
+			drag.zs = mbCEToggleZoomScale();
+			var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : { left: 0, top: 0, width: 52, height: 52 };
+			drag.l = r.left / drag.zs; drag.t = r.top / drag.zs;
+			drag.bw = (r.width || 52) / drag.zs; drag.bh = (r.height || 52) / drag.zs;
 			try { toggleBtn.setPointerCapture(ev.pointerId); } catch (e2) {}
 			try { ev.preventDefault(); } catch (e2) {}
 		});
@@ -136,17 +196,16 @@
 			var dx = ev.clientX - drag.sx, dy = ev.clientY - drag.sy;
 			if (Math.abs(dx) < 3 && Math.abs(dy) < 3) { return; }
 			drag.moved = true;
-			drag.nx = drag.l + dx; drag.ny = drag.t + dy;
+			drag.nx = drag.l + dx / (drag.zs || 1); drag.ny = drag.t + dy / (drag.zs || 1); /* v2.1.14：位移按 zoom 归一 */
 			if (!drag.raf) {
 				drag.raf = (typeof window !== "undefined" && window.requestAnimationFrame) ? window.requestAnimationFrame(function () {
 					drag.raf = 0;
 					if (!drag.on && !drag.moved) { return; }
 					var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
 					var h = (typeof window !== "undefined" && window.innerHeight) || 720;
-					var nl = Math.max(0, Math.min(w - (drag.bw || 56) - 4, drag.nx));
-					var nt = Math.max(0, Math.min(h - (drag.bh || 56) - 4, drag.ny));
-					tgSt.left = nl + "px";
-					tgSt.top = nt + "px";
+					var p = mbCEToggleLayoutPos(drag.nx, drag.ny, 0, 0, drag.zs, w, h, drag.bw || 52, drag.bh || 52);
+					tgSt.left = p.left + "px";
+					tgSt.top = p.top + "px";
 					tgSt.right = "auto";
 					tgSt.bottom = "auto";
 				}) : 0;
@@ -160,8 +219,8 @@
 			if (drag.moved) {
 				var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
 				var h = (typeof window !== "undefined" && window.innerHeight) || 720;
-				var nl = Math.max(0, Math.min(w - (drag.bw || 56) - 4, drag.nx));
-				var nt = Math.max(0, Math.min(h - (drag.bh || 56) - 4, drag.ny));
+				var p = mbCEToggleLayoutPos(drag.nx, drag.ny, 0, 0, drag.zs, w, h, drag.bw || 52, drag.bh || 52); /* v2.1.14 */
+				var nl = p.left, nt = p.top;
 				tgSt.left = nl + "px";
 				tgSt.top = nt + "px";
 				tgSt.right = "auto";
@@ -183,6 +242,9 @@
 		if (!toggleBtn.__mbCEPosBound) {
 			try { window.addEventListener("resize", tgClampPos); toggleBtn.__mbCEPosBound = true; } catch (e2) {}
 		}
+		/* v2.1.14：DoL「缩放」在 50–120% 浮动且改设置不触发 resize；缩小→放大时布局视口收窄，
+		   球原坐标可能整颗落到屏幕外（球是面板唯一入口），故监听 zoom 变化后重新钳位 */
+		mbCEToggleEnsureZoomWatch(toggleBtn, tgClampPos);
 		try { toggleBtn.__mbCEBound = true; } catch (e2) {}
 		}
 

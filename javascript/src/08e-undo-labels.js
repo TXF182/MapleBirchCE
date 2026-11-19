@@ -57,6 +57,30 @@
 		purge_trait: "特质清除",
 		purge_fame: "名声清除"
 	};
+	/* 经济 / 学业 / 农田 / 消耗品 / 纹身留痕 id → 中文（07m-vanilla-econ-data.js 的 vcore-econ 留痕） */
+	var MB_CE_UNDO_ECON = {
+		"rent-days": "租期倒计时",
+		"rent-debt": "欠租金额",
+		"school": "今日出勤与旷课计数",
+		"condoms": "避孕套数量",
+		"tattoo-all": "全部纹身清除"
+	};
+	function mbCEUndoEconName(rest) {
+		if (MB_CE_UNDO_ECON[rest]) { return MB_CE_UNDO_ECON[rest]; }		if (rest.indexOf("farm-") === 0) {
+			var loc = rest.slice(5);
+			try { return "地块催熟（" + mbCEVanillaEconPlotZh(loc) + "）"; } catch (eFm) { return "地块催熟"; }
+		}
+		if (rest.indexOf("tattoo-") === 0) {
+			var part = rest.slice(7);
+			try { return "纹身（" + mbCEVanillaEconBodyZh(part) + "）"; } catch (eTt) { return "纹身"; }
+		}
+		return "";
+	}
+	/* vcore-econ 专用：只在 ns/type 命中时改名，其余原样放过（拆出来是为了不给 mbCEUndoItemName 加分支/复杂度） */
+	function mbCEUndoEconFixName(name, ns, rest, rec) {
+		if (ns !== "vcore" || !rec || rec.type !== "vcore-econ") { return name; }
+		return mbCEUndoEconName(rest);
+	}
 	/* 键拆分：<ns>:<rest> */
 	function mbCEUndoSplitKey(key) {
 		var s = String(key == null ? "" : key), i = s.indexOf(":");
@@ -164,6 +188,7 @@
 				if (!name) { name = tail; }
 			}
 		} catch (e) { name = ""; }
+		name = mbCEUndoEconFixName(name, ns, rest, rec);
 		name = String(name || "").trim();
 		if (!name) { name = rest || String(key); }
 		return name;

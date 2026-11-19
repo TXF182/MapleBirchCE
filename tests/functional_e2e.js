@@ -438,6 +438,69 @@ assert(rootF.classList.contains("mce-closing") || !rootF.classList.contains("mce
   assert(!threw, "F. 拖拽 pointerdown 事件监听已注册且派发无抛错");
 })();
 
+/* ---------- F2. 悬浮球拖动坐标换算：body CSS zoom 下的跟手性（v2.1.14 手机端偏移修复） ----------
+   原版实证：DoL 设置项给 body 打 CSS zoom（options.zoom 50–200%，默认 100），原版 widget zoom() 里
+   `$("body").css("zoom", value + "%")`。zoom 下 rect/clientX 是缩放后视口坐标、style.left 是布局坐标，
+   旧实现直接互写 → 球落在手指左上（zoom<100）且越靠边偏得越多。断言按物理预期写：
+   手指按住球心 → 移动 D 视觉像素 → 球渲染位置同步移动 D。 */
+(function () {
+  const fn = window.mbCEToggleLayoutPos;
+  assert(typeof fn === "function", "F2. 拖动坐标换算已导出（window.mbCEToggleLayoutPos），实际 " + typeof fn);
+  if (typeof fn !== "function") { return; }
+  const near = function (a, b) { return Math.abs(a - b) < 0.01; };
+  /* 1) zoom=1 基线：与旧行为等价 */
+  let p = fn(100, 200, 40, 60, 1, 1280, 720, 52, 52);
+  assert(near(p.left, 140) && near(p.top, 260), "F2. zoom=1 位移不缩放（140/260），实际 " + p.left + "/" + p.top);
+  /* 2) 关键回归 zoom=0.8：视觉 rect.left=700 → 布局 875；视觉 dx=+40 → 布局 +50 */
+  p = fn(700 / 0.8, 0, 40, 0, 0.8, 2000, 844, 52, 52);
+  assert(near(p.left, 925), "F2. zoom=0.8 位移按 zoom 归一（875+50=925，旧实现 915 少 10px），实际 " + p.left);
+  /* 3) 跟手性：球渲染 41.6px（半径 20.8），向右拖 100 视觉像素 → 布局 875+125=1000 */
+  p = fn(700 / 0.8, 0, 100, 0, 0.8, 2000, 844, 52, 52);
+  assert(near(p.left, 1000), "F2. zoom=0.8 拖动 100 视觉像素 → 布局 +125（1000），实际 " + p.left);
+  /* 4) zoom=1.25（放大）：视觉 rect.left=400 → 布局 320；dx 40 → +32 */
+  p = fn(400 / 1.25, 0, 40, 0, 1.25, 1600, 900, 52, 52);
+  assert(near(p.left, 352), "F2. zoom=1.25 位移按 zoom 归一（320+32=352），实际 " + p.left);
+  /* 5) 钳制用布局边界：视口 390、zoom 0.8 → 布局宽 487.5，球 52 → 上限 431.5 */
+  p = fn(9999, 0, 0, 0, 0.8, 390, 844, 52, 52);
+  assert(near(p.left, 431.5), "F2. 钳制上限按布局边界（487.5-52-4=431.5），实际 " + p.left);
+  /* 6) 非法 zoom 兜底为 1（jsdom 无 zoom → NaN → 1） */
+  assert(window.mbCEToggleZoomScale() === 1, "F2. zoom 取不到时兜底为 1，实际 " + window.mbCEToggleZoomScale());
+  assert(near(fn(10, 20, 5, 5, NaN, 800, 600, 52, 52).left, 15), "F2. zoom=NaN 兜底 1（10+5=15）");
+})();
+
+/* ---------- F3. 缩放浮动档（50–120%）与 zoom 变化后重新钳位 ----------
+   手机端 DoL 缩放会在 50%–120% 之间浮动，两个端点都要跟手；且改缩放不触发 resize，
+   缩小→放大时布局视口收窄，球原坐标可能落到屏幕外（球是面板唯一入口）。 */
+(function () {
+  const fn = window.mbCEToggleLayoutPos;
+  const near = function (a, b) { return Math.abs(a - b) < 0.01; };
+  if (typeof fn === "function") {
+    /* 1) 最小档 zoom=0.5：视觉 dx=100 → 布局 +200 */
+    const p1 = fn(700 / 0.5, 0, 100, 0, 0.5, 4000, 1600, 52, 52);
+    assert(near(p1.left, 1600), "F3. zoom=0.5 位移按 zoom 归一（1400+200=1600），实际 " + p1.left);
+    /* 2) 最大档 zoom=1.2：视觉 dx=100 → 布局 +83.33 */
+    const p2 = fn(400 / 1.2, 0, 100, 0, 1.2, 2400, 1200, 52, 52);
+    assert(near(p2.left, 400 / 1.2 + 100 / 1.2), "F3. zoom=1.2 位移按 zoom 归一（" + (400 / 1.2 + 100 / 1.2).toFixed(2) + "），实际 " + p2.left.toFixed(2));
+    /* 3) 两端钳制上限（视口 390）：zoom=0.5 → 780-56=724；zoom=1.2 → 325-56=269 */
+    assert(near(fn(9999, 0, 0, 0, 0.5, 390, 844, 52, 52).left, 724), "F3. zoom=0.5 钳制上限 724");
+    assert(near(fn(9999, 0, 0, 0, 1.2, 390, 844, 52, 52).left, 269), "F3. zoom=1.2 钳制上限 269（放大后布局视口收窄）");
+  }
+  /* 4) DOM：重新钳位入口存在且按当前视口把越界坐标拉回（jsdom 无 zoom → 系数兜底 1） */
+  const rl = window.mbCEToggleReclampNow;
+  assert(typeof rl === "function", "F3. 重新钳位入口已导出（window.mbCEToggleReclampNow），实际 " + typeof rl);
+  if (typeof rl === "function") {
+    const tEl = window.document.getElementById("mce-toggle");
+    const W = window.innerWidth, H = window.innerHeight;
+    if (tEl) {
+      tEl.style.left = "9999px"; tEl.style.top = "9999px";
+      rl();
+      assert(parseInt(tEl.style.left, 10) === W - 56 - 4 && parseInt(tEl.style.top, 10) === H - 56 - 4,
+        "F3. 越界坐标被重新钳回（" + (W - 60) + "/" + (H - 60) + "），实际 " + tEl.style.left + "/" + tEl.style.top);
+      tEl.style.left = ""; tEl.style.top = "";
+    }
+  }
+})();
+
 /* ---------- M. v1.9.2 自查补盲：values list 型端到端链路（apply → 局部刷新回显 → 取消 → 回退 → 重渲染） ----------
    C 段注释曾误标「list 型走 DOM checkbox 已覆盖」——实际 firstVal 过滤掉了 list，能力 checkbox 也不走 values。
    真实链路：list 行 checkbox 点击 → applyCheatModValue(list 分支) → actCheat → refreshModRow(list 分支) 回显。 */

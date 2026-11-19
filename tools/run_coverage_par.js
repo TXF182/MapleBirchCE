@@ -37,6 +37,7 @@ const EST_MS = {
   "tests/pins_state_machine.js": 3043,
   "tests/scenes_page_state.js": 2767,
   "tests/kylar_farm_state.js": 1400,
+  "tests/vanilla_econ_state.js": 2200,
   "tests/lock_panel_state.js": 2632,
   "tests/attitude_state.js": 2625,
   "tests/undo_center_state.js": 2507,

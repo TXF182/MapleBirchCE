@@ -18,6 +18,7 @@
 		yanling: "言灵改写（页内撤销）",
 		part: "外观隐藏（转化部件）",
 		vcore: "原版档案 · 收藏 · 头衔",
+		"vcore-econ": "原版经济 · 学业 · 农田 · 消耗品 · 纹身",
 		lock: "数值锁定写回"
 	};
 	function mbCEUndoLabel(type) {
@@ -137,7 +138,7 @@
 			}
 			/* v2.0.9 需求②③④：原版档案 / 收藏 / 头衔三项整块写入（07l-vanilla-ext.js）
 			   id in {crime, antique, title}；before 为「首次写入前」整块快照，由 mbCEVanillaExtUndo 按 kind 还原 */
-			if (type === "vcore") {
+			if (type === "vcore" || type === "vcore-econ") {
 				var vid = String(rec.id || key.replace(/^vcore:/, ""));
 				var rv = /** @type {any} */ (mbCEVanillaExtUndo(vid));
 				return { ok: !!(rv && rv.ok), msg: (rv && (rv.message || rv.msg)) || "原版档案回退失败" };

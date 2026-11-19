@@ -53,8 +53,13 @@
 		} catch (e) { return undefined; }
 	}
 
+	/* 留痕记录构造（默认值集中在这里，免得主函数被 || 带来的复杂度顶穿棘轮） */
+	function mbCEVanillaRecord(id, type, path, before, note) {
+		return { type: (type || "vcore"), id: id, path: path || "", before: before, t: Date.now(), note: note || "" };
+	}
+
 	/* 留痕：type "vcore"，key = vcore:<id>，before 为「首次写入前」整块快照（与 04b 的 before 语义一致） */
-	function mbCEVanillaTrace(id, before, path, note) {
+	function mbCEVanillaTrace(id, before, path, note, type) {
 		try {
 			var V = getV();
 			if (!V) { return; }
@@ -62,7 +67,7 @@
 			var key = "vcore:" + id;
 			var prev = V.mbCE_wrote[key];
 			if (!prev || !("before" in prev)) {
-				V.mbCE_wrote[key] = { type: "vcore", id: id, path: path || "", before: before, t: Date.now(), note: note || "" };
+				V.mbCE_wrote[key] = mbCEVanillaRecord(id, type, path, before, note);
 			} else {
 				prev.t = Date.now();
 			}
@@ -349,6 +354,12 @@
 				if (avery2 && b.avery !== undefined) { avery2.title = b.avery; }
 				delete V.mbCE_wrote[key];
 				return { ok: true, message: "已还原 Remy 头衔为「" + mbCEVanillaTitleZh(b.remy) + "」" };
+			}
+			/* 经济 / 学业 / 农田 / 消耗品 / 纹身（07m-vanilla-econ-data.js）：kind 由本段未识别的留痕委派过去，
+			   保持 07l 主段不因新增品类继续膨胀（结构门禁 S1 400 行）。返回 null 表示仍不认识。 */
+			if (typeof mbCEVanillaEconUndo === "function") {
+				var reEcon = mbCEVanillaEconUndo(id, b, key);
+				if (reEcon) { return reEcon; }
 			}
 			return { ok: false, message: "未知的留痕类型：" + String(b.kind) };
 		} catch (eUndo) {

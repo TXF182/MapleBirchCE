@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.13";
+	var MCE_VERSION = "2.1.14";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -15145,8 +15145,13 @@ function renderNpcUndergroundSec(pane) {
 		} catch (e) { return undefined; }
 	}
 
+	/* 留痕记录构造（默认值集中在这里，免得主函数被 || 带来的复杂度顶穿棘轮） */
+	function mbCEVanillaRecord(id, type, path, before, note) {
+		return { type: (type || "vcore"), id: id, path: path || "", before: before, t: Date.now(), note: note || "" };
+	}
+
 	/* 留痕：type "vcore"，key = vcore:<id>，before 为「首次写入前」整块快照（与 04b 的 before 语义一致） */
-	function mbCEVanillaTrace(id, before, path, note) {
+	function mbCEVanillaTrace(id, before, path, note, type) {
 		try {
 			var V = getV();
 			if (!V) { return; }
@@ -15154,7 +15159,7 @@ function renderNpcUndergroundSec(pane) {
 			var key = "vcore:" + id;
 			var prev = V.mbCE_wrote[key];
 			if (!prev || !("before" in prev)) {
-				V.mbCE_wrote[key] = { type: "vcore", id: id, path: path || "", before: before, t: Date.now(), note: note || "" };
+				V.mbCE_wrote[key] = mbCEVanillaRecord(id, type, path, before, note);
 			} else {
 				prev.t = Date.now();
 			}
@@ -15441,6 +15446,12 @@ function renderNpcUndergroundSec(pane) {
 				if (avery2 && b.avery !== undefined) { avery2.title = b.avery; }
 				delete V.mbCE_wrote[key];
 				return { ok: true, message: "已还原 Remy 头衔为「" + mbCEVanillaTitleZh(b.remy) + "」" };
+			}
+			/* 经济 / 学业 / 农田 / 消耗品 / 纹身（07m-vanilla-econ-data.js）：kind 由本段未识别的留痕委派过去，
+			   保持 07l 主段不因新增品类继续膨胀（结构门禁 S1 400 行）。返回 null 表示仍不认识。 */
+			if (typeof mbCEVanillaEconUndo === "function") {
+				var reEcon = mbCEVanillaEconUndo(id, b, key);
+				if (reEcon) { return reEcon; }
 			}
 			return { ok: false, message: "未知的留痕类型：" + String(b.kind) };
 		} catch (eUndo) {
@@ -15777,6 +15788,683 @@ function renderNpcUndergroundSec(pane) {
 		};
 		redrawTitle();
 	}
+/* 职责：原版「房租/欠租 · 学校出勤 · 农场地块 · 避孕套 · 玩家纹身」五项直写通道（全局页 ⑪ 数据层）。
+   写入全部走 07l 的 vcore 留痕（mbCEVanillaTrace 保留首次 before），回退由本段 mbCEVanillaEconUndo
+   按 kind 还原；统一回退中心按 type==="vcore" 分发到 mbCEVanillaExtUndo，后者在未知 kind 处委派到本段
+   （这样不必把 07l 主段撑过结构门禁 S1 的 400 行）。视图在同名 -view 段。
+
+   原版事实（DoL 0.5.12.13 源码实证，勿凭印象改口径）：
+   - 租：passRentTick() 走 V.renttime--；仅 `V.renttime < 0 and V.renttime % 7 === 0` 时才把
+     V.rentmoney + (V.babyRent||0) 累进 V.baileyRefusedToPayTotal / baileyRefusedToPayTotalStat。
+     所以 renttime 写 0 = 今天刚见过 Bailey；负数才是欠租计时，作弊层不接受手填负数。
+   - 校：V.daily.school.attended.<6 科> 是当天出勤位；缺席时原版 `+= !Number(attended.x)` 累进
+     V.schoolLessonsMissed 同名键（每日重置 attended，不清 missed）。
+   - 田：V.plots 是以地点为键的对象（原版实证键 garden / farm），值是 plot 数组；
+     tendingDay() 里 `plot.days += 1`，`days >= setup.foodstuff[plant].tending.growth_days*(stage+1)/5`
+     才 stage += 1；stage >= 5 即原版可收获。stage 无上限判定，故催熟同时把 days 归 0。
+     空格（stage 0）与未知作物（setup.foodstuff 无键）绝不能写 stage 5——tendingDay 会读
+     setup.foodstuff[undefined] 直接抛 TypeError。
+   - 套：V.condoms 是顶层计数键（侧栏 Total condoms: $condoms），侧栏仅在 condomLevel>=1 时显示，数值本身随时可写。
+   - 纹：纹身不是 V.tattoos，而是 V.skin[<部位>].pen === "tattoo"；原版清除 widget bodywriting_clear 的语义就是
+     `<<set $skin[_args[0]] to {}>>`（整部位重置）。原版「加纹身」依赖刺青店设计数据（$tattoo_parlour 的 clone），
+     凭空造不出来，所以本段只做「清除」与「把已有涂写标记为纹身」两种合法动作。 */
+
+	var MCE_ECON_SUBJECTS = [
+		{ key: "science", zh: "科学" },
+		{ key: "maths", zh: "数学" },
+		{ key: "english", zh: "英语" },
+		{ key: "history", zh: "历史" },
+		{ key: "swimming", zh: "游泳" },
+		{ key: "housekeeping", zh: "家政" }
+	];
+	var MCE_ECON_PLOT_ZH = { garden: "孤儿院花园", farm: "亚历克斯农场" };
+	/* 部位中文名（原版 $skin 的键，覆盖纹身店会用到的主要部位；未收录的回退「其他部位」） */
+	var MCE_ECON_BODY_ZH = {
+		forehead: "额头", face: "脸", cheeks: "双颊", left_cheek: "左脸颊", right_cheek: "右脸颊",
+		lips: "嘴唇", mouth: "嘴", nose: "鼻子", ears: "耳朵", neck: "脖子",
+		chest: "胸口", breasts: "胸部", nipples: "乳头", tummy: "肚子", stomach: "腹部",
+		back: "后背", shoulders: "肩", shoulder: "肩", hips: "胯", waist: "腰",
+		pubic: "耻部", crotch: "裆部", buttocks: "臀", anus: "后穴", vagina: "私处", penis: "阴茎",
+		leftarm: "左臂", rightarm: "右臂", left_arm: "左臂", right_arm: "右臂",
+		left_hand: "左手", right_hand: "右手", left_thigh: "左大腿", right_thigh: "右大腿",
+		thigh: "大腿", left_bottom: "左小腿", right_bottom: "右小腿", feet: "脚", foot: "脚"
+	};
+
+	function mbCEVanillaEconSubjectZh(key) {
+		var hit = null;
+		MCE_ECON_SUBJECTS.forEach(function (s) { if (s.key === key) { hit = s.zh; } });
+		return hit || "其他科目";
+	}
+	function mbCEVanillaEconSubjectValid(key) {
+		return MCE_ECON_SUBJECTS.some(function (s) { return s.key === key; });
+	}
+	function mbCEVanillaEconPlotZh(key) { return MCE_ECON_PLOT_ZH[key] || "其他地块"; }
+	function mbCEVanillaEconBodyZh(key) { return MCE_ECON_BODY_ZH[key] || "其他部位"; }
+	/* 整数解析：空串 / 非数字 / 小数 / 越界一律判 null（调用方转成拒绝文案，不静默钳制） */
+	function mbCEVanillaEconNum(raw, min, max) {
+		if (raw === "" || raw === null || raw === undefined) { return null; }
+		var n = Number(raw);
+		if (!isFinite(n) || Math.floor(n) !== n) { return null; }
+		if (n < min || n > max) { return null; }
+		return n;
+	}
+	function mbCEVanillaEconClone(o) {
+		if (o === undefined) { return undefined; }
+		try { return JSON.parse(JSON.stringify(o)); } catch (e) { return null; }
+	}
+	/* 作物校验：原版 tendingDay 读 setup.foodstuff[plant].tending.growth_days，缺这段就会崩 */
+	function mbCEVanillaEconCropOk(plant) {
+		if (!plant) { return false; }
+		try {
+			var s = getSetup();
+			return !!(s && s.foodstuff && s.foodstuff[plant] && s.foodstuff[plant].tending);
+		} catch (e) { return false; }
+	}
+
+	/* ---------- 只读快照的分域取数（供 mbCEVanillaEconStats 汇总；拆分只为压复杂度） ---------- */
+	function mbCEVanillaEconRentSnap(V) {
+		return {
+			has: (V.renttime !== undefined) || (V.rentmoney !== undefined),
+			renttime: Number(V.renttime) || 0,
+			debt: Number(V.baileyRefusedToPayTotal) || 0,
+			rentmoney: Number(V.rentmoney) || 0,
+			babyRent: Number(V.babyRent) || 0
+		};
+	}
+	function mbCEVanillaEconSchoolSnap(V) {
+		var out = { has: false, attended: {}, attendedCount: 0, missed: {}, missedTotal: 0 };
+		var att = V.daily && V.daily.school && V.daily.school.attended;
+		if (!att || typeof att !== "object") { return out; }
+		out.has = true;
+		MCE_ECON_SUBJECTS.forEach(function (s) {
+			var v = Number(att[s.key]) === 1 ? 1 : 0;
+			out.attended[s.key] = v;
+			out.attendedCount += v;
+		});
+		var miss = V.schoolLessonsMissed;
+		if (miss && typeof miss === "object") {
+			MCE_ECON_SUBJECTS.forEach(function (s) {
+				var m = Number(miss[s.key]) || 0;
+				out.missed[s.key] = m;
+				out.missedTotal += m;
+			});
+		}
+		return out;
+	}
+	function mbCEVanillaEconFarmSnap(V, locList) {
+		var out = { has: false, locations: locList };
+		if (!V.plots || typeof V.plots !== "object") { return out; }
+		out.has = true;
+		Object.keys(V.plots).forEach(function (k) {
+			var arr = V.plots[k];
+			if (!Array.isArray(arr)) { return; }
+			var loc = { key: k, zh: mbCEVanillaEconPlotZh(k), total: arr.length, planted: 0, ripe: 0 };
+			arr.forEach(function (p) {
+				if (!p || typeof p !== "object") { return; }
+				/* 已种 / 可收获只看 stage：原版收获判定就是满成熟度（不校验作物表），
+				   作物表校验只拦「写成熟」，不能拿来过滤统计口径。 */
+				if (Number(p.stage) >= 1) { loc.planted++; }
+				if (Number(p.stage) >= 5) { loc.ripe++; }
+			});
+			locList.push(loc);
+		});
+		return out;
+	}
+	function mbCEVanillaEconSkinSnap(V, partList) {
+		var out = { has: false, parts: partList, count: 0 };
+		if (!V.skin || typeof V.skin !== "object") { return out; }
+		out.has = true;
+		Object.keys(V.skin).forEach(function (k) {
+			var part = V.skin[k];
+			if (!part || typeof part !== "object" || part.pen !== "tattoo") { return; }
+			partList.push({ key: k, zh: mbCEVanillaEconBodyZh(k) });
+		});
+		out.count = partList.length;
+		return out;
+	}
+
+	/* ---------- 只读快照（视图层渲染用） ---------- */
+	function mbCEVanillaEconStats() {
+		/* 数组元素类型显式声明：src 侧 strict 棘轮要求，避免 [] 被推断成 never[] 而让下游 .zh/.key 读不出来 */
+		var locList = /** @type {Array<{key: string, zh: string, total: number, planted: number, ripe: number}>} */ ([]);
+		var partList = /** @type {Array<{key: string, zh: string}>} */ ([]);
+		var out = {
+			ok: false,
+			rent: { has: false, renttime: 0, debt: 0, rentmoney: 0, babyRent: 0 },
+			school: { has: false, attended: {}, attendedCount: 0, missed: {}, missedTotal: 0 },
+			farm: { has: false, locations: locList },
+			condoms: { has: false, count: 0 },
+			tattoo: { has: false, parts: partList, count: 0 }
+		};
+		var V = getV();
+		if (!V) { return out; }
+		try {
+			out.rent = mbCEVanillaEconRentSnap(V);
+			out.school = mbCEVanillaEconSchoolSnap(V);
+			out.farm = mbCEVanillaEconFarmSnap(V, locList);
+			out.condoms.has = V.condoms !== undefined;
+			out.condoms.count = Number(V.condoms) || 0;
+			out.tattoo = mbCEVanillaEconSkinSnap(V, partList);
+			out.ok = true;
+		} catch (e) { out.ok = false; }
+		return out;
+	}
+
+	/* ---------- 房租 ---------- */
+	function mbCEVanillaEconRentDays(raw) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var n = mbCEVanillaEconNum(raw, 0, 365);
+		if (n === null) { return { ok: false, message: "租期天数需为 0–365 的整数（0 = 今天已见 Bailey，7 天内不催租）" }; }
+		var before = { kind: "rent-days", renttime: V.renttime === undefined ? undefined : Number(V.renttime) };
+		V.renttime = n;
+		mbCEVanillaTrace("rent-days", before, "renttime", "租期倒计时直写", "vcore-econ");
+		return { ok: true, message: "租期已设为 " + n + " 天" };
+	}
+	function mbCEVanillaEconRentDebt(raw) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var n = mbCEVanillaEconNum(raw, 0, 99999999);
+		if (n === null) { return { ok: false, message: "欠租金额需为 0–99999999 的整数" }; }
+		var before = { kind: "rent-debt", debt: Number(V.baileyRefusedToPayTotal) || 0 };
+		V.baileyRefusedToPayTotal = n;
+		mbCEVanillaTrace("rent-debt", before, "baileyRefusedToPayTotal", "欠租金额直写", "vcore-econ");
+		return { ok: true, message: "欠租已设为 £" + n };
+	}
+	function mbCEVanillaEconClearDebt() { return mbCEVanillaEconRentDebt(0); }
+
+	/* ---------- 学校出勤 ---------- */
+	function mbCEVanillaEconSchoolTrace() {
+		var V = getV();
+		var att = V && V.daily && V.daily.school && V.daily.school.attended;
+		var before = {
+			kind: "school",
+			attended: mbCEVanillaEconClone(att),
+			missed: mbCEVanillaEconClone(V ? V.schoolLessonsMissed : undefined)
+		};
+		return before;
+	}
+	/* 今日出勤表取数 + 提示文案（拆分只为把单函数复杂度压在 10 以内） */
+	function mbCEVanillaEconAttTable() {
+		var V = getV();
+		var d = V && V.daily, s = d && d.school, att = s && s.attended;
+		return (att && typeof att === "object") ? att : null;
+	}
+	function mbCEVanillaEconAttMsg(key, on) {
+		if (on) { return mbCEVanillaEconSubjectZh(key) + " 已设为出勤"; }
+		return mbCEVanillaEconSubjectZh(key) + " 已设为缺席（缺席会自动累进旷课次数，交给原版结算）";
+	}
+	function mbCEVanillaEconAttend(key, on) {
+		var att = mbCEVanillaEconAttTable();
+		if (!att) {
+			return { ok: false, message: "该存档还没有学校流程（今日出勤表未生成），先正常上一天学再回来" };
+		}
+		if (!mbCEVanillaEconSubjectValid(key)) { return { ok: false, message: "未知科目" }; }
+		var val = on ? 1 : 0;
+		if (Number(att[key]) === val) { return { ok: true, message: mbCEVanillaEconSubjectZh(key) + "已经是该状态，未重复写入" }; }
+		var before = mbCEVanillaEconSchoolTrace();
+		att[key] = val;
+		mbCEVanillaTrace("school", before, "daily.school.attended", "今日出勤位直写", "vcore-econ");
+		return { ok: true, message: mbCEVanillaEconAttMsg(key, on) };
+	}
+	function mbCEVanillaEconAttendAll(on) {
+		var att = mbCEVanillaEconAttTable();
+		if (!att) {
+			return { ok: false, message: "该存档还没有学校流程（今日出勤表未生成），先正常上一天学再回来" };
+		}
+		var before = mbCEVanillaEconSchoolTrace();
+		var n = 0;
+		MCE_ECON_SUBJECTS.forEach(function (s) {
+			if (!Object.prototype.hasOwnProperty.call(att, s.key)) { return; }
+			var val = on ? 1 : 0;
+			if (Number(att[s.key]) !== val) { att[s.key] = val; n++; }
+		});
+		if (!n) { return { ok: true, message: "今日六科已是该状态，未重复写入" }; }
+		mbCEVanillaTrace("school", before, "daily.school.attended", "今日出勤位整体直写", "vcore-econ");
+		return { ok: true, message: (on ? "今日六科已全部记为出勤" : "今日六科已全部记为缺席") + "（写入 " + n + " 科）" };
+	}
+	function mbCEVanillaEconMissedClear() {
+		var V = getV();
+		var miss = V && V.schoolLessonsMissed;
+		if (!miss || typeof miss !== "object") { return { ok: false, message: "该存档还没有旷课计数" }; }
+		var before = mbCEVanillaEconSchoolTrace();
+		var n = 0;
+		Object.keys(miss).forEach(function (k) {
+			if (Number(miss[k]) !== 0) { miss[k] = 0; n++; }
+		});
+		if (!n) { return { ok: true, message: "旷课次数已经是 0，未重复写入" }; }
+		mbCEVanillaTrace("school", before, "schoolLessonsMissed", "旷课计数清零", "vcore-econ");
+		return { ok: true, message: "旷课次数已清零（" + n + " 科）" };
+	}
+
+	/* ---------- 农田催熟 ---------- */
+	function mbCEVanillaEconRipen(loc) {
+		var V = getV();
+		if (!V || !V.plots || typeof V.plots !== "object") { return { ok: false, message: "该存档还没有农场地块" }; }
+		var arr = V.plots[loc];
+		if (!Array.isArray(arr)) { return { ok: false, message: "没有这个地块" }; }
+		var before = { kind: "farm", loc: loc, plots: mbCEVanillaEconClone(arr) };
+		var n = 0;
+		arr.forEach(function (p) {
+			if (!p || typeof p !== "object") { return; }
+			if (Number(p.stage) < 1) { return; }
+			if (!mbCEVanillaEconCropOk(p.plant)) { return; }
+			if (Number(p.stage) >= 5 && Number(p.days) === 0) { return; }
+			p.stage = 5;
+			p.days = 0;
+			n++;
+		});
+		if (!n) { return { ok: false, message: "该地块没有可催熟的作物（空格 / 未知作物不计）" }; }
+		mbCEVanillaTrace("farm-" + loc, before, "plots." + loc, "地块作物催熟", "vcore-econ");
+		return { ok: true, message: mbCEVanillaEconPlotZh(loc) + " 已催熟 " + n + " 块", ripened: n };
+	}
+	function mbCEVanillaEconRipenAll() {
+		var V = getV();
+		if (!V || !V.plots || typeof V.plots !== "object") { return { ok: false, message: "该存档还没有农场地块" }; }
+		var total = 0, locs = 0, msgs = [];
+		Object.keys(V.plots).forEach(function (k) {
+			if (!Array.isArray(V.plots[k])) { return; }
+			var r = mbCEVanillaEconRipen(k);
+			if (r.ok) { total += Number(r.ripened) || 0; locs++; msgs.push(r.message); }
+		});
+		if (!total) { return { ok: false, message: "没有任何可催熟的作物（空格 / 未知作物不计）" }; }
+		return { ok: true, message: "已催熟 " + locs + " 个地块（" + msgs.join("；") + "）", ripened: total };
+	}
+
+	/* ---------- 避孕套 ---------- */
+	function mbCEVanillaEconCondoms(raw) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var n = mbCEVanillaEconNum(raw, 0, 999);
+		if (n === null) { return { ok: false, message: "数量需为 0–999 的整数" }; }
+		var before = { kind: "condoms", condoms: V.condoms === undefined ? undefined : Number(V.condoms) };
+		V.condoms = n;
+		mbCEVanillaTrace("condoms", before, "condoms", "避孕套数量直写", "vcore-econ");
+		return { ok: true, message: "避孕套已设为 " + n + " 个" };
+	}
+	function mbCEVanillaEconCondomsAdd(delta) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var d = mbCEVanillaEconNum(delta, 1, 999);
+		if (d === null) { return { ok: false, message: "追加数量需为 1–999 的整数" }; }
+		var cur = Number(V.condoms) || 0;
+		var target = cur + d;
+		if (target > 999) { target = 999; }
+		var before = { kind: "condoms", condoms: V.condoms === undefined ? undefined : cur };
+		V.condoms = target;
+		mbCEVanillaTrace("condoms", before, "condoms", "避孕套数量追加", "vcore-econ");
+		return { ok: true, message: "避孕套 " + cur + " → " + target + " 个" };
+	}
+
+	/* ---------- 纹身 ---------- */
+	function mbCEVanillaEconTattooClear(part) {
+		var V = getV();
+		var skin = V && V.skin;
+		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
+		var obj = skin[part];
+		if (!obj || typeof obj !== "object") { return { ok: false, message: "该部位没有皮肤数据" }; }
+		if (obj.pen !== "tattoo") { return { ok: false, message: "该部位没有纹身（只有 pen 为纹身的部位才可清除）" }; }
+		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj) };
+		skin[part] = {};
+		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "清除该部位纹身", "vcore-econ");
+		return { ok: true, message: "已清除「" + mbCEVanillaEconBodyZh(part) + "」的纹身（整部位重置，等价原版 bodywriting_clear）" };
+	}
+	function mbCEVanillaEconTattooMark(part) {
+		var V = getV();
+		var skin = V && V.skin;
+		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
+		var obj = skin[part];
+		if (!obj || typeof obj !== "object") { return { ok: false, message: "该部位没有皮肤数据" }; }
+		if (obj.pen === "tattoo") { return { ok: false, message: "该部位已经是纹身" }; }
+		if (!obj.type || !(obj.writing || obj.type === "image")) {
+			return { ok: false, message: "该部位没有可转成纹身的图案或文字（原版纹身必须有刺青设计数据，凭空造不出来）" };
+		}
+		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj) };
+		obj.pen = "tattoo";
+		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "标记为纹身", "vcore-econ");
+		return { ok: true, message: "「" + mbCEVanillaEconBodyZh(part) + "」已标记为纹身" };
+	}
+	function mbCEVanillaEconTattooClearAll() {
+		var V = getV();
+		var skin = V && V.skin;
+		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
+		var keys = Object.keys(skin).filter(function (k) {
+			return skin[k] && typeof skin[k] === "object" && skin[k].pen === "tattoo";
+		});
+		if (!keys.length) { return { ok: false, message: "当前没有任何纹身" }; }
+		var before = { kind: "tattoo-all", skin: mbCEVanillaEconClone(skin) };
+		keys.forEach(function (k) { skin[k] = {}; });
+		mbCEVanillaTrace("tattoo-all", before, "skin", "一键清除全部纹身", "vcore-econ");
+		return { ok: true, message: "已清除 " + keys.length + " 处纹身", cleared: keys.length };
+	}
+
+	
+/* 职责：07m 五项直写的回退处理器（vcore-econ 留痕落地；拆分原因为结构门禁 S1 单段 400 行）。
+   由 mbCEVanillaExtUndo 在未知 kind 处委派；未知 kind 返回 null。 */
+
+/* ---------- 回退（由 mbCEVanillaExtUndo 在未知 kind 处委派；未知 kind 返回 null） ----------
+	   每种 kind 一个处理器，避免一个巨型 if 链把复杂度顶穿 lint 棘轮。 */
+	var MB_CE_ECON_UNDO = {
+		"rent-days": function (V, b, key) {
+			if (b.renttime === undefined) { try { delete V.renttime; } catch (e1) {} } else { V.renttime = b.renttime; }
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原租期倒计时为 " + (b.renttime === undefined ? "未设置" : b.renttime + " 天") };
+		},
+		"rent-debt": function (V, b, key) {
+			V.baileyRefusedToPayTotal = Number(b.debt) || 0;
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原欠租为 £" + (Number(b.debt) || 0) };
+		},
+		"school": function (V, b, key) {
+			if (V.daily && V.daily.school && b.attended) { V.daily.school.attended = mbCEVanillaEconClone(b.attended); }
+			if (b.missed === undefined || b.missed === null) {
+				try { delete V.schoolLessonsMissed; } catch (e2) {}
+			} else {
+				V.schoolLessonsMissed = mbCEVanillaEconClone(b.missed);
+			}
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原今日出勤与旷课计数" };
+		},
+		"farm": function (V, b, key) {
+			if (!V.plots || typeof V.plots !== "object") { return { ok: false, message: "农场地块已不在，无法回退" }; }
+			V.plots[b.loc] = mbCEVanillaEconClone(b.plots);
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原「" + mbCEVanillaEconPlotZh(b.loc) + "」的地块状态" };
+		},
+		"condoms": function (V, b, key) {
+			if (b.condoms === undefined) { try { delete V.condoms; } catch (e3) {} } else { V.condoms = b.condoms; }
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原避孕套数量为 " + (b.condoms === undefined ? "未设置" : b.condoms + " 个") };
+		},
+		"tattoo": function (V, b, key) {
+			if (!V.skin || typeof V.skin !== "object") { return { ok: false, message: "皮肤数据已不在，无法回退" }; }
+			V.skin[b.part] = mbCEVanillaEconClone(b.value);
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原「" + mbCEVanillaEconBodyZh(b.part) + "」的皮肤数据" };
+		},
+		"tattoo-all": function (V, b, key) {
+			V.skin = mbCEVanillaEconClone(b.skin);
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原全部皮肤数据" };
+		}
+	};
+	function mbCEVanillaEconUndo(id, b, key) {
+		var V = getV();
+		if (!V || !b || typeof b !== "object") { return null; }
+		var fn = MB_CE_ECON_UNDO[String(b.kind || "")];
+		return typeof fn === "function" ? fn(V, b, key) : null;
+	}
+/* 职责：全局页 ⑪「经济 · 学业 · 农田 · 消耗品 · 纹身」区块渲染（07m-vanilla-econ-data.js 的视图层）。
+   设计约束（用户明确要求）：界面全中文、不出现裸键名；枚举项（科目 / 地块 / 身体部位）一律用下拉选择，
+   数值项用输入框 + 「写入」按钮。所有写入留痕，区块内每个可回退动作都带「回退」按钮。
+   拆段原因：结构门禁 S1 单段 400 行；另按 lint 棘轮把五个分组各拆成独立函数（单函数 ≤120 行 / 复杂度 ≤10）。 */
+
+	function mbCEVanillaEconUiBody(sec, groupTitle, subTitle) {
+		var g = mceNewGroup(sec, groupTitle, subTitle);
+		var body = el("div", "mce-vcore-body");
+		g.appendChild(body);
+		return body;
+	}
+	function mbCEVanillaEconUiClear(body) {
+		while (body.firstChild) { body.removeChild(body.firstChild); }
+	}
+	function mbCEVanillaEconUiUndo(body, id, redraw) {
+		if (!mbCEVanillaHasTrace(id)) { return; }
+		var ub = el("button", "mce-btn mce-red", "回退");
+		ub.type = "button";
+		ub.title = "还原到首次写入前状态";
+		ub.addEventListener("click", function () {
+			var ru = mbCEVanillaExtUndo(id);
+			setStatus(ru.message, ru.ok ? MCE_CLS.ok : MCE_CLS.err);
+			if (ru.ok) { redraw(); }
+		});
+		body.appendChild(ub);
+	}
+	function mbCEVanillaEconUiNumRow(parent, labelText, tip, initial) {
+		var row = el("div", MCE_CLS.row);
+		var lbl = el("span", MCE_CLS.rowLbl, labelText);
+		lbl.title = tip || labelText;
+		row.appendChild(lbl);
+		var inp = el("input", MCE_CLS.inp);
+		inp.type = "number";
+		inp.inputmode = "numeric";
+		inp.min = "0";
+		inp.value = initial === undefined || initial === null ? "" : String(initial);
+		inp.title = tip || labelText;
+		row.appendChild(inp);
+		parent.appendChild(row);
+		return inp;
+	}
+	function mbCEVanillaEconUiSelect(parent, labelText, pairs, tip) {
+		var row = el("div", MCE_CLS.row);
+		var lbl = el("span", MCE_CLS.rowLbl, labelText);
+		lbl.title = tip || labelText;
+		row.appendChild(lbl);
+		var sel = el("select", MCE_CLS.inp);
+		pairs.forEach(function (p) {
+			var op = el("option", "", p[1]);
+			op.value = String(p[0]);
+			sel.appendChild(op);
+		});
+		row.appendChild(sel);
+		parent.appendChild(row);
+		return sel;
+	}
+	function mbCEVanillaEconUiBtn(grid, text, tip, fn) {
+		var b = el("button", MCE_CLS.btn, text);
+		b.type = "button";
+		if (tip) { b.title = tip; }
+		b.addEventListener("click", fn);
+		grid.appendChild(b);
+		return b;
+	}
+	/* 写入结果统一落地：成功则刷新本组，失败只留状态条 */
+	function mbCEVanillaEconUiRun(res, redraw) {
+		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+		if (res.ok) { redraw(); }
+	}
+
+	/* ---------- ⑪-1 房租与欠租 ---------- */
+	function mbCEVanillaEconSecRent(sec) {
+		var body = mbCEVanillaEconUiBody(sec, "房租与欠租", "原版 passRentTick：租期倒计时每 7 天催一次；欠租按「周租 + 婴儿附加」累加");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var st = mbCEVanillaEconStats();
+			if (!st.rent.has) {
+				body.appendChild(el("div", MCE_CLS.hint, "未找到房租结构（该存档还没进入租房线）。"));
+				return;
+			}
+			body.appendChild(el("div", MCE_CLS.hint,
+				"当前：距下次催租 " + st.rent.renttime + " 天 · 欠租 £" + st.rent.debt
+				+ " · 每周租金 £" + st.rent.rentmoney
+				+ (st.rent.babyRent ? "（含婴儿附加 £" + st.rent.babyRent + "）" : "")));
+			var daysInp = mbCEVanillaEconUiNumRow(body, "租期天数", "0 = 今天刚见过 Bailey，7 天内不会累计欠租；数值越小越快被催", st.rent.renttime);
+			var g1 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g1, "写入租期", "把租期倒计时写为上方数值（原版允许 0–365）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconRentDays(daysInp.value), redraw);
+			});
+			mbCEVanillaEconUiBtn(g1, "让 Bailey 今天来过", "等价租期 = 0：今天已收过租，接下来 7 天才会计欠", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconRentDays(0), redraw);
+			});
+			var debtInp = mbCEVanillaEconUiNumRow(body, "欠租金额（£）", "只写实际欠款；统计页那条历史累计数字不动", st.rent.debt);
+			var g2 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g2, "写入欠租", "把欠租写为上方数值", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconRentDebt(debtInp.value), redraw);
+			});
+			mbCEVanillaEconUiBtn(g2, "清空欠租", "欠款归 0，Bailey 不再追这笔钱", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconClearDebt(), redraw);
+			});
+			body.appendChild(mceFoldHint("原版只在「租期倒计时跌破 0 且正好是 7 的倍数」那一刻累计欠租，且金额固定按当周周租算。"
+				+ "所以把租期写 0 就是「今天已经交过」，写大数值则是把催租往后拖；欠租金额直写只改实际欠款，"
+				+ "累计统计（统计页那条历史数字）保持真实。"));
+			mbCEVanillaEconUiUndo(body, "rent-days", redraw);
+			mbCEVanillaEconUiUndo(body, "rent-debt", redraw);
+		};
+		redraw();
+	}
+
+	/* ---------- ⑪-2 学校出勤 ---------- */
+	function mbCEVanillaEconSecSchool(sec) {
+		var body = mbCEVanillaEconUiBody(sec, "学校出勤", "原版六科出勤位 + 旷课累计（出勤每日重置、旷课不清零）");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var st = mbCEVanillaEconStats();
+			if (!st.school.has) {
+				body.appendChild(el("div", MCE_CLS.hint, "该存档还没有学校流程（今日出勤表未生成），先正常上一天学再回来。"));
+				return;
+			}
+			var mList = MCE_ECON_SUBJECTS.map(function (s) {
+				return s.zh + " " + (st.school.attended[s.key] ? "已出勤" : "未出勤") + " · 旷课 " + (st.school.missed[s.key] || 0);
+			}).join("｜");
+			body.appendChild(el("div", MCE_CLS.hint,
+				"当前：今日已出勤 " + st.school.attendedCount + "/6 科 · 旷课累计 " + st.school.missedTotal + " 次"));
+			body.appendChild(el("div", MCE_CLS.hint, mList));
+			var pairs = MCE_ECON_SUBJECTS.map(function (s) { return [s.key, s.zh]; });
+			var sel = mbCEVanillaEconUiSelect(body, "科目", pairs, "六科对应原版今日出勤表的同名科目");
+			var g1 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g1, "设为已出勤", "把所选科目记为今天已上（绝不累进旷课）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconAttend(sel.value, 1), redraw);
+			});
+			mbCEVanillaEconUiBtn(g1, "设为缺席", "把所选科目记为今天没上（旷课次数由原版结算累加）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconAttend(sel.value, 0), redraw);
+			});
+			var g2 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g2, "今日六科全出勤", "六科出勤位一次写满（不动旷课计数）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconAttendAll(1), redraw);
+			});
+			mbCEVanillaEconUiBtn(g2, "旷课次数清零", "六科旷课累计全部归 0（学校警告线立即回落）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconMissedClear(), redraw);
+			});
+			body.appendChild(mceFoldHint("出勤位每天重置，旷课计数不清。原版缺席时按「今天有没有记录出勤」补一次旷课——"
+				+ "所以「设为已出勤」不会凭空加旷课，而「设为缺席」若正好踩在结算点会由原版补一次。"
+				+ "要清学校警告，直接点「旷课次数清零」。"));
+			mbCEVanillaEconUiUndo(body, "school", redraw);
+		};
+		redraw();
+	}
+
+	/* ---------- ⑪-3 农场地块 ---------- */
+	function mbCEVanillaEconSecFarm(sec) {
+		var body = mbCEVanillaEconUiBody(sec, "农场地块催熟", "原版农田按地点分块，成熟即可收获（催熟同时把生长天数归 0）");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var st = mbCEVanillaEconStats();
+			if (!st.farm.has || !st.farm.locations.length) {
+				body.appendChild(el("div", MCE_CLS.hint, "该存档还没有农场地块（或地块为空）。"));
+				return;
+			}
+			var sum = { total: 0, planted: 0, ripe: 0 };
+			st.farm.locations.forEach(function (loc) {
+				sum.total += loc.total;
+				sum.planted += loc.planted;
+				sum.ripe += loc.ripe;
+			});
+			body.appendChild(el("div", MCE_CLS.hint,
+				"汇总：" + st.farm.locations.length + " 个地点 · 共 " + sum.total + " 块 · 已种 " + sum.planted + " · 可收获 " + sum.ripe));
+			st.farm.locations.forEach(function (loc) {
+				body.appendChild(el("div", MCE_CLS.hint,
+					loc.zh + "：共 " + loc.total + " 块 · 已种 " + loc.planted + " · 可收获 " + loc.ripe));
+			});
+			var pairs = st.farm.locations.map(function (loc) { return [loc.key, loc.zh]; });
+			var sel = mbCEVanillaEconUiSelect(body, "地块", pairs, "地块名对应存档内的实际地点，逐块单独催熟");
+			var g1 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g1, "该地块全部催熟", "所选地块里已种下的作物一律写到可收获（空格 / 未知作物跳过）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconRipen(sel.value), redraw);
+			});
+			mbCEVanillaEconUiBtn(g1, "全部地块催熟", "所有地块一次写满（仍跳过空格与未知作物）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconRipenAll(), redraw);
+			});
+			body.appendChild(mceFoldHint("催熟 = 成熟度写到满格、生长天数归 0。空格（还没播种）与「未收录作物」故意跳过："
+				+ "原版每日结算会按作物表读生长参数，空格子或作物不在表里时强写成熟，结算会直接报错。"
+				+ "写入后照常浇一次水走原版收获流程即可，别让已熟地块继续挂着（成熟度没有上限判定，长期挂会越涨越高）。"));
+			st.farm.locations.forEach(function (loc) { mbCEVanillaEconUiUndo(body, "farm-" + loc.key, redraw); });
+		};
+		redraw();
+	}
+
+	/* ---------- ⑪-4 消耗品 ---------- */
+	function mbCEVanillaEconSecItem(sec) {
+		var body = mbCEVanillaEconUiBody(sec, "消耗品：避孕套", "原版侧栏「Total condoms」直接读这个数量");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var st = mbCEVanillaEconStats();
+			body.appendChild(el("div", MCE_CLS.hint,
+				"当前：避孕套 " + st.condoms.count + " 个" + (st.condoms.has ? "" : "（尚未初始化，写入会新建）")
+				+ " · 侧栏条目需在设置里开启「避孕套显示」才可见"));
+			var inp = mbCEVanillaEconUiNumRow(body, "数量", "0–999；0 个时原版会走无套分支", st.condoms.count);
+			var g1 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g1, "写入数量", "把数量写为上方数值", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconCondoms(inp.value), redraw);
+			});
+			mbCEVanillaEconUiBtn(g1, "追加 10 个", "在当前数量上 +10（写满 999 封顶）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconCondomsAdd(10), redraw);
+			});
+			mbCEVanillaEconUiBtn(g1, "清零", "写 0 个（等价用完）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconCondoms(0), redraw);
+			});
+			body.appendChild(mceFoldHint("避孕套是消耗品，数值随时可写，不受当周购买限制。同类的润滑液 / 避孕药在原版没有可直接写的数量键"
+				+ "（润滑液只有显示设置，避孕药只有统计计数），所以本区只做避孕套。"));
+			mbCEVanillaEconUiUndo(body, "condoms", redraw);
+		};
+		redraw();
+	}
+
+	/* ---------- ⑪-5 玩家纹身 ---------- */
+	function mbCEVanillaEconSecTattoo(sec) {
+		var body = mbCEVanillaEconUiBody(sec, "玩家纹身", "原版纹身按部位记录；清除等价原版「擦除涂写」（整部位重置）");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var V = getV();
+			var st = mbCEVanillaEconStats();
+			if (!st.tattoo.has) {
+				body.appendChild(el("div", MCE_CLS.hint, "该存档还没有皮肤数据，进游戏刷新一次再回来。"));
+				return;
+			}
+			var names = st.tattoo.parts.map(function (p) { return p.zh; }).join("、");
+			body.appendChild(el("div", MCE_CLS.hint, "当前纹身：" + (st.tattoo.count ? st.tattoo.count + " 处（" + names + "）" : "无")));
+			var allParts = Object.keys(V.skin).filter(function (k) {
+				return V.skin[k] && typeof V.skin[k] === "object";
+			});
+			var pairs = allParts.map(function (k) { return [k, mbCEVanillaEconBodyZh(k)]; });
+			var sel = mbCEVanillaEconUiSelect(body, "部位", pairs, "只列该存档实际存在的皮肤部位，显示为中文名");
+			/* 默认定位到已有纹身的第一个部位，省得玩家自己找 */
+			if (st.tattoo.parts.length) { sel.value = String(st.tattoo.parts[0].key); }
+			var g1 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g1, "清除该部位纹身", "只清所选部位（没有纹身的部位会被拒绝）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClear(sel.value), redraw);
+			});
+			mbCEVanillaEconUiBtn(g1, "标记为纹身", "把该部位已有的图案 / 文字改判为纹身（没有任何图案时拒绝）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconTattooMark(sel.value), redraw);
+			});
+			var g2 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g2, "一键清除全部纹身", "所有带纹身的部位一次重置（其他部位不动）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClearAll(), redraw);
+			});
+			body.appendChild(mceFoldHint("原版「加纹身」不是写个数字就行：纹身店会先把刺青设计（clone 的部位对象）存一份刺青设计数据再标记，"
+				+ "凭空造不出合法设计。所以这里提供两条真实可行的路：① 清除（等价原版「擦除涂写」，整部位重置）；"
+				+ "② 标记——该部位已经有涂写 / 图案时，把呈现类型改成纹身，显示与判定都按纹身走。"));
+			mbCEVanillaEconUiUndo(body, "tattoo-all", redraw);
+			allParts.forEach(function (k) { mbCEVanillaEconUiUndo(body, "tattoo-" + k, redraw); });
+		};
+		redraw();
+	}
+
+	function mbCERenderVanillaEcon(pane) {
+		var sec = mceNewSec(pane, 11, "经济 · 学业 · 农田 · 消耗品 · 纹身",
+			"五组原版直写：① 房租与欠租（租期倒计时 / 欠租金额）；② 学校出勤（逐科或一键六科）；"
+			+ "③ 农场地块催熟（按地块选，空地与未知作物会自动跳过）；④ 避孕套数量；⑤ 玩家纹身（清除 / 标记）。"
+			+ "全部写入留痕，可在上方「统一回退中心」逐条回退。");
+		var V = getV();
+		if (!V) {
+			sec.appendChild(el("div", MCE_CLS.hint, "游戏尚未就绪，暂不可写。"));
+			return;
+		}
+		mbCEVanillaEconSecRent(sec);
+		mbCEVanillaEconSecSchool(sec);
+		mbCEVanillaEconSecFarm(sec);
+		mbCEVanillaEconSecItem(sec);
+		mbCEVanillaEconSecTattoo(sec);
+	}
 /* 职责：NPC 特质获取 + 誓言修复 + 时间推进（Now / Advance / Jump） */
 	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
 	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
@@ -15956,6 +16644,9 @@ function renderNpcUndergroundSec(pane) {
 		/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js）
 		   犯罪连案底一起清 / 古董只收集 + 成就 / 雷米疤面头衔 —— 三项各走独立 vcore 留痕，可在回退中心逐条还原 */
 		mbCERenderVanillaExt(pane);
+		/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js）
+		   房租/欠租、学校出勤、地块催熟、避孕套数量、玩家纹身清除与标记 —— 独立 vcore-econ 留痕，可逐条回退 */
+		mbCERenderVanillaEcon(pane);
 
 		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
 		mbCERenderLock(pane);
@@ -16502,6 +17193,7 @@ function renderAttitudesGroup(pane) {
 		yanling: "言灵改写（页内撤销）",
 		part: "外观隐藏（转化部件）",
 		vcore: "原版档案 · 收藏 · 头衔",
+		"vcore-econ": "原版经济 · 学业 · 农田 · 消耗品 · 纹身",
 		lock: "数值锁定写回"
 	};
 	function mbCEUndoLabel(type) {
@@ -16621,7 +17313,7 @@ function renderAttitudesGroup(pane) {
 			}
 			/* v2.0.9 需求②③④：原版档案 / 收藏 / 头衔三项整块写入（07l-vanilla-ext.js）
 			   id in {crime, antique, title}；before 为「首次写入前」整块快照，由 mbCEVanillaExtUndo 按 kind 还原 */
-			if (type === "vcore") {
+			if (type === "vcore" || type === "vcore-econ") {
 				var vid = String(rec.id || key.replace(/^vcore:/, ""));
 				var rv = /** @type {any} */ (mbCEVanillaExtUndo(vid));
 				return { ok: !!(rv && rv.ok), msg: (rv && (rv.message || rv.msg)) || "原版档案回退失败" };
@@ -17021,6 +17713,30 @@ function renderAttitudesGroup(pane) {
 		purge_trait: "特质清除",
 		purge_fame: "名声清除"
 	};
+	/* 经济 / 学业 / 农田 / 消耗品 / 纹身留痕 id → 中文（07m-vanilla-econ-data.js 的 vcore-econ 留痕） */
+	var MB_CE_UNDO_ECON = {
+		"rent-days": "租期倒计时",
+		"rent-debt": "欠租金额",
+		"school": "今日出勤与旷课计数",
+		"condoms": "避孕套数量",
+		"tattoo-all": "全部纹身清除"
+	};
+	function mbCEUndoEconName(rest) {
+		if (MB_CE_UNDO_ECON[rest]) { return MB_CE_UNDO_ECON[rest]; }		if (rest.indexOf("farm-") === 0) {
+			var loc = rest.slice(5);
+			try { return "地块催熟（" + mbCEVanillaEconPlotZh(loc) + "）"; } catch (eFm) { return "地块催熟"; }
+		}
+		if (rest.indexOf("tattoo-") === 0) {
+			var part = rest.slice(7);
+			try { return "纹身（" + mbCEVanillaEconBodyZh(part) + "）"; } catch (eTt) { return "纹身"; }
+		}
+		return "";
+	}
+	/* vcore-econ 专用：只在 ns/type 命中时改名，其余原样放过（拆出来是为了不给 mbCEUndoItemName 加分支/复杂度） */
+	function mbCEUndoEconFixName(name, ns, rest, rec) {
+		if (ns !== "vcore" || !rec || rec.type !== "vcore-econ") { return name; }
+		return mbCEUndoEconName(rest);
+	}
 	/* 键拆分：<ns>:<rest> */
 	function mbCEUndoSplitKey(key) {
 		var s = String(key == null ? "" : key), i = s.indexOf(":");
@@ -17128,6 +17844,7 @@ function renderAttitudesGroup(pane) {
 				if (!name) { name = tail; }
 			}
 		} catch (e) { name = ""; }
+		name = mbCEUndoEconFixName(name, ns, rest, rec);
 		name = String(name || "").trim();
 		if (!name) { name = rest || String(key); }
 		return name;
@@ -17197,6 +17914,62 @@ function renderAttitudesGroup(pane) {
 		if (openFlag) { close(); } else { open(); }
 	}
 
+	/* v2.1.14 悬浮球拖动坐标换算（手机端偏移修复）
+	   DoL 的「缩放」设置给 body 打 CSS zoom（options.zoom，50–200%，默认 100；原版 widget zoom() 实证
+	   `$("body").css("zoom", value + "%")`）。zoom 下 getBoundingClientRect()/clientX 给的是
+	   「缩放后的视口坐标」，而 style.left/top 写的是「未缩放布局坐标」——原样互写会被再缩一次：
+	   zoom<100 球落在手指左上、zoom>100 落右下，且越靠边偏得越多（手机端默认就会用非 100 缩放）。
+	   修法：读/写全部换算到布局坐标，位移按同一系数归一。 */
+	function mbCEToggleZoomScale() {
+		try {
+			var z = (typeof window !== "undefined" && window.getComputedStyle) ? parseFloat(window.getComputedStyle(document.body).zoom) : NaN;
+			return (isFinite(z) && z > 0) ? z : 1;
+		} catch (e) { return 1; }
+	}
+	/* 小工具：取有限数值，否则用默认（减少分支，满足复杂度棘轮） */
+	function mbCEToggleNum(v, d) {
+		var n = parseFloat(v);
+		return (isFinite(n) ? n : d);
+	}
+	/* 纯函数（供单测直接喂数值）：布局基准位 + 视口位移 → 布局 left/top，并钳进视口
+	   入参全部是「布局坐标/布局尺寸」：baseLeft/baseTop 为已换算的布局起点，bw/bh 为布局宽高；
+	   zs 为 body zoom（视口宽高与位移在这里归一） */
+	function mbCEToggleLayoutPos(baseLeft, baseTop, dx, dy, zs, vw, vh, bw, bh) {
+		var z = mbCEToggleNum(zs, 1);
+		if (!(z > 0)) { z = 1; }
+		var w = mbCEToggleNum(vw, 1280) / z;
+		var h = mbCEToggleNum(vh, 720) / z;
+		var bwl = mbCEToggleNum(bw, 52), bhl = mbCEToggleNum(bh, 52);
+		if (!(bwl > 0)) { bwl = 52; }
+		if (!(bhl > 0)) { bhl = 52; }
+		return {
+			left: Math.max(0, Math.min(Math.max(0, w - bwl - 4), mbCEToggleNum(baseLeft, 0) + mbCEToggleNum(dx, 0) / z)),
+			top: Math.max(0, Math.min(Math.max(0, h - bhl - 4), mbCEToggleNum(baseTop, 0) + mbCEToggleNum(dy, 0) / z))
+		};
+	}
+	/* body style 里的 zoom 变化监听（DoL 缩放 50–120% 浮动，改设置不触发 resize）：
+	   只在 zoom 实际变化时回调一次，其余 style 抖动不打扰 */
+	function mbCEToggleWatchZoom(getClamp) {
+		try {
+			if (typeof window.MutationObserver !== "function" || !document.body) { return null; }
+			var last = mbCEToggleZoomScale();
+			var obs = new window.MutationObserver(function () {
+				var z = mbCEToggleZoomScale();
+				if (z !== last) { last = z; getClamp(); }
+			});
+			obs.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+			return obs;
+		} catch (e) { return null; }
+	}
+	function mbCEToggleEnsureZoomWatch(btn, getClamp) {
+		try {
+			window.mbCEToggleReclampNow = getClamp;
+			if (btn.__mbCEZoomBound) { return; }
+			btn.__mbCEZoomBound = mbCEToggleWatchZoom(getClamp) || "none";
+		} catch (e) {}
+	}
+	try { window.mbCEToggleZoomScale = mbCEToggleZoomScale; window.mbCEToggleLayoutPos = mbCEToggleLayoutPos; } catch (eExp) {}
+
 	function ensureDom() {
 		if (root && document.body && document.body.contains(root)) { return; }
 		injectCSS();
@@ -17215,10 +17988,12 @@ function renderAttitudesGroup(pane) {
 		   位置恢复与窗口 resize 都走这里（拖动过程中的钳位另在 pointermove 内，同一套边界）。 */
 		function tgClampPos() {
 			try {
-				var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
-				var h = (typeof window !== "undefined" && window.innerHeight) || 720;
+				/* v2.1.14：innerWidth / rect 是「缩放后视口坐标」，left/top 存的是布局坐标 → 边界与球尺寸都要除以 zoom */
+				var z = mbCEToggleZoomScale();
+				var w = ((typeof window !== "undefined" && window.innerWidth) || 1280) / z;
+				var h = ((typeof window !== "undefined" && window.innerHeight) || 720) / z;
 				var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : null;
-				var bw = (r && r.width) || 56, bh = (r && r.height) || 56;
+				var bw = (((r && r.width) || 56) / z), bh = (((r && r.height) || 56) / z);
 				var l = parseInt(tgSt.left, 10), t = parseInt(tgSt.top, 10);
 				if (!isFinite(l) || !isFinite(t)) { return; } /* 从未拖过（right/bottom 定位）→ 不动 */
 				tgSt.left = Math.max(0, Math.min(w - bw - 4, l)) + "px";
@@ -17250,7 +18025,7 @@ function renderAttitudesGroup(pane) {
 				}
 			}
 		} catch (e) { /* 读不到悬浮球偏好（隐私模式/配额满/JSON 损坏）→ 保留默认位置与显示状态 */ }
-		var drag = { on: false, moved: false, sx: 0, sy: 0, l: 0, t: 0, bw: 56, bh: 56, nx: 0, ny: 0, raf: 0 };
+		var drag = { on: false, moved: false, sx: 0, sy: 0, l: 0, t: 0, bw: 52, bh: 52, nx: 0, ny: 0, raf: 0, zs: 1 };
 		/* v1.9.11+ 自查：绑定守卫——ModLoader 热重载复用同一 #mce-toggle 时跳过重复 addEventListener，
 		   否则 click 监听堆叠会导致一次点击多次开关面板 */
 		if (!toggleBtn.__mbCEBound) {
@@ -17258,10 +18033,12 @@ function renderAttitudesGroup(pane) {
 			if (toggleBtn.dataset && toggleBtn.dataset.mceLocked === "1") { return; }
 			drag.on = true; drag.moved = false;
 			drag.sx = ev.clientX; drag.sy = ev.clientY;
-			var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : { left: 0, top: 0, width: 56, height: 56 };
-			drag.l = r.left; drag.t = r.top;
-			drag.bw = r.width || 56; drag.bh = r.height || 56;
+			/* v2.1.14：先切 mce-dragging（压掉 :active 的 transform:scale(.94)）再读矩形，按下瞬间不跳位 */
 			try { toggleBtn.classList.add("mce-dragging"); } catch (e2) {}
+			drag.zs = mbCEToggleZoomScale();
+			var r = toggleBtn.getBoundingClientRect ? toggleBtn.getBoundingClientRect() : { left: 0, top: 0, width: 52, height: 52 };
+			drag.l = r.left / drag.zs; drag.t = r.top / drag.zs;
+			drag.bw = (r.width || 52) / drag.zs; drag.bh = (r.height || 52) / drag.zs;
 			try { toggleBtn.setPointerCapture(ev.pointerId); } catch (e2) {}
 			try { ev.preventDefault(); } catch (e2) {}
 		});
@@ -17270,17 +18047,16 @@ function renderAttitudesGroup(pane) {
 			var dx = ev.clientX - drag.sx, dy = ev.clientY - drag.sy;
 			if (Math.abs(dx) < 3 && Math.abs(dy) < 3) { return; }
 			drag.moved = true;
-			drag.nx = drag.l + dx; drag.ny = drag.t + dy;
+			drag.nx = drag.l + dx / (drag.zs || 1); drag.ny = drag.t + dy / (drag.zs || 1); /* v2.1.14：位移按 zoom 归一 */
 			if (!drag.raf) {
 				drag.raf = (typeof window !== "undefined" && window.requestAnimationFrame) ? window.requestAnimationFrame(function () {
 					drag.raf = 0;
 					if (!drag.on && !drag.moved) { return; }
 					var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
 					var h = (typeof window !== "undefined" && window.innerHeight) || 720;
-					var nl = Math.max(0, Math.min(w - (drag.bw || 56) - 4, drag.nx));
-					var nt = Math.max(0, Math.min(h - (drag.bh || 56) - 4, drag.ny));
-					tgSt.left = nl + "px";
-					tgSt.top = nt + "px";
+					var p = mbCEToggleLayoutPos(drag.nx, drag.ny, 0, 0, drag.zs, w, h, drag.bw || 52, drag.bh || 52);
+					tgSt.left = p.left + "px";
+					tgSt.top = p.top + "px";
 					tgSt.right = "auto";
 					tgSt.bottom = "auto";
 				}) : 0;
@@ -17294,8 +18070,8 @@ function renderAttitudesGroup(pane) {
 			if (drag.moved) {
 				var w = (typeof window !== "undefined" && window.innerWidth) || 1280;
 				var h = (typeof window !== "undefined" && window.innerHeight) || 720;
-				var nl = Math.max(0, Math.min(w - (drag.bw || 56) - 4, drag.nx));
-				var nt = Math.max(0, Math.min(h - (drag.bh || 56) - 4, drag.ny));
+				var p = mbCEToggleLayoutPos(drag.nx, drag.ny, 0, 0, drag.zs, w, h, drag.bw || 52, drag.bh || 52); /* v2.1.14 */
+				var nl = p.left, nt = p.top;
 				tgSt.left = nl + "px";
 				tgSt.top = nt + "px";
 				tgSt.right = "auto";
@@ -17317,6 +18093,9 @@ function renderAttitudesGroup(pane) {
 		if (!toggleBtn.__mbCEPosBound) {
 			try { window.addEventListener("resize", tgClampPos); toggleBtn.__mbCEPosBound = true; } catch (e2) {}
 		}
+		/* v2.1.14：DoL「缩放」在 50–120% 浮动且改设置不触发 resize；缩小→放大时布局视口收窄，
+		   球原坐标可能整颗落到屏幕外（球是面板唯一入口），故监听 zoom 变化后重新钳位 */
+		mbCEToggleEnsureZoomWatch(toggleBtn, tgClampPos);
 		try { toggleBtn.__mbCEBound = true; } catch (e2) {}
 		}
 
@@ -17423,6 +18202,24 @@ function renderAttitudesGroup(pane) {
 			var a = s.mbStageCE;
 			a.yanlingLeafSuit = mbCEYanlingLeafSuit;
 			a.yanlingLeafRevert = mbCEYanlingLeafRevert;
+			/* v2.1.14 经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-data.js） */
+			a.vanillaEconStats = mbCEVanillaEconStats;
+			a.vanillaEconRentDays = mbCEVanillaEconRentDays;
+			a.vanillaEconRentDebt = mbCEVanillaEconRentDebt;
+			a.vanillaEconClearDebt = mbCEVanillaEconClearDebt;
+			a.vanillaEconAttend = mbCEVanillaEconAttend;
+			a.vanillaEconAttendAll = mbCEVanillaEconAttendAll;
+			a.vanillaEconMissedClear = mbCEVanillaEconMissedClear;
+			a.vanillaEconRipen = mbCEVanillaEconRipen;
+			a.vanillaEconRipenAll = mbCEVanillaEconRipenAll;
+			a.vanillaEconCondoms = mbCEVanillaEconCondoms;
+			a.vanillaEconCondomsAdd = mbCEVanillaEconCondomsAdd;
+			a.vanillaEconTattooClear = mbCEVanillaEconTattooClear;
+			a.vanillaEconTattooMark = mbCEVanillaEconTattooMark;
+			a.vanillaEconTattooClearAll = mbCEVanillaEconTattooClearAll;
+			/* 回退按 id 走统一分发：先查 vcore 留痕再按 kind 还原（测试与诊断直接调这一个入口） */
+			a.vanillaEconUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
+			a.renderVanillaEcon = mbCERenderVanillaEcon;
 		} catch (e) { void e; }
 	}
 /* 职责：v2.0.9 原版档案 / 收藏 / 头衔（vcore 六键）导出。

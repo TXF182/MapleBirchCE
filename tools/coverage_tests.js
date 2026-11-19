@@ -131,7 +131,10 @@ const TESTS = [
      锁死四件事 —— setTheme 认四个名字且非法回落 gold、三类 mce-theme-* 互斥且悬浮球同步、
      cycleTheme 顺序 gold→starry→cyberpunk→jade、三套 token/纹理（含星空 58° 银河带与 ≥12 星点）
      真的进了 MB_CSS；另含确认条跟随与 html data-mce-theme 这条按压环取色通道。 */
-  "tests/theme_four.js"
+  "tests/theme_four.js",
+  /* v2.1.14 经济 · 学业 · 农田 · 消耗品 · 纹身（07m 两段）：数据层写入/拒绝分支、
+     vcore-econ 留痕与逐条回退、全局页 ⑪ 渲染（三个中文下拉 + 按钮点击到存档的真实链路）。 */
+  "tests/vanilla_econ_state.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。
