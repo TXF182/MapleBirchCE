@@ -167,7 +167,7 @@
 		var V = getV();
 		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
 		var ma = mbCEVanillaAntiqueState();
-		if (!ma) { return { ok: false, message: "未找到 $museumAntiques（该存档还没进入博物馆线）" }; }
+		if (!ma) { return { ok: false, message: "未找到古董收藏（该存档还没进入博物馆线）" }; }
 		var before = mbCEVanillaAntiqueBefore(V, ma);
 
 		var got = 0;

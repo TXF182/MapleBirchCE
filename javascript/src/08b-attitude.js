@@ -80,13 +80,13 @@ function mbCEAttitudeHasTrace(key) {
 function renderAttitudesGroup(pane) {
 	if (!pane) { return; }
 	var box = el("div", "mce-grp");
-	box.appendChild(el("div", MCE_CLS.rowLbl, "原版态度：你对什么感到不安?（$uncomfortable，等价原版 cheat 面板同一屏）"));
+	box.appendChild(el("div", MCE_CLS.rowLbl, "原版态度：你对什么感到不安?（等价原版 cheat 面板同一屏）"));
 	box.appendChild(el("div", MCE_CLS.hint,
-		"直接写最终生效值 $uncomfortable.*，不看 $attitudesControl.unlock* 门控——那组 unlock 每次刷新都会被原版 attitudesControlCheck 按真实数值重算覆盖，写它无效。门控条件只作说明展示。"));
+		"直接写最终生效的「不安」项，不看那组门控——门控每次刷新都会被原版按真实数值重算覆盖，写它无效；门控条件只作说明展示。"));
 	var V = null;
 	try { V = getV(); } catch (e) { V = null; }
 	if (!V || !V.uncomfortable || typeof V.uncomfortable !== "object") {
-		box.appendChild(el("div", MCE_CLS.err, "存档里没有 $uncomfortable（请先读档；原版初始化后该对象才会存在）"));
+		box.appendChild(el("div", MCE_CLS.err, "存档里没有态度数据（请先读档；原版初始化后才会存在）"));
 		pane.appendChild(box);
 		return;
 	}

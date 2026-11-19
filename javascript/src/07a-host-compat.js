@@ -168,3 +168,17 @@
 		try { setTimeout(syncHostLayout, 1200); } catch (e4) {}
 	}
 	scheduleHostLayoutSync();
+
+	/* ---- v2.1.15 排版核查补丁（空壳类补齐）----
+	   取证：mce-place-row / mce-line-head / mce-col / mce-kv-sep 此前在 07b / 07d / 05a3 里只当标签用、MB_CSS 从未定义
+	   → 场地子入口行套用 .mce-stage 的内边距与左边框，在同一张卡片里形成「卡中卡」；二级小标题与上方卡片贴死；
+	     适配器动作面板的按钮挤成一行；多组「标签+数值」并排时标签与数值归属不清。
+	   07a-shell.js 已顶到 400 行门禁，按本段既定约定用 MB_CSS += 追加（07d 的 mce-place-more/-subs 已有规则，不重复）。 */
+	MB_CSS +=
+		".mce-stage-name{min-width:0;line-height:1.4;word-break:break-all}" +
+		".mce-place-row{margin:5px 0 0;padding:4px 8px;border-left-width:2px;border-radius:var(--mce-radius-sm);background:var(--mce-bg-detail)}" +
+		".mce-place-row.mce-parallel{border-left-color:var(--mce-accent);background:var(--mce-bg-sel)}" +
+		".mce-line-head{margin-top:8px;padding-top:6px;border-top:1px solid var(--mce-border-dim)}" +
+		".mce-line-head .mce-dot{display:none}" +
+		".mce-col{display:flex;flex-direction:column;gap:var(--mce-space-sm)}" +
+		".mce-statrow .mce-kv-sep{color:var(--mce-txt-star);font-size:var(--mce-fs-sm);margin:0 2px}";

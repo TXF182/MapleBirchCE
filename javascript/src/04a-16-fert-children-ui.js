@@ -104,7 +104,7 @@ function mbCEFertKidCard(info, refresh) {
 	/* 定向发送 / 随叫随到 */
 	var locRow = el("div", MCE_CLS.row);
 	locRow.appendChild(el("span", MCE_CLS.rowLbl, "定向发送："));
-	var sel = el("select", MCE_CLS.inp);
+	var sel = el("select", "mce-sel");
 	MB_CE_FERT_KID_LOCS.forEach(function (o) {
 		var op = el("option", "", o.label);
 		op.value = o.key;

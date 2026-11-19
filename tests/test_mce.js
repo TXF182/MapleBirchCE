@@ -6249,8 +6249,8 @@ try {
     "63.34 已解锁状态下回退不删成就、古董状态照还原（hadFeat=true 分支）");
   delete V63.museumAntiques;
   const r6332 = api63.mbCEVanillaAntiqueCollect();
-  assert(r6332.ok === false && r6332.message.indexOf("未找到 $museumAntiques") !== -1,
-    "63.35 未进博物馆线（$museumAntiques 不存在）时拒绝并给原因");
+  assert(r6332.ok === false && r6332.message.indexOf("未找到古董收藏") !== -1,
+    "63.35 未进博物馆线（古董收藏结构不存在）时拒绝并给原因");
 
   /* 头衔：缺 Harper→守卫提示；Harper/Avery 已在位；缺 Remy→拒绝；回退时 Remy 消失→拒绝 */
   global.setup.NPCNameList = ["Avery", "Remy"];

@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.14";
+	var MCE_VERSION = "2.1.15";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -3501,7 +3501,7 @@ function mbCEFertRenderInnateBox(container, list, sel, rec0) {
 		mbCEFertInputs["id_" + k] = mbCEFertIdRow(idBox, k, cur, mbCEFertOptions(k, api0, kid0));
 	});
 	container.appendChild(idBox);
-	container.appendChild(el("div", MCE_CLS.hint,
+	container.appendChild(mceFoldHint(
 		"模组的三条硬规则（eden-cheats.js:162/164/165，违反会被它直接拒绝）：① 基础种族选「人类」时，模组自动清空「人形特征」——猫/狐/牛用人类 + 兽化特征，狼/鹰可再选人形特征；② 该角色孕期未结束，不能改种族 / 人形特征 / 兽化特征 / 生理性别；③ 已成年结算的角色，不能再改成动物形态。"));
 	var bInnate = el("button", "mce-btn mce-gold", "保存先天属性与外貌"); bInnate.type = "button";
 	bInnate.addEventListener("click", function () {
@@ -4142,7 +4142,7 @@ function mbCEFertKidCard(info, refresh) {
 	/* 定向发送 / 随叫随到 */
 	var locRow = el("div", MCE_CLS.row);
 	locRow.appendChild(el("span", MCE_CLS.rowLbl, "定向发送："));
-	var sel = el("select", MCE_CLS.inp);
+	var sel = el("select", "mce-sel");
 	MB_CE_FERT_KID_LOCS.forEach(function (o) {
 		var op = el("option", "", o.label);
 		op.value = o.key;
@@ -7416,6 +7416,20 @@ function renderPlayerEdit() {
 		try { setTimeout(syncHostLayout, 1200); } catch (e4) {}
 	}
 	scheduleHostLayoutSync();
+
+	/* ---- v2.1.15 排版核查补丁（空壳类补齐）----
+	   取证：mce-place-row / mce-line-head / mce-col / mce-kv-sep 此前在 07b / 07d / 05a3 里只当标签用、MB_CSS 从未定义
+	   → 场地子入口行套用 .mce-stage 的内边距与左边框，在同一张卡片里形成「卡中卡」；二级小标题与上方卡片贴死；
+	     适配器动作面板的按钮挤成一行；多组「标签+数值」并排时标签与数值归属不清。
+	   07a-shell.js 已顶到 400 行门禁，按本段既定约定用 MB_CSS += 追加（07d 的 mce-place-more/-subs 已有规则，不重复）。 */
+	MB_CSS +=
+		".mce-stage-name{min-width:0;line-height:1.4;word-break:break-all}" +
+		".mce-place-row{margin:5px 0 0;padding:4px 8px;border-left-width:2px;border-radius:var(--mce-radius-sm);background:var(--mce-bg-detail)}" +
+		".mce-place-row.mce-parallel{border-left-color:var(--mce-accent);background:var(--mce-bg-sel)}" +
+		".mce-line-head{margin-top:8px;padding-top:6px;border-top:1px solid var(--mce-border-dim)}" +
+		".mce-line-head .mce-dot{display:none}" +
+		".mce-col{display:flex;flex-direction:column;gap:var(--mce-space-sm)}" +
+		".mce-statrow .mce-kv-sep{color:var(--mce-txt-star);font-size:var(--mce-fs-sm);margin:0 2px}";
 /* 职责：面板外壳续 —— 外层页签分发（switchOuterTab）、页签状态持久化（mbCEUiLoad / mbCEUiSave / mbCEUiCollapsed）、主题切换 */
 	function switchOuterTab(name) {
 		var tabs = root.querySelectorAll(".mce-tabs button");
@@ -10711,7 +10725,7 @@ function mbCERenderLock(pane) {
 		});
 		grp.appendChild(head);
 		grp.appendChild(body);
-		body.appendChild(el("div", MCE_CLS.hint, "这些不是预设项，是你在角色页（快速面板 / 转化）或 Mod 作弊页点过「锁定」后落到 $V.mbCE_lock 的；默认收起，展开可改目标值或取消。"));
+		body.appendChild(el("div", MCE_CLS.hint, "这些不是预设项，是你在角色页（快速面板 / 转化）或 Mod 作弊页点过「锁定」后写进存档的锁定表；默认收起，展开可改目标值或取消。"));
 		customs.forEach(function (li) {
 			makeRow({ path: li.path, name: mbCELockLabel(li.path), note: "", source: mbCELockSource(li.path) }, true, body);
 		});
@@ -12831,7 +12845,7 @@ var SCENE_LOCATIONS = {
 					});
 					row.appendChild(inp); row.appendChild(apply);
 				} else {
-					var sel = el("select");
+					var sel = el("select", "mce-sel");
 					(it.options || []).forEach(function (o) {
 						var op = el("option"); op.value = String(o[0]); op.textContent = o[1];
 						var cv = getDotPath(it.varPath);
@@ -13132,7 +13146,7 @@ var SCENE_LOCATIONS = {
 		}
 		var r = getScenesDefs();
 		if (!Object.keys(r.defs).length) {
-			pane.appendChild(el("div", MCE_CLS.err, "未读取到场景注册表（$scenes）。"));
+			pane.appendChild(el("div", MCE_CLS.err, "未读取到场景注册表（该存档或游戏侧未提供场景数据）。"));
 			pane.appendChild(el("div", MCE_CLS.hint, "说明：本页读取游戏「场景查看器（Scene Viewer）」的注册表。请先在游戏菜单打开一次「场景」页面后返回；MOD 通过场景系统注册的剧情会随注册表自动出现。"));
 			return;
 		}
@@ -14437,7 +14451,7 @@ var SCENE_LOCATIONS = {
 			mkBtn(s8g, "凯拉尔 · 捞回", MCE_CLS.gold, function () { return mbCEYanlingKylar(false); }, "state=active");
 			mkBtn(s8g, "惠特尼 · 关进地牢", "mce-red", function () { return mbCEYanlingWhitney(true); }, "state=dungeon（188677 四处地牢事件按此值触发）");
 			mkBtn(s8g, "惠特尼 · 放回", MCE_CLS.gold, function () { return mbCEYanlingWhitney(false); }, "state=active");
-			s8.appendChild(el("div", MCE_CLS.hint, "惠特尼不提供「枷锁示众」：pillory 由 $pillory_tenant 联动（188675 按承租人姓名判定），只写 state 会出现「人不在枷锁却显示示众」的错位。凯拉尔亦同：其 prison 线除 state 还要 $prison.kylar 等配套键，本组只做 state 层（与原版 npcset 等价），不伪造监狱进度。"));
+			s8.appendChild(mceFoldHint("惠特尼不提供「枷锁示众」：pillory 由原版承租人状态联动（188675 按承租人姓名判定），只写 state 会出现「人不在枷锁却显示示众」的错位。凯拉尔亦同：其监狱线除 state 还要配套键，本组只做 state 层（与原版 npcset 等价），不伪造监狱进度。"));
 
 			/* ⑨ 监狱庇护（v2.0.3 新增：原 $prison.protection 是枚举字符串，数字档位在半失效，见上方 mbCEYanlingPrisonProtect 注释） */
 			var s9 = mceNewSec(gC, 9, "监狱庇护", "原版 $prison.protection **不是数字**：657114 等 14 处 `set to \"scarred\"`，650845 / 651145 / 658072 用 `is \"scarred\"` / `is \"tattooed\"` 判定（is 等价 ===），654586 用 `!$prison.protection` 判空。所以只有「有某种庇护 / 无庇护」两态——写 scarred 或 tattooed 都等价屏蔽狱中 attention 事件，只是走不同狱友的早餐 / 午餐分支。");
@@ -14446,12 +14460,12 @@ var SCENE_LOCATIONS = {
 				var pv = (V && V.prison) ? V.prison.protection : undefined;
 				protTxt = (V && V.prison) ? (pv === "" ? "无庇护（空串）" : (pv === undefined ? "未设置（字段缺省，等价无庇护）" : JSON.stringify(pv))) : "本存档无监狱对象（尚未进过监狱）";
 			} catch (eP) { /* 读数失败（存档冻结/结构异常）→ 面板展示降级为占位符，不影响按钮写入 */ }
-			s9.appendChild(el("div", MCE_CLS.hint, "当前：$prison.protection = " + protTxt));
+			s9.appendChild(el("div", MCE_CLS.hint, "当前庇护 = " + protTxt));
 			var s9g = mceBtnGrid(s9);
 			mkBtn(s9g, "疤痕狱友庇护", MCE_CLS.gold, function () { return mbCEYanlingPrisonProtect("scarred"); }, "prison.protection = \"scarred\"（原版 14 处同值；早餐 / 午餐走 scarred 狱友分支）");
 			mkBtn(s9g, "纹身狱友庇护", MCE_CLS.gold, function () { return mbCEYanlingPrisonProtect("tattooed"); }, "prison.protection = \"tattooed\"（651145 / 658072 有对应判定分支）");
 			mkBtn(s9g, "清除庇护", "", function () { return mbCEYanlingPrisonProtect(""); }, "prison.protection = \"\"（空串为假值，恢复 attention 事件的随机遭遇）");
-			s9.appendChild(el("div", MCE_CLS.hint, "注意：$prison.scarred_level（0-5）与 $prison.tattooed（0-100）是另外两个**数字**键（狱友线声望档位），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
+			s9.appendChild(el("div", MCE_CLS.hint, "注意：狱友声望档位（0-5）与纹身程度（0-100）是另外两个**数字**档位（狱友线声望），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
 
 			/* v2.0.2 按键重排：说明与边界不再伪装成"第 4 个区块"，改为页尾折叠块（不占编号，默认 2 行） */
 			var sInfo = el("div", "mce-block");
@@ -14470,10 +14484,10 @@ var SCENE_LOCATIONS = {
 			sInfobody.appendChild(sInfotoggle);
 			sInfobody.appendChild(el("div", MCE_CLS.hint, "① 只拦「服装性别」链，不改玩家性别、生殖器、外观性别（isGenitalMismatch 与原版 herm 链保持原样；双生殖器仍会按原版进 herm 分支，如需一并消掉请用上面的名声清零）。"));
 			sInfobody.appendChild(el("div", MCE_CLS.hint, "② 压力循环不受影响：77866-77870 用本地 const 判定（源码注释明确不复用函数），本页只覆盖函数不改语义。"));
-			sInfobody.appendChild(el("div", MCE_CLS.hint, "③ 不依赖任何原版文案：老式「言灵」模组靠文本替换原版 Cheats 面板，原版一更新即整块失效；本页全部为运行期钩子与变量直写，仅依赖 6 个变量键（$crossdressing / $schoolrep / $school_crossdress_message / $crossdressingTrait / $backgroundTraits / $fame）。"));
+			sInfobody.appendChild(mceFoldHint("③ 不依赖任何原版文案：老式「言灵」模组靠文本替换原版 Cheats 面板，原版一更新即整块失效；本页全部为运行期钩子与变量直写，仅依赖 6 个变量键（$crossdressing / $schoolrep / $school_crossdress_message / $crossdressingTrait / $backgroundTraits / $fame）。"));
 			sInfobody.appendChild(el("div", MCE_CLS.hint, "④ 所有净化动作按 mbCE_wrote[\"yanling:op\"] 留痕（含 before/after/t），可在全局页留痕区核对。"));
 			sInfobody.appendChild(el("div", MCE_CLS.hint, "⑤ 关闭开关会立即卸载钩子（window.isCrossdressing 还原为原版函数），不留空包装层；钩子被第三方模组重包时，开关开启期间每秒自动以新函数为上游重新包裹。"));
-			sInfobody.appendChild(el("div", MCE_CLS.hint, "⑥ 性别认知残留属正常：学校异装名声升到 5 时原版会把 9 名 NPC 写进 $genderknown（schoolrep widget 的 pushUnique）。本页清零名声不撤销这些认知——它们只代表「NPC 已知道你的性别」，不是负面名声，撤销反而让 NPC 忘记已有认知。"));
+			sInfobody.appendChild(mceFoldHint("⑥ 性别认知残留属正常：学校异装名声升到 5 时原版会把 9 名 NPC 写进 $genderknown（schoolrep widget 的 pushUnique）。本页清零名声不撤销这些认知——它们只代表「NPC 已知道你的性别」，不是负面名声，撤销反而让 NPC 忘记已有认知。"));
 			sInfo.appendChild(sInfobody);
 			pane.appendChild(sInfo);
 			/* 恢复滚动位置（见上方 keepTop） */
@@ -14880,7 +14894,7 @@ function renderIslandSec(pane) {
 		"注意：$island.home 与建造物是**字符串档位**（rocky_hillock|waterfall|gulch、\"\"|simple|basic|advanced），其它是数字；" +
 		"tide / tide_distance / explore(\"none\"/…) 是瞬时探索态，不做直写以免打断正在进行的事件。");
 	if (!isl) {
-		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有 $island（没上过岛）：点下面任一「写入」会自动建壳并补齐三处营地对象，之后再进岛不会报错。"));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有岛上营地（没上过岛）：点下面任一「写入」会自动建壳并补齐三处营地对象，之后再进岛不会报错。"));
 	} else {
 		sec.appendChild(el("div", MCE_CLS.hint, "当前：营地 " + ((isl.home === "waterfall") ? "瀑布" : (isl.home === "gulch") ? "峡谷" : "岩石小丘") +
 			" ｜ 隐蔽 " + (isl.hide == null ? "—" : isl.hide) + " ｜ 核桃 " + (isl.walnut == null ? "—" : isl.walnut) +
@@ -15009,7 +15023,7 @@ function renderNpcUndergroundSec(pane) {
 		"惠特妮 / 凯拉尔 / 贝利 不是被关，而是**越狱后**由 Widgets Underground 的 dungeonescape 按条件设置 *ReunionScene = \"dungeon\" 触发地下重逢。" +
 		"所以这里对非 Robin 角色写的是原版真实的重逢标记（等价于「把 TA 也安排进地下剧情」），Robin 则可用 robin 槽直接关进牢房。");
 	if (!ub) {
-		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有 $undergroundbrothel（没进过地下）：点任一写入会自动建壳（escape=0 / robin=false），进地下不会报错。"));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有地下妓院结构（没进过地下）：点任一写入会自动建壳（越狱进度 0 / Robin 不在牢房），进地下不会报错。"));
 	} else {
 		sec.appendChild(el("div", MCE_CLS.hint, "当前：越狱进度 " + (ub.escape == null ? "—" : ub.escape) + " / 19 ｜ Robin 在牢房 " + (ub.robin ? "是" : "否") + " ｜ 已逃出 " + (V.undergroundbrothelescaped ? "是" : "否")));
 	}
@@ -15046,11 +15060,11 @@ function renderNpcUndergroundSec(pane) {
 	if (typeof getV === "function") {
 		var V2 = getV();
 		if (V2 && typeof V2.whitneyromance !== "undefined" && V2.whitneyromance !== 1) {
-			gRe.appendChild(el("div", MCE_CLS.hint, "惠特妮：当前 $whitneyromance = " + V2.whitneyromance + "（不是 1），点上面的按钮时会自动置 1。"));
+			gRe.appendChild(el("div", MCE_CLS.hint, "惠特妮：当前好感值 = " + V2.whitneyromance + "（不是 1），点上面的按钮时会自动置回 1。"));
 		}
 	}
 
-	var gUb = mceNewGroup(sec, "牢房与越狱（$undergroundbrothel.*）", "Robin 专用槽 + 越狱进度");
+	var gUb = mceNewGroup(sec, "牢房与越狱", "Robin 专用槽 + 越狱进度");
 	var ubNum = [
 		{ path: "undergroundbrothel.escape", name: "越狱进度", max: 19, note: "≥19（或按体型 16/17/18）地下 Cell 才会出现 Escape 选项；否则只有 Dig" },
 		{ path: "undergroundbrothel.robinTalk", name: "Robin 对话次数", max: 99, note: "undergroundCellOptions 的 Talk to Robin（0:10）" }
@@ -15071,7 +15085,7 @@ function renderNpcUndergroundSec(pane) {
 		gUb.appendChild(row);
 	});
 	var rowRobin = el("div", MCE_CLS.row);
-	rowRobin.appendChild(el("span", MCE_CLS.rowLbl, "把 Robin 关进地下牢房（$undergroundbrothel.robin，原版唯一真实牢房槽）"));
+	rowRobin.appendChild(el("span", MCE_CLS.rowLbl, "把 Robin 关进地下牢房（原版唯一真实牢房槽）"));
 	var hasRobin = !!(ub && ub.robin);
 	var bRobin = el("button", MCE_CLS.btn + (hasRobin ? " mce-gold" : ""), hasRobin ? "已在牢房（点此放走）" : "关进去");
 	bRobin.type = "button";
@@ -15083,7 +15097,7 @@ function renderNpcUndergroundSec(pane) {
 	rowRobin.appendChild(bRobin);
 	gUb.appendChild(rowRobin);
 	var rowEsc = el("div", MCE_CLS.row);
-	rowEsc.appendChild(el("span", MCE_CLS.rowLbl, "标记「已逃出地下妓院」（$undergroundbrothelescaped，解锁 underground_brothel 套装条件）"));
+	rowEsc.appendChild(el("span", MCE_CLS.rowLbl, "标记「已逃出地下妓院」（解锁地下妓院套装条件）"));
 	var bEsc = el("button", "mce-btn mce-gold", "置为已逃出"); bEsc.type = "button";
 	bEsc.addEventListener("click", function () { var r = mbCEPlaceWriteRaw("undergroundbrothelescaped", true, false); renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); });
 	rowEsc.appendChild(bEsc);
@@ -15259,7 +15273,7 @@ function renderNpcUndergroundSec(pane) {
 		var V = getV();
 		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
 		var ma = mbCEVanillaAntiqueState();
-		if (!ma) { return { ok: false, message: "未找到 $museumAntiques（该存档还没进入博物馆线）" }; }
+		if (!ma) { return { ok: false, message: "未找到古董收藏（该存档还没进入博物馆线）" }; }
 		var before = mbCEVanillaAntiqueBefore(V, ma);
 
 		var got = 0;
@@ -15505,7 +15519,7 @@ function renderNpcUndergroundSec(pane) {
 		var V = getV();
 		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
 		var ma = mbCEVanillaAntiqueState();
-		if (!ma) { return { ok: false, message: "未找到 $museumAntiques（该存档还没进入博物馆线）" }; }
+		if (!ma) { return { ok: false, message: "未找到古董收藏（该存档还没进入博物馆线）" }; }
 		var label = MCE_VANILLA_SPECIAL_ANTIQUES[key];
 		if (!label) { return { ok: false, message: "未知的特殊古董键：" + String(key) }; }
 		if (!Object.prototype.hasOwnProperty.call(ma.antiques, key)) {
@@ -15629,7 +15643,7 @@ function renderNpcUndergroundSec(pane) {
 	/* 全局页 ⑧ 区块 */
 	function mbCERenderVanillaExt(pane) {
 		var sec = mceNewSec(pane, 10, "原版档案 · 收藏 · 头衔",
-			"朋友三项原版作弊的直写通道：① 犯罪记录连案底一起清；② 博物馆古董一次性收齐（只收集不上交，成就同步解锁）；③ 雷米头衔写「疤面」。全部写入留痕可在「统一回退中心」逐条还原。");
+			"三项原版直写：清犯罪记录（含案底）、收齐古董（只收集不上交）、雷米头衔写「疤面」；每项都能回退。");
 		var V = getV();
 		if (!V) {
 			sec.appendChild(el("div", MCE_CLS.hint, "游戏尚未就绪，暂不可写。"));
@@ -15637,10 +15651,8 @@ function renderNpcUndergroundSec(pane) {
 		}
 
 		function makeBody(groupTitle, subTitle) {
-			var g = mceNewGroup(sec, groupTitle, subTitle);
-			var body = el("div", "mce-vcore-body");
-			g.appendChild(body);
-			return body;
+			/* 直接用 mceNewGroup 的 body（不再套无样式的 mce-vcore-body 空壳，间距交给 .mce-group） */
+			return mceNewGroup(sec, groupTitle, subTitle);
 		}
 
 		function clearBody(body) {
@@ -15666,7 +15678,7 @@ function renderNpcUndergroundSec(pane) {
 			clearBody(cBody);
 			var st = mbCEVanillaCrimeStats();
 			if (!st.has) {
-				cBody.appendChild(el("div", MCE_CLS.hint, "未找到 $crime（该存档没有犯罪记录结构）。"));
+				cBody.appendChild(el("div", MCE_CLS.hint, "未找到犯罪记录（该存档没有犯罪记录结构）。"));
 				return;
 			}
 			cBody.appendChild(el("div", MCE_CLS.hint,
@@ -15692,7 +15704,7 @@ function renderNpcUndergroundSec(pane) {
 			clearBody(aBody);
 			var st = mbCEVanillaAntiqueStats();
 			if (!st.has) {
-				aBody.appendChild(el("div", MCE_CLS.hint, "未找到 $museumAntiques（该存档还没进入博物馆线）。"));
+				aBody.appendChild(el("div", MCE_CLS.hint, "未找到古董收藏（该存档还没进入博物馆线）。"));
 				return;
 			}
 			aBody.appendChild(el("div", MCE_CLS.hint,
@@ -15765,7 +15777,7 @@ function renderNpcUndergroundSec(pane) {
 			clearBody(tBody);
 			var st = mbCEVanillaTitleStats();
 			if (!st.exists) {
-				tBody.appendChild(el("div", MCE_CLS.hint, "未找到 Remy（$NPCName 缺少该角色）。"));
+				tBody.appendChild(el("div", MCE_CLS.hint, "未找到 Remy（角色名单里没有该角色）。"));
 				return;
 			}
 			tBody.appendChild(el("div", MCE_CLS.hint,
@@ -16197,28 +16209,23 @@ function renderNpcUndergroundSec(pane) {
 /* 职责：全局页 ⑪「经济 · 学业 · 农田 · 消耗品 · 纹身」区块渲染（07m-vanilla-econ-data.js 的视图层）。
    设计约束（用户明确要求）：界面全中文、不出现裸键名；枚举项（科目 / 地块 / 身体部位）一律用下拉选择，
    数值项用输入框 + 「写入」按钮。所有写入留痕，区块内每个可回退动作都带「回退」按钮。
+   排版口径：分组标题短、状态行成对（标签 + 数值）、按钮动词开头、长说明收进折叠提示；
    拆段原因：结构门禁 S1 单段 400 行；另按 lint 棘轮把五个分组各拆成独立函数（单函数 ≤120 行 / 复杂度 ≤10）。 */
 
-	function mbCEVanillaEconUiBody(sec, groupTitle, subTitle) {
-		var g = mceNewGroup(sec, groupTitle, subTitle);
-		var body = el("div", "mce-vcore-body");
-		g.appendChild(body);
-		return body;
-	}
+	/* 二级分组：直接用 mceNewGroup 的 body 容器（不再套空 div，间距/边框由 .mce-group 统一） */
+	function mbCEVanillaEconUiBody(sec, title, sub) { return mceNewGroup(sec, title, sub); }
 	function mbCEVanillaEconUiClear(body) {
 		while (body.firstChild) { body.removeChild(body.firstChild); }
 	}
-	function mbCEVanillaEconUiUndo(body, id, redraw) {
-		if (!mbCEVanillaHasTrace(id)) { return; }
-		var ub = el("button", "mce-btn mce-red", "回退");
-		ub.type = "button";
-		ub.title = "还原到首次写入前状态";
-		ub.addEventListener("click", function () {
-			var ru = mbCEVanillaExtUndo(id);
-			setStatus(ru.message, ru.ok ? MCE_CLS.ok : MCE_CLS.err);
-			if (ru.ok) { redraw(); }
+	/* 状态行：标签 + 数值成对排布（复用 .mce-statrow / .mce-label / .mce-value，与其他分区同一排版） */
+	function mbCEVanillaEconUiKv(body, pairs) {
+		var row = el("div", "mce-statrow");
+		pairs.forEach(function (p, i) {
+			if (i) { row.appendChild(el("span", "mce-kv-sep", "｜")); }
+			row.appendChild(el("span", "mce-label", p[0]));
+			row.appendChild(el("span", "mce-value", p[1]));
 		});
-		body.appendChild(ub);
+		body.appendChild(row);
 	}
 	function mbCEVanillaEconUiNumRow(parent, labelText, tip, initial) {
 		var row = el("div", MCE_CLS.row);
@@ -16240,7 +16247,7 @@ function renderNpcUndergroundSec(pane) {
 		var lbl = el("span", MCE_CLS.rowLbl, labelText);
 		lbl.title = tip || labelText;
 		row.appendChild(lbl);
-		var sel = el("select", MCE_CLS.inp);
+		var sel = el("select", "mce-sel");
 		pairs.forEach(function (p) {
 			var op = el("option", "", p[1]);
 			op.value = String(p[0]);
@@ -16263,89 +16270,103 @@ function renderNpcUndergroundSec(pane) {
 		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
 		if (res.ok) { redraw(); }
 	}
+	/* 回退按钮：只在有留痕时出现，多条并列成网格（避免一条一大块把分组拉长） */
+	function mbCEVanillaEconUiUndoGrid(body, redraw, items) {
+		var alive = items.filter(function (it) { return mbCEVanillaHasTrace(it[0]); });
+		if (!alive.length) { return; }
+		var g = mceBtnGrid(body);
+		alive.forEach(function (it) {
+			var ub = el("button", "mce-btn mce-red", it[1]);
+			ub.type = "button";
+			ub.title = "还原到首次写入前的状态";
+			ub.addEventListener("click", function () {
+				var ru = mbCEVanillaExtUndo(it[0]);
+				setStatus(ru.message, ru.ok ? MCE_CLS.ok : MCE_CLS.err);
+				if (ru.ok) { redraw(); }
+			});
+			g.appendChild(ub);
+		});
+	}
 
 	/* ---------- ⑪-1 房租与欠租 ---------- */
 	function mbCEVanillaEconSecRent(sec) {
-		var body = mbCEVanillaEconUiBody(sec, "房租与欠租", "原版 passRentTick：租期倒计时每 7 天催一次；欠租按「周租 + 婴儿附加」累加");
+		var body = mbCEVanillaEconUiBody(sec, "房租与欠租", "租期倒计时 · 欠租金额");
 		var redraw = function () {
 			mbCEVanillaEconUiClear(body);
 			var st = mbCEVanillaEconStats();
 			if (!st.rent.has) {
-				body.appendChild(el("div", MCE_CLS.hint, "未找到房租结构（该存档还没进入租房线）。"));
+				body.appendChild(el("div", MCE_CLS.hint, "该存档还没进入租房线，暂无房租数据。"));
 				return;
 			}
-			body.appendChild(el("div", MCE_CLS.hint,
-				"当前：距下次催租 " + st.rent.renttime + " 天 · 欠租 £" + st.rent.debt
-				+ " · 每周租金 £" + st.rent.rentmoney
-				+ (st.rent.babyRent ? "（含婴儿附加 £" + st.rent.babyRent + "）" : "")));
-			var daysInp = mbCEVanillaEconUiNumRow(body, "租期天数", "0 = 今天刚见过 Bailey，7 天内不会累计欠租；数值越小越快被催", st.rent.renttime);
+			mbCEVanillaEconUiKv(body, [
+				["距下次催租", st.rent.renttime + " 天"],
+				["欠租", "£" + st.rent.debt],
+				["每周租金", "£" + st.rent.rentmoney + (st.rent.babyRent ? "（婴儿 £" + st.rent.babyRent + "）" : "")]
+			]);
+			var daysInp = mbCEVanillaEconUiNumRow(body, "租期天数", "0 = 今天已交，7 天内不催租；数值越小越早被催", st.rent.renttime);
 			var g1 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g1, "写入租期", "把租期倒计时写为上方数值（原版允许 0–365）", function () {
+			mbCEVanillaEconUiBtn(g1, "写入租期", "把倒计时写成上方数值（0–365）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRentDays(daysInp.value), redraw);
 			});
-			mbCEVanillaEconUiBtn(g1, "让 Bailey 今天来过", "等价租期 = 0：今天已收过租，接下来 7 天才会计欠", function () {
+			mbCEVanillaEconUiBtn(g1, "设为今天已交", "等价租期 0：今天收过租，接下来 7 天不计欠", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRentDays(0), redraw);
 			});
-			var debtInp = mbCEVanillaEconUiNumRow(body, "欠租金额（£）", "只写实际欠款；统计页那条历史累计数字不动", st.rent.debt);
+			var debtInp = mbCEVanillaEconUiNumRow(body, "欠租金额（£）", "只改实际欠款，统计页历史累计不动", st.rent.debt);
 			var g2 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g2, "写入欠租", "把欠租写为上方数值", function () {
+			mbCEVanillaEconUiBtn(g2, "写入欠租", "把欠租写成上方数值", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRentDebt(debtInp.value), redraw);
 			});
 			mbCEVanillaEconUiBtn(g2, "清空欠租", "欠款归 0，Bailey 不再追这笔钱", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconClearDebt(), redraw);
 			});
-			body.appendChild(mceFoldHint("原版只在「租期倒计时跌破 0 且正好是 7 的倍数」那一刻累计欠租，且金额固定按当周周租算。"
-				+ "所以把租期写 0 就是「今天已经交过」，写大数值则是把催租往后拖；欠租金额直写只改实际欠款，"
-				+ "累计统计（统计页那条历史数字）保持真实。"));
-			mbCEVanillaEconUiUndo(body, "rent-days", redraw);
-			mbCEVanillaEconUiUndo(body, "rent-debt", redraw);
+			body.appendChild(mceFoldHint("原版只在「倒计时跌破 0 且正好是 7 的倍数」那一刻按当周周租累计欠租；"
+				+ "写 0 等于今天已经交过，写大数值是把催租往后拖。欠租金额直写只改实际欠款，统计页的历史累计保持真实。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["rent-days", "回退租期"], ["rent-debt", "回退欠租"]]);
 		};
 		redraw();
 	}
 
 	/* ---------- ⑪-2 学校出勤 ---------- */
 	function mbCEVanillaEconSecSchool(sec) {
-		var body = mbCEVanillaEconUiBody(sec, "学校出勤", "原版六科出勤位 + 旷课累计（出勤每日重置、旷课不清零）");
+		var body = mbCEVanillaEconUiBody(sec, "学校出勤", "六科出勤位 · 旷课计数");
 		var redraw = function () {
 			mbCEVanillaEconUiClear(body);
 			var st = mbCEVanillaEconStats();
 			if (!st.school.has) {
-				body.appendChild(el("div", MCE_CLS.hint, "该存档还没有学校流程（今日出勤表未生成），先正常上一天学再回来。"));
+				body.appendChild(el("div", MCE_CLS.hint, "该存档还没生成今日出勤表，先正常上一天学再回来。"));
 				return;
 			}
-			var mList = MCE_ECON_SUBJECTS.map(function (s) {
+			mbCEVanillaEconUiKv(body, [["今日出勤", st.school.attendedCount + "/6 科"], ["旷课累计", st.school.missedTotal + " 次"]]);
+			var sList = MCE_ECON_SUBJECTS.map(function (s) {
 				return s.zh + " " + (st.school.attended[s.key] ? "已出勤" : "未出勤") + " · 旷课 " + (st.school.missed[s.key] || 0);
 			}).join("｜");
-			body.appendChild(el("div", MCE_CLS.hint,
-				"当前：今日已出勤 " + st.school.attendedCount + "/6 科 · 旷课累计 " + st.school.missedTotal + " 次"));
-			body.appendChild(el("div", MCE_CLS.hint, mList));
+			body.appendChild(el("div", MCE_CLS.hint, sList));
 			var pairs = MCE_ECON_SUBJECTS.map(function (s) { return [s.key, s.zh]; });
 			var sel = mbCEVanillaEconUiSelect(body, "科目", pairs, "六科对应原版今日出勤表的同名科目");
 			var g1 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g1, "设为已出勤", "把所选科目记为今天已上（绝不累进旷课）", function () {
+			mbCEVanillaEconUiBtn(g1, "设为出勤", "所选科目记为今天已上（不会加旷课）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconAttend(sel.value, 1), redraw);
 			});
-			mbCEVanillaEconUiBtn(g1, "设为缺席", "把所选科目记为今天没上（旷课次数由原版结算累加）", function () {
+			mbCEVanillaEconUiBtn(g1, "设为缺席", "所选科目记为今天没上（旷课由原版结算累加）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconAttend(sel.value, 0), redraw);
 			});
 			var g2 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g2, "今日六科全出勤", "六科出勤位一次写满（不动旷课计数）", function () {
+			mbCEVanillaEconUiBtn(g2, "今日六科全出勤", "六科一次写满（不动旷课计数）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconAttendAll(1), redraw);
 			});
-			mbCEVanillaEconUiBtn(g2, "旷课次数清零", "六科旷课累计全部归 0（学校警告线立即回落）", function () {
+			mbCEVanillaEconUiBtn(g2, "旷课次数清零", "六科旷课全部归 0（学校警告线立即回落）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconMissedClear(), redraw);
 			});
-			body.appendChild(mceFoldHint("出勤位每天重置，旷课计数不清。原版缺席时按「今天有没有记录出勤」补一次旷课——"
-				+ "所以「设为已出勤」不会凭空加旷课，而「设为缺席」若正好踩在结算点会由原版补一次。"
-				+ "要清学校警告，直接点「旷课次数清零」。"));
-			mbCEVanillaEconUiUndo(body, "school", redraw);
+			body.appendChild(mceFoldHint("出勤位每天重置，旷课计数不清。原版在结算时按「今天有没有记录出勤」补旷课，"
+				+ "所以设为缺席若正好踩在结算点，会由原版补一次；要压学校警告，直接点「旷课次数清零」。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["school", "回退出勤"]]);
 		};
 		redraw();
 	}
 
 	/* ---------- ⑪-3 农场地块 ---------- */
 	function mbCEVanillaEconSecFarm(sec) {
-		var body = mbCEVanillaEconUiBody(sec, "农场地块催熟", "原版农田按地点分块，成熟即可收获（催熟同时把生长天数归 0）");
+		var body = mbCEVanillaEconUiBody(sec, "农田催熟", "按地点选块 · 成熟即可收获");
 		var redraw = function () {
 			mbCEVanillaEconUiClear(body);
 			var st = mbCEVanillaEconStats();
@@ -16366,52 +16387,51 @@ function renderNpcUndergroundSec(pane) {
 					loc.zh + "：共 " + loc.total + " 块 · 已种 " + loc.planted + " · 可收获 " + loc.ripe));
 			});
 			var pairs = st.farm.locations.map(function (loc) { return [loc.key, loc.zh]; });
-			var sel = mbCEVanillaEconUiSelect(body, "地块", pairs, "地块名对应存档内的实际地点，逐块单独催熟");
+			var sel = mbCEVanillaEconUiSelect(body, "地块", pairs, "按存档内实际地点逐块催熟");
 			var g1 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g1, "该地块全部催熟", "所选地块里已种下的作物一律写到可收获（空格 / 未知作物跳过）", function () {
+			mbCEVanillaEconUiBtn(g1, "该地块全部催熟", "所选地块已种作物一律写到可收获（空格 / 未知作物跳过）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRipen(sel.value), redraw);
 			});
 			mbCEVanillaEconUiBtn(g1, "全部地块催熟", "所有地块一次写满（仍跳过空格与未知作物）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRipenAll(), redraw);
 			});
-			body.appendChild(mceFoldHint("催熟 = 成熟度写到满格、生长天数归 0。空格（还没播种）与「未收录作物」故意跳过："
-				+ "原版每日结算会按作物表读生长参数，空格子或作物不在表里时强写成熟，结算会直接报错。"
-				+ "写入后照常浇一次水走原版收获流程即可，别让已熟地块继续挂着（成熟度没有上限判定，长期挂会越涨越高）。"));
-			st.farm.locations.forEach(function (loc) { mbCEVanillaEconUiUndo(body, "farm-" + loc.key, redraw); });
+			body.appendChild(mceFoldHint("催熟 = 成熟度写满、生长天数归 0。空格与未收录作物故意跳过："
+				+ "原版每日结算要按作物表读生长参数，强写会让结算报错。成熟度没有上限判定，收获后别再挂着。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, st.farm.locations.map(function (loc) {
+				return ["farm-" + loc.key, "回退 " + loc.zh];
+			}));
 		};
 		redraw();
 	}
 
 	/* ---------- ⑪-4 消耗品 ---------- */
 	function mbCEVanillaEconSecItem(sec) {
-		var body = mbCEVanillaEconUiBody(sec, "消耗品：避孕套", "原版侧栏「Total condoms」直接读这个数量");
+		var body = mbCEVanillaEconUiBody(sec, "避孕套", "消耗品数量");
 		var redraw = function () {
 			mbCEVanillaEconUiClear(body);
 			var st = mbCEVanillaEconStats();
-			body.appendChild(el("div", MCE_CLS.hint,
-				"当前：避孕套 " + st.condoms.count + " 个" + (st.condoms.has ? "" : "（尚未初始化，写入会新建）")
-				+ " · 侧栏条目需在设置里开启「避孕套显示」才可见"));
-			var inp = mbCEVanillaEconUiNumRow(body, "数量", "0–999；0 个时原版会走无套分支", st.condoms.count);
+			mbCEVanillaEconUiKv(body, [["当前数量", st.condoms.count + " 个"], ["存档字段", st.condoms.has ? "已存在" : "未初始化（写入会新建）"]]);
+			var inp = mbCEVanillaEconUiNumRow(body, "数量", "0–999；0 个时原版走无套分支", st.condoms.count);
 			var g1 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g1, "写入数量", "把数量写为上方数值", function () {
+			mbCEVanillaEconUiBtn(g1, "写入数量", "把数量写成上方数值", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconCondoms(inp.value), redraw);
 			});
-			mbCEVanillaEconUiBtn(g1, "追加 10 个", "在当前数量上 +10（写满 999 封顶）", function () {
+			mbCEVanillaEconUiBtn(g1, "追加 10 个", "在当前数量上 +10（999 封顶）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconCondomsAdd(10), redraw);
 			});
 			mbCEVanillaEconUiBtn(g1, "清零", "写 0 个（等价用完）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconCondoms(0), redraw);
 			});
-			body.appendChild(mceFoldHint("避孕套是消耗品，数值随时可写，不受当周购买限制。同类的润滑液 / 避孕药在原版没有可直接写的数量键"
-				+ "（润滑液只有显示设置，避孕药只有统计计数），所以本区只做避孕套。"));
-			mbCEVanillaEconUiUndo(body, "condoms", redraw);
+			body.appendChild(mceFoldHint("侧栏「Total condoms」直接读这个数，需在设置里开启避孕套显示才可见。"
+				+ "同类的润滑液 / 避孕药在原版没有可直接写的数量字段（只有显示设置与统计计数），所以本组只做避孕套。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["condoms", "回退数量"]]);
 		};
 		redraw();
 	}
 
 	/* ---------- ⑪-5 玩家纹身 ---------- */
 	function mbCEVanillaEconSecTattoo(sec) {
-		var body = mbCEVanillaEconUiBody(sec, "玩家纹身", "原版纹身按部位记录；清除等价原版「擦除涂写」（整部位重置）");
+		var body = mbCEVanillaEconUiBody(sec, "纹身", "清除 · 标记已有图案");
 		var redraw = function () {
 			mbCEVanillaEconUiClear(body);
 			var V = getV();
@@ -16421,7 +16441,7 @@ function renderNpcUndergroundSec(pane) {
 				return;
 			}
 			var names = st.tattoo.parts.map(function (p) { return p.zh; }).join("、");
-			body.appendChild(el("div", MCE_CLS.hint, "当前纹身：" + (st.tattoo.count ? st.tattoo.count + " 处（" + names + "）" : "无")));
+			mbCEVanillaEconUiKv(body, [["纹身处数", st.tattoo.count + " 处"], ["部位", st.tattoo.count ? names : "无"]]);
 			var allParts = Object.keys(V.skin).filter(function (k) {
 				return V.skin[k] && typeof V.skin[k] === "object";
 			});
@@ -16430,30 +16450,27 @@ function renderNpcUndergroundSec(pane) {
 			/* 默认定位到已有纹身的第一个部位，省得玩家自己找 */
 			if (st.tattoo.parts.length) { sel.value = String(st.tattoo.parts[0].key); }
 			var g1 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g1, "清除该部位纹身", "只清所选部位（没有纹身的部位会被拒绝）", function () {
+			mbCEVanillaEconUiBtn(g1, "清除该部位", "整部位重置（等价原版「擦除涂写」）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClear(sel.value), redraw);
 			});
-			mbCEVanillaEconUiBtn(g1, "标记为纹身", "把该部位已有的图案 / 文字改判为纹身（没有任何图案时拒绝）", function () {
+			mbCEVanillaEconUiBtn(g1, "标记为纹身", "把该部位已有图案改判为纹身（无图案时拒绝）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconTattooMark(sel.value), redraw);
 			});
-			var g2 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g2, "一键清除全部纹身", "所有带纹身的部位一次重置（其他部位不动）", function () {
+			mbCEVanillaEconUiBtn(g1, "一键清除全部", "所有带纹身的部位一次重置（其他部位不动）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClearAll(), redraw);
 			});
-			body.appendChild(mceFoldHint("原版「加纹身」不是写个数字就行：纹身店会先把刺青设计（clone 的部位对象）存一份刺青设计数据再标记，"
-				+ "凭空造不出合法设计。所以这里提供两条真实可行的路：① 清除（等价原版「擦除涂写」，整部位重置）；"
-				+ "② 标记——该部位已经有涂写 / 图案时，把呈现类型改成纹身，显示与判定都按纹身走。"));
-			mbCEVanillaEconUiUndo(body, "tattoo-all", redraw);
-			allParts.forEach(function (k) { mbCEVanillaEconUiUndo(body, "tattoo-" + k, redraw); });
+			body.appendChild(mceFoldHint("原版加纹身要先有刺青设计数据（纹身店 clone 的部位对象），凭空造不出合法设计；"
+				+ "所以这里只给两条真实可行的路：清除，或把已有涂写 / 图案改判为纹身。"));
+			var undos = [["tattoo-all", "回退全部纹身"]];
+			allParts.forEach(function (k) { undos.push(["tattoo-" + k, "回退 " + mbCEVanillaEconBodyZh(k)]); });
+			mbCEVanillaEconUiUndoGrid(body, redraw, undos);
 		};
 		redraw();
 	}
 
 	function mbCERenderVanillaEcon(pane) {
 		var sec = mceNewSec(pane, 11, "经济 · 学业 · 农田 · 消耗品 · 纹身",
-			"五组原版直写：① 房租与欠租（租期倒计时 / 欠租金额）；② 学校出勤（逐科或一键六科）；"
-			+ "③ 农场地块催熟（按地块选，空地与未知作物会自动跳过）；④ 避孕套数量；⑤ 玩家纹身（清除 / 标记）。"
-			+ "全部写入留痕，可在上方「统一回退中心」逐条回退。");
+			"五项直接写原版存档字段，改完立即生效；每组自带回退，也可在「统一回退中心」逐条撤销。");
 		var V = getV();
 		if (!V) {
 			sec.appendChild(el("div", MCE_CLS.hint, "游戏尚未就绪，暂不可写。"));
@@ -17099,13 +17116,13 @@ function mbCEAttitudeHasTrace(key) {
 function renderAttitudesGroup(pane) {
 	if (!pane) { return; }
 	var box = el("div", "mce-grp");
-	box.appendChild(el("div", MCE_CLS.rowLbl, "原版态度：你对什么感到不安?（$uncomfortable，等价原版 cheat 面板同一屏）"));
+	box.appendChild(el("div", MCE_CLS.rowLbl, "原版态度：你对什么感到不安?（等价原版 cheat 面板同一屏）"));
 	box.appendChild(el("div", MCE_CLS.hint,
-		"直接写最终生效值 $uncomfortable.*，不看 $attitudesControl.unlock* 门控——那组 unlock 每次刷新都会被原版 attitudesControlCheck 按真实数值重算覆盖，写它无效。门控条件只作说明展示。"));
+		"直接写最终生效的「不安」项，不看那组门控——门控每次刷新都会被原版按真实数值重算覆盖，写它无效；门控条件只作说明展示。"));
 	var V = null;
 	try { V = getV(); } catch (e) { V = null; }
 	if (!V || !V.uncomfortable || typeof V.uncomfortable !== "object") {
-		box.appendChild(el("div", MCE_CLS.err, "存档里没有 $uncomfortable（请先读档；原版初始化后该对象才会存在）"));
+		box.appendChild(el("div", MCE_CLS.err, "存档里没有态度数据（请先读档；原版初始化后才会存在）"));
 		pane.appendChild(box);
 		return;
 	}

@@ -133,7 +133,7 @@ const savedUnc2 = V.uncomfortable;
 V.uncomfortable = undefined;
 api.open();
 tab("global");
-assert(document.querySelector('#mce-root [data-pane="global"]').textContent.indexOf("存档里没有 $uncomfortable") >= 0, "存档无 $uncomfortable → 分组显式报错（不渲染假开关）");
+assert(document.querySelector('#mce-root [data-pane="global"]').textContent.indexOf("存档里没有态度数据") >= 0, "存档无态度对象 → 分组显式报错（不渲染假开关）");
 V.uncomfortable = savedUnc2;
 
 /* ================= 6. 说话态度三档：状态与写入 ================= */

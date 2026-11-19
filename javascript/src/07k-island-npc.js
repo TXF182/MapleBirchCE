@@ -160,7 +160,7 @@ function renderIslandSec(pane) {
 		"注意：$island.home 与建造物是**字符串档位**（rocky_hillock|waterfall|gulch、\"\"|simple|basic|advanced），其它是数字；" +
 		"tide / tide_distance / explore(\"none\"/…) 是瞬时探索态，不做直写以免打断正在进行的事件。");
 	if (!isl) {
-		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有 $island（没上过岛）：点下面任一「写入」会自动建壳并补齐三处营地对象，之后再进岛不会报错。"));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有岛上营地（没上过岛）：点下面任一「写入」会自动建壳并补齐三处营地对象，之后再进岛不会报错。"));
 	} else {
 		sec.appendChild(el("div", MCE_CLS.hint, "当前：营地 " + ((isl.home === "waterfall") ? "瀑布" : (isl.home === "gulch") ? "峡谷" : "岩石小丘") +
 			" ｜ 隐蔽 " + (isl.hide == null ? "—" : isl.hide) + " ｜ 核桃 " + (isl.walnut == null ? "—" : isl.walnut) +
@@ -289,7 +289,7 @@ function renderNpcUndergroundSec(pane) {
 		"惠特妮 / 凯拉尔 / 贝利 不是被关，而是**越狱后**由 Widgets Underground 的 dungeonescape 按条件设置 *ReunionScene = \"dungeon\" 触发地下重逢。" +
 		"所以这里对非 Robin 角色写的是原版真实的重逢标记（等价于「把 TA 也安排进地下剧情」），Robin 则可用 robin 槽直接关进牢房。");
 	if (!ub) {
-		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有 $undergroundbrothel（没进过地下）：点任一写入会自动建壳（escape=0 / robin=false），进地下不会报错。"));
+		sec.appendChild(el("div", MCE_CLS.hint, "当前存档还没有地下妓院结构（没进过地下）：点任一写入会自动建壳（越狱进度 0 / Robin 不在牢房），进地下不会报错。"));
 	} else {
 		sec.appendChild(el("div", MCE_CLS.hint, "当前：越狱进度 " + (ub.escape == null ? "—" : ub.escape) + " / 19 ｜ Robin 在牢房 " + (ub.robin ? "是" : "否") + " ｜ 已逃出 " + (V.undergroundbrothelescaped ? "是" : "否")));
 	}
@@ -326,11 +326,11 @@ function renderNpcUndergroundSec(pane) {
 	if (typeof getV === "function") {
 		var V2 = getV();
 		if (V2 && typeof V2.whitneyromance !== "undefined" && V2.whitneyromance !== 1) {
-			gRe.appendChild(el("div", MCE_CLS.hint, "惠特妮：当前 $whitneyromance = " + V2.whitneyromance + "（不是 1），点上面的按钮时会自动置 1。"));
+			gRe.appendChild(el("div", MCE_CLS.hint, "惠特妮：当前好感值 = " + V2.whitneyromance + "（不是 1），点上面的按钮时会自动置回 1。"));
 		}
 	}
 
-	var gUb = mceNewGroup(sec, "牢房与越狱（$undergroundbrothel.*）", "Robin 专用槽 + 越狱进度");
+	var gUb = mceNewGroup(sec, "牢房与越狱", "Robin 专用槽 + 越狱进度");
 	var ubNum = [
 		{ path: "undergroundbrothel.escape", name: "越狱进度", max: 19, note: "≥19（或按体型 16/17/18）地下 Cell 才会出现 Escape 选项；否则只有 Dig" },
 		{ path: "undergroundbrothel.robinTalk", name: "Robin 对话次数", max: 99, note: "undergroundCellOptions 的 Talk to Robin（0:10）" }
@@ -351,7 +351,7 @@ function renderNpcUndergroundSec(pane) {
 		gUb.appendChild(row);
 	});
 	var rowRobin = el("div", MCE_CLS.row);
-	rowRobin.appendChild(el("span", MCE_CLS.rowLbl, "把 Robin 关进地下牢房（$undergroundbrothel.robin，原版唯一真实牢房槽）"));
+	rowRobin.appendChild(el("span", MCE_CLS.rowLbl, "把 Robin 关进地下牢房（原版唯一真实牢房槽）"));
 	var hasRobin = !!(ub && ub.robin);
 	var bRobin = el("button", MCE_CLS.btn + (hasRobin ? " mce-gold" : ""), hasRobin ? "已在牢房（点此放走）" : "关进去");
 	bRobin.type = "button";
@@ -363,7 +363,7 @@ function renderNpcUndergroundSec(pane) {
 	rowRobin.appendChild(bRobin);
 	gUb.appendChild(rowRobin);
 	var rowEsc = el("div", MCE_CLS.row);
-	rowEsc.appendChild(el("span", MCE_CLS.rowLbl, "标记「已逃出地下妓院」（$undergroundbrothelescaped，解锁 underground_brothel 套装条件）"));
+	rowEsc.appendChild(el("span", MCE_CLS.rowLbl, "标记「已逃出地下妓院」（解锁地下妓院套装条件）"));
 	var bEsc = el("button", "mce-btn mce-gold", "置为已逃出"); bEsc.type = "button";
 	bEsc.addEventListener("click", function () { var r = mbCEPlaceWriteRaw("undergroundbrothelescaped", true, false); renderPlaces(); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); });
 	rowEsc.appendChild(bEsc);

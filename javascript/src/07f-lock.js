@@ -328,7 +328,7 @@ function mbCERenderLock(pane) {
 		});
 		grp.appendChild(head);
 		grp.appendChild(body);
-		body.appendChild(el("div", MCE_CLS.hint, "这些不是预设项，是你在角色页（快速面板 / 转化）或 Mod 作弊页点过「锁定」后落到 $V.mbCE_lock 的；默认收起，展开可改目标值或取消。"));
+		body.appendChild(el("div", MCE_CLS.hint, "这些不是预设项，是你在角色页（快速面板 / 转化）或 Mod 作弊页点过「锁定」后写进存档的锁定表；默认收起，展开可改目标值或取消。"));
 		customs.forEach(function (li) {
 			makeRow({ path: li.path, name: mbCELockLabel(li.path), note: "", source: mbCELockSource(li.path) }, true, body);
 		});

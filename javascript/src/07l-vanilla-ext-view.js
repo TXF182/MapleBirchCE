@@ -71,7 +71,7 @@
 	/* 全局页 ⑧ 区块 */
 	function mbCERenderVanillaExt(pane) {
 		var sec = mceNewSec(pane, 10, "原版档案 · 收藏 · 头衔",
-			"朋友三项原版作弊的直写通道：① 犯罪记录连案底一起清；② 博物馆古董一次性收齐（只收集不上交，成就同步解锁）；③ 雷米头衔写「疤面」。全部写入留痕可在「统一回退中心」逐条还原。");
+			"三项原版直写：清犯罪记录（含案底）、收齐古董（只收集不上交）、雷米头衔写「疤面」；每项都能回退。");
 		var V = getV();
 		if (!V) {
 			sec.appendChild(el("div", MCE_CLS.hint, "游戏尚未就绪，暂不可写。"));
@@ -79,10 +79,8 @@
 		}
 
 		function makeBody(groupTitle, subTitle) {
-			var g = mceNewGroup(sec, groupTitle, subTitle);
-			var body = el("div", "mce-vcore-body");
-			g.appendChild(body);
-			return body;
+			/* 直接用 mceNewGroup 的 body（不再套无样式的 mce-vcore-body 空壳，间距交给 .mce-group） */
+			return mceNewGroup(sec, groupTitle, subTitle);
 		}
 
 		function clearBody(body) {
@@ -108,7 +106,7 @@
 			clearBody(cBody);
 			var st = mbCEVanillaCrimeStats();
 			if (!st.has) {
-				cBody.appendChild(el("div", MCE_CLS.hint, "未找到 $crime（该存档没有犯罪记录结构）。"));
+				cBody.appendChild(el("div", MCE_CLS.hint, "未找到犯罪记录（该存档没有犯罪记录结构）。"));
 				return;
 			}
 			cBody.appendChild(el("div", MCE_CLS.hint,
@@ -134,7 +132,7 @@
 			clearBody(aBody);
 			var st = mbCEVanillaAntiqueStats();
 			if (!st.has) {
-				aBody.appendChild(el("div", MCE_CLS.hint, "未找到 $museumAntiques（该存档还没进入博物馆线）。"));
+				aBody.appendChild(el("div", MCE_CLS.hint, "未找到古董收藏（该存档还没进入博物馆线）。"));
 				return;
 			}
 			aBody.appendChild(el("div", MCE_CLS.hint,
@@ -207,7 +205,7 @@
 			clearBody(tBody);
 			var st = mbCEVanillaTitleStats();
 			if (!st.exists) {
-				tBody.appendChild(el("div", MCE_CLS.hint, "未找到 Remy（$NPCName 缺少该角色）。"));
+				tBody.appendChild(el("div", MCE_CLS.hint, "未找到 Remy（角色名单里没有该角色）。"));
 				return;
 			}
 			tBody.appendChild(el("div", MCE_CLS.hint,

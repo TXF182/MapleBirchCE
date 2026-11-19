@@ -210,7 +210,7 @@
 			mkBtn(s8g, "凯拉尔 · 捞回", MCE_CLS.gold, function () { return mbCEYanlingKylar(false); }, "state=active");
 			mkBtn(s8g, "惠特尼 · 关进地牢", "mce-red", function () { return mbCEYanlingWhitney(true); }, "state=dungeon（188677 四处地牢事件按此值触发）");
 			mkBtn(s8g, "惠特尼 · 放回", MCE_CLS.gold, function () { return mbCEYanlingWhitney(false); }, "state=active");
-			s8.appendChild(el("div", MCE_CLS.hint, "惠特尼不提供「枷锁示众」：pillory 由 $pillory_tenant 联动（188675 按承租人姓名判定），只写 state 会出现「人不在枷锁却显示示众」的错位。凯拉尔亦同：其 prison 线除 state 还要 $prison.kylar 等配套键，本组只做 state 层（与原版 npcset 等价），不伪造监狱进度。"));
+			s8.appendChild(mceFoldHint("惠特尼不提供「枷锁示众」：pillory 由原版承租人状态联动（188675 按承租人姓名判定），只写 state 会出现「人不在枷锁却显示示众」的错位。凯拉尔亦同：其监狱线除 state 还要配套键，本组只做 state 层（与原版 npcset 等价），不伪造监狱进度。"));
 
 			/* ⑨ 监狱庇护（v2.0.3 新增：原 $prison.protection 是枚举字符串，数字档位在半失效，见上方 mbCEYanlingPrisonProtect 注释） */
 			var s9 = mceNewSec(gC, 9, "监狱庇护", "原版 $prison.protection **不是数字**：657114 等 14 处 `set to \"scarred\"`，650845 / 651145 / 658072 用 `is \"scarred\"` / `is \"tattooed\"` 判定（is 等价 ===），654586 用 `!$prison.protection` 判空。所以只有「有某种庇护 / 无庇护」两态——写 scarred 或 tattooed 都等价屏蔽狱中 attention 事件，只是走不同狱友的早餐 / 午餐分支。");
@@ -219,12 +219,12 @@
 				var pv = (V && V.prison) ? V.prison.protection : undefined;
 				protTxt = (V && V.prison) ? (pv === "" ? "无庇护（空串）" : (pv === undefined ? "未设置（字段缺省，等价无庇护）" : JSON.stringify(pv))) : "本存档无监狱对象（尚未进过监狱）";
 			} catch (eP) { /* 读数失败（存档冻结/结构异常）→ 面板展示降级为占位符，不影响按钮写入 */ }
-			s9.appendChild(el("div", MCE_CLS.hint, "当前：$prison.protection = " + protTxt));
+			s9.appendChild(el("div", MCE_CLS.hint, "当前庇护 = " + protTxt));
 			var s9g = mceBtnGrid(s9);
 			mkBtn(s9g, "疤痕狱友庇护", MCE_CLS.gold, function () { return mbCEYanlingPrisonProtect("scarred"); }, "prison.protection = \"scarred\"（原版 14 处同值；早餐 / 午餐走 scarred 狱友分支）");
 			mkBtn(s9g, "纹身狱友庇护", MCE_CLS.gold, function () { return mbCEYanlingPrisonProtect("tattooed"); }, "prison.protection = \"tattooed\"（651145 / 658072 有对应判定分支）");
 			mkBtn(s9g, "清除庇护", "", function () { return mbCEYanlingPrisonProtect(""); }, "prison.protection = \"\"（空串为假值，恢复 attention 事件的随机遭遇）");
-			s9.appendChild(el("div", MCE_CLS.hint, "注意：$prison.scarred_level（0-5）与 $prison.tattooed（0-100）是另外两个**数字**键（狱友线声望档位），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
+			s9.appendChild(el("div", MCE_CLS.hint, "注意：狱友声望档位（0-5）与纹身程度（0-100）是另外两个**数字**档位（狱友线声望），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
 
 			/* v2.0.2 按键重排：说明与边界不再伪装成"第 4 个区块"，改为页尾折叠块（不占编号，默认 2 行） */
 			var sInfo = el("div", "mce-block");
@@ -243,10 +243,10 @@
 			sInfobody.appendChild(sInfotoggle);
 			sInfobody.appendChild(el("div", MCE_CLS.hint, "① 只拦「服装性别」链，不改玩家性别、生殖器、外观性别（isGenitalMismatch 与原版 herm 链保持原样；双生殖器仍会按原版进 herm 分支，如需一并消掉请用上面的名声清零）。"));
 			sInfobody.appendChild(el("div", MCE_CLS.hint, "② 压力循环不受影响：77866-77870 用本地 const 判定（源码注释明确不复用函数），本页只覆盖函数不改语义。"));
-			sInfobody.appendChild(el("div", MCE_CLS.hint, "③ 不依赖任何原版文案：老式「言灵」模组靠文本替换原版 Cheats 面板，原版一更新即整块失效；本页全部为运行期钩子与变量直写，仅依赖 6 个变量键（$crossdressing / $schoolrep / $school_crossdress_message / $crossdressingTrait / $backgroundTraits / $fame）。"));
+			sInfobody.appendChild(mceFoldHint("③ 不依赖任何原版文案：老式「言灵」模组靠文本替换原版 Cheats 面板，原版一更新即整块失效；本页全部为运行期钩子与变量直写，仅依赖 6 个变量键（$crossdressing / $schoolrep / $school_crossdress_message / $crossdressingTrait / $backgroundTraits / $fame）。"));
 			sInfobody.appendChild(el("div", MCE_CLS.hint, "④ 所有净化动作按 mbCE_wrote[\"yanling:op\"] 留痕（含 before/after/t），可在全局页留痕区核对。"));
 			sInfobody.appendChild(el("div", MCE_CLS.hint, "⑤ 关闭开关会立即卸载钩子（window.isCrossdressing 还原为原版函数），不留空包装层；钩子被第三方模组重包时，开关开启期间每秒自动以新函数为上游重新包裹。"));
-			sInfobody.appendChild(el("div", MCE_CLS.hint, "⑥ 性别认知残留属正常：学校异装名声升到 5 时原版会把 9 名 NPC 写进 $genderknown（schoolrep widget 的 pushUnique）。本页清零名声不撤销这些认知——它们只代表「NPC 已知道你的性别」，不是负面名声，撤销反而让 NPC 忘记已有认知。"));
+			sInfobody.appendChild(mceFoldHint("⑥ 性别认知残留属正常：学校异装名声升到 5 时原版会把 9 名 NPC 写进 $genderknown（schoolrep widget 的 pushUnique）。本页清零名声不撤销这些认知——它们只代表「NPC 已知道你的性别」，不是负面名声，撤销反而让 NPC 忘记已有认知。"));
 			sInfo.appendChild(sInfobody);
 			pane.appendChild(sInfo);
 			/* 恢复滚动位置（见上方 keepTop） */

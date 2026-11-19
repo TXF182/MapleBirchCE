@@ -47,7 +47,7 @@
 					});
 					row.appendChild(inp); row.appendChild(apply);
 				} else {
-					var sel = el("select");
+					var sel = el("select", "mce-sel");
 					(it.options || []).forEach(function (o) {
 						var op = el("option"); op.value = String(o[0]); op.textContent = o[1];
 						var cv = getDotPath(it.varPath);
@@ -348,7 +348,7 @@
 		}
 		var r = getScenesDefs();
 		if (!Object.keys(r.defs).length) {
-			pane.appendChild(el("div", MCE_CLS.err, "未读取到场景注册表（$scenes）。"));
+			pane.appendChild(el("div", MCE_CLS.err, "未读取到场景注册表（该存档或游戏侧未提供场景数据）。"));
 			pane.appendChild(el("div", MCE_CLS.hint, "说明：本页读取游戏「场景查看器（Scene Viewer）」的注册表。请先在游戏菜单打开一次「场景」页面后返回；MOD 通过场景系统注册的剧情会随注册表自动出现。"));
 			return;
 		}

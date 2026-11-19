@@ -208,7 +208,7 @@ function mbCEFertRenderInnateBox(container, list, sel, rec0) {
 		mbCEFertInputs["id_" + k] = mbCEFertIdRow(idBox, k, cur, mbCEFertOptions(k, api0, kid0));
 	});
 	container.appendChild(idBox);
-	container.appendChild(el("div", MCE_CLS.hint,
+	container.appendChild(mceFoldHint(
 		"模组的三条硬规则（eden-cheats.js:162/164/165，违反会被它直接拒绝）：① 基础种族选「人类」时，模组自动清空「人形特征」——猫/狐/牛用人类 + 兽化特征，狼/鹰可再选人形特征；② 该角色孕期未结束，不能改种族 / 人形特征 / 兽化特征 / 生理性别；③ 已成年结算的角色，不能再改成动物形态。"));
 	var bInnate = el("button", "mce-btn mce-gold", "保存先天属性与外貌"); bInnate.type = "button";
 	bInnate.addEventListener("click", function () {
