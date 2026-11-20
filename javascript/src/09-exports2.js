@@ -23,7 +23,7 @@
 		if (initialized) { return; }
 		initialized = true;
 		if (typeof document === "undefined") { return; }
-		mountApi(); mbCEExportVcore(); mbCEExportLeaf(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）+ v2.1.8 枝叶变装导出，均与 mountApi 同步补齐 */
+		mountApi(); mbCEExportVcore(); mbCEExportLeaf(); mbCEExportYanlingQuick(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）+ v2.1.8 枝叶变装导出 + v2.1.17 言灵补丁导出，均与 mountApi 同步补齐 */
 		hookPassageOverride();
 		hookPassageInit();
 		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
@@ -393,7 +393,7 @@
 			};
 		} catch (e) {}
 	}
-	mountApi(); mbCEExportLeaf(); /* 顶层挂表后即补齐枝叶 2 键：init() 在无 document 环境下会提前 return，只有此处能兜底；mbCEExportLeaf 幂等 */
+	mountApi(); mbCEExportLeaf(); mbCEExportYanlingQuick(); /* 顶层挂表后即补齐枝叶 2 键 + 言灵补丁键：init() 在无 document 环境下会提前 return，只有此处能兜底；两个导出函数均幂等 */
 	init();
 })();
 

@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.16";
+	var MCE_VERSION = "2.1.17";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -14366,6 +14366,437 @@ var SCENE_LOCATIONS = {
 			return { ok: true, msg: "已还原原服装（" + (restored.length ? restored.join(" / ") : "无") + "）；衣柜回收原衣 " + pulled + " 件（枝叶副本保留，可继续从衣柜穿）" };
 		} catch (e) { return { ok: false, msg: "枝叶还原异常：" + mbCEYanlingErr(e) }; }
 	}
+/* 职责：言灵页「原帖 52 条」补丁数据表 —— 分组 / 键路径 / 写入类型 / 玩家说明。
+   只放数据，不含执行逻辑；执行与回退见 07i-yanling-quick.js。
+   来源：DoL-Project\言灵去重后-纯净版.txt（贴吧 221 条 → 72 条校验 → 与 CE 逐条去重 → 52 条）。
+   分组原则：同类型合并为选项卡；普通置数/布尔/增量共用执行器，数组、枷锁承租人、怨灵槽位、时间戳单列特殊类型。 */
+var MCE_YANLING_QUICK_TABS = [
+	{ key: "base", name: "贞洁与统计", sub: "6 贞洁 · 14 统计" },
+	{ key: "body", name: "身体与状态", sub: "9 项" },
+	{ key: "fame", name: "名声", sub: "6 项" },
+	{ key: "misc", name: "角色与时间", sub: "17 项" }
+];
+
+var MCE_YANLING_QUICK = [
+	/* ===== 选项卡 1：贞洁（6） ===== */
+	{ id: "virg_vaginal", tab: 0, sec: "贞洁", label: "阴道贞洁", kind: "bool", ops: [["player.virginity.vaginal", true]], hint: "$player.virginity.vaginal = true（原帖：荫道贞洁）" },
+	{ id: "virg_penile", tab: 0, sec: "贞洁", label: "阴茎贞洁", kind: "bool", ops: [["player.virginity.penile", true]], hint: "$player.virginity.penile = true（原帖：阴金贞洁）" },
+	{ id: "virg_anal", tab: 0, sec: "贞洁", label: "菊部贞洁", kind: "bool", ops: [["player.virginity.anal", true]], hint: "$player.virginity.anal = true" },
+	{ id: "virg_oral", tab: 0, sec: "贞洁", label: "口腔贞洁", kind: "bool", ops: [["player.virginity.oral", true]], hint: "$player.virginity.oral = true" },
+	{ id: "virg_hand", tab: 0, sec: "贞洁", label: "牵手贞洁", kind: "bool", ops: [["player.virginity.handholding", true]], hint: "$player.virginity.handholding = true" },
+	{ id: "virg_kiss", tab: 0, sec: "贞洁", label: "接吻贞洁", kind: "bool", ops: [["player.virginity.kiss", true]], hint: "$player.virginity.kiss = true" },
+
+	/* ===== 选项卡 1：性经历统计（13） + 事件统计（1） ===== */
+	{ id: "stat_orgasm", tab: 0, sec: "性经历统计", label: "清空高潮", kind: "set", ops: [["orgasmstat", 0], ["orgasmTimeStat", 0]], hint: "$orgasmstat / $orgasmTimeStat 清零" },
+	{ id: "stat_penetration", tab: 0, sec: "性经历统计", label: "清空插入", kind: "set", ops: [["vaginalstat", 0], ["analstat", 0], ["vaginalTimeStat", 0], ["analTimeStat", 0]], hint: "阴道 / 肛门次数与时长四项清零" },
+	{ id: "stat_oral", tab: 0, sec: "性经历统计", label: "清空口部", kind: "set", ops: [["oralstat", 0], ["oralejacstat", 0], ["semenswallowedstat", 0]], hint: "口腔次数 / 口射 / 吞咽三项清零" },
+	{ id: "stat_hand", tab: 0, sec: "性经历统计", label: "清空手部", kind: "set", ops: [["handstat", 0], ["handejacstat", 0]], hint: "手部次数 / 手射两项清零" },
+	{ id: "stat_legs", tab: 0, sec: "性经历统计", label: "足腿清零", kind: "set", ops: [["feetstat", 0], ["thighstat", 0], ["feetejacstat", 0], ["thighejacstat", 0]], hint: "足 / 腿次数与射精四项清零" },
+	{ id: "stat_chest", tab: 0, sec: "性经历统计", label: "胸臀清零", kind: "set", ops: [["cheststat", 0], ["bottomstat", 0], ["chestejacstat", 0], ["bottomejacstat", 0]], hint: "胸 / 臀次数与射精四项清零" },
+	{ id: "stat_face", tab: 0, sec: "性经历统计", label: "精液清除", kind: "set", ops: [["faceejacstat", 0], ["neckejacstat", 0], ["hairejacstat", 0], ["tummyejacstat", 0]], hint: "脸 / 颈 / 头发 / 腹部精液四项清零" },
+	{ id: "stat_creampie", tab: 0, sec: "性经历统计", label: "内射清除", kind: "set", ops: [["creamstat", 0], ["sexStats.creampie.self.vagina", 0], ["sexStats.creampie.self.anus", 0], ["sexStats.creampie.self.mouth", 0]], hint: "$creamstat + 三处内射计数清零（只动 self，不碰 NPC 侧）" },
+	{ id: "stat_masturbation", tab: 0, sec: "性经历统计", label: "自慰重置", kind: "set", ops: [["masturbationstat", 0], ["masturbationorgasmstat", 0], ["masturbationTimeStat", 0]], hint: "自慰次数 / 高潮 / 时长三项清零" },
+	{ id: "stat_fluids", tab: 0, sec: "性经历统计", label: "体液清除", kind: "set", ops: [["milk_drank_stat", 0], ["milk_produced_stat", 0], ["nectar_drank_stat", 0], ["semen_produced_stat", 0], ["lube_produced_stat", 0]], hint: "饮奶 / 产奶 / 饮蜜 / 产精 / 分泌润滑五项清零" },
+	{ id: "stat_double", tab: 0, sec: "性经历统计", label: "双穴清除", kind: "set", ops: [["vaginaldoublestat", 0], ["analdoublestat", 0]], hint: "双插（阴道 / 肛门）两项清零" },
+	{ id: "stat_urine", tab: 0, sec: "性经历统计", label: "排尿清除", kind: "set", ops: [["urinestat", 0]], hint: "$urinestat = 0" },
+	{ id: "stat_toys", tab: 0, sec: "性经历统计", label: "道具清除", kind: "set", ops: [["sextoystat", 0], ["straponstat", 0]], hint: "性玩具 / 穿戴阳具两项清零" },
+	{ id: "stat_events", tab: 0, sec: "事件统计", label: "事件统计清零", kind: "set", ops: [["rapestat", 0], ["forcedprostitutionstat", 0], ["beastrapestat", 0], ["rapeTimeStat", 0]], hint: "强袭 / 强迫卖淫 / 兽袭次数与时长清零（CE 无 rapestat 入口，故保留）" },
+
+	/* ===== 选项卡 2：身体与状态（9） ===== */
+	{ id: "body_negative", tab: 1, sec: "身体与状态", label: "负面状态", kind: "set", ops: [["pain", 200], ["tiredness", 2000], ["stress", 10000], ["trauma", 5000], ["control", 0], ["drunk", 1000], ["drugged", 1000], ["hallucinogen", 1000], ["arousal", 10000]], hint: "疼痛 200 / 疲劳 2000 / 压力 10000 / 创伤 5000 / 控制 0 / 醉 1000 / 药 1000 / 幻觉 1000 / 兴奋 10000（原帖数值）" },
+	{ id: "body_hypnosis", tab: 1, sec: "身体与状态", label: "去除催眠暗示", kind: "set", ops: [["hypnosis", 0]], hint: "$hypnosis = 0" },
+	{ id: "body_tan", tab: 1, sec: "身体与状态", label: "去除晒痕", kind: "skin", ops: [], hint: "$player.skin.layers = [{layers: [], slots: {}, value: 0}]（整组替换；撤销还原原数组）" },
+	{ id: "body_fallen", tab: 1, sec: "身体与状态", label: "失落衰减", kind: "set", ops: [["fallenbuild", 100]], hint: "$fallenbuild = 100（原帖名「失落衰减」）" },
+	{ id: "body_play", tab: 1, sec: "身体与状态", label: "戏剧魅影", kind: "add", ops: [["englishPlayReadiness", 100]], hint: "$englishPlayReadiness += 100（英语剧准备度；可连点累加）" },
+	{ id: "body_babyfood", tab: 1, sec: "身体与状态", label: "宝宝辅食", kind: "add", ops: [["foodstuff.bottle_of_breast_milk.amount", 1000]], hint: "$foodstuff.bottle_of_breast_milk.amount += 1000（需已解锁该食物，否则拒绝）" },
+	{ id: "body_grace", tab: 1, sec: "身体与状态", label: "恩典满溢", kind: "set", ops: [["grace", 100]], hint: "$grace = 100" },
+	{ id: "body_irrigation", tab: 1, sec: "身体与状态", label: "自动灌溉", kind: "set", ops: [["farm.irrigation", 9]], hint: "$farm.irrigation = 9（农场未初始化时拒绝）" },
+	{ id: "body_farmbuild", tab: 1, sec: "身体与状态", label: "农场修建", kind: "set", ops: [["farm.build_timer", 1]], hint: "$farm.build_timer = 1" },
+
+	/* ===== 选项卡 3：名声（6） ===== */
+	{ id: "fame_exhibitionism", tab: 2, sec: "名声", label: "风光尽显", kind: "add", ops: [["fame.exhibitionism", 2000]], hint: "$fame.exhibitionism += 2000" },
+	{ id: "fame_impreg", tab: 2, sec: "名声", label: "花花公子", kind: "add", ops: [["fame.impreg", 2000]], hint: "$fame.impreg += 2000（生育名声；上限受生育次数限制时由原版 clamp）" },
+	{ id: "fame_sex", tab: 2, sec: "名声", label: "纵乐之巅", kind: "add", ops: [["fame.sex", 2000]], hint: "$fame.sex += 2000" },
+	{ id: "fame_prostitution", tab: 2, sec: "名声", label: "明星花魁", kind: "add", ops: [["fame.prostitution", 2000]], hint: "$fame.prostitution += 2000" },
+	{ id: "fame_rape", tab: 2, sec: "名声", label: "被袭难民", kind: "add", ops: [["fame.rape", 2000]], hint: "$fame.rape += 2000" },
+	{ id: "fame_bestiality", tab: 2, sec: "名声", label: "福瑞大师", kind: "add", ops: [["fame.bestiality", 2000]], hint: "$fame.bestiality += 2000" },
+
+	/* ===== 选项卡 4：角色与时间（17） ===== */
+	{ id: "misc_ivory", tab: 3, sec: "角色", label: "不再痴迷", kind: "npc", npc: "Ivory Wraith", field: "lust", value: -100, hint: "象牙怨灵 $NPCName[29].lust -= 100（按 setup.NPCNameList 名称定位，不硬编码下标）" },
+	{ id: "misc_framed", tab: 3, sec: "角色", label: "峭壁街见", kind: "set", ops: [["framed", "leighton"]], hint: "$framed = \"leighton\"（原帖名：峭壁街见）" },
+	{ id: "misc_pillory", tab: 3, sec: "角色", label: "手枷延长", kind: "pillory", ops: [], hint: "仅在 $pillory.tenant.exists 为真时，把承租人 endTime 延长 1000 天（86400000000 ms）；无人示众时拒绝" },
+	{ id: "misc_protected", tab: 3, sec: "角色", label: "交羽而眠", kind: "bool", ops: [["virginityProtected", true]], hint: "$virginityProtected = true" },
+	{ id: "time_back_15m", tab: 3, sec: "时间倒退", label: "倒退一刻", kind: "time", value: -900, ops: [], hint: "Time.set($timeStamp - 900)" },
+	{ id: "time_back_1h", tab: 3, sec: "时间倒退", label: "倒退一时", kind: "time", value: -3600, ops: [], hint: "Time.set($timeStamp - 3600)" },
+	{ id: "time_back_6h", tab: 3, sec: "时间倒退", label: "倒退六时", kind: "time", value: -21600, ops: [], hint: "Time.set($timeStamp - 21600)" },
+	{ id: "time_back_1d", tab: 3, sec: "时间倒退", label: "倒退一天", kind: "time", value: -86400, ops: [], hint: "Time.set($timeStamp - 86400)" },
+	{ id: "time_back_1w", tab: 3, sec: "时间倒退", label: "倒退一周", kind: "time", value: -604800, ops: [], hint: "Time.set($timeStamp - 604800)" },
+	{ id: "time_back_1mo", tab: 3, sec: "时间倒退", label: "倒退一月", kind: "time", value: -2592000, ops: [], hint: "Time.set($timeStamp - 2592000)，按 30 天计" },
+	{ id: "time_fwd_1h", tab: 3, sec: "时间前进", label: "前进一时", kind: "time", value: 3600, ops: [], hint: "Time.set($timeStamp + 3600)" },
+	{ id: "time_fwd_6h", tab: 3, sec: "时间前进", label: "前进六时", kind: "time", value: 21600, ops: [], hint: "Time.set($timeStamp + 21600)" },
+	{ id: "time_fwd_1d", tab: 3, sec: "时间前进", label: "前进一天", kind: "time", value: 86400, ops: [], hint: "Time.set($timeStamp + 86400)" },
+	{ id: "time_fwd_1w", tab: 3, sec: "时间前进", label: "前进一周", kind: "time", value: 604800, ops: [], hint: "Time.set($timeStamp + 604800)" },
+	{ id: "time_fwd_1m", tab: 3, sec: "时间前进", label: "前进一月", kind: "time", value: 2592000, ops: [], hint: "Time.set($timeStamp + 2592000)，按 30 天计" },
+	{ id: "misc_lesson", tab: 3, sec: "学业", label: "旷课自由", kind: "set", ops: [["lessonmissed", 0]], hint: "$lessonmissed = 0" },
+	{ id: "misc_detention", tab: 3, sec: "学业", label: "留校清除", kind: "set", ops: [["detention", 0]], hint: "$detention = 0（留校次数，不是礼顿把柄键）" }
+];
+
+/* 数据自检：构建期暴露重复 id / 空分组（tool 侧另有测试，这里 fail-closed 让粘贴出错时构建就报） */
+(function () {
+	var seen = {}, i, e;
+	for (i = 0; i < MCE_YANLING_QUICK.length; i++) {
+		e = MCE_YANLING_QUICK[i];
+		if (!e || typeof e.id !== "string" || seen[e.id]) { throw new Error("言灵补丁数据表 id 重复或缺失：" + String(e && e.id)); }
+		seen[e.id] = 1;
+		if (!(e.tab >= 0 && e.tab < MCE_YANLING_QUICK_TABS.length)) { throw new Error("言灵补丁数据表 tab 越界：" + e.id); }
+	}
+})();
+/* 职责：言灵页「原帖 52 条」补丁执行器 + 选项卡渲染 + 逐条/整页撤销。
+   写入一律走 V.mbCE_wrote["yanling:q:<id>"] 留痕，且只记首次写入前值（连点后一次撤销回到最初）。
+   与 cheatWriteValue 的分工：后者拒绝 DoL 原版变量根，本页条目全部是原版键，故在此自带解析/写入/回退。 */
+MB_CSS +=
+	".mce-subtabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:2px 0 6px}" +
+	".mce-subtabs button{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;background:var(--mce-bg-ctl);" +
+	"border:1px solid var(--mce-border-quiet);border-radius:var(--mce-radius-sm);color:var(--mce-txt-dim);padding:7px 9px;font-size:var(--mce-fs-btn);" +
+	"cursor:pointer;font-family:inherit;white-space:nowrap;text-align:left}" +
+	".mce-subtabs button:hover{border-color:var(--mce-accent);color:var(--mce-txt-bright)}" +
+	".mce-subtabs button.mce-active{background:var(--mce-accent);border-color:var(--mce-accent-dark);color:var(--mce-txt-on-accent);font-weight:700}" +
+	".mce-subtabs .mce-subtab-t{overflow:hidden;text-overflow:ellipsis}" +
+	".mce-subtabs .mce-subtab-n{flex:none;min-width:20px;text-align:center;border-radius:var(--mce-radius-pill);background:rgba(255,255,255,.07);" +
+	"color:var(--mce-txt-mid);font-size:var(--mce-fs-xs);font-weight:400;padding:1px 5px}" +
+	".mce-subtabs button.mce-active .mce-subtab-n{background:rgba(0,0,0,.16);color:var(--mce-txt-on-accent)}" +
+	".mce-subpanel{border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);background:var(--mce-bg-stage);padding:8px 8px 4px;margin:0}" +
+	".mce-quick-meta{display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:var(--mce-fs-sm);color:var(--mce-txt-faint);margin:0 0 2px}" +
+	".mce-quick-meta b{color:var(--mce-accent);font-weight:700}" +
+	".mce-subsec{margin:8px 0 2px}" +
+	".mce-subsec-h{display:flex;align-items:center;gap:6px;padding:0 0 4px 7px;border-left:3px solid var(--mce-accent-55);" +
+	"color:var(--mce-txt-strong);font-size:var(--mce-fs-btn);font-weight:700}" +
+	".mce-subsec-h .mce-subsec-t{flex:1 1 auto;min-width:0}" +
+	".mce-subsec-n,.mce-subsec-d{flex:none;font-size:var(--mce-fs-xs);font-weight:400;padding:1px 6px;border-radius:var(--mce-radius-pill);" +
+	"border:1px solid var(--mce-border-quiet);color:var(--mce-txt-faint)}" +
+	".mce-subsec-d{border-color:var(--mce-green-badge-b);color:var(--mce-green)}" +
+	".mce-quick-undo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px dashed var(--mce-border-quiet);margin-top:6px;padding-top:7px}" +
+	".mce-quick-undo-txt{flex:1 1 150px;font-size:var(--mce-fs-sm);color:var(--mce-txt-faint);margin:0}";
+
+var mbCEYanlingQuickTab = 0;
+function mbCEYanlingQuickTabGet() { return mbCEYanlingQuickTab; }
+function mbCEYanlingQuickTabSet(idx) {
+	var n = Number(idx);
+	if (!isFinite(n) || n < 0 || n >= MCE_YANLING_QUICK_TABS.length) { return mbCEYanlingQuickTab; }
+	mbCEYanlingQuickTab = n;
+	return mbCEYanlingQuickTab;
+}
+function mbCEYanlingQuickFind(id) {
+	for (var i = 0; i < MCE_YANLING_QUICK.length; i++) {
+		if (MCE_YANLING_QUICK[i].id === id) { return MCE_YANLING_QUICK[i]; }
+	}
+	return null;
+}
+/* 深拷贝 before：数组/对象整体替换类条目（晒痕 layers）撤销时必须还原成独立副本，
+   不能把存档里同一个对象引用再塞回去（后续游戏改动会污染留痕）。 */
+function mbCEYanlingQuickClone(v) {
+	if (v === undefined) { return undefined; }
+	try { return JSON.parse(JSON.stringify(v)); } catch (e) { return Array.isArray(v) ? v.slice() : v; }
+}
+/* 路径解析：支持 a.b、a[3].b（数组下标按字符串键读写，JS 数组同样成立）。
+   根固定为 V；中间宿主缺失时明确拒绝，绝不创建 undefined 对象。
+   @returns {{ok: true, parent: any, leaf: string} | {ok: false, msg: string}} */
+function mbCEYanlingQuickResolve(p) {
+	var V = getV();
+	if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+	var parts = String(p || "").replace(/^\$/, "").match(/[^.[\]]+/g);
+	if (!parts || !parts.length) { return { ok: false, msg: "变量路径为空" }; }
+	var cur = V, i;
+	for (i = 0; i < parts.length - 1; i++) {
+		cur = cur[parts[i]];
+		if (cur === undefined || cur === null) { return { ok: false, msg: "宿主不存在：" + p }; }
+	}
+	return { ok: true, parent: cur, leaf: parts[parts.length - 1] };
+}
+function mbCEYanlingQuickTrace(id, before, after) {
+	try {
+		var V = getV();
+		if (!V) { return false; }
+		if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+		var key = "yanling:q:" + id, prev = V.mbCE_wrote[key];
+		/* 只记首次：连点 +100 / +2000 后撤销仍回到最初，而不是「撤销等于原地打转」 */
+		if (prev && prev.before) { return false; }
+		V.mbCE_wrote[key] = { type: "yanling", modId: "vanilla", op: "q:" + id, before: before, after: after, t: Date.now() };
+		return true;
+	} catch (e) { return false; }
+}
+function mbCEYanlingQuickBool(v) { return v === true || v === 1 || v === "1" || v === "true"; }
+function mbCEYanlingQuickTimeReady() { return typeof Time !== "undefined" && !!Time && typeof Time.set === "function"; }
+function mbCEYanlingQuickNow(V) {
+	if (typeof V.timeStamp === "number") { return V.timeStamp; }
+	if (typeof Time === "undefined" || !Time || !Time.date) { return null; }
+	return (typeof Time.date.timeStamp === "number") ? Time.date.timeStamp : null;
+}
+function mbCEYanlingQuickRunTime(V, e, id) {
+	var ts = mbCEYanlingQuickNow(V);
+	if (ts === null) { return { ok: false, msg: "时间戳不可用（$timeStamp / Time.date 均缺失）" }; }
+	if (!mbCEYanlingQuickTimeReady()) { return { ok: false, msg: "Time.set 不可用" }; }
+	var delta = Number(e.value);
+	if (!isFinite(delta)) { return { ok: false, msg: "时间增量不是有效数字" }; }
+	var next = ts + delta;
+	Time.set(next);
+	mbCEYanlingQuickTrace(id, { kind: "time", value: ts }, { kind: "time", value: next });
+	return { ok: true, msg: "时间已" + (delta < 0 ? "倒退" : "前进") + "：" + String(Math.abs(delta)) + " 秒（可撤销）" };
+}
+function mbCEYanlingQuickRunSkin(V, e, id) {
+	var pl = V.player;
+	if (!pl || !pl.skin || !Array.isArray(pl.skin.layers)) { return { ok: false, msg: "宿主不存在：$player.skin.layers（尚未初始化）" }; }
+	var skinBefore = mbCEYanlingQuickClone(pl.skin.layers);
+	var skinAfter = [{ layers: [], slots: {}, value: 0 }];
+	pl.skin.layers = skinAfter;
+	mbCEYanlingQuickTrace(id, { kind: "skin", value: skinBefore }, { kind: "skin", value: skinAfter });
+	return { ok: true, msg: "已清除晒痕（$player.skin.layers 写为空壳，可撤销）" };
+}
+function mbCEYanlingQuickRunPillory(V, e, id) {
+	var pt = V.pillory && V.pillory.tenant;
+	if (!pt || pt.exists !== true) { return { ok: false, msg: "当前无人示众（$pillory.tenant.exists 不为真），本条不执行" }; }
+	if (typeof pt.endTime !== "number" || !isFinite(pt.endTime)) { return { ok: false, msg: "承租人 endTime 不是有效数字，拒绝写入" }; }
+	var pilloryBefore = pt.endTime;
+	pt.endTime = pilloryBefore + 86400000000;
+	mbCEYanlingQuickTrace(id, { kind: "pillory", value: pilloryBefore }, { kind: "pillory", value: pt.endTime });
+	return { ok: true, msg: "枷锁示众已延长 1000 天（可撤销）" };
+}
+function mbCEYanlingQuickRunNpc(e, id) {
+	var field = String(e.field || "");
+	if (!field) { return { ok: false, msg: "NPC 字段名为空，拒绝写入" }; }
+	var npc = mbCEYanlingNpc(e.npc);
+	var npcName = e.npc === "Ivory Wraith" ? "象牙怨灵（Ivory Wraith）" : String(e.npc);
+	if (!npc) { return { ok: false, msg: "角色槽位不存在：" + npcName + "（$NPCNameList 未包含）" }; }
+	var npcBefore = npc[field];
+	if (typeof npcBefore !== "number" || !isFinite(npcBefore)) { return { ok: false, msg: "字段不是有效数字：" + field }; }
+	var npcDelta = Number(e.value);
+	if (!isFinite(npcDelta)) { return { ok: false, msg: "增量不是有效数字：" + field }; }
+	npc[field] = npcBefore + npcDelta;
+	mbCEYanlingQuickTrace(id, { kind: "npc", name: e.npc, field: field, value: npcBefore }, { kind: "npc", name: e.npc, field: field, value: npc[field] });
+	return { ok: true, msg: npcName + " " + field + "：" + String(npcBefore) + " → " + String(npc[field]) + "（可撤销）" };
+}
+function mbCEYanlingQuickApplyPlan(e, plan) {
+	for (var k = 0; k < plan.length; k++) {
+		var it = plan[k];
+		if (e.kind === "bool") { it.parent[it.leaf] = mbCEYanlingQuickBool(it.value); }
+		else if (e.kind === "add") {
+			var base = Number(it.parent[it.leaf]);
+			it.parent[it.leaf] = (isFinite(base) ? base : 0) + Number(it.value);
+		} else { it.parent[it.leaf] = it.value; }
+	}
+}
+function mbCEYanlingQuickRunOps(V, e, id) {
+	var ops = e.ops;
+	if (!Array.isArray(ops) || ops.length === 0) { return { ok: false, msg: "条目缺少变量声明：" + id }; }
+	var plan = [], k;
+	for (k = 0; k < ops.length; k++) {
+		var path = String(ops[k][0] || "");
+		if (!path) { return { ok: false, msg: "变量路径为空（" + e.label + "）" }; }
+		var r = mbCEYanlingQuickResolve(path);
+		if (r.ok !== true) { return { ok: false, msg: r.msg + "（" + e.label + "）" }; }
+		var leaf = r.leaf;
+		if (typeof leaf !== "string" || !leaf) { return { ok: false, msg: "变量叶子为空（" + e.label + "）" }; }
+		plan.push({ path: path, parent: r.parent, leaf: leaf, before: mbCEYanlingQuickClone(r.parent[leaf]), value: ops[k][1] });
+	}
+	mbCEYanlingQuickApplyPlan(e, plan);
+	var beforeOps = plan.map(function (it2) { return { path: it2.path, before: it2.before }; });
+	mbCEYanlingQuickTrace(id, { kind: e.kind, ops: beforeOps }, { kind: e.kind, count: plan.length });
+	return { ok: true, msg: e.label + "：已写入 " + String(plan.length) + " 个变量（可撤销）" };
+}
+function mbCEYanlingQuickRun(id) {
+	try {
+		var V = getV();
+		if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+		var e = mbCEYanlingQuickFind(id);
+		if (!e) { return { ok: false, msg: "未知条目：" + String(id) }; }
+		if (e.kind === "time") { return mbCEYanlingQuickRunTime(V, e, id); }
+		if (e.kind === "skin") { return mbCEYanlingQuickRunSkin(V, e, id); }
+		if (e.kind === "pillory") { return mbCEYanlingQuickRunPillory(V, e, id); }
+		if (e.kind === "npc") { return mbCEYanlingQuickRunNpc(e, id); }
+		return mbCEYanlingQuickRunOps(V, e, id);
+	} catch (err) { return { ok: false, msg: "操作异常：" + mbCEErr(err) }; }
+}
+function mbCEYanlingQuickUndoTime(b) {
+	if (typeof Time === "undefined" || !Time || typeof Time.set !== "function") { return { ok: false, msg: "Time.set 不可用，无法回退时间" }; }
+	Time.set(b.value);
+	return { ok: true };
+}
+function mbCEYanlingQuickUndoSkin(V, b) {
+	if (!V.player || !V.player.skin) { return { ok: false, msg: "目标结构已变化，拒绝回退（$player.skin 缺失）" }; }
+	V.player.skin.layers = mbCEYanlingQuickClone(b.value);
+	return { ok: true };
+}
+function mbCEYanlingQuickUndoPillory(V, b) {
+	var pt = V.pillory && V.pillory.tenant;
+	if (!pt) { return { ok: false, msg: "目标结构已变化，拒绝回退（$pillory.tenant 缺失）" }; }
+	pt.endTime = b.value;
+	return { ok: true };
+}
+function mbCEYanlingQuickUndoNpc(b) {
+	var npc = mbCEYanlingNpc(b.name);
+	if (!npc) { return { ok: false, msg: "目标结构已变化，拒绝回退（角色槽位缺失）" }; }
+	npc[b.field] = b.value;
+	return { ok: true };
+}
+function mbCEYanlingQuickUndoOps(V, b) {
+	for (var i = 0; i < b.ops.length; i++) {
+		var r = mbCEYanlingQuickResolve(b.ops[i].path);
+		if (r.ok !== true) { return { ok: false, msg: "目标结构已变化，拒绝回退（" + b.ops[i].path + "）" }; }
+		mbCEYanlingRestoreKey(r.parent, r.leaf, b.ops[i].before);
+	}
+	return { ok: true };
+}
+function mbCEYanlingQuickUndoApply(V, b) {
+	if (b.kind === "time") { return mbCEYanlingQuickUndoTime(b); }
+	if (b.kind === "skin") { return mbCEYanlingQuickUndoSkin(V, b); }
+	if (b.kind === "pillory") { return mbCEYanlingQuickUndoPillory(V, b); }
+	if (b.kind === "npc") { return mbCEYanlingQuickUndoNpc(b); }
+	return mbCEYanlingQuickUndoOps(V, b);
+}
+function mbCEYanlingQuickUndo(id) {
+	try {
+		var V = getV();
+		if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+		var key = "yanling:q:" + id, rec = V.mbCE_wrote && V.mbCE_wrote[key];
+		if (!rec || rec.type !== "yanling" || !rec.before) { return { ok: false, msg: "没有可撤销的留痕（先执行一次该条目）" }; }
+		var r = mbCEYanlingQuickUndoApply(V, rec.before);
+		if (r.ok !== true) { return r; }
+		try { delete V.mbCE_wrote[key]; } catch (err) { V.mbCE_wrote[key] = undefined; }
+		return { ok: true, msg: "已撤销「" + id + "」，还原为首次执行前状态" };
+	} catch (err) { return { ok: false, msg: "撤销异常：" + mbCEErr(err) }; }
+}
+function mbCEYanlingQuickHasTrace(V, id) { return !!(V && V.mbCE_wrote && V.mbCE_wrote["yanling:q:" + id]); }
+function mbCEYanlingQuickUndoTab(tabIdx) {
+	var n = Number(tabIdx), ids = [], i;
+	for (i = 0; i < MCE_YANLING_QUICK.length; i++) {
+		if (MCE_YANLING_QUICK[i].tab === n) { ids.push(MCE_YANLING_QUICK[i].id); }
+	}
+	var V = getV(), done = 0, failed = 0;
+	for (i = 0; i < ids.length; i++) {
+		if (!mbCEYanlingQuickHasTrace(V, ids[i])) { continue; }
+		var r = mbCEYanlingQuickUndo(ids[i]);
+		if (r.ok === true) { done++; } else { failed++; }
+	}
+	if (done + failed === 0) { return { ok: false, msg: "本页没有可撤销的改动" }; }
+	if (failed) { return { ok: false, msg: "已撤销 " + done + " 项，失败 " + failed + " 项（结构已变化，见留痕）" }; }
+	return { ok: true, msg: "本页已撤销 " + done + " 项，全部还原为首次执行前状态" };
+}
+/* 页签角标 / 小节计数 / 改动数一律现算，避免副标写死后与数据表漂移 */
+function mbCEYanlingQuickTabCount(tab) {
+	var n = 0, i;
+	for (i = 0; i < MCE_YANLING_QUICK.length; i++) { if (MCE_YANLING_QUICK[i].tab === tab) { n++; } }
+	return n;
+}
+function mbCEYanlingQuickDirtyCount(tab, V) {
+	var n = 0, i;
+	for (i = 0; i < MCE_YANLING_QUICK.length; i++) {
+		if (MCE_YANLING_QUICK[i].tab === tab && mbCEYanlingQuickHasTrace(V, MCE_YANLING_QUICK[i].id)) { n++; }
+	}
+	return n;
+}
+function mbCEYanlingQuickSecDirty(list, V) {
+	var n = 0, i;
+	for (i = 0; i < list.length; i++) { if (mbCEYanlingQuickHasTrace(V, list[i].id)) { n++; } }
+	return n;
+}
+/* 选项卡渲染：外层页签用 .mce-tabs，内层必须另起类名，否则 07a-shell2 的整页签分发会把内层按钮当外层页签处理 */
+function renderYanlingQuickTabs(parent, tab) {
+	var tabs = MCE_YANLING_QUICK_TABS, box = el("div", "mce-subtabs"), i;
+	box.setAttribute("role", "tablist");
+	for (i = 0; i < tabs.length; i++) {
+		(function (idx) {
+			var cnt = String(mbCEYanlingQuickTabCount(idx));
+			var b = el("button", "mce-btn" + (idx === tab ? " mce-active" : ""));
+			b.type = "button";
+			b.setAttribute("data-subtab", tabs[idx].key);
+			b.setAttribute("data-count", cnt);
+			b.setAttribute("role", "tab");
+			b.setAttribute("aria-selected", idx === tab ? "true" : "false");
+			b.title = tabs[idx].name + "：" + tabs[idx].sub;
+			b.appendChild(el("span", "mce-subtab-t", tabs[idx].name));
+			b.appendChild(el("span", "mce-subtab-n", cnt));
+			b.addEventListener("click", function () {
+				mbCEYanlingQuickTab = idx;
+				renderYanling();
+			});
+			box.appendChild(b);
+		})(i);
+	}
+	parent.appendChild(box);
+}
+/* 单个小节：左侧金色竖条 + 标题 + 「N 项」+（有留痕时）「已改动 N」，下面接 2 列按钮网格 */
+function renderYanlingQuickSec(parent, name, list, V) {
+	var wrap = el("div", "mce-subsec");
+	var h = el("div", "mce-subsec-h");
+	h.appendChild(el("span", "mce-subsec-t", name));
+	h.appendChild(el("span", "mce-subsec-n", String(list.length) + " 项"));
+	var dirty = mbCEYanlingQuickSecDirty(list, V);
+	if (dirty) { h.appendChild(el("span", "mce-subsec-d", "已改动 " + String(dirty))); }
+	wrap.appendChild(h);
+	var grid = mceBtnGrid(wrap);
+	for (var j = 0; j < list.length; j++) {
+		(function (en) {
+			var b2 = el("button", "mce-btn " + MCE_CLS.gold, en.label);
+			b2.type = "button";
+			b2.title = en.hint;
+			b2.setAttribute("data-qid", en.id);
+			b2.addEventListener("click", function () {
+				var r = mbCEYanlingQuickRun(en.id);
+				setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err);
+				mbCEFlashRow(b2);
+				renderYanling();
+			});
+			grid.appendChild(b2);
+		})(list[j]);
+	}
+	parent.appendChild(wrap);
+}
+function renderYanlingQuickSections(parent, tab, V) {
+	var secs = [], map = {}, i;
+	for (i = 0; i < MCE_YANLING_QUICK.length; i++) {
+		var entry = MCE_YANLING_QUICK[i];
+		if (entry.tab !== tab) { continue; }
+		if (!map[entry.sec]) { map[entry.sec] = []; secs.push(entry.sec); }
+		map[entry.sec].push(entry);
+	}
+	for (i = 0; i < secs.length; i++) { renderYanlingQuickSec(parent, secs[i], map[secs[i]], V); }
+}
+/* 整页撤销行：左侧说明、右侧按钮；按钮数即本页已改动条目数，0 项时置灰 */
+function renderYanlingQuickUndoRow(parent, tab, V) {
+	var undoable = mbCEYanlingQuickDirtyCount(tab, V);
+	var row = el("div", "mce-quick-undo");
+	row.appendChild(el("div", "mce-quick-undo-txt", "可撤销 " + String(undoable) + " 项 · 留痕键 yanling:q:<条目>，只记首次"));
+	var ub = el("button", "mce-btn mce-red", "撤销本页改动（" + String(undoable) + "）");
+	ub.type = "button";
+	ub.disabled = undoable === 0;
+	ub.title = "按 yanling:q:<条目> 留痕回退本页所有已执行条目；留痕只记首次，连点也能一次回到最初";
+	ub.addEventListener("click", function () {
+		var r = mbCEYanlingQuickUndoTab(tab);
+		setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err);
+		renderYanling();
+	});
+	row.appendChild(ub);
+	parent.appendChild(row);
+}
+function renderYanlingQuickPanel(parent, tab, V) {
+	var box = el("div", "mce-subpanel");
+	box.setAttribute("role", "tabpanel");
+	var meta = el("div", "mce-quick-meta");
+	meta.appendChild(el("span", "mce-quick-meta-n", "共 " + String(mbCEYanlingQuickTabCount(tab)) + " 项"));
+	meta.appendChild(el("span", "mce-quick-meta-d", "点一次即写入 · 撤销按首次写入前值还原"));
+	box.appendChild(meta);
+	renderYanlingQuickSections(box, tab, V);
+	renderYanlingQuickUndoRow(box, tab, V);
+	parent.appendChild(box);
+}
+function renderYanlingQuick(parent) {
+	try {
+		if (!parent) { return; }
+		var tab = mbCEYanlingQuickTabSet(mbCEYanlingQuickTab);
+		renderYanlingQuickTabs(parent, tab);
+		renderYanlingQuickPanel(parent, tab, getV());
+	} catch (err) { /* 渲染失败不抛到面板主链 */ }
+}
 	/* 职责：言灵页（07i）渲染 —— A/B/C 三组九个区块 + 页尾说明折叠块 + 加载即起守卫。 */
 	/* 渲染：言灵页（7 号外层页签） */
 	function renderYanling() {
@@ -14417,6 +14848,8 @@ var SCENE_LOCATIONS = {
 			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气");
 			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 囚禁（原版 state 层）");
 			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式强制开启");
+			/* v2.1.17 原帖 52 条补丁：独立 E 组 + 4 个页内选项卡（同类型合并），不挤进 A~D 的开关语义 */
+			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡 · 点一次即写入，可整页撤销");
 
 			/* ① 核心：无性别着装 */
 			var s1 = mceNewSec(gA, 1, "无视着装性别", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。");
@@ -14627,6 +15060,9 @@ var SCENE_LOCATIONS = {
 			var s12g = mceBtnGrid(s12);
 			mkBtn(s12g, "强制开启作弊", MCE_CLS.gold, mbCEYanlingCheatOn, "等价原版设置页开启作弊后退出：$cheatsEnabled=true + $feats.locked=true；想继续拿成就用上方「解除成就限制」单独放开");
 			mkBtn(s12g, "关闭作弊模式", "mce-red", mbCEYanlingCheatOff, "按 yanling:cheat_on 留痕还原 $cheatsEnabled 与 $feats.locked；无留痕时按关闭 + 解除成就锁处理");
+
+			/* E 组：52 条补丁（数据见 07i-yanling-quick-data.js，执行与回退见 07i-yanling-quick.js） */
+			renderYanlingQuick(gE);
 
 			/* v2.0.2 按键重排：说明与边界不再伪装成"第 4 个区块"，改为页尾折叠块（不占编号，默认 2 行） */
 			var sInfo = el("div", "mce-block");
@@ -18913,6 +19349,24 @@ function renderAttitudesGroup(pane) {
 			a.mceSchedule = mceSchedule;
 		} catch (e) {}
 	}
+/* 职责：言灵补丁（原帖 52 条）导出 —— 数据表 / 执行 / 逐条撤销 / 整页撤销 / 选项卡状态。
+   09-exports2.js 的 mountApi() 会把主导出表挂到 setup.mbStageCE；此处在 mountApi 之后补齐
+   （拆段原因：09-exports2.js 已 399 行，触及单段 400 行门禁）。 */
+function mbCEExportYanlingQuick() {
+	try {
+		var s = getSetup();
+		if (!s || !s.mbStageCE) { return; }
+		var a = s.mbStageCE;
+		a.renderYanlingQuick = renderYanlingQuick;
+		a.yanlingQuickRun = mbCEYanlingQuickRun;
+		a.yanlingQuickUndo = mbCEYanlingQuickUndo;
+		a.yanlingQuickUndoTab = mbCEYanlingQuickUndoTab;
+		a.yanlingQuickTab = mbCEYanlingQuickTabGet;
+		a.yanlingQuickTabSet = mbCEYanlingQuickTabSet;
+		a.YANLING_QUICK = MCE_YANLING_QUICK;
+		a.YANLING_QUICK_TABS = MCE_YANLING_QUICK_TABS;
+	} catch (e) {}
+}
 /* 职责：初始化与刷新钩子 —— hookRefresh（:passagedisplay）、init()、mountApi() 导出 */
 	function hookRefresh() {
 		var mb = resolveMB();
@@ -18938,7 +19392,7 @@ function renderAttitudesGroup(pane) {
 		if (initialized) { return; }
 		initialized = true;
 		if (typeof document === "undefined") { return; }
-		mountApi(); mbCEExportVcore(); mbCEExportLeaf(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）+ v2.1.8 枝叶变装导出，均与 mountApi 同步补齐 */
+		mountApi(); mbCEExportVcore(); mbCEExportLeaf(); mbCEExportYanlingQuick(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）+ v2.1.8 枝叶变装导出 + v2.1.17 言灵补丁导出，均与 mountApi 同步补齐 */
 		hookPassageOverride();
 		hookPassageInit();
 		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
@@ -19308,7 +19762,7 @@ function renderAttitudesGroup(pane) {
 			};
 		} catch (e) {}
 	}
-	mountApi(); mbCEExportLeaf(); /* 顶层挂表后即补齐枝叶 2 键：init() 在无 document 环境下会提前 return，只有此处能兜底；mbCEExportLeaf 幂等 */
+	mountApi(); mbCEExportLeaf(); mbCEExportYanlingQuick(); /* 顶层挂表后即补齐枝叶 2 键 + 言灵补丁键：init() 在无 document 环境下会提前 return，只有此处能兜底；两个导出函数均幂等 */
 	init();
 })();
 

@@ -290,6 +290,16 @@
       "layer": "ui"
     },
     {
+      "file": "07i-yanling-quick-data.js",
+      "layer": "ui",
+      "note": "v2.1.17 原帖 52 条补丁数据表（4 选项卡 / 分组 / 键路径 / 写入类型），执行器在下一段"
+    },
+    {
+      "file": "07i-yanling-quick.js",
+      "layer": "ui",
+      "note": "v2.1.17 言灵补丁执行器 + 选项卡渲染 + 逐条/整页撤销（原版键自带解析，不复用拒绝原版根的 cheatWriteValue）"
+    },
+    {
       "file": "07i-yanling-page.js",
       "layer": "ui"
     },
@@ -377,6 +387,11 @@
       "file": "09-exports-vcore.js",
       "layer": "export",
       "note": "v2.0.9 原版档案 / 收藏 / 头衔 6 键导出（mountApi 后补齐，结构门禁拆段）"
+    },
+    {
+      "file": "09-exports4-yanling-quick.js",
+      "layer": "export",
+      "note": "v2.1.17 言灵补丁 8 键导出（数据表 / 执行 / 撤销 / 选项卡状态；09-exports2 已 399 行，拆段后由 init 与顶层各调一次，幂等）"
     },
     {
       "file": "09-exports2.js",

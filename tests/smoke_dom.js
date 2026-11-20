@@ -739,7 +739,11 @@ const ylSnap = function () {
 assert(typeof ylApi.renderYanling === "function", "renderYanling 已导出（拆分后渲染层仍在 exports 里）");
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS1 = ylSnap();
-assert(ylS1.groups === 4 && ylS1.blocks === 13, "言灵页 4 个分组 + 12 区块（①无视着装 ②异装癖 ③名声 ⑩枝叶变装 ④身体衣物 ⑤精神体液 ⑥数值快补 ⑦天气 ⑧放逐 ⑨监狱 ⑪艾弗里办公室 ⑫作弊模式）+ 1 说明块 = 13 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
+assert(ylS1.groups === 5 && ylS1.blocks === 13, "言灵页 5 个分组（A~D 原区块 + E 言灵补丁）+ 12 原区块 + 1 说明块 = 13 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
+const ylQuickPane = document.querySelector('[data-pane="yanling"]');
+assert(ylQuickPane.textContent.includes("言灵补丁（原帖 52 条）"), "言灵页含 E 组「言灵补丁（原帖 52 条）」");
+assert(ylQuickPane.querySelectorAll(".mce-subtabs .mce-btn").length === 4, "言灵补丁 4 个页内选项卡（贞洁统计 / 身体状态 / 名声 / 角色时间），实际 " + ylQuickPane.querySelectorAll(".mce-subtabs .mce-btn").length);
+assert(ylQuickPane.querySelectorAll(".mce-subtabs").length === 1, "页内选项卡容器唯一（外层 .mce-tabs 不被复用）");
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS2 = ylSnap();
 assert(JSON.stringify(ylS1) === JSON.stringify(ylS2), "连续重渲染幂等（分组/区块/按钮数不增长），实际 " + JSON.stringify(ylS1) + " vs " + JSON.stringify(ylS2));

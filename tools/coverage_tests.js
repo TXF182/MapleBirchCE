@@ -67,6 +67,10 @@ const TESTS = [
   /* 言灵页一键动作（07i-yanling-actions）：每条动作的「可写 / 键缺失 / 类型不对 / 前置未就绪」三态，
      NPC 槽位解析与 Gwylan / Kylar / Whitney 状态写入、Time.date 降级口径、监狱庇护枚举空串语义。 */
   "tests/yanling_actions_state.js",
+  /* v2.1.17 言灵补丁（07i-yanling-quick-data / 07i-yanling-quick）：52 条 / 4 选项卡分组、
+     布尔/置数/相对增量/时间四类写入、晒痕数组与枷锁承租人特殊写入、宿主缺失拒绝、留痕只记首次、
+     逐条撤销与整页撤销、选项卡渲染与切换状态。 */
+  "tests/yanling_quick_state.js",
   /* 剧情页（07h-render2/3）：真实 $scenes 注册表（fixture）驱动的分区/懒渲染/展开收起/锚定/一键完成/
      直达触发禁用态/空注册表说明 —— UI 拒绝路径必须真走到。 */
   "tests/scenes_page_state.js",
