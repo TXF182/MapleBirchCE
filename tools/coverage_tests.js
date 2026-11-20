@@ -134,7 +134,13 @@ const TESTS = [
   "tests/theme_four.js",
   /* v2.1.14 经济 · 学业 · 农田 · 消耗品 · 纹身（07m 两段）：数据层写入/拒绝分支、
      vcore-econ 留痕与逐条回退、全局页 ⑪ 渲染（三个中文下拉 + 按钮点击到存档的真实链路）。 */
-  "tests/vanilla_econ_state.js"
+  "tests/vanilla_econ_state.js",
+  /* v2.1.15 鹰塔工地（07n）：清洁度钳制/拒绝、材料只升不降与幂等、materials 缺失拒绝、
+     vcore-bird 留痕 before 与删除语义回退、全局页 ⑫ 面板点击到存档的真实链路（含十二项设施一键满级）。 */
+  "tests/vanilla_bird_state.js",
+  /* v2.1.15 礼顿把柄（07o）：只清把柄 / 彻底解除两条力度、来源分支与警局线边界、
+     vcore-leighton 留痕与删除语义回退、全局页 ⑬ 面板点击到存档的真实链路。 */
+  "tests/vanilla_leighton_state.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

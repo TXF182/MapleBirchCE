@@ -81,6 +81,25 @@
 		if (ns !== "vcore" || !rec || rec.type !== "vcore-econ") { return name; }
 		return mbCEUndoEconName(rest);
 	}
+	/* 鹰塔留痕 id → 中文（07n-vanilla-bird.js 的 vcore-bird 留痕；同样只在命中时改名） */
+	var MB_CE_UNDO_BIRD = {
+		"bird-clean": "鹰塔清洁度",
+		"bird-materials": "鹰塔八种材料",
+		"bird-upgrades": "鹰塔十二项设施"
+	};
+	function mbCEUndoBirdFixName(name, ns, rest, rec) {
+		if (ns !== "vcore" || !rec || rec.type !== "vcore-bird") { return name; }
+		return MB_CE_UNDO_BIRD[rest] || name;
+	}
+	/* 礼顿把柄留痕 id → 中文（07o-vanilla-leighton.js 的 vcore-leighton 留痕） */
+	var MB_CE_UNDO_LEIGHTON = {
+		"leighton-clear": "礼顿把柄",
+		"leighton-purge": "礼顿把柄与来源分支"
+	};
+	function mbCEUndoLeightonFixName(name, ns, rest, rec) {
+		if (ns !== "vcore" || !rec || rec.type !== "vcore-leighton") { return name; }
+		return MB_CE_UNDO_LEIGHTON[rest] || name;
+	}
 	/* 键拆分：<ns>:<rest> */
 	function mbCEUndoSplitKey(key) {
 		var s = String(key == null ? "" : key), i = s.indexOf(":");
@@ -189,6 +208,8 @@
 			}
 		} catch (e) { name = ""; }
 		name = mbCEUndoEconFixName(name, ns, rest, rec);
+		name = mbCEUndoBirdFixName(name, ns, rest, rec);
+		name = mbCEUndoLeightonFixName(name, ns, rest, rec);
 		name = String(name || "").trim();
 		if (!name) { name = rest || String(key); }
 		return name;

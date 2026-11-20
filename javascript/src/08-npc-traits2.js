@@ -23,6 +23,10 @@
 		/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js）
 		   房租/欠租、学校出勤、地块催熟、避孕套数量、玩家纹身清除与标记 —— 独立 vcore-econ 留痕，可逐条回退 */
 		mbCERenderVanillaEcon(pane);
+		/* v2.1.15：鹰塔工地（07n-vanilla-bird.js）——清洁度 + 八种材料补足，独立 vcore-bird 留痕可回退 */
+		mbCERenderVanillaBird(pane);
+		/* v2.1.15：礼顿把柄（07o-vanilla-leighton.js）——解除把柄 / 彻底解除，独立 vcore-leighton 留痕可回退 */
+		mbCERenderVanillaLeighton(pane);
 
 		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
 		mbCERenderLock(pane);

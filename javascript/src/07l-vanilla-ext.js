@@ -355,11 +355,11 @@
 				delete V.mbCE_wrote[key];
 				return { ok: true, message: "已还原 Remy 头衔为「" + mbCEVanillaTitleZh(b.remy) + "」" };
 			}
-			/* 经济 / 学业 / 农田 / 消耗品 / 纹身（07m-vanilla-econ-data.js）：kind 由本段未识别的留痕委派过去，
-			   保持 07l 主段不因新增品类继续膨胀（结构门禁 S1 400 行）。返回 null 表示仍不认识。 */
-			if (typeof mbCEVanillaEconUndo === "function") {
-				var reEcon = mbCEVanillaEconUndo(id, b, key);
-				if (reEcon) { return reEcon; }
+			/* 经济 / 学业 / 农田 / 消耗品 / 纹身（07m）与鹰塔（07n）：kind 由集中委派分发过去，
+			   保持本段复杂度不变（lint 棘轮只减不增）。返回 null 表示仍不认识。 */
+			if (typeof mbCEVanillaKindUndo === "function") {
+				var reKind = mbCEVanillaKindUndo(id, b, key);
+				if (reKind) { return reKind; }
 			}
 			return { ok: false, message: "未知的留痕类型：" + String(b.kind) };
 		} catch (eUndo) {

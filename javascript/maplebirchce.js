@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.15";
+	var MCE_VERSION = "2.1.16";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -13937,6 +13937,133 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 职责：言灵页（07i）剧情闸门与系统开关 —— 艾弗里办公室标记补开（含撤销）/ 作弊模式强制开关（含撤销），全部按原版写入语义直写并留痕。 */
+	/* ==================== 剧情闸门（玩家给的 SugarCube 言灵片段，逐行取证后落地为按钮） ====================
+	   原始片段：[[开启艾弗里办公室·补|$passage][$averySeen = ($averySeen ? $averySeen : new Array()).concat(String.fromCharCode(111,102,102,105,99,101))]]
+	   （111,102,102,105,99,101 = "office"；语法层面 $x 一律展开成 State.variables.x、裸 = 原样保留，故该 setter 合法，
+	     但 concat 不去重 —— 重复点会不断累积同值元素，本页改用原版的 pushUnique 语义。）
+
+	   原版取证（DoL 0.5.12.13，行号可复跑）：
+	     · $averySeen 初始化 <<set $averySeen to []>>（190600 / 299285）；原版唯一写入方式是
+	       <<set $averySeen.pushUnique("office")>>（791859，Avery Office Manager 信件交付线结尾）
+	       与 pushUnique("officeAssistant")（791914）。
+	     · 读取闸门一：71279 `const workAvailable = V.averySeen?.includes("office") && !V.avery_injury;`
+	       命中即 71280 `T.avery_available = "office"`（Avery 排班把 PC 当可打工对象）。
+	     · 读取闸门二：623696 / 623857 办公室板块
+	       `$averySeen?.includes("office") and C.npc.Avery.state isnot "dismissed"` → 623698
+	       [[Work as Avery's Personal Assistant|Avery Office Assistant]]。623852 的「便利贴」分支只在**未**解锁时出现，
+	       补标记后自然不再刷。
+	     · 仍不伪造的前置：71275 averySchedule 首行 `if (C.npc.Avery.init !== 1 || state === "dismissed") return;`
+	       —— Avery 必须已 init、未被驱逐；$avery_injury 为真时打工入口同样不出现。
+	     · 语义结论：只补 "office" 一项即等价于走完信件交付线，够开「个人助理」打工入口。 */
+
+	/* 读 averySeen 数组形态：undefined → 视为空；非数组 → 视为存档异常（调用方需拒绝写入） */
+	function mbCEYanlingAveryArr(V, create) {
+		var cur = V.averySeen;
+		if (cur === undefined || cur === null) {
+			if (!create) { return null; }
+			V.averySeen = [];
+			return V.averySeen;
+		}
+		if (typeof cur !== "object" || typeof cur.indexOf !== "function" || typeof cur.splice !== "function") { return null; }
+		return cur;
+	}
+
+	function mbCEYanlingAveryOffice() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var cur = V.averySeen;
+			if (cur !== undefined && cur !== null && mbCEYanlingAveryArr(V, false) === null) {
+				return { ok: false, msg: "$averySeen 不是数组（存档结构异常），拒绝写入" };
+			}
+			var before = { averySeen: mbCEYanlingAveryArr(V, false) ? V.averySeen.slice() : cur };
+			var arr = mbCEYanlingAveryArr(V, true);
+			var added = 0;
+			if (arr.indexOf("office") === -1) { arr.push("office"); added = 1; }
+			/* 留痕只记首次：重复点「补上标记」不覆盖最初原态，撤销总能回到「没补之前」 */
+			mbCEYanlingTraceKeep("avery_office", before, { averySeen: arr.slice(), added: added });
+			return { ok: true, msg: added ? "已补上「办公室」标记（艾弗里个人助理的打工入口已开）" : "「办公室」标记已存在，无需重复写入" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 撤销：优先按留痕还原（原本不存在 → delete 而非写空数组）；无留痕时只移除 office 标记 */
+	function mbCEYanlingAveryOfficeRevert() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var rec = V.mbCE_wrote ? V.mbCE_wrote["yanling:avery_office"] : null;
+			var b = rec ? rec.before : null;
+			if (b) {
+				if (b.averySeen === undefined) {
+					mbCEYanlingRestoreKey(V, "averySeen", undefined);
+					return { ok: true, msg: "已撤销：$averySeen 原本不存在，已删除该键" };
+				}
+				V.averySeen = (typeof b.averySeen.slice === "function") ? b.averySeen.slice() : b.averySeen;
+				return { ok: true, msg: "已撤销：$averySeen 已还原为点击前的状态" };
+			}
+			var arr = mbCEYanlingAveryArr(V, false);
+			if (arr && arr.indexOf("office") !== -1) {
+				arr.splice(arr.indexOf("office"), 1);
+				return { ok: true, msg: "没有留痕，已按移除「办公室」标记处理" };
+			}
+			return { ok: false, msg: "既无留痕也没有「办公室」标记，无需撤销" };
+		} catch (e) { return { ok: false, msg: "撤销异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* ==================== 作弊模式强制开启 ====================
+	   原版取证（DoL 0.5.12.13）：
+	     · 总开关 $cheatsEnabled：29886 `V.debug || V.cheatsEnabled === true`、181705 `<<if $cheatsEnabled is true>>`、
+	       324728 重置设置写 false；设置页字段 73894 `cheatsEnabled: { bool: true, displayName: "Cheat mode:" }`，
+	       映射 73287 `cheatdisabletoggle: { key: "cheatsEnabledToggle", invert: true }`。
+	     · 设置页退出链 325164-325171：`$cheatsEnabled to $settings.cheatsEnabledToggle` → 若为 true 则 `$feats.locked to true`
+	       → `<<unset $settings.cheatsEnabledToggle>>`（该键是页面级临时量，不落档，所以本页不写它）。
+	     · 副作用实证：325048「Enabled cheats: disables all feats.」、104773 / 104843 `earnFeat` 在
+	       `V.cheatsEnabled === true` 时直接 return —— 作弊与成就是互斥的，本页照此同步锁成就；
+	       想继续拿成就用同页「解除成就限制」单独放开，两个按钮互不覆盖。
+	     · 旧档兼容键 $cheatdisable 只在迁移时读一次并随即 delete（188395-188398），不再写它。 */
+	/* 成就对象取用：$feats 必须是对象（数组视为异常），统一在一处判定，避免各按钮重复三重条件 */
+	function mbCEYanlingFeatsObj(V) {
+		var f = V.feats;
+		if (!f || typeof f !== "object" || Array.isArray(f)) { return null; }
+		return f;
+	}
+
+	function mbCEYanlingCheatOn() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var feats = mbCEYanlingFeatsObj(V);
+			var before = { cheatsEnabled: V.cheatsEnabled, hasFeats: !!feats, featsLocked: feats ? feats.locked : undefined };
+			V.cheatsEnabled = true;
+			if (feats && feats.locked !== true) { feats.locked = true; }
+			mbCEYanlingTraceKeep("cheat_on", before, { cheatsEnabled: true, featsLocked: feats ? feats.locked : null });
+			return { ok: true, msg: "作弊模式已强制开启（原版作弊面板解锁；成就已按原版语义锁定，可用「解除成就限制」放开）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	function mbCEYanlingCheatOff() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var rec = V.mbCE_wrote ? V.mbCE_wrote["yanling:cheat_on"] : null;
+			var b = rec ? rec.before : null;
+			if (!b) {
+				V.cheatsEnabled = false;
+				var featsA = mbCEYanlingFeatsObj(V);
+				if (featsA) { featsA.locked = false; }
+				return { ok: true, msg: "没有留痕，已按关闭作弊 + 解除成就锁处理" };
+			}
+			mbCEYanlingRestoreKey(V, "cheatsEnabled", b.cheatsEnabled);
+			if (b.hasFeats) {
+				var featsB = mbCEYanlingFeatsObj(V);
+				if (featsB) { mbCEYanlingRestoreKey(featsB, "locked", b.featsLocked); }
+			}
+			return { ok: true, msg: "已撤销：作弊模式按原态还原，成就锁同步还原" };
+		} catch (e) { return { ok: false, msg: "撤销异常：" + mbCEYanlingErr(e) }; }
+	}
+
+
 	/* 职责：言灵页（07i）枝叶变装 —— 当前上/下装换成 leaf shirt + leaf skirt，被替换的衣物进衣柜，可一键还原。 */
 	/* ============ 枝叶变装（玩家诉求：衣柜里没有枝叶上衣和裙子、没得卖、枝叶衣服没法进柜子） ============
 	   原版取证（DoL 0.5.12.13，字符偏移可复跑，全 64,515,269 字符 HTML 逐字节扫描）：
@@ -14289,6 +14416,7 @@ var SCENE_LOCATIONS = {
 			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声");
 			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气");
 			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 囚禁（原版 state 层）");
+			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式强制开启");
 
 			/* ① 核心：无性别着装 */
 			var s1 = mceNewSec(gA, 1, "无视着装性别", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。");
@@ -14466,6 +14594,39 @@ var SCENE_LOCATIONS = {
 			mkBtn(s9g, "纹身狱友庇护", MCE_CLS.gold, function () { return mbCEYanlingPrisonProtect("tattooed"); }, "prison.protection = \"tattooed\"（651145 / 658072 有对应判定分支）");
 			mkBtn(s9g, "清除庇护", "", function () { return mbCEYanlingPrisonProtect(""); }, "prison.protection = \"\"（空串为假值，恢复 attention 事件的随机遭遇）");
 			s9.appendChild(el("div", MCE_CLS.hint, "注意：狱友声望档位（0-5）与纹身程度（0-100）是另外两个**数字**档位（狱友线声望），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
+
+			/* ⑪ 艾弗里办公室（补）（v2.1.16：玩家给的 SugarCube setter 片段落地为按钮 + 撤销） */
+			var s11 = mceNewSec(gD, 11, "艾弗里办公室（补）", "等价于原版信件交付线结尾的 `<<set $averySeen.pushUnique(\"office\")>>`（791859）：补上「办公室」标记后，办公室板块（623696 / 623857）直接出现「艾弗里 · 个人助理」打工入口，Avery 排班（71279-71280）也把他算作可打工对象。仍不伪造的部分：Avery 必须已登场（71275 首行判 init）、未被驱逐、且艾弗里未受伤（$avery_injury 为真时入口不出现）。重复点击不会累积（原版是 pushUnique，不是 concat 追加）。");
+			var avState = "未开通", avNpc = "无槽位";
+			try {
+				var Va = getV();
+				avState = (Va && Array.isArray(Va.averySeen) && Va.averySeen.indexOf("office") !== -1) ? "已开通" : "未开通";
+				var pa = mbCEYanlingNpc("Avery");
+				if (pa) { avNpc = "已登场（" + String(pa.state) + "）" + (pa.init === 1 ? "" : "，init 未完成"); }
+			} catch (eA) { void eA; }
+			var aRow = el("div", MCE_CLS.row);
+			aRow.appendChild(el("span", MCE_CLS.rowLbl, "当前："));
+			aRow.appendChild(el("span", "mce-value", avState + " ｜ 艾弗里：" + avNpc));
+			s11.appendChild(aRow);
+			var s11g = mceBtnGrid(s11);
+			mkBtn(s11g, "补上「办公室」标记", MCE_CLS.gold, mbCEYanlingAveryOffice, "把 office 写进 $averySeen（去重，等同原版 pushUnique）；只补这一项，不伪造登场 / 受伤等前置");
+			mkBtn(s11g, "撤销：移除「办公室」标记", "mce-red", mbCEYanlingAveryOfficeRevert, "按 yanling:avery_office 留痕还原；改前键不存在时走 delete（不留空数组）");
+
+			/* ⑫ 作弊模式（强制开启） */
+			var s12 = mceNewSec(gD, 12, "作弊模式", "原版作弊总开关：开启后选项页出现作弊面板、特殊衣物走作弊解锁分支，同时按 325048 / 104773 / 104843 的语义**禁用全部成就**，所以本按钮同步锁 $feats.locked（与原版设置页退出链 325164-325171 一致）。关闭按钮按留痕还原开启前的原态。旧档兼容键 $cheatdisable 已被原版迁移逻辑读取即删（188395-188398），本页不再写它。");
+			var chState = "未开启", chFeats = "—";
+			try {
+				var Vc = getV();
+				chState = (Vc && Vc.cheatsEnabled === true) ? "已开启" : "未开启";
+				chFeats = (Vc && Vc.feats && typeof Vc.feats === "object") ? (Vc.feats.locked === true ? "成就已锁" : "成就未锁") : "无成就对象";
+			} catch (eC) { void eC; }
+			var cRow = el("div", MCE_CLS.row);
+			cRow.appendChild(el("span", MCE_CLS.rowLbl, "当前："));
+			cRow.appendChild(el("span", "mce-value", chState + " ｜ " + chFeats));
+			s12.appendChild(cRow);
+			var s12g = mceBtnGrid(s12);
+			mkBtn(s12g, "强制开启作弊", MCE_CLS.gold, mbCEYanlingCheatOn, "等价原版设置页开启作弊后退出：$cheatsEnabled=true + $feats.locked=true；想继续拿成就用上方「解除成就限制」单独放开");
+			mkBtn(s12g, "关闭作弊模式", "mce-red", mbCEYanlingCheatOff, "按 yanling:cheat_on 留痕还原 $cheatsEnabled 与 $feats.locked；无留痕时按关闭 + 解除成就锁处理");
 
 			/* v2.0.2 按键重排：说明与边界不再伪装成"第 4 个区块"，改为页尾折叠块（不占编号，默认 2 行） */
 			var sInfo = el("div", "mce-block");
@@ -15461,11 +15622,11 @@ function renderNpcUndergroundSec(pane) {
 				delete V.mbCE_wrote[key];
 				return { ok: true, message: "已还原 Remy 头衔为「" + mbCEVanillaTitleZh(b.remy) + "」" };
 			}
-			/* 经济 / 学业 / 农田 / 消耗品 / 纹身（07m-vanilla-econ-data.js）：kind 由本段未识别的留痕委派过去，
-			   保持 07l 主段不因新增品类继续膨胀（结构门禁 S1 400 行）。返回 null 表示仍不认识。 */
-			if (typeof mbCEVanillaEconUndo === "function") {
-				var reEcon = mbCEVanillaEconUndo(id, b, key);
-				if (reEcon) { return reEcon; }
+			/* 经济 / 学业 / 农田 / 消耗品 / 纹身（07m）与鹰塔（07n）：kind 由集中委派分发过去，
+			   保持本段复杂度不变（lint 棘轮只减不增）。返回 null 表示仍不认识。 */
+			if (typeof mbCEVanillaKindUndo === "function") {
+				var reKind = mbCEVanillaKindUndo(id, b, key);
+				if (reKind) { return reKind; }
 			}
 			return { ok: false, message: "未知的留痕类型：" + String(b.kind) };
 		} catch (eUndo) {
@@ -16482,6 +16643,452 @@ function renderNpcUndergroundSec(pane) {
 		mbCEVanillaEconSecItem(sec);
 		mbCEVanillaEconSecTattoo(sec);
 	}
+/* 职责：全局页 ⑫「鹰塔工地（大鹰塔）」——原版 $bird 清洁度与八种材料直写，vcore-bird 留痕可回退。
+   原版取证（DoL 0.5.12.13 单文件 HTML，game\Degrees of Lewdity.html，可复跑 Grep）：
+     新档 L182150 `<<set $bird to {}>>` 只建空壳；materials 九键由 L189817–189839 段建（要 $bird.state 有值且 !$bird.hunts），
+     所以**材料写入前必须判 materials 是否存在**——贴吧原版言灵直接 `$bird.materials.wood += 100` 在新档会 TypeError。
+     clean 同段 L189819 初始化 0；清理动作后 clamp 0..30，仅巨鹰配偶态（$syndromebird）0..110（L452195–452199）；
+     日结 L77668 clamp(clean - (10 - shelter), 0, 100) → 写 110 次日必跌回 100 以下；显示 L448061 gte 100 即最高档。
+     材料消耗量级很小（wood 2–3 / sticks 3–5 / lurkers 1），故采用「只升不降补足到 100」，
+     而不是贴吧那版的裸 `+= 100`（连点会累加成几百）。
+   排版复用 07m-vanilla-econ-view.js 的 Ui* 助手（同一套 token，不重复造轮子）；拆段不拆语义，数据 + 视图同段。 */
+
+	/* 八种材料（原版 L189829–189839 初始化顺序；valuables 是子对象，不碰） */
+	var MCE_BIRD_MATERIALS = [
+		{ key: "wood", zh: "木材" },
+		{ key: "sticks", zh: "树枝" },
+		{ key: "leaves", zh: "叶子" },
+		{ key: "fabric", zh: "布料" },
+		{ key: "lurkers", zh: "潜伏者" },
+		{ key: "leather", zh: "皮革" },
+		{ key: "feathers", zh: "羽毛" },
+		{ key: "junk", zh: "亮晶晶杂物" }
+	];
+	var MCE_BIRD_TARGET = 100;
+	/* 十二项设施与上限（原版 L456540–456760 建造菜单 switch：最后一个有 passage 的分支即满级；
+	   镜子/工具/防水布/望远镜/衣柜是 0/1 布尔式，庇护/巢/火坑/炊具/晾架到 3，陷阱到 2，装饰到 5（第 5 档 = Decor Silver）） */
+	var MCE_BIRD_UPGRADES = [
+		{ key: "mirror", zh: "镜子", max: 1 },
+		{ key: "tools", zh: "工具", max: 1 },
+		{ key: "tarp", zh: "防水布", max: 1 },
+		{ key: "telescope", zh: "望远镜", max: 1 },
+		{ key: "shelter", zh: "庇护", max: 3 },
+		{ key: "nest", zh: "巢", max: 3 },
+		{ key: "firepit", zh: "火坑", max: 3 },
+		{ key: "pot", zh: "炊具", max: 3 },
+		{ key: "rack", zh: "晾架", max: 3 },
+		{ key: "snare", zh: "陷阱", max: 2 },
+		{ key: "decor", zh: "装饰", max: 5 },
+		{ key: "wardrobe", zh: "衣柜", max: 1 }
+	];
+
+	/* 数值入口统一：空值走缺省，非数字返回 null（由调用方拒绝） */
+	function mbCEVanillaBirdNum(v, dft) {
+		if (v === undefined || v === null || v === "") { return dft; }
+		var n = Number(v);
+		if (!isFinite(n)) { return null; }
+		return n;
+	}
+	/* 读值统一：非数字一律当 0（原版这些键都是数值；用 || 会多算复杂度，故单独收口） */
+	function mbCEVanillaBirdNumOr0(v) {
+		var n = Number(v);
+		if (isFinite(n)) { return n; }
+		return 0;
+	}
+	function mbCEVanillaBirdStr(v) {
+		if (v === undefined) { return ""; }
+		return String(v);
+	}
+	function mbCEVanillaBirdIsObj(o) {
+		return !!o && typeof o === "object" && !Array.isArray(o);
+	}
+
+	function mbCEVanillaBirdState() {
+		var out = {
+			ok: false, has: false, hasMaterials: false, hasUpgrades: false, clean: 0, cleanRaw: undefined,
+			syndrome: false, state: "", firepit: 0, shelter: 0, materials: {}, upgrades: {}
+		};
+		var sv = getV();
+		if (!sv) { return out; }
+		if (!mbCEVanillaBirdIsObj(sv.bird)) { return out; }
+		out.has = true;
+		out.ok = true;
+		out.cleanRaw = sv.bird.clean;
+		out.clean = mbCEVanillaBirdNumOr0(sv.bird.clean);
+		out.syndrome = Number(sv.syndromebird) === 1;
+		out.state = mbCEVanillaBirdStr(sv.bird.state);
+		var up = sv.bird.upgrades;
+		if (mbCEVanillaBirdIsObj(up)) {
+			out.hasUpgrades = true;
+			out.firepit = mbCEVanillaBirdNumOr0(up.firepit);
+			out.shelter = mbCEVanillaBirdNumOr0(up.shelter);
+			MCE_BIRD_UPGRADES.forEach(function (m) {
+				out.upgrades[m.key] = mbCEVanillaBirdNumOr0(up[m.key]);
+			});
+		}
+		if (mbCEVanillaBirdIsObj(sv.bird.materials)) {
+			out.hasMaterials = true;
+			MCE_BIRD_MATERIALS.forEach(function (m) {
+				out.materials[m.key] = mbCEVanillaBirdNumOr0(sv.bird.materials[m.key]);
+			});
+		}
+		return out;
+	}
+
+	function mbCEVanillaBirdCleanSet(target) {
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		if (!sv.bird || typeof sv.bird !== "object") { return { ok: false, message: "还没遇到大鹰：鹰塔数据不存在，先推进到鹰塔再来" }; }
+		var t = mbCEVanillaBirdNum(target, MCE_BIRD_TARGET);
+		if (t === null) { return { ok: false, message: "清洁度必须是数字" }; }
+		t = Math.max(0, Math.min(110, Math.round(t)));
+		var before = { kind: "bird-clean", had: Object.prototype.hasOwnProperty.call(sv.bird, "clean"), clean: sv.bird.clean };
+		sv.bird.clean = t;
+		mbCEVanillaTrace("bird-clean", before, "bird.clean", "鹰塔清洁度直写", "vcore-bird");
+		var msg = "鹰塔清洁度已写为 " + t;
+		if (t >= 100) { msg += "（原版 gte 100 即最高档）"; }
+		if (t > 100) { msg += "；日结会按「10 - 庇护等级」递减，次日必跌回 100 以下"; }
+		if (!mbCEVanillaBirdState().syndrome) { msg += "；当前不是巨鹰配偶态，原版清理动作只会把清洁度钳在 0–30，这个数只由本项直接写入"; }
+		return { ok: true, clean: t, message: msg };
+	}
+
+	function mbCEVanillaBirdMaterialsFill(target) {
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		if (!sv.bird || typeof sv.bird !== "object") { return { ok: false, message: "还没遇到大鹰：鹰塔数据不存在，先推进到鹰塔再来" }; }
+		/* 缺失即拒绝：此时写进去的键会在原版初始化段被整体覆盖成 0，等于白写 */
+		if (!mbCEVanillaBirdState().hasMaterials) { return { ok: false, message: "鹰塔材料堆还没建立，先在鹰塔里走一段让原版初始化，再回来补" }; }
+		var t = mbCEVanillaBirdNum(target, MCE_BIRD_TARGET);
+		if (t === null) { return { ok: false, message: "材料目标值必须是数字" }; }
+		t = Math.max(0, Math.min(9999, Math.round(t)));
+		var mats = sv.bird.materials;
+		var before = { kind: "bird-materials", mat: {}, had: {} };
+		var changed = [];
+		MCE_BIRD_MATERIALS.forEach(function (m) {
+			before.mat[m.key] = mats[m.key];
+			before.had[m.key] = Object.prototype.hasOwnProperty.call(mats, m.key);
+			var cur = mats[m.key];
+			if (typeof cur === "number" && cur >= t) { return; }
+			mats[m.key] = t;
+			changed.push(m.zh);
+		});
+		if (changed.length) { mbCEVanillaTrace("bird-materials", before, "bird.materials", "鹰塔材料补足", "vcore-bird"); }
+		var msg = changed.length
+			? "已补足的 " + changed.length + " 种材料 → " + t + "：" + changed.join("、")
+			: "八种材料都不低于 " + t + "，未改动";
+		return { ok: true, changed: changed.length, message: msg + "。原版升级单项只要 2–5 个，这些足够用很久。" };
+	}
+
+	/* 十二项设施一键满级：只升不降；上限取自原版建造菜单最后一级（L456540–456760 的 switch 分支） */
+	function mbCEVanillaBirdUpgradesMax() {
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		if (!mbCEVanillaBirdIsObj(sv.bird)) { return { ok: false, message: "还没遇到大鹰：鹰塔数据不存在，先推进到鹰塔再来" }; }
+		if (!mbCEVanillaBirdIsObj(sv.bird.upgrades)) { return { ok: false, message: "鹰塔设施表还没建立，先进鹰塔走一段让原版初始化，再回来点满级" }; }
+		var up = sv.bird.upgrades;
+		var before = { kind: "bird-upgrades", lvl: {}, had: {} };
+		var changed = [];
+		MCE_BIRD_UPGRADES.forEach(function (m) {
+			before.lvl[m.key] = up[m.key];
+			before.had[m.key] = Object.prototype.hasOwnProperty.call(up, m.key);
+			if (mbCEVanillaBirdNumOr0(up[m.key]) >= m.max) { return; }
+			up[m.key] = m.max;
+			changed.push(m.zh);
+		});
+		if (changed.length) { mbCEVanillaTrace("bird-upgrades", before, "bird.upgrades", "鹰塔设施一键满级", "vcore-bird"); }
+		var msg = changed.length
+			? "已满级 " + changed.length + " 项：" + changed.join("、")
+			: "十二项设施都已在满级，未改动";
+		return { ok: true, changed: changed.length, message: msg + "。只升不降；已满级的项在原版建造菜单里不再出现「Improve」。" };
+	}
+
+
+	/* 回退：kind 由 07l 的 mbCEVanillaExtUndo 委派过来；返回 null = 本段不认识 */
+	function mbCEVanillaBirdUndoClean(b, key) {
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用" }; }
+		if (!mbCEVanillaBirdIsObj(sv.bird)) { return { ok: false, message: "鹰塔数据已不在，无法回退" }; }
+		if (b.had) {
+			sv.bird.clean = b.clean;
+			delete sv.mbCE_wrote[key];
+			return { ok: true, message: "已还原鹰塔清洁度为 " + String(b.clean) };
+		}
+		try { delete sv.bird.clean; } catch (eC) { void eC; }
+		delete sv.mbCE_wrote[key];
+		return { ok: true, message: "已撤销鹰塔清洁度（原档没有这个值）" };
+	}
+	function mbCEVanillaBirdUndoMats(b, key) {
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用" }; }
+		if (!mbCEVanillaBirdIsObj(sv.bird)) { return { ok: false, message: "鹰塔数据已不在，无法回退" }; }
+		var mats = sv.bird.materials;
+		if (!mbCEVanillaBirdIsObj(mats)) { return { ok: false, message: "鹰塔材料结构已不在，无法回退" }; }
+		var had = mbCEVanillaBirdIsObj(b.had) ? b.had : {};
+		var mat = mbCEVanillaBirdIsObj(b.mat) ? b.mat : {};
+		MCE_BIRD_MATERIALS.forEach(function (m) {
+			if (had[m.key]) { mats[m.key] = mat[m.key]; return; }
+			try { delete mats[m.key]; } catch (eD) { void eD; }
+		});
+		delete sv.mbCE_wrote[key];
+		return { ok: true, message: "已还原八种材料到首次写入前的数量" };
+	}
+	function mbCEVanillaBirdUndoUpg(b, key) {
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用" }; }
+		if (!mbCEVanillaBirdIsObj(sv.bird)) { return { ok: false, message: "鹰塔数据已不在，无法回退" }; }
+		var up = sv.bird.upgrades;
+		if (!mbCEVanillaBirdIsObj(up)) { return { ok: false, message: "鹰塔设施结构已不在，无法回退" }; }
+		var had = mbCEVanillaBirdIsObj(b.had) ? b.had : {};
+		var lvl = mbCEVanillaBirdIsObj(b.lvl) ? b.lvl : {};
+		MCE_BIRD_UPGRADES.forEach(function (m) {
+			if (had[m.key]) { up[m.key] = lvl[m.key]; return; }
+			try { delete up[m.key]; } catch (eU) { void eU; }
+		});
+		delete sv.mbCE_wrote[key];
+		return { ok: true, message: "已还原十二项设施到首次写入前的等级" };
+	}
+	function mbCEVanillaBirdUndo(id, b, key) {
+		if (!b) { return null; }
+		if (typeof b !== "object") { return null; }
+		if (b.kind === "bird-clean") { return mbCEVanillaBirdUndoClean(b, key); }
+		if (b.kind === "bird-materials") { return mbCEVanillaBirdUndoMats(b, key); }
+		if (b.kind === "bird-upgrades") { return mbCEVanillaBirdUndoUpg(b, key); }
+		return null;
+	}
+
+	/* 集中委派：07l 的 mbCEVanillaExtUndo 只调这一个入口，避免每加一类都往 07l 里塞条件（lint 棘轮只减不增） */
+	function mbCEVanillaKindUndo(id, b, key) {
+		if (typeof mbCEVanillaEconUndo === "function") {
+			var r1 = mbCEVanillaEconUndo(id, b, key);
+			if (r1) { return r1; }
+		}
+		if (typeof mbCEVanillaBirdUndo === "function") {
+			var r2 = mbCEVanillaBirdUndo(id, b, key);
+			if (r2) { return r2; }
+		}
+		if (typeof mbCEVanillaLeightonUndo === "function") {
+			var r3 = mbCEVanillaLeightonUndo(id, b, key);
+			if (r3) { return r3; }
+		}
+		return null;
+	}
+
+	/* ---------- ⑫-1 清洁度 ---------- */
+	function mbCEVanillaBirdSecClean(sec) {
+		var body = mceNewGroup(sec, "清洁度", "原版 gte 100 = 最高档；日结按庇护等级递减");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var bst = mbCEVanillaBirdState();
+			if (!bst.has) {
+				body.appendChild(el("div", MCE_CLS.hint, "该存档还没有鹰塔数据（未遇到大鹰），暂无清洁度可写。"));
+				return;
+			}
+			var decay = 10 - bst.shelter;
+			mbCEVanillaEconUiKv(body, [
+				["当前清洁度", bst.clean],
+				["鹰塔状态", bst.state || "未进入"],
+				["日结衰减", decay + " / 天（庇护 " + bst.shelter + " 级）"],
+				["是否配偶态", bst.syndrome ? "是（清理可到 110）" : "否（原版清理只到 30）"]
+			]);
+			var inp = mbCEVanillaEconUiNumRow(body, "目标清洁度", "0–110；100 即最高档，110 只有巨鹰配偶态能维持", bst.clean >= 100 ? bst.clean : 100);
+			var g = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g, "写入目标值", "按上方数值写入（0–110）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaBirdCleanSet(inp.value), redraw);
+			});
+			mbCEVanillaEconUiBtn(g, "清洁度写 100", "显示层最高档的稳妥值（不会次日被压）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaBirdCleanSet(100), redraw);
+			});
+			body.appendChild(mceFoldHint("原版清洁度每天结算会掉「10 - 庇护等级」点，且封顶 100；110 是巨鹰配偶态下清理动作的钳制上限，"
+				+ "写 110 能撑到最高档，但次日结算会跌回 100 以下。想长期保持完美干净，优先升级庇护（upgrades.shelter）。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["bird-clean", "回退清洁度"]]);
+		};
+		redraw();
+	}
+
+	/* ---------- ⑫-2 材料堆 ---------- */
+	function mbCEVanillaBirdSecMaterials(sec) {
+		var body = mceNewGroup(sec, "材料堆", "木材 / 树枝 / 叶子 / 布料 / 潜伏者 / 皮革 / 羽毛 / 亮晶晶杂物");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var bst = mbCEVanillaBirdState();
+			if (!bst.has) {
+				body.appendChild(el("div", MCE_CLS.hint, "该存档还没有鹰塔数据（未遇到大鹰），暂无材料可写。"));
+				return;
+			}
+			if (!bst.hasMaterials) {
+				body.appendChild(el("div", MCE_CLS.hint, "鹰塔材料堆还没建立：先进鹰塔走一段让原版初始化（清洁度可先写，材料等初始化后再来）。"));
+			} else {
+				MCE_BIRD_MATERIALS.forEach(function (m) {
+					mbCEVanillaEconUiKv(body, [["已有 " + m.zh, bst.materials[m.key]]]);
+				});
+			}
+			var inp = mbCEVanillaEconUiNumRow(body, "目标数量", "不足的补到这个数，已超过的不动（只升不降）", MCE_BIRD_TARGET);
+			var g = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g, "补足到 100", "八种材料不足 100 的补到 100（幂等，连点不会累加）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaBirdMaterialsFill(100), redraw);
+			});
+			mbCEVanillaEconUiBtn(g, "按上方数值补足", "按输入框数字补足（0–9999）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaBirdMaterialsFill(inp.value), redraw);
+			});
+			body.appendChild(mceFoldHint("原版升级与修理的消耗极小：木材 2–3、树枝 3–5、潜伏者 1，"
+				+ "补到 100 已远远够用。贵重金属（valuables）是独立子对象，本组不碰。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["bird-materials", "回退八种材料"]]);
+		};
+		redraw();
+	}
+
+	/* ---------- ⑫-3 设施满级 ---------- */
+	function mbCEVanillaBirdSecUpgrades(sec) {
+		var body = mceNewGroup(sec, "设施满级", "十二项 0/1–5 级；一键写满，只升不降（不动炊具对象）");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var bst = mbCEVanillaBirdState();
+			if (!bst.hasUpgrades) {
+				body.appendChild(el("div", MCE_CLS.hint, "鹰塔设施表还没建立：先进鹰塔走一段让原版初始化（新档只有空的 bird 壳），再回来点满级。"));
+				return;
+			}
+			for (var i = 0; i < MCE_BIRD_UPGRADES.length; i += 3) {
+				var pairs = MCE_BIRD_UPGRADES.slice(i, i + 3).map(function (m) {
+					var lv = bst.upgrades[m.key];
+					return [m.zh + (lv >= m.max ? "（满级）" : ""), lv + " / " + m.max];
+				});
+				mbCEVanillaEconUiKv(body, pairs);
+			}
+			var g = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g, "一键满级", "十二项全部写到原版最高档（已满级的不动）", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaBirdUpgradesMax(), redraw);
+			});
+			body.appendChild(mceFoldHint("上限取自原版建造菜单最后一级：庇护 / 巢 / 火坑 / 炊具 / 晾架 3 级，陷阱 2 级，装饰 5 级（第 5 档是银饰），"
+				+ "镜子 / 工具 / 防水布 / 望远镜 / 衣柜是 0/1。这里的「火坑等级」与同名的炊具对象不是一回事，本组只动等级、不碰炊具。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["bird-upgrades", "回退全部设施"]]);
+		};
+		redraw();
+	}
+
+	function mbCERenderVanillaBird(pane) {
+		var sec = mceNewSec(pane, 12, "鹰塔工地（大鹰塔）",
+			"原版鹰塔的清洁度与八种材料直写。清洁度写 100 = 显示最高档；材料「只升不降」补足，避免连点累加成几百。两组各走独立留痕，可分别回退。");
+		mbCEVanillaBirdSecClean(sec);
+		mbCEVanillaBirdSecMaterials(sec);
+		mbCEVanillaBirdSecUpgrades(sec);
+	}
+/* 职责：全局页 ⑬「礼顿把柄（学校）」——原版 $headblackmailed 清零（贴吧言灵 `$headblackmailed = 0`），
+   以及把三条来源分支一并清 0 的「彻底解除」；vcore-leighton 留痕，可回退。
+   原版取证（DoL 0.5.12.13 单文件 HTML，game\Degrees of Lewdity.html，可复跑 Grep）：
+     - 全库 12 处 headblackmailed，原版没有任何一处写 0；置 1 的三条路径：
+       L686106、L686131（School First Shoot 两个接受分支）、L695630（科学展拿 £5000，同时 headmoney=1）、L695638（拘留，同时 headnodetention=1）。
+     - 判定：L299783（礼顿 NPC 得到 unforgiving trait）、L380149（Gwylan 对话：headblackmailed is 1 and headpolice isnot 1）、
+       L540125（周事件 leightonDanceRefused）、L685909（School Fame Blackmail 台词）、L824459 / L824473（Leighton Private 兽/旁观分支）、L891945。
+     - 陷阱：widget variablesVersionUpdate（L184483）的 L185169
+       `<if $headnodetention is 1 or $headmoney is 1 or $headphotoshoot is 1>` → `<<set $headblackmailed to 1>>`
+       只在版本升级时跑（L179027 Upgrade Waiting Room；L187986 backComp 且 _version lte 30408）。只清把柄会被下次跨版本升级回填。
+     - 三条来源键同时被用于**跳过**礼顿线事件（L694235 / 694316 / 694868 / 694894 / 694902 / 853903 / 856490 / 856542 / 901193），
+       清 0 等于把这些事件重新打开，故提供两个力度不同的按钮并写明后果。
+     - headpolice 是另一条线（L643796 把证据交给警察，L380154 / 645122 / 645138 判定），本组只读不写。
+   排版复用 07m-vanilla-econ-view.js 的 Ui* 助手；拆段不拆语义。 */
+
+	function mbCEVanillaLeightonN(v) {
+		var n = Number(v);
+		if (isFinite(n)) { return n; }
+		return 0;
+	}
+	function mbCEVanillaLeightonHas(sv, k) {
+		return Object.prototype.hasOwnProperty.call(sv, k);
+	}
+	/* 三个来源分支键：科学展 £5000 / 拘留 / 写真 */
+	var MCE_LEIGHTON_SRC = [
+		{ key: "headmoney", zh: "5000 英镑线" },
+		{ key: "headnodetention", zh: "拘留线" },
+		{ key: "headphotoshoot", zh: "写真线" }
+	];
+
+	function mbCEVanillaLeightonState() {
+		var out = { ok: false, blackmailed: 0, police: 0, src: {}, set: false };
+		var sv = getV();
+		if (!sv) { return out; }
+		out.ok = true;
+		out.set = mbCEVanillaLeightonHas(sv, "headblackmailed");
+		out.blackmailed = mbCEVanillaLeightonN(sv.headblackmailed);
+		out.police = mbCEVanillaLeightonN(sv.headpolice);
+		MCE_LEIGHTON_SRC.forEach(function (m) {
+			out.src[m.key] = mbCEVanillaLeightonN(sv[m.key]);
+		});
+		return out;
+	}
+
+	/* purge=false：只清把柄（贴吧原版）；purge=true：连三条来源一起清，避免版本升级回填 */
+	function mbCEVanillaLeightonClear(purge) {
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		var id = purge ? "leighton-purge" : "leighton-clear";
+		var keys = purge ? ["headblackmailed", "headmoney", "headnodetention", "headphotoshoot"] : ["headblackmailed"];
+		var before = { kind: id, val: {}, had: {} };
+		keys.forEach(function (k) {
+			before.val[k] = sv[k];
+			before.had[k] = mbCEVanillaLeightonHas(sv, k);
+			sv[k] = 0;
+		});
+		mbCEVanillaTrace(id, before, "headblackmailed", purge ? "礼顿把柄彻底解除" : "礼顿把柄清零", "vcore-leighton");
+		if (!purge) {
+			return { ok: true, message: "已把礼顿把柄写到 0（原版只有置 1 的三条路径，没有自己清零的分支）。"
+				+ "注意：版本升级时，若拘留 / 5000 英镑 / 写真任一条仍为 1，原版迁移会把把柄重新置 1——要长期解除请用「彻底解除」。" };
+		}
+		return { ok: true, message: "已把把柄与三条来源分支（拘留 / 5000 英镑 / 写真）一起清 0，版本升级不会再把把柄回填。"
+			+ "副作用：这三条分支同时被用来跳过礼顿线的拘留、写真、5000 英镑事件，清 0 后这些内容会按「未发生过」重新开放；警局线未动。" };
+	}
+
+	function mbCEVanillaLeightonUndo(id, b, key) {
+		if (!b || typeof b !== "object") { return null; }
+		if (b.kind !== "leighton-clear" && b.kind !== "leighton-purge") { return null; }
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用" }; }
+		var val = b.val && typeof b.val === "object" ? b.val : {};
+		var had = b.had && typeof b.had === "object" ? b.had : {};
+		Object.keys(val).forEach(function (k) {
+			if (had[k]) { sv[k] = val[k]; return; }
+			try { delete sv[k]; } catch (eL) { void eL; }
+		});
+		delete sv.mbCE_wrote[key];
+		return { ok: true, message: "已还原礼顿把柄与来源分支到首次写入前的值" };
+	}
+
+	/* ---------- ⑬ 礼顿把柄 ---------- */
+	function mbCEVanillaLeightonSecBody(body, redraw) {
+		mbCEVanillaEconUiClear(body);
+		var st = mbCEVanillaLeightonState();
+		if (!st.ok) {
+			body.appendChild(el("div", MCE_CLS.hint, "存档变量不可用（游戏尚未就绪），暂不能写礼顿把柄。"));
+			return;
+		}
+		var srcTxt = MCE_LEIGHTON_SRC.map(function (m) { return m.zh + " " + (st.src[m.key] ? "有" : "无"); }).join(" / ");
+		mbCEVanillaEconUiKv(body, [
+			["礼顿把柄", st.blackmailed ? "有（勒索中）" : (st.set ? "无" : "未设置")],
+			["警局线", st.police ? "已交给警察" : "未交"],
+			["来源分支", srcTxt]
+		]);
+		var g = mceBtnGrid(body);
+		mbCEVanillaEconUiBtn(g, "解除把柄", "只把礼顿把柄写 0（贴吧言灵口径）；版本升级可能被原版迁移回填", function () {
+			mbCEVanillaEconUiRun(mbCEVanillaLeightonClear(false), redraw);
+		});
+		mbCEVanillaEconUiBtn(g, "彻底解除", "把柄 + 拘留线 + 5000 英镑线 + 写真线一起清 0：升级不会回填，但这些事件会重新开放", function () {
+			mbCEVanillaEconUiRun(mbCEVanillaLeightonClear(true), redraw);
+		});
+		body.appendChild(mceFoldHint("原版没有「解除勒索」的分支：把柄只能由科学展 £5000、拘留、写真三条路径置 1。"
+			+ "清 0 后，礼顿不再把你当被勒索者（学校名声勒索台词、Leighton Private 兽/旁观分支、每周舞蹈拒绝判定等都会按无把柄走）；"
+			+ "礼顿身上已经获得的 unforgiving 特质属于 NPC 数据，不会因此撤销。"));
+		mbCEVanillaEconUiUndoGrid(body, redraw, [["leighton-clear", "回退解除把柄"], ["leighton-purge", "回退彻底解除"]]);
+	}
+
+	function mbCERenderVanillaLeighton(pane) {
+		var sec = mceNewSec(pane, 13, "礼顿把柄（学校）",
+			"原版「礼顿把柄」清零与来源分支彻底解除，两者分别留痕、可分别回退。写 0 前请看清两个按钮的后果差异。");
+		mbCEVanillaLeightonSec(sec);
+	}
+	function mbCEVanillaLeightonSec(sec) {
+		var body = mceNewGroup(sec, "勒索把柄", "解除把柄 / 彻底解除（连三条来源分支）");
+		var redraw = function () { mbCEVanillaLeightonSecBody(body, redraw); };
+		redraw();
+	}
 /* 职责：NPC 特质获取 + 誓言修复 + 时间推进（Now / Advance / Jump） */
 	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
 	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
@@ -16664,6 +17271,10 @@ function renderNpcUndergroundSec(pane) {
 		/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js）
 		   房租/欠租、学校出勤、地块催熟、避孕套数量、玩家纹身清除与标记 —— 独立 vcore-econ 留痕，可逐条回退 */
 		mbCERenderVanillaEcon(pane);
+		/* v2.1.15：鹰塔工地（07n-vanilla-bird.js）——清洁度 + 八种材料补足，独立 vcore-bird 留痕可回退 */
+		mbCERenderVanillaBird(pane);
+		/* v2.1.15：礼顿把柄（07o-vanilla-leighton.js）——解除把柄 / 彻底解除，独立 vcore-leighton 留痕可回退 */
+		mbCERenderVanillaLeighton(pane);
 
 		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
 		mbCERenderLock(pane);
@@ -17211,11 +17822,17 @@ function renderAttitudesGroup(pane) {
 		part: "外观隐藏（转化部件）",
 		vcore: "原版档案 · 收藏 · 头衔",
 		"vcore-econ": "原版经济 · 学业 · 农田 · 消耗品 · 纹身",
+		"vcore-bird": "原版鹰塔（大鹰塔）",
+		"vcore-leighton": "原版礼顿把柄（学校）",
 		lock: "数值锁定写回"
 	};
 	function mbCEUndoLabel(type) {
 		if (!type) { return "未知类型"; }
 		return MCE_UNDO_LABELS[type] || String(type);
+	}
+	/* vcore 家族统一走 mbCEVanillaExtUndo（回退中心只判「是不是这一族」，具体 kind 由 07l/07m/07n 各自分发） */
+	function mbCEUndoIsVcoreType(type) {
+		return type === "vcore" || type === "vcore-econ" || type === "vcore-bird" || type === "vcore-leighton";
 	}
 	/* 不可回退原因（空串 = 可回退） */
 	function mbCEUndoBlocked(type) {
@@ -17330,7 +17947,7 @@ function renderAttitudesGroup(pane) {
 			}
 			/* v2.0.9 需求②③④：原版档案 / 收藏 / 头衔三项整块写入（07l-vanilla-ext.js）
 			   id in {crime, antique, title}；before 为「首次写入前」整块快照，由 mbCEVanillaExtUndo 按 kind 还原 */
-			if (type === "vcore" || type === "vcore-econ") {
+			if (mbCEUndoIsVcoreType(type)) {
 				var vid = String(rec.id || key.replace(/^vcore:/, ""));
 				var rv = /** @type {any} */ (mbCEVanillaExtUndo(vid));
 				return { ok: !!(rv && rv.ok), msg: (rv && (rv.message || rv.msg)) || "原版档案回退失败" };
@@ -17754,6 +18371,25 @@ function renderAttitudesGroup(pane) {
 		if (ns !== "vcore" || !rec || rec.type !== "vcore-econ") { return name; }
 		return mbCEUndoEconName(rest);
 	}
+	/* 鹰塔留痕 id → 中文（07n-vanilla-bird.js 的 vcore-bird 留痕；同样只在命中时改名） */
+	var MB_CE_UNDO_BIRD = {
+		"bird-clean": "鹰塔清洁度",
+		"bird-materials": "鹰塔八种材料",
+		"bird-upgrades": "鹰塔十二项设施"
+	};
+	function mbCEUndoBirdFixName(name, ns, rest, rec) {
+		if (ns !== "vcore" || !rec || rec.type !== "vcore-bird") { return name; }
+		return MB_CE_UNDO_BIRD[rest] || name;
+	}
+	/* 礼顿把柄留痕 id → 中文（07o-vanilla-leighton.js 的 vcore-leighton 留痕） */
+	var MB_CE_UNDO_LEIGHTON = {
+		"leighton-clear": "礼顿把柄",
+		"leighton-purge": "礼顿把柄与来源分支"
+	};
+	function mbCEUndoLeightonFixName(name, ns, rest, rec) {
+		if (ns !== "vcore" || !rec || rec.type !== "vcore-leighton") { return name; }
+		return MB_CE_UNDO_LEIGHTON[rest] || name;
+	}
 	/* 键拆分：<ns>:<rest> */
 	function mbCEUndoSplitKey(key) {
 		var s = String(key == null ? "" : key), i = s.indexOf(":");
@@ -17862,6 +18498,8 @@ function renderAttitudesGroup(pane) {
 			}
 		} catch (e) { name = ""; }
 		name = mbCEUndoEconFixName(name, ns, rest, rec);
+		name = mbCEUndoBirdFixName(name, ns, rest, rec);
+		name = mbCEUndoLeightonFixName(name, ns, rest, rec);
 		name = String(name || "").trim();
 		if (!name) { name = rest || String(key); }
 		return name;
@@ -18237,6 +18875,19 @@ function renderAttitudesGroup(pane) {
 			/* 回退按 id 走统一分发：先查 vcore 留痕再按 kind 还原（测试与诊断直接调这一个入口） */
 			a.vanillaEconUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
 			a.renderVanillaEcon = mbCERenderVanillaEcon;
+			/* v2.1.15 鹰塔（大鹰塔）清洁度与八种材料（07n-vanilla-bird.js） */
+			a.vanillaBirdStats = mbCEVanillaBirdState;
+			a.vanillaBirdClean = mbCEVanillaBirdCleanSet;
+			a.vanillaBirdMaterials = mbCEVanillaBirdMaterialsFill;
+			a.vanillaBirdUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
+			a.renderVanillaBird = mbCERenderVanillaBird;
+			a.vanillaBirdUpgrades = mbCEVanillaBirdUpgradesMax;
+			/* v2.1.15 礼顿把柄（07o-vanilla-leighton.js） */
+			a.vanillaLeightonStats = mbCEVanillaLeightonState;
+			a.vanillaLeightonClear = mbCEVanillaLeightonClear;
+			a.vanillaLeightonUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
+			a.renderVanillaLeighton = mbCERenderVanillaLeighton;
+			if (typeof mbCEUndoItemName === "function") { a.mbCEUndoItemName = mbCEUndoItemName; }
 		} catch (e) { void e; }
 	}
 /* 职责：v2.0.9 原版档案 / 收藏 / 头衔（vcore 六键）导出。
@@ -18401,7 +19052,7 @@ function renderAttitudesGroup(pane) {
 				yanlingGwylanRecall: mbCEYanlingGwylanRecall,
 				yanlingKylar: mbCEYanlingKylar,
 				yanlingWhitney: mbCEYanlingWhitney,
-				YANLING_WEATHER: mbCEYanlingWeatherMap,
+				YANLING_WEATHER: mbCEYanlingWeatherMap, /* v2.1.16 剧情闸门 + 作弊模式（07i-yanling-gate.js） */ yanlingAveryOffice: mbCEYanlingAveryOffice, yanlingAveryOfficeRevert: mbCEYanlingAveryOfficeRevert, yanlingCheatOn: mbCEYanlingCheatOn, yanlingCheatOff: mbCEYanlingCheatOff,
 				sceneStatus: sceneStatus,
 				completeScene: completeScene,
 				listSceneLines: listSceneLines,

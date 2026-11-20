@@ -282,6 +282,10 @@
       "layer": "ui"
     },
     {
+      "file": "07i-yanling-gate.js",
+      "layer": "ui"
+    },
+    {
       "file": "07i-yanling-leaf.js",
       "layer": "ui"
     },
@@ -325,6 +329,16 @@
       "file": "07m-vanilla-econ-view.js",
       "layer": "ui",
       "note": "全局页 ⑪ 区块渲染（全中文 + 科目/地块/部位下拉，结构门禁拆段）"
+    },
+    {
+      "file": "07n-vanilla-bird.js",
+      "layer": "ui",
+      "note": "v2.1.15 鹰塔（大鹰塔）工地：清洁度 + 八种材料补足 + 十二项设施一键满级 + vcore-bird 留痕（全局页 ⑫）"
+    },
+    {
+      "file": "07o-vanilla-leighton.js",
+      "layer": "ui",
+      "note": "v2.1.15 礼顿把柄：解除把柄 / 彻底解除（连三条来源分支）+ vcore-leighton 留痕（全局页 ⑬）"
     },
     {
       "file": "08-npc-traits.js",

@@ -19,11 +19,17 @@
 		part: "外观隐藏（转化部件）",
 		vcore: "原版档案 · 收藏 · 头衔",
 		"vcore-econ": "原版经济 · 学业 · 农田 · 消耗品 · 纹身",
+		"vcore-bird": "原版鹰塔（大鹰塔）",
+		"vcore-leighton": "原版礼顿把柄（学校）",
 		lock: "数值锁定写回"
 	};
 	function mbCEUndoLabel(type) {
 		if (!type) { return "未知类型"; }
 		return MCE_UNDO_LABELS[type] || String(type);
+	}
+	/* vcore 家族统一走 mbCEVanillaExtUndo（回退中心只判「是不是这一族」，具体 kind 由 07l/07m/07n 各自分发） */
+	function mbCEUndoIsVcoreType(type) {
+		return type === "vcore" || type === "vcore-econ" || type === "vcore-bird" || type === "vcore-leighton";
 	}
 	/* 不可回退原因（空串 = 可回退） */
 	function mbCEUndoBlocked(type) {
@@ -138,7 +144,7 @@
 			}
 			/* v2.0.9 需求②③④：原版档案 / 收藏 / 头衔三项整块写入（07l-vanilla-ext.js）
 			   id in {crime, antique, title}；before 为「首次写入前」整块快照，由 mbCEVanillaExtUndo 按 kind 还原 */
-			if (type === "vcore" || type === "vcore-econ") {
+			if (mbCEUndoIsVcoreType(type)) {
 				var vid = String(rec.id || key.replace(/^vcore:/, ""));
 				var rv = /** @type {any} */ (mbCEVanillaExtUndo(vid));
 				return { ok: !!(rv && rv.ok), msg: (rv && (rv.message || rv.msg)) || "原版档案回退失败" };

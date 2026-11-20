@@ -137,7 +137,7 @@
 				yanlingGwylanRecall: mbCEYanlingGwylanRecall,
 				yanlingKylar: mbCEYanlingKylar,
 				yanlingWhitney: mbCEYanlingWhitney,
-				YANLING_WEATHER: mbCEYanlingWeatherMap,
+				YANLING_WEATHER: mbCEYanlingWeatherMap, /* v2.1.16 剧情闸门 + 作弊模式（07i-yanling-gate.js） */ yanlingAveryOffice: mbCEYanlingAveryOffice, yanlingAveryOfficeRevert: mbCEYanlingAveryOfficeRevert, yanlingCheatOn: mbCEYanlingCheatOn, yanlingCheatOff: mbCEYanlingCheatOff,
 				sceneStatus: sceneStatus,
 				completeScene: completeScene,
 				listSceneLines: listSceneLines,

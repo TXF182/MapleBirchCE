@@ -48,6 +48,7 @@
 			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声");
 			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气");
 			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 囚禁（原版 state 层）");
+			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式强制开启");
 
 			/* ① 核心：无性别着装 */
 			var s1 = mceNewSec(gA, 1, "无视着装性别", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。");
@@ -225,6 +226,39 @@
 			mkBtn(s9g, "纹身狱友庇护", MCE_CLS.gold, function () { return mbCEYanlingPrisonProtect("tattooed"); }, "prison.protection = \"tattooed\"（651145 / 658072 有对应判定分支）");
 			mkBtn(s9g, "清除庇护", "", function () { return mbCEYanlingPrisonProtect(""); }, "prison.protection = \"\"（空串为假值，恢复 attention 事件的随机遭遇）");
 			s9.appendChild(el("div", MCE_CLS.hint, "注意：狱友声望档位（0-5）与纹身程度（0-100）是另外两个**数字**档位（狱友线声望），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
+
+			/* ⑪ 艾弗里办公室（补）（v2.1.16：玩家给的 SugarCube setter 片段落地为按钮 + 撤销） */
+			var s11 = mceNewSec(gD, 11, "艾弗里办公室（补）", "等价于原版信件交付线结尾的 `<<set $averySeen.pushUnique(\"office\")>>`（791859）：补上「办公室」标记后，办公室板块（623696 / 623857）直接出现「艾弗里 · 个人助理」打工入口，Avery 排班（71279-71280）也把他算作可打工对象。仍不伪造的部分：Avery 必须已登场（71275 首行判 init）、未被驱逐、且艾弗里未受伤（$avery_injury 为真时入口不出现）。重复点击不会累积（原版是 pushUnique，不是 concat 追加）。");
+			var avState = "未开通", avNpc = "无槽位";
+			try {
+				var Va = getV();
+				avState = (Va && Array.isArray(Va.averySeen) && Va.averySeen.indexOf("office") !== -1) ? "已开通" : "未开通";
+				var pa = mbCEYanlingNpc("Avery");
+				if (pa) { avNpc = "已登场（" + String(pa.state) + "）" + (pa.init === 1 ? "" : "，init 未完成"); }
+			} catch (eA) { void eA; }
+			var aRow = el("div", MCE_CLS.row);
+			aRow.appendChild(el("span", MCE_CLS.rowLbl, "当前："));
+			aRow.appendChild(el("span", "mce-value", avState + " ｜ 艾弗里：" + avNpc));
+			s11.appendChild(aRow);
+			var s11g = mceBtnGrid(s11);
+			mkBtn(s11g, "补上「办公室」标记", MCE_CLS.gold, mbCEYanlingAveryOffice, "把 office 写进 $averySeen（去重，等同原版 pushUnique）；只补这一项，不伪造登场 / 受伤等前置");
+			mkBtn(s11g, "撤销：移除「办公室」标记", "mce-red", mbCEYanlingAveryOfficeRevert, "按 yanling:avery_office 留痕还原；改前键不存在时走 delete（不留空数组）");
+
+			/* ⑫ 作弊模式（强制开启） */
+			var s12 = mceNewSec(gD, 12, "作弊模式", "原版作弊总开关：开启后选项页出现作弊面板、特殊衣物走作弊解锁分支，同时按 325048 / 104773 / 104843 的语义**禁用全部成就**，所以本按钮同步锁 $feats.locked（与原版设置页退出链 325164-325171 一致）。关闭按钮按留痕还原开启前的原态。旧档兼容键 $cheatdisable 已被原版迁移逻辑读取即删（188395-188398），本页不再写它。");
+			var chState = "未开启", chFeats = "—";
+			try {
+				var Vc = getV();
+				chState = (Vc && Vc.cheatsEnabled === true) ? "已开启" : "未开启";
+				chFeats = (Vc && Vc.feats && typeof Vc.feats === "object") ? (Vc.feats.locked === true ? "成就已锁" : "成就未锁") : "无成就对象";
+			} catch (eC) { void eC; }
+			var cRow = el("div", MCE_CLS.row);
+			cRow.appendChild(el("span", MCE_CLS.rowLbl, "当前："));
+			cRow.appendChild(el("span", "mce-value", chState + " ｜ " + chFeats));
+			s12.appendChild(cRow);
+			var s12g = mceBtnGrid(s12);
+			mkBtn(s12g, "强制开启作弊", MCE_CLS.gold, mbCEYanlingCheatOn, "等价原版设置页开启作弊后退出：$cheatsEnabled=true + $feats.locked=true；想继续拿成就用上方「解除成就限制」单独放开");
+			mkBtn(s12g, "关闭作弊模式", "mce-red", mbCEYanlingCheatOff, "按 yanling:cheat_on 留痕还原 $cheatsEnabled 与 $feats.locked；无留痕时按关闭 + 解除成就锁处理");
 
 			/* v2.0.2 按键重排：说明与边界不再伪装成"第 4 个区块"，改为页尾折叠块（不占编号，默认 2 行） */
 			var sInfo = el("div", "mce-block");

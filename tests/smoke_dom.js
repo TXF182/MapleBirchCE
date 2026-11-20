@@ -739,7 +739,7 @@ const ylSnap = function () {
 assert(typeof ylApi.renderYanling === "function", "renderYanling 已导出（拆分后渲染层仍在 exports 里）");
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS1 = ylSnap();
-assert(ylS1.groups === 3 && ylS1.blocks === 11, "言灵页 3 个分组 + 10 区块（①无视着装 ②异装癖 ③名声 ⑩枝叶变装 ④身体衣物 ⑤精神体液 ⑥数值快补 ⑦天气 ⑧放逐 ⑨监狱）+ 1 说明块 = 11 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
+assert(ylS1.groups === 4 && ylS1.blocks === 13, "言灵页 4 个分组 + 12 区块（①无视着装 ②异装癖 ③名声 ⑩枝叶变装 ④身体衣物 ⑤精神体液 ⑥数值快补 ⑦天气 ⑧放逐 ⑨监狱 ⑪艾弗里办公室 ⑫作弊模式）+ 1 说明块 = 13 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS2 = ylSnap();
 assert(JSON.stringify(ylS1) === JSON.stringify(ylS2), "连续重渲染幂等（分组/区块/按钮数不增长），实际 " + JSON.stringify(ylS1) + " vs " + JSON.stringify(ylS2));
@@ -754,7 +754,43 @@ assert(window.isCrossdressing === ylOrigCD, "uninstall 还原原版函数引用�
 ylApi.yanlingUninstall();
 assert(window.isCrossdressing === ylOrigCD, "重复 uninstall 幂等（原版函数引用不变）");
 V.mbCE_yanling.noCross = false; V.mbCE_yanling.noTrait = false;
-/* 收尾：关掉开关 + 复位 mock，避免守卫定时器影响后续用例 */
+/* ---------- 7d-bis. v2.1.16 言灵新增：艾弗里办公室补开（玩家给的 SugarCube setter 片段落地为按钮）+ 强制开启作弊 ----------
+   玩家原始片段：[[开启艾弗里办公室·补|$passage][$averySeen = ($averySeen ? $averySeen : new Array()).concat(String.fromCharCode(111,102,102,105,99,101))]]
+   等价语义 = 原版 791859 <<set $averySeen.pushUnique("office")>>；本页按钮在此基础上加去重 + 留痕 + 撤销。
+   作弊侧：原版 325166-325170（$cheatsEnabled 与 $feats.locked 在设置页退出时同步，325048 注释「disables all feats」）。 */
+delete V.averySeen;
+const ylFindBtn = function (txt) {
+  return [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent === txt; });
+};
+assert(document.querySelector('[data-pane="yanling"]').textContent.indexOf("艾弗里办公室") !== -1 && document.querySelector('[data-pane="yanling"]').textContent.indexOf("作弊模式") !== -1,
+  "言灵页含新增「艾弗里办公室」「作弊模式」两区");
+const ylAveryOn = ylFindBtn("补上「办公室」标记");
+assert(ylAveryOn.length === 1, "「补上「办公室」标记」按钮存在，实际 " + ylAveryOn.length);
+if (ylAveryOn[0]) { ylAveryOn[0].click(); }
+assert(Array.isArray(V.averySeen) && V.averySeen.indexOf("office") !== -1, "点击后 $averySeen 含 office（原版 791859 同值），实际 " + JSON.stringify(V.averySeen));
+assert(!!V.mbCE_wrote["yanling:avery_office"] && V.mbCE_wrote["yanling:avery_office"].before.averySeen === undefined,
+  "留痕记录改前原态（$averySeen 原本不存在 → 撤销会 delete 而不是写空数组）");
+if (ylAveryOn[0]) { ylAveryOn[0].click(); }
+assert(V.averySeen.filter(function (x) { return x === "office"; }).length === 1, "重复点击只保留一个 office（pushUnique 语义，不是 concat 累积）");
+const ylAveryOff = ylFindBtn("撤销：移除「办公室」标记");
+assert(ylAveryOff.length === 1, "「撤销：移除「办公室」标记」按钮存在（写入支持回退）");
+if (ylAveryOff[0]) { ylAveryOff[0].click(); }
+assert(V.averySeen === undefined, "撤销后 $averySeen 还原为「键不存在」，实际 " + JSON.stringify(V.averySeen));
+V.cheatsEnabled = false; V.feats = { locked: false };
+const ylCheatOn = ylFindBtn("强制开启作弊");
+assert(ylCheatOn.length === 1, "「强制开启作弊」按钮存在");
+if (ylCheatOn[0]) { ylCheatOn[0].click(); }
+assert(V.cheatsEnabled === true && !!V.feats && V.feats.locked === true, "点击后 $cheatsEnabled=true 且 $feats.locked=true（原版作弊与成就互斥），实际 " + V.cheatsEnabled + "/" + (V.feats && V.feats.locked));
+const ylCheatOff = ylFindBtn("关闭作弊模式");
+assert(ylCheatOff.length === 1, "「关闭作弊模式」按钮存在（可回退）");
+if (ylCheatOff[0]) { ylCheatOff[0].click(); }
+assert(V.cheatsEnabled === false && V.feats.locked === false, "撤销后 $cheatsEnabled/$feats.locked 回到点击前，实际 " + V.cheatsEnabled + "/" + V.feats.locked);
+/* 分支：$averySeen 结构异常（不是数组）时拒绝写入，不硬改存档 */
+V.averySeen = "corrupt";
+const ylAveryBad = ylApi.yanlingAveryOffice();
+assert(!!ylAveryBad && ylAveryBad.ok === false && String(ylAveryBad.msg).indexOf("不是数组") !== -1, "非数组的 $averySeen 被拒绝写入，实际 " + JSON.stringify(ylAveryBad));
+delete V.averySeen; delete V.cheatsEnabled; delete V.feats;
+delete V.mbCE_wrote["yanling:avery_office"]; delete V.mbCE_wrote["yanling:cheat_on"];
 /* ---------- 7e. v2.0.3 P1 言灵页分支穷举（07i：缺对象/缺键/容器类型/缺原版函数 的早退分支） ---------- */
 const ylBackup = {
   worn: V.worn, feats: V.feats, farm: V.farm, fertiliser: V.fertiliser,

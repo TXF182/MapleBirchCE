@@ -27,5 +27,18 @@
 			/* 回退按 id 走统一分发：先查 vcore 留痕再按 kind 还原（测试与诊断直接调这一个入口） */
 			a.vanillaEconUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
 			a.renderVanillaEcon = mbCERenderVanillaEcon;
+			/* v2.1.15 鹰塔（大鹰塔）清洁度与八种材料（07n-vanilla-bird.js） */
+			a.vanillaBirdStats = mbCEVanillaBirdState;
+			a.vanillaBirdClean = mbCEVanillaBirdCleanSet;
+			a.vanillaBirdMaterials = mbCEVanillaBirdMaterialsFill;
+			a.vanillaBirdUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
+			a.renderVanillaBird = mbCERenderVanillaBird;
+			a.vanillaBirdUpgrades = mbCEVanillaBirdUpgradesMax;
+			/* v2.1.15 礼顿把柄（07o-vanilla-leighton.js） */
+			a.vanillaLeightonStats = mbCEVanillaLeightonState;
+			a.vanillaLeightonClear = mbCEVanillaLeightonClear;
+			a.vanillaLeightonUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
+			a.renderVanillaLeighton = mbCERenderVanillaLeighton;
+			if (typeof mbCEUndoItemName === "function") { a.mbCEUndoItemName = mbCEUndoItemName; }
 		} catch (e) { void e; }
 	}
