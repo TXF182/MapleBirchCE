@@ -1,10 +1,10 @@
 # Maplebirch CE · 全局全自动剧情条件解锁
 
-> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**12 个第三方模组适配器 + 框架本体兼容记录**（validate_adapters 实测 12 适配器 / 426 条声明）（枯木逢春 / 归途之书 / DomRobin / MLI / SmartPhone / Dol-Optimization / Wraith'sReflection / DoLSims / Cattery / More Farm Upgrade / 人物附加与生活质量提升 / FertilityExpansion / 框架本体）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
+> 对标官方 CE 调试器的全局调试面板：**七大面板**（角色 / 阶段 / 剧情 / 场景直达 / 全局 / Mod作弊 / **言灵**）、恋爱与转化阶段一键完成、场景永久解锁+世界入口、**12 个第三方模组适配器 + 框架本体兼容记录**（validate_adapters 实测 12 适配器 / 426 条声明）（逐项清单见下方「Mod作弊 适配器一览」，此处不点名）+ 玩家全属性编辑、**每日模组更新自动检测**。界面全中文、纯 JS 加载、特质全中文映射、原版 170 特质全收录、模组特质自动发现。**版本号以正文「当前版本」为准，完整版本线见 CHANGELOG.md（开发仓库内文件，未随 mod zip 分发）。**
 
 基于 Maplebirch 框架注册池的全局调试面板。对标官方 CE 调试器：右侧常驻黑色悬浮面板、双层标签、角色数据卡片、恋爱/转化阶段一键完成、剧情解锁、场景直达（永久解锁+世界入口）、第三方模组扩展内容作弊控制。
 
-**当前版本：v2.1.18**（完整版本线见 CHANGELOG.md，开发仓库内文件）
+**当前版本：v2.1.19**（完整版本线见 CHANGELOG.md，开发仓库内文件）
 
 ## 第三方模组适配工作流（置顶）
 
@@ -14,7 +14,7 @@
 
 | 环节 | 时机 | 操作主体 | 具体行为 |
 |---|---|---|---|
-| **检测** | 游戏启动 / 面板渲染时 | CE（探测） | 探测模组是否加载：`maplebirch.get("DeadwoodReblooms")` / `window.modUtils.getMod("DomRobin")` / `setup.foodPreference` / `window.DolOptimization` 等。探测键一律取自模组**无条件注入点**（装上即存在、卸载即消失），不依赖模组内部运行期标记 |
+| **检测** | 游戏启动 / 面板渲染时 | CE（探测） | 探测模组是否加载：三种探测形态——框架注册池 `maplebirch.get("<模组根模块名>")`、ModLoader 注册表 `window.modUtils.getMod("<模组 boot.json name>")`、模组自注入的全局对象（`setup.*` / `window.*`）。探测键一律取自模组**无条件注入点**（装上即存在、卸载即消失），不依赖模组内部运行期标记 |
 | **键核验** | 适配 / 升级前（对照官方源码） | CE（核对） | 下载官方源码到 `tools\_modcache\<版本目录>` → 文件级 diff 甄别新增/删除 → `audit_adapters.js` 比对声明 varPath 与源码实际写入路径 → `resolve_missing.js` 自动定案 KEEP / REVIEW / REMOVE（六类证据链，宁留不误删）→ `_check_keys_mod.js` 验全部 varPath 存活、`_check_char_names.py` 验角色名中英一致 |
 | **加作弊项** | 核验通过后 | CE（开发） | 在 `src/04a-01..11-*.js` 对应模组文件自写条目（stages 阶段 / abilities 能力 / values 数值），**绝不抄模组代码**；边界隔离（模组复用原版键的一律不声明，只暴露模组自建键）；类型纪律（模组 `===1` 严格比较的键走数字通道 0/1，禁 boolean） |
 | **写值** | 玩家点按钮时 | 玩家（触发） | 写入模组运行时状态；**联动补足**（sync.set：写值自动补前置条件——写猫好感 ≥40 自动补 `firstCat_loveMax`、写银行余额自动开户+借记卡、写养猫自动补 `catArr` 防崩、写着装校规自动清待审批）；**防崩**（父级对象缺失拒绝写入，绝不写 undefined）；**全量留痕** `V.mbCE_wrote` 可回退 |
@@ -34,6 +34,8 @@
    - [SugarCube 2 ModLoader](https://github.com/Lyoko-Jeremie/sugarcube-2-ModLoader) ≥ 2.0.0
    - [maplebirchFramework](https://github.com/MaplebirchLeaf/SCML-DOL-maplebirchFramework) ≥ 5.4.2（实测兼容至 5.6.0）
    - 游戏本体 ≥ 0.5.12.13
+
+   > 只依赖上面三项。第三方模组适配是可选的：装了就在「Mod作弊」页多一项操控，没装完全不影响其他功能。
 2. 游戏内按 `Alt+M` 打开 ModLoader → 「添加 / 移除Mod」→ 选择 `MapleBirchCE.mod.zip` → 「添加旁加载Mod」→ 提示 Success 后**刷新页面**。
 3. 若旧版 `MapleBirchCE`（v1）已在列表中：先「移除」再导入新版，避免同名单冲突。
 4. 刷新后游戏右下角出现**金色圆形 CE 悬浮按钮**，点击即打开面板；**该悬浮球可拖动**（按住拖到任意位置，位置自动记忆），若拖动时误触/挡操作，可在面板「全局」页顶部用「锁定悬浮球拖动」固定按钮固定不动（点击悬浮球本身仍可开关面板；悬浮球是唯一面板入口，不会隐藏）。**双主题（v1.9.29）**：面板顶部「✦」按钮可在「黑金 ⇄ 星空蓝」间切换，选择自动记忆；星空蓝为深蓝夜空渐变 + 星辉点缀 + 星点氛围（锚定确认条同步跟随主题）。
@@ -184,7 +186,7 @@
 - **潜伏者搬运不再丢库存**：`hookah.lurkers` / `lurkers_stored` 为字符串时（导入存档、模组直接 `<<set>>` 常见），旧写法按 0 起算会把 `0+held` 覆盖上去（`"5"` + 手持 3 → 变 3，原有 5 只消失）。新增 `mbCELurkerReadable / mbCELurkerNum`：能解析成有限数的一律按数用，不可解析才按 0；状态回读同口径（非数值仍显示「—」，不伪造成 0）。
 - **只读接口不再写存档**：`mbCELurkerState()` 经 `mbCELockHas → mbCELockData` 会就地创建 `V.mbCE_lock`。新增 `mbCELockListRO()` 只读视图，`mbCELockHas / mbCELockTarget / 渲染取表` 全走它，建表只留 `mbCELockSet`。另修回退分支 `offOk` 预置 `true`（`hadLock` 真但解除失败时仍报「已取消锁定」）与还原异常时误删留痕（改为保留可重试）。
 
-## Mod作弊 适配器一览（当前版本 2.1.18）
+## Mod作弊 适配器一览（当前版本 2.1.19）
 
 | 适配模组 | 声明版本 | 可操控面 | 探测键 |
 |---|---|---|---|

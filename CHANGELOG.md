@@ -2,6 +2,12 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.19（2026-11-20 元数据去点名，避免被外部站判成前置依赖）
+
+- 仓库描述与 README 首段不再点名适配模组（原写成「枯木逢春/归途之书/…」），改为「12 个第三方模组键级适配，逐项清单见适配器一览」；外部 ModHub 抓取描述与首屏时不会再把这些适配对象当成前置依赖。
+- README 适配工作流「检测」行改为通用写法：`maplebirch.get("<模组根模块名>")` / `window.modUtils.getMod("<模组 boot.json name>")` / 模组自注入的全局对象，不再列单个模组的探测实参。
+- README 安装节补一句：只依赖 ModLoader / maplebirchFramework / 游戏本体三项，第三方模组适配为可选，未装不影响其他功能。
+- 实际依赖声明未变：`boot.json` 的 `dependenceInfo` 仍为 ModLoader / GameVersion / maplebirch 三条；功能与打包内容无改动（仅文档文案 + 版本双源）。
 ## v2.1.18（2026-11-20 作弊模式改无副作用开启）
 
 - 「作弊模式」不再锁成就：开启只写 `$cheatsEnabled`，不写 `$feats.locked`；原版 `earnFeat` / `earnHourlyFeats` 靠 `cheatsEnabled === true` 直接 return 的毛病由豁免钩子绕开（调用期间临时视为 false，结束即还原）。
