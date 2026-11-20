@@ -48,9 +48,9 @@
 			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声");
 			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气");
 			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 囚禁（原版 state 层）");
-			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式强制开启");
+			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式（无副作用）");
 			/* v2.1.17 原帖 52 条补丁：独立 E 组 + 4 个页内选项卡（同类型合并），不挤进 A~D 的开关语义 */
-			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡 · 点一次即写入，可整页撤销");
+			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡");
 
 			/* ① 核心：无性别着装 */
 			var s1 = mceNewSec(gA, 1, "无视着装性别", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。");
@@ -246,21 +246,22 @@
 			mkBtn(s11g, "补上「办公室」标记", MCE_CLS.gold, mbCEYanlingAveryOffice, "把 office 写进 $averySeen（去重，等同原版 pushUnique）；只补这一项，不伪造登场 / 受伤等前置");
 			mkBtn(s11g, "撤销：移除「办公室」标记", "mce-red", mbCEYanlingAveryOfficeRevert, "按 yanling:avery_office 留痕还原；改前键不存在时走 delete（不留空数组）");
 
-			/* ⑫ 作弊模式（强制开启） */
-			var s12 = mceNewSec(gD, 12, "作弊模式", "原版作弊总开关：开启后选项页出现作弊面板、特殊衣物走作弊解锁分支，同时按 325048 / 104773 / 104843 的语义**禁用全部成就**，所以本按钮同步锁 $feats.locked（与原版设置页退出链 325164-325171 一致）。关闭按钮按留痕还原开启前的原态。旧档兼容键 $cheatdisable 已被原版迁移逻辑读取即删（188395-188398），本页不再写它。");
+			/* ⑫ 作弊模式（无副作用开启） */
+			var s12 = mceNewSec(gD, 12, "作弊模式", "原版作弊总开关：开启后选项页出现作弊面板、特殊衣物走作弊解锁分支。本页按「无副作用」开启——只写 $cheatsEnabled，不碰 $feats.locked，并给 earnFeat / earnHourlyFeats 装豁免钩子（原版这两处在 $cheatsEnabled===true 时直接 return，是成就被禁的唯一原因）；原版三处 `<<set $feats.locked to true>>`（新角色页 19883946 / 旧档迁移 19994082 / 选项页退出链 28096917）由每次换页自动复原，实机不会再出现「成就已锁」。关闭按钮按留痕还原。旧档兼容键 $cheatdisable 已被原版迁移逻辑读取即删，本页不写它。");
 			var chState = "未开启", chFeats = "—";
 			try {
 				var Vc = getV();
-				chState = (Vc && Vc.cheatsEnabled === true) ? "已开启" : "未开启";
-				chFeats = (Vc && Vc.feats && typeof Vc.feats === "object") ? (Vc.feats.locked === true ? "成就已锁" : "成就未锁") : "无成就对象";
+				var gOn = !!(Vc && Vc.mbCE_cheatGuard === true);
+				chState = (Vc && Vc.cheatsEnabled === true) ? (gOn ? "已开启（无副作用）" : "已开启") : "未开启";
+				chFeats = gOn ? "成就照常可拿" : ((Vc && Vc.feats && typeof Vc.feats === "object") ? (Vc.feats.locked === true ? "成就已锁" : "成就未锁") : "无成就对象");
 			} catch (eC) { void eC; }
 			var cRow = el("div", MCE_CLS.row);
 			cRow.appendChild(el("span", MCE_CLS.rowLbl, "当前："));
 			cRow.appendChild(el("span", "mce-value", chState + " ｜ " + chFeats));
 			s12.appendChild(cRow);
 			var s12g = mceBtnGrid(s12);
-			mkBtn(s12g, "强制开启作弊", MCE_CLS.gold, mbCEYanlingCheatOn, "等价原版设置页开启作弊后退出：$cheatsEnabled=true + $feats.locked=true；想继续拿成就用上方「解除成就限制」单独放开");
-			mkBtn(s12g, "关闭作弊模式", "mce-red", mbCEYanlingCheatOff, "按 yanling:cheat_on 留痕还原 $cheatsEnabled 与 $feats.locked；无留痕时按关闭 + 解除成就锁处理");
+			mkBtn(s12g, "开启作弊（无副作用）", MCE_CLS.gold, mbCEYanlingCheatOn, "$cheatsEnabled=true，不写 $feats.locked；成就豁免钩子保证 earnFeat / earnHourlyFeats 照常结算，换页也不再回锁");
+			mkBtn(s12g, "关闭作弊模式", "mce-red", mbCEYanlingCheatOff, "按 yanling:cheat_on 留痕还原 $cheatsEnabled 与 $feats.locked，并停用成就豁免");
 
 			/* E 组：52 条补丁（数据见 07i-yanling-quick-data.js，执行与回退见 07i-yanling-quick.js） */
 			renderYanlingQuick(gE);

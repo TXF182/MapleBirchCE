@@ -758,7 +758,7 @@ assert(window.isCrossdressing === ylOrigCD, "uninstall 还原原版函数引用�
 ylApi.yanlingUninstall();
 assert(window.isCrossdressing === ylOrigCD, "重复 uninstall 幂等（原版函数引用不变）");
 V.mbCE_yanling.noCross = false; V.mbCE_yanling.noTrait = false;
-/* ---------- 7d-bis. v2.1.16 言灵新增：艾弗里办公室补开（玩家给的 SugarCube setter 片段落地为按钮）+ 强制开启作弊 ----------
+/* ---------- 7d-bis. v2.1.16 言灵新增：艾弗里办公室补开（玩家给的 SugarCube setter 片段落地为按钮）+ 作弊模式（v2.1.18 起无副作用开启） ----------
    玩家原始片段：[[开启艾弗里办公室·补|$passage][$averySeen = ($averySeen ? $averySeen : new Array()).concat(String.fromCharCode(111,102,102,105,99,101))]]
    等价语义 = 原版 791859 <<set $averySeen.pushUnique("office")>>；本页按钮在此基础上加去重 + 留痕 + 撤销。
    作弊侧：原版 325166-325170（$cheatsEnabled 与 $feats.locked 在设置页退出时同步，325048 注释「disables all feats」）。 */
@@ -781,14 +781,34 @@ assert(ylAveryOff.length === 1, "「撤销：移除「办公室」标记」按�
 if (ylAveryOff[0]) { ylAveryOff[0].click(); }
 assert(V.averySeen === undefined, "撤销后 $averySeen 还原为「键不存在」，实际 " + JSON.stringify(V.averySeen));
 V.cheatsEnabled = false; V.feats = { locked: false };
-const ylCheatOn = ylFindBtn("强制开启作弊");
-assert(ylCheatOn.length === 1, "「强制开启作弊」按钮存在");
+delete V.mbCE_cheatGuard;
+/* 原版门控复刻：earnFeat 首行在 cheatsEnabled 为真时直接 return（原版 17711597），用来验豁免是否真的生效 */
+window.earnFeat = function () { return V.cheatsEnabled === true ? "blocked" : "ok"; };
+const ylEv = {};
+global.$ = function () {
+  return {
+    on: function (ns, fn) { ylEv[ns] = fn; return this; },
+    off: function (ns) { delete ylEv[ns]; return this; }
+  };
+};
+const ylCheatOn = ylFindBtn("开启作弊（无副作用）");
+assert(ylCheatOn.length === 1, "「开启作弊（无副作用）」按钮存在，实际 " + ylCheatOn.length);
 if (ylCheatOn[0]) { ylCheatOn[0].click(); }
-assert(V.cheatsEnabled === true && !!V.feats && V.feats.locked === true, "点击后 $cheatsEnabled=true 且 $feats.locked=true（原版作弊与成就互斥），实际 " + V.cheatsEnabled + "/" + (V.feats && V.feats.locked));
+assert(V.cheatsEnabled === true && !!V.feats && V.feats.locked === false, "点击后 $cheatsEnabled=true 且 $feats.locked 不被写 true（无副作用），实际 " + V.cheatsEnabled + "/" + (V.feats && V.feats.locked));
+assert(V.mbCE_cheatGuard === true, "豁免标记 $mbCE_cheatGuard=true 已落档（读档后可重装）");
+assert(window.earnFeat() === "ok", "作弊开启时 earnFeat 照常结算（原版会因 cheatsEnabled 直接 return），实际 " + window.earnFeat());
+assert(typeof ylEv[":passageend.mceCheatGuard"] === "function", "换页钩子已安装");
+V.feats.locked = true; ylEv[":passageend.mceCheatGuard"]();
+assert(V.feats.locked === false, "换页兜底把原版三处会写回的 locked=true 复原，实际 " + V.feats.locked);
 const ylCheatOff = ylFindBtn("关闭作弊模式");
 assert(ylCheatOff.length === 1, "「关闭作弊模式」按钮存在（可回退）");
 if (ylCheatOff[0]) { ylCheatOff[0].click(); }
-assert(V.cheatsEnabled === false && V.feats.locked === false, "撤销后 $cheatsEnabled/$feats.locked 回到点击前，实际 " + V.cheatsEnabled + "/" + V.feats.locked);
+assert(V.cheatsEnabled === false && V.feats.locked === false && V.mbCE_cheatGuard === undefined,
+  "撤销后 $cheatsEnabled / $feats.locked / 豁免标记均回到点击前，实际 " + V.cheatsEnabled + "/" + V.feats.locked + "/" + V.mbCE_cheatGuard);
+assert(typeof ylEv[":passageend.mceCheatGuard"] === "undefined", "关闭后换页钩子已摘除");
+V.cheatsEnabled = true;
+assert(window.earnFeat() === "blocked", "关闭豁免后包装空转，不干扰原版门控，实际 " + window.earnFeat());
+delete window.earnFeat; delete global.$; V.cheatsEnabled = false;
 /* 分支：$averySeen 结构异常（不是数组）时拒绝写入，不硬改存档 */
 V.averySeen = "corrupt";
 const ylAveryBad = ylApi.yanlingAveryOffice();

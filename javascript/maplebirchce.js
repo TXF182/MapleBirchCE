@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.17";
+	var MCE_VERSION = "2.1.18";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -14011,22 +14011,94 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "撤销异常：" + mbCEYanlingErr(e) }; }
 	}
 
-	/* ==================== 作弊模式强制开启 ====================
-	   原版取证（DoL 0.5.12.13）：
-	     · 总开关 $cheatsEnabled：29886 `V.debug || V.cheatsEnabled === true`、181705 `<<if $cheatsEnabled is true>>`、
-	       324728 重置设置写 false；设置页字段 73894 `cheatsEnabled: { bool: true, displayName: "Cheat mode:" }`，
-	       映射 73287 `cheatdisabletoggle: { key: "cheatsEnabledToggle", invert: true }`。
-	     · 设置页退出链 325164-325171：`$cheatsEnabled to $settings.cheatsEnabledToggle` → 若为 true 则 `$feats.locked to true`
-	       → `<<unset $settings.cheatsEnabledToggle>>`（该键是页面级临时量，不落档，所以本页不写它）。
-	     · 副作用实证：325048「Enabled cheats: disables all feats.」、104773 / 104843 `earnFeat` 在
-	       `V.cheatsEnabled === true` 时直接 return —— 作弊与成就是互斥的，本页照此同步锁成就；
-	       想继续拿成就用同页「解除成就限制」单独放开，两个按钮互不覆盖。
-	     · 旧档兼容键 $cheatdisable 只在迁移时读一次并随即 delete（188395-188398），不再写它。 */
+	/* ==================== 作弊模式（无副作用开启） ====================
+	   原版取证（DoL 0.5.12.13 编译后 HTML，字符偏移可复跑）：
+	     · 总开关 $cheatsEnabled：16643707 在存档 schema 里；181705（选项页）`<<if $cheatsEnabled is true>>` 才出现作弊面板；
+	       20092753-20092972 特殊衣物 `V.settings && !V.settings?.cheatsEnabled` 走作弊解锁分支。
+	     · 成就被禁的真正原因只有两处 JS：17711597 `earnFeat()`、17713441 `earnHourlyFeats()` 首行
+	       `if (... V.feats.locked || V.cheatsEnabled === true ...) return;` —— 与 $feats.locked 无关。
+	     · 三处 Twee 会把 $feats.locked 写成 true：19883946（新角色页）、19994082（旧档迁移）、28096917（选项页退出链），
+	       三处都以 `$cheatsEnabled is true` 为条件，所以「不写 locked」不够，换页后必须复原。
+	   本页开启 = $cheatsEnabled=true + 不写 $feats.locked + 给两个 earn* 装豁免钩子（调用期间临时把 cheatsEnabled
+	   视为 false，结束后原样还原）+ 换页兜底把 locked 复原为 false。关闭 = 按留痕还原并关掉钩子开关；
+   包装函数保留但空转，不覆盖别家 mod 的包装。旧档兼容键 $cheatdisable 只在迁移时读一次并随即 delete，本页不写。 */
 	/* 成就对象取用：$feats 必须是对象（数组视为异常），统一在一处判定，避免各按钮重复三重条件 */
 	function mbCEYanlingFeatsObj(V) {
 		var f = V.feats;
 		if (!f || typeof f !== "object" || Array.isArray(f)) { return null; }
 		return f;
+	}
+
+	/* 豁免执行：原函数调用期间屏蔽 cheatsEnabled / locked 两个门槛，结束后按原值还原（同步执行，不落档）。
+	   原版两个 earn* 都是全局函数、不依赖 this，这里以 null 作接收者调用，避免 checkJs 的隐式 this 类型债。 */
+	function mbCEYanlingFeatPass(V, orig, args) {
+		var f = mbCEYanlingFeatsObj(V);
+		var savedC = V.cheatsEnabled;
+		var savedL = f ? f.locked : undefined;
+		V.cheatsEnabled = false;
+		if (f) { f.locked = false; }
+		try { return orig.apply(null, args); }
+		finally {
+			V.cheatsEnabled = savedC;
+			if (f) { mbCEYanlingRestoreKey(f, "locked", savedL); }
+		}
+	}
+
+	/* 包装只装一次：已在豁免态则直通原函数，未开启豁免则空转，避免覆盖别家 mod 的同类包装 */
+	function mbCEYanlingFeatWrap(w, key) {
+		if (!w || typeof w[key] !== "function" || w[key].__mceGuard === true) { return false; }
+		var orig = w[key];
+		/** @type {any} */
+		var wrapped = function () {
+			var V = getV();
+			if (!V || V.mbCE_cheatGuard !== true) { return orig.apply(null, arguments); }
+			return mbCEYanlingFeatPass(V, orig, arguments);
+		};
+		wrapped.__mceGuard = true;
+		w[key] = wrapped;
+		return true;
+	}
+
+	/* 换页兜底：三处原版 Twee 在 cheatsEnabled 为真时会把 locked 写 true，这里每次换页复原 */
+	function mbCEYanlingCheatTick() {
+		try {
+			var V = getV();
+			if (!V || V.mbCE_cheatGuard !== true) { return; }
+			var f = mbCEYanlingFeatsObj(V);
+			if (f && f.locked === true) { f.locked = false; }
+		} catch (e) { void e; }
+	}
+
+	function mbCEYanlingFeatGuardOn() {
+		var ok = false;
+		try {
+			var w = (typeof window !== "undefined") ? window : null;
+			ok = mbCEYanlingFeatWrap(w, "earnFeat") || ok;
+			mbCEYanlingFeatWrap(w, "earnHourlyFeats");
+		} catch (e) { void e; }
+		try {
+			if (typeof $ === "function" && typeof document !== "undefined") {
+				$(document).off(":passageend.mceCheatGuard").on(":passageend.mceCheatGuard", mbCEYanlingCheatTick);
+			}
+		} catch (e) { void e; }
+		return ok;
+	}
+
+	function mbCEYanlingFeatGuardOff() {
+		try {
+			if (typeof $ === "function" && typeof document !== "undefined") { $(document).off(":passageend.mceCheatGuard"); }
+		} catch (e) { void e; }
+	}
+
+	/* 读档 / 刷新后恢复豁免：改的是存档标记 V.mbCE_cheatGuard，钩子本身不落档，必须每次启动重装 */
+	function mbCEYanlingCheatBoot() {
+		try {
+			var V = getV();
+			if (!V || V.mbCE_cheatGuard !== true) { return false; }
+			mbCEYanlingCheatTick();
+			mbCEYanlingFeatGuardOn();
+			return true;
+		} catch (e) { return false; }
 	}
 
 	function mbCEYanlingCheatOn() {
@@ -14036,9 +14108,12 @@ var SCENE_LOCATIONS = {
 			var feats = mbCEYanlingFeatsObj(V);
 			var before = { cheatsEnabled: V.cheatsEnabled, hasFeats: !!feats, featsLocked: feats ? feats.locked : undefined };
 			V.cheatsEnabled = true;
-			if (feats && feats.locked !== true) { feats.locked = true; }
-			mbCEYanlingTraceKeep("cheat_on", before, { cheatsEnabled: true, featsLocked: feats ? feats.locked : null });
-			return { ok: true, msg: "作弊模式已强制开启（原版作弊面板解锁；成就已按原版语义锁定，可用「解除成就限制」放开）" };
+			V.mbCE_cheatGuard = true;
+			var f = mbCEYanlingFeatsObj(V);
+			if (f && f.locked === true) { f.locked = false; }
+			mbCEYanlingFeatGuardOn();
+			mbCEYanlingTraceKeep("cheat_on", before, { cheatsEnabled: true, featsLocked: f ? f.locked : null, guard: true });
+			return { ok: true, msg: "作弊已开启（无副作用）：作弊面板解锁、特殊衣物进作弊解锁分支，成就照常可拿" };
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
@@ -14048,18 +14123,18 @@ var SCENE_LOCATIONS = {
 			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
 			var rec = V.mbCE_wrote ? V.mbCE_wrote["yanling:cheat_on"] : null;
 			var b = rec ? rec.before : null;
+			mbCEYanlingRestoreKey(V, "mbCE_cheatGuard", undefined);
+			mbCEYanlingFeatGuardOff();
 			if (!b) {
 				V.cheatsEnabled = false;
-				var featsA = mbCEYanlingFeatsObj(V);
-				if (featsA) { featsA.locked = false; }
-				return { ok: true, msg: "没有留痕，已按关闭作弊 + 解除成就锁处理" };
+				return { ok: true, msg: "没有留痕，已按关闭作弊处理（成就豁免同步停用）" };
 			}
 			mbCEYanlingRestoreKey(V, "cheatsEnabled", b.cheatsEnabled);
 			if (b.hasFeats) {
 				var featsB = mbCEYanlingFeatsObj(V);
 				if (featsB) { mbCEYanlingRestoreKey(featsB, "locked", b.featsLocked); }
 			}
-			return { ok: true, msg: "已撤销：作弊模式按原态还原，成就锁同步还原" };
+			return { ok: true, msg: "已撤销：作弊开关与成就锁按点击前原态还原" };
 		} catch (e) { return { ok: false, msg: "撤销异常：" + mbCEYanlingErr(e) }; }
 	}
 
@@ -14847,9 +14922,9 @@ function renderYanlingQuick(parent) {
 			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声");
 			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气");
 			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 囚禁（原版 state 层）");
-			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式强制开启");
+			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式（无副作用）");
 			/* v2.1.17 原帖 52 条补丁：独立 E 组 + 4 个页内选项卡（同类型合并），不挤进 A~D 的开关语义 */
-			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡 · 点一次即写入，可整页撤销");
+			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡");
 
 			/* ① 核心：无性别着装 */
 			var s1 = mceNewSec(gA, 1, "无视着装性别", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。");
@@ -15045,21 +15120,22 @@ function renderYanlingQuick(parent) {
 			mkBtn(s11g, "补上「办公室」标记", MCE_CLS.gold, mbCEYanlingAveryOffice, "把 office 写进 $averySeen（去重，等同原版 pushUnique）；只补这一项，不伪造登场 / 受伤等前置");
 			mkBtn(s11g, "撤销：移除「办公室」标记", "mce-red", mbCEYanlingAveryOfficeRevert, "按 yanling:avery_office 留痕还原；改前键不存在时走 delete（不留空数组）");
 
-			/* ⑫ 作弊模式（强制开启） */
-			var s12 = mceNewSec(gD, 12, "作弊模式", "原版作弊总开关：开启后选项页出现作弊面板、特殊衣物走作弊解锁分支，同时按 325048 / 104773 / 104843 的语义**禁用全部成就**，所以本按钮同步锁 $feats.locked（与原版设置页退出链 325164-325171 一致）。关闭按钮按留痕还原开启前的原态。旧档兼容键 $cheatdisable 已被原版迁移逻辑读取即删（188395-188398），本页不再写它。");
+			/* ⑫ 作弊模式（无副作用开启） */
+			var s12 = mceNewSec(gD, 12, "作弊模式", "原版作弊总开关：开启后选项页出现作弊面板、特殊衣物走作弊解锁分支。本页按「无副作用」开启——只写 $cheatsEnabled，不碰 $feats.locked，并给 earnFeat / earnHourlyFeats 装豁免钩子（原版这两处在 $cheatsEnabled===true 时直接 return，是成就被禁的唯一原因）；原版三处 `<<set $feats.locked to true>>`（新角色页 19883946 / 旧档迁移 19994082 / 选项页退出链 28096917）由每次换页自动复原，实机不会再出现「成就已锁」。关闭按钮按留痕还原。旧档兼容键 $cheatdisable 已被原版迁移逻辑读取即删，本页不写它。");
 			var chState = "未开启", chFeats = "—";
 			try {
 				var Vc = getV();
-				chState = (Vc && Vc.cheatsEnabled === true) ? "已开启" : "未开启";
-				chFeats = (Vc && Vc.feats && typeof Vc.feats === "object") ? (Vc.feats.locked === true ? "成就已锁" : "成就未锁") : "无成就对象";
+				var gOn = !!(Vc && Vc.mbCE_cheatGuard === true);
+				chState = (Vc && Vc.cheatsEnabled === true) ? (gOn ? "已开启（无副作用）" : "已开启") : "未开启";
+				chFeats = gOn ? "成就照常可拿" : ((Vc && Vc.feats && typeof Vc.feats === "object") ? (Vc.feats.locked === true ? "成就已锁" : "成就未锁") : "无成就对象");
 			} catch (eC) { void eC; }
 			var cRow = el("div", MCE_CLS.row);
 			cRow.appendChild(el("span", MCE_CLS.rowLbl, "当前："));
 			cRow.appendChild(el("span", "mce-value", chState + " ｜ " + chFeats));
 			s12.appendChild(cRow);
 			var s12g = mceBtnGrid(s12);
-			mkBtn(s12g, "强制开启作弊", MCE_CLS.gold, mbCEYanlingCheatOn, "等价原版设置页开启作弊后退出：$cheatsEnabled=true + $feats.locked=true；想继续拿成就用上方「解除成就限制」单独放开");
-			mkBtn(s12g, "关闭作弊模式", "mce-red", mbCEYanlingCheatOff, "按 yanling:cheat_on 留痕还原 $cheatsEnabled 与 $feats.locked；无留痕时按关闭 + 解除成就锁处理");
+			mkBtn(s12g, "开启作弊（无副作用）", MCE_CLS.gold, mbCEYanlingCheatOn, "$cheatsEnabled=true，不写 $feats.locked；成就豁免钩子保证 earnFeat / earnHourlyFeats 照常结算，换页也不再回锁");
+			mkBtn(s12g, "关闭作弊模式", "mce-red", mbCEYanlingCheatOff, "按 yanling:cheat_on 留痕还原 $cheatsEnabled 与 $feats.locked，并停用成就豁免");
 
 			/* E 组：52 条补丁（数据见 07i-yanling-quick-data.js，执行与回退见 07i-yanling-quick.js） */
 			renderYanlingQuick(gE);
@@ -19375,7 +19451,7 @@ function mbCEExportYanlingQuick() {
 				mb.on(":passagedisplay", function () {
 					/* v2.0.0.006：言灵守卫按需起表——只有存档里开关真的开着才起 1s 定时器，
 					   翻页即补齐（读档时机晚于模块加载，靠这里保证「不打开面板也生效」） */
-					try { mbCEResumeTimers(); } catch (eY) {}
+					try { mbCEResumeTimers(); mbCEYanlingCheatBoot(); } catch (eY) {}
 					/* v1.8.12 功能13：节流合并同一帧内的多次触发，避免面板打开时每 passage 全量重建。
 					   四巡：Mod作弊 页数据只由用户点击改变——passage 自动刷新跳过该页，长时间停在该页不再被每 passage 重建拖累（第三方特效层 DOM 扫描是卡顿/闪退主因之一） */
 					if (openFlag && root && document.body.contains(root)) {
@@ -19400,7 +19476,7 @@ function mbCEExportYanlingQuick() {
 		ensureFarmState(); /* 启动兜底：存档 farm_stage 已推进但 $farm 缺失 → 补空壳，社交页不再崩 */
 				mbCEPruneAveryShell();
 		mbCEUiLoad(); /* v1.8.12 持久化：恢复上次页签/搜索词/折叠状态 */
-		try { mbCEResumeTimers(); } catch (eY0) {} /* v2.0.0.006：已开启言灵开关的存档，注入后即生效 */
+		try { mbCEResumeTimers(); mbCEYanlingCheatBoot(); } catch (eY0) {} /* v2.0.0.006 言灵开关 + v2.1.18 作弊无副作用豁免：注入即补齐（钩子不落档，读档后重装） */
 		mbCEHookErrors(); /* v1.8.12 错误收集器：window error + console.error 进面板 */
 		mbCEFrameworkGateOnce(); /* v2.1.2 框架版本闸门：注入即体检，结论挂 window.__mceFrameworkGate（01c-fwgate.js） */
 		if (document.body) {

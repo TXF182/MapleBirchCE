@@ -6,7 +6,7 @@
 				mb.on(":passagedisplay", function () {
 					/* v2.0.0.006：言灵守卫按需起表——只有存档里开关真的开着才起 1s 定时器，
 					   翻页即补齐（读档时机晚于模块加载，靠这里保证「不打开面板也生效」） */
-					try { mbCEResumeTimers(); } catch (eY) {}
+					try { mbCEResumeTimers(); mbCEYanlingCheatBoot(); } catch (eY) {}
 					/* v1.8.12 功能13：节流合并同一帧内的多次触发，避免面板打开时每 passage 全量重建。
 					   四巡：Mod作弊 页数据只由用户点击改变——passage 自动刷新跳过该页，长时间停在该页不再被每 passage 重建拖累（第三方特效层 DOM 扫描是卡顿/闪退主因之一） */
 					if (openFlag && root && document.body.contains(root)) {
@@ -31,7 +31,7 @@
 		ensureFarmState(); /* 启动兜底：存档 farm_stage 已推进但 $farm 缺失 → 补空壳，社交页不再崩 */
 				mbCEPruneAveryShell();
 		mbCEUiLoad(); /* v1.8.12 持久化：恢复上次页签/搜索词/折叠状态 */
-		try { mbCEResumeTimers(); } catch (eY0) {} /* v2.0.0.006：已开启言灵开关的存档，注入后即生效 */
+		try { mbCEResumeTimers(); mbCEYanlingCheatBoot(); } catch (eY0) {} /* v2.0.0.006 言灵开关 + v2.1.18 作弊无副作用豁免：注入即补齐（钩子不落档，读档后重装） */
 		mbCEHookErrors(); /* v1.8.12 错误收集器：window error + console.error 进面板 */
 		mbCEFrameworkGateOnce(); /* v2.1.2 框架版本闸门：注入即体检，结论挂 window.__mceFrameworkGate（01c-fwgate.js） */
 		if (document.body) {
