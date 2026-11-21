@@ -79,6 +79,14 @@ const confirmEmpty = call(function () { return api.mbCEPreviewConfirm(); });
 assert(confirmEmpty && confirmEmpty.ok === false && confirmEmpty.message === "没有待确认的写入",
   "空队列确认返回明确拒绝（08d L56），实际 " + JSON.stringify(confirmEmpty));
 
+/* 1b. v2.1.20 数组无变化判定：列表写入传两个新数组引用，内容相同必须放行、内容不同才入队 */
+const arrEq = call(function () { return api.mbCEPreviewGate("t.arreq", ["a", "b"], ["a", "b"], function () { return undefined; }); });
+assert(arrEq === false && api.mbCEPreviewCount() === 0, "内容相同数组视为无变化放行（不入队）");
+const arrNe = call(function () { return api.mbCEPreviewGate("t.arrne", ["a", "b"], ["a", "c"], function () { return undefined; }); });
+assert(arrNe === true && api.mbCEPreviewCount() === 1, "内容不同数组入队");
+const arrCancel = call(function () { return api.mbCEPreviewCancel(); });
+assert(arrCancel && arrCancel.ok === true && api.mbCEPreviewCount() === 0, "数组入队项可取消");
+
 /* ---------- 2. 07d 地点中文名：无匹配关键词（plain：L91 !parts.length → ""） ---------- */
 const nameMiss = call(function () { return api.placeNameCN("zzzz-not-a-place"); });
 assert(nameMiss === "", "未知地点名返回空串（不拼出「（）」空壳），实际 " + JSON.stringify(nameMiss));
@@ -477,8 +485,8 @@ const rList = call(function () { api.renderModCheats(); return true; });
 assert(!(rList && rList.threw), "renderModCheats 注入两条注册项后不抛（L109 卡片循环可达）" + (rList && rList.threw ? "（" + rList.threw + "）" : ""));
 const mp8 = document.querySelector('[data-pane="mods"]');
 /* 05a L115「未声明模组」守卫已删除（结构性不可达）：declared 只有两个来源——注册表项经
-   normalizeCheatMod 强制 declared:true（04c-modcheat-util.js:4），被动探针项字面写 declared:false
-   （05a2:25）但 CHEAT_PASSIVE_PROBES 在 03d:122 建为空数组后全仓无任何 push ⇒ 无可达输入。
+   normalizeCheatMod 强制 declared:true（04c-modcheat-util.js:4），被动探针渲染循环（原 05a2:25）
+   随 v2.1.20 删除（CHEAT_PASSIVE_PROBES 建空数组后全仓无 push ⇒ 无可达输入，v2.1.20 连定义一并移除）。
    下面这条断言继续取证「输入域全体 declared=true」这个恒真前提——它就是删除该守卫的依据；
    断言若变红说明输入域变了，必须回去恢复 05a 的未声明守卫（不绑点击、只展示提示）。
    注意注入的 t_nodecl 字面 declared:false 会被 normalizeCheatMod 覆盖成 true，故不是可达反例。 */

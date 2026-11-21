@@ -11,33 +11,15 @@
    注：该模组自带 eden-cheats.js / eden-cheats-ui.js 作弊面板（10 项）。v2.0.0.002 起 CE 不做"只写数值"的
    缩水适配——04a-14-fert-cheats.js 直接复用其 window.EdenCheats，把模组面板的 10 项等价搬到 CE 的模组作弊页，
    与模组共用同一套 guard / 快照回滚 / feats.locked 语义（不重写它的 sync 链，避免两套写入口互相打架）。 */
-/* 共享 helper：判定 ModLoader 是否装了某个名字的 mod。
-   window.modDataValueZipList 的条目形态不稳定（string / {name|modName|id} 两种都见过），故都兼容。 */
-function mbCEHasModNamed(names) {
-	try {
-		if (typeof window === "undefined") { return false; }
-		var want = Array.isArray(names) ? names : [names];
-		var list = window.modDataValueZipList;
-		if (list && list.length) {
-			for (var i = 0; i < list.length; i++) {
-				var it = list[i];
-				var n = "";
-				if (typeof it === "string") { n = it; }
-				else if (it && typeof it === "object") { n = String(it.name || it.modName || it.id || ""); }
-				if (!n) { continue; }
-				for (var j = 0; j < want.length; j++) {
-					if (n.indexOf(want[j]) >= 0) { return true; }
-				}
-			}
-		}
-		return false;
-	} catch (e) { return false; }
-}
 CHEAT_ADAPTERS["fertility-expansion"] = {
 	detect: function () {
 		try {
 			if (typeof window === "undefined") { return false; }
-			if (typeof mbCEHasModNamed === "function" && mbCEHasModNamed(["FertilityExpansion", "Fertility Expansion"])) { return true; }
+			/* v2.1.20：删除 mbCEHasModNamed 探测——它读 window.modDataValueZipList = LocalLoader 内置插件表，
+			   玩家 IDB 装载的 mod 不在其中、恒 false（死分支，v2.1.5 已在 CHANGELOG 登记证伪）。
+			   正路判定：模组加载后暴露 window.EdenChildData / window.EdenCheats（04a-14/15 复用的 API）；
+			   兜底：老存档 V.eden 已存在（schema 迁移对象）。 */
+			if (window.EdenChildData || window.EdenCheats) { return true; }
 			var V = (typeof getV === "function") ? getV() : null;
 			return !!(V && V.eden && typeof V.eden === "object");
 		} catch (e) { return false; }

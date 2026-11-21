@@ -2346,6 +2346,8 @@ api.toggleCheatAbility("revelation-the-book-of-return", "nkl_returned", false);
 assert(V.RBR.necklace.returnedOnce === false, "31.11 项链归还能力禁用");
 var nkl2 = api.toggleCheatAbility("revelation-the-book-of-return", "nkl_retaken", true);
 assert(nkl2.ok && V.RBR.necklace.retaken === 1, "31.11 项链取回能力启用, 实际 " + V.RBR.necklace.retaken);
+assert(api.mceDeclTypeLabel({ numeric: true, type: "boolean" }) === "number（0/1）", "31.11b v2.1.20 numeric 能力类型显示 number（0/1）");
+assert(api.mceDeclTypeLabel({ type: "boolean" }) === "boolean" && api.mceDeclTypeLabel({}) === "boolean" && api.mceDeclTypeLabel(null) === "boolean", "31.11b 非 numeric 显示声明 type / boolean 兜底");
 api.toggleCheatAbility("revelation-the-book-of-return", "nkl_retaken", false);
 assert(V.RBR.necklace.retaken === 0, "31.11 项链取回能力禁用");
 var nkl3 = api.toggleCheatAbility("revelation-the-book-of-return", "nkl_reclaimed", true);
@@ -2858,10 +2860,14 @@ V.player = { money: 500, name: "X", virginity: { temple: true, vaginal: true, pe
 assert(api37.getPlayerGender(V) === "m", "37.4 初始推断男, 实际 " + api37.getPlayerGender(V));
 let r37g = api37.applyPlayerGender(V, "f");
 assert(r37g.indexOf("FAIL") === -1 && V.player.penisExist === false && V.player.penissize === 0 && V.player.vaginaExist === true && V.player.gender_body === "f" && V.player.gender === "f" && V.player.sex === "f" && V.player.ballsExist === false, "37.4 切女 → 七键正确（penisExist=false/penissize=0/vaginaExist=true/gender=f/gender_body=f/sex=f/ballsExist=false）, 实际 " + r37g);
+assert(!!V.mbCE_wrote && !!V.mbCE_wrote["cheat:player-self:gender:sex"] && V.mbCE_wrote["cheat:player-self:gender:sex"].before === "m" && V.mbCE_wrote["cheat:player-self:gender:sex"].after === "f", "37.4b v2.1.20 切女留痕 player.sex（before=m/after=f）");
 assert(api37.getPlayerGender(V) === "f", "37.4 切女后推断女, 实际 " + api37.getPlayerGender(V));
 r37g = api37.applyPlayerGender(V, "a");
 assert(r37g.indexOf("FAIL") === -1 && V.player.penisExist === true && V.player.penissize >= 1 && V.player.vaginaExist === true && V.player.gender === "h" && V.player.gender_body === "a" && V.player.sex === "h" && V.player.ballsExist === true, "37.4 切双性 → 两者存在 + gender=h/gender_body=a/sex=h/ballsExist=true + penissize 补 1, 实际 " + r37g);
 assert(api37.getPlayerGender(V) === "a", "37.4 切双性后推断双性, 实际 " + api37.getPlayerGender(V));
+const gUndoA = api37.undoCheatModValue("player-self", "gender:sex");
+assert(gUndoA && gUndoA.ok === true && V.player.sex === "m", "37.4b v2.1.20 留痕回退 player.sex 还原首次 before=m");
+api37.applyPlayerGender(V, "a");
 r37g = api37.applyPlayerGender(V, "m");
 assert(r37g.indexOf("FAIL") === -1 && V.player.penisExist === true && V.player.vaginaExist === false && V.player.gender === "m" && V.player.gender_body === "m" && V.player.sex === "m" && V.player.ballsExist === false && V.player.penissize >= 1, "37.4 切男 → 阴茎保留 + 无阴道 + gender=m/sex=m/ballsExist=false, 实际 " + r37g);
 const ps37 = V.player.penissize;
@@ -2870,6 +2876,7 @@ assert(V.player.penissize === ps37 && V.player.penisExist === true, "37.4 幂等
 const V37b = {};
 const r37b = api37.applyPlayerGender(V37b, "f");
 assert(r37b.indexOf("FAIL") === -1 && V37b.player.vaginaExist === true && V37b.player.penisExist === false && V37b.player.gender_body === "f" && V37b.player.sex === "f", "37.4 边界：V.player 缺失时建壳写女不崩, 实际 " + r37b);
+assert(!!V37b.mbCE_wrote && V37b.mbCE_wrote["cheat:player-self:gender:sex"] && V37b.mbCE_wrote["cheat:player-self:gender:sex"].before === undefined, "37.4b v2.1.20 空壳建档同样留痕（sex before=undefined）");
 const r37c = api37.applyPlayerGender(V, "x");
 assert(r37c.indexOf("FAIL") !== -1, "37.4 边界：未知性别返回 FAIL, 实际 " + r37c);
 delete V.player;
@@ -3820,11 +3827,12 @@ var rc42 = api.setCheatStage("cattery", "cat_owncat", 1);
 assert(rc42.ok && V.pchaveCat === 1, "47.3 养猫阶段写入 1");
 assert(Array.isArray(V.catArr) && V.catArr[0] && V.catArr[0].name === "咪咪" && V.catArr[0].love === 0, "47.3 联动补猫数据（catArr）");
 assert(V.firstCat_variety === "橘猫", "47.3 联动补品种（橘猫）");
-/* 47.3b 幂等：已有猫数据时不覆盖（v1.9.10 自查修复，防重置玩家已养猫） */
+/* 47.3b 幂等：已有猫数据时不覆盖（v1.9.10 自查修复，防重置玩家已养猫）；v2.1.20 品种同样 ifMissing 不覆盖 */
 V.catArr = [{ name: "玩家自己养的猫", love: 21, play: 15 }];
+V.firstCat_variety = "布偶";
 var ri42 = api.setCheatStage("cattery", "cat_owncat", 1);
 assert(ri42.ok && V.catArr[0].name === "玩家自己养的猫" && V.catArr[0].love === 21 && V.catArr[0].play === 15, "47.3b 已有猫数据不被覆盖（ifMissing 幂等）");
-assert(V.firstCat_variety === "橘猫", "47.3b 品种联动正常（覆盖无害）");
+assert(V.firstCat_variety === "布偶", "47.3b 已设品种不被覆盖（v2.1.20 ifMissing）");
 V.catArr = [{ name: "咪咪", love: 0, play: 0 }]; /* 还原供 47.4 继续 */
 /* 47.4 写 0 不触发联动（sync if min:1），联动键保留 */
 api.setCheatStage("cattery", "cat_owncat", 0);
@@ -4513,9 +4521,9 @@ try {
   assert(rel.ok === true && gV.speech_attitude === "neutral" && gV.submissive === 1000,
     "54.5t 解除并还原到锁定前的 neutral/1000, " + gV.speech_attitude + "/" + gV.submissive);
 
-  // 54.6 FertilityExpansion 适配器：detect 依赖 ModLoader 列表 / 存档 eden 对象
-  const oldZip = global.window.modDataValueZipList;
-  global.window.modDataValueZipList = [{ name: "FertilityExpansion" }];
+  // 54.6 FertilityExpansion 适配器：detect 判 window.EdenChildData / EdenCheats 挂载 + 存档 eden 对象兜底（v2.1.20 删除 modDataValueZipList 死分支）
+  const oldCD54a = global.window.EdenChildData;
+  global.window.EdenChildData = { entries: function () { return []; } };
   const mods54 = api54.getCheatMods();
   const ids54 = mods54.map(function (m) { return m && m.modId; }).join(",");
   assert(ids54.indexOf("fertility-expansion") >= 0, "54.6a FertilityExpansion 适配器可见, " + ids54);
@@ -4873,7 +4881,7 @@ try {
   gV54.eden = oldEden54;
   gV54.childRecords = oldRec54;
   if (oldEden === undefined) { delete global.window.EdenCheats; } else { global.window.EdenCheats = oldEden; }
-  if (oldZip === undefined) { delete global.window.modDataValueZipList; } else { global.window.modDataValueZipList = oldZip; }
+  if (oldCD54a === undefined) { delete global.window.EdenChildData; } else { global.window.EdenChildData = oldCD54a; }
 } catch (e54) {
   failures++;
   console.error("FAIL: 54 新增能力测试异常: " + (e54 && e54.message ? e54.message : e54));
@@ -5521,6 +5529,12 @@ try {
   const allR = api58.mbCEPreviewConfirmAll();
   assert(allR.ok === true && api58.mbCEPreviewCount() === 0 && rA === 1 && rB === 1,
     "58.58 D2「全部确认」一次落两笔（A/B 各重放一次）");
+  const gEq58 = api58.mbCEPreviewGate("zz.v207.arreq", ["x", "y"], ["x", "y"], function () { return {}; });
+  const gNe58 = api58.mbCEPreviewGate("zz.v207.arrne", ["x", "y"], ["x", "z"], function () { return {}; });
+  assert(gEq58 === false && gNe58 === true && api58.mbCEPreviewCount() === 1,
+    "58.58b v2.1.20 数组内容相同放行（不入队）、内容不同入队");
+  api58.mbCEPreviewCancel();
+  assert(api58.mbCEPreviewCount() === 0, "58.58b 数组入队项可取消");
   assert(typeof api58.mbCEPaneRefresh === "function", "58.59 D5 提供按当前页签重渲染的分发器");
 
   V8.zzv207lock = 3;

@@ -14,7 +14,8 @@
 			try {
 				/* 「模组已装」必须查 ModLoader 的真实注册表，不能读 window.modDataValueZipList：后者是
 				   LocalLoader 的**内置插件**列表（游戏 HTML 内嵌的 base64 zip 数组，见 LocalLoader.load），
-				   玩家自己装的 mod 走的是 IndexedDB 加载链，不在该列表里，读它恒 false（mbCEHasModNamed 即踩此坑）。
+				   玩家自己装的 mod 走的是 IndexedDB 加载链，不在该列表里，读它恒 false（v2.1.5 已登记证伪该路径；
+				   v2.1.20 起 fertility-expansion 适配器同口径改用 window.EdenChildData/EdenCheats 探测）。
 				   正确入口（ModUtils v2.101.1）：getModListNameNoAlias() 返回全部已加载 mod 的 boot.json name，
 				   getMod(name) 走 alias 匹配。任一命中即视为已装。
 				   为什么需要这一条：$farm.* 字段不是模组在初始化阶段创建的，而是它用 TweeReplacer 注入原版农场

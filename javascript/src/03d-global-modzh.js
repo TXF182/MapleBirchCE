@@ -6,7 +6,7 @@
 	       由 08b-attitude.js 直写（modId="vanilla-attitudes"，键白名单限定 5 项，不留其他原版变量入口）。
 	       机制：① setup.mbCE_modCheats 注册制（外部模组按约定声明，动态识别）
 	             ② CHEAT_ADAPTERS 内置适配器数据（已装内容模组，探测命中即合并）
-	             ③ CHEAT_PASSIVE_PROBES 被动识别占位（识别到模组但未声明可操控项）
+	             ③ 被动探测占位（v2.1.20 移除：CHEAT_PASSIVE_PROBES 建空数组后全仓无 push，判定为死代码）
 	       留痕：V.mbCE_wrote 扩展 {type:"cheat", modId, op, path, before, after, t}，
 	             key="cheat:"+modId+":"+itemKey；回退还原 before（首次面板写入前状态）。 ============ */
 	var CHEAT_VANILLA_ROOTS = [
@@ -120,7 +120,6 @@
 	function zhPath(p) { return String(p).split(".").map(zhKey).join("."); }
 	function zhType(t) { return ZH_TYPES[t] || t; }
 	/* CHEAT_ADAPTERS 容器声明在 04a-00-core.js（v1.9.13 拆分时迁走，此处不再重复声明，避免后声明重置前者） */
-	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
 	var curCheatModId = "";
 
 	/* 内置适配器：默示录：归途之书 v1.3.4（用户 2026-10-18 提供源码 Revelation-The-Book-of-Return-1.3.4.zip，

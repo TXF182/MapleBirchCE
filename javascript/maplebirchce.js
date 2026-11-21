@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.19";
+	var MCE_VERSION = "2.1.20";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -1867,7 +1867,7 @@
 	       由 08b-attitude.js 直写（modId="vanilla-attitudes"，键白名单限定 5 项，不留其他原版变量入口）。
 	       机制：① setup.mbCE_modCheats 注册制（外部模组按约定声明，动态识别）
 	             ② CHEAT_ADAPTERS 内置适配器数据（已装内容模组，探测命中即合并）
-	             ③ CHEAT_PASSIVE_PROBES 被动识别占位（识别到模组但未声明可操控项）
+	             ③ 被动探测占位（v2.1.20 移除：CHEAT_PASSIVE_PROBES 建空数组后全仓无 push，判定为死代码）
 	       留痕：V.mbCE_wrote 扩展 {type:"cheat", modId, op, path, before, after, t}，
 	             key="cheat:"+modId+":"+itemKey；回退还原 before（首次面板写入前状态）。 ============ */
 	var CHEAT_VANILLA_ROOTS = [
@@ -1981,7 +1981,6 @@
 	function zhPath(p) { return String(p).split(".").map(zhKey).join("."); }
 	function zhType(t) { return ZH_TYPES[t] || t; }
 	/* CHEAT_ADAPTERS 容器声明在 04a-00-core.js（v1.9.13 拆分时迁走，此处不再重复声明，避免后声明重置前者） */
-	var CHEAT_PASSIVE_PROBES = []; /* { modId, modName, detect: fn } */
 	var curCheatModId = "";
 
 	/* 内置适配器：默示录：归途之书 v1.3.4（用户 2026-10-18 提供源码 Revelation-The-Book-of-Return-1.3.4.zip，
@@ -2808,10 +2807,10 @@ var CHEAT_ADAPTERS = {};
 				{ key: "cat_owncat", name: "养猫 · 是否已领养", varPath: "pchaveCat",
 				  levels: [0, 1], labels: ["未养猫", "已养猫"],
 				  sync: { set: [
-					{ path: "firstCat_variety", value: "橘猫", if: { min: 1 } },
+					{ path: "firstCat_variety", value: "橘猫", if: { min: 1 }, ifMissing: true },
 					{ path: "catArr", value: [{ name: "咪咪", love: 0, play: 0 }], if: { min: 1 }, ifMissing: true }
 				  ] },
-				  note: "写「已养猫」自动补猫数据（仅当 catArr 不存在时，已有猫不重置；名字「咪咪」/好感 0/玩力 0）" },
+				  note: "写「已养猫」自动补猫数据与品种（均仅当不存在时补，已有猫/品种不重置——v2.1.20 品种补 ifMissing；名字「咪咪」/好感 0/玩力 0）" },
 				{ key: "cat_garden", name: "出租屋 · 花园升级", varPath: "pcGardenupgrade",
 				  levels: [0, 1], labels: ["未升级", "已升级"] },
 				{ key: "cat_fly", name: "飞行 · 全图飞行解锁", varPath: "birdFly",
@@ -2904,7 +2903,8 @@ var CHEAT_ADAPTERS = {};
 			try {
 				/* 「模组已装」必须查 ModLoader 的真实注册表，不能读 window.modDataValueZipList：后者是
 				   LocalLoader 的**内置插件**列表（游戏 HTML 内嵌的 base64 zip 数组，见 LocalLoader.load），
-				   玩家自己装的 mod 走的是 IndexedDB 加载链，不在该列表里，读它恒 false（mbCEHasModNamed 即踩此坑）。
+				   玩家自己装的 mod 走的是 IndexedDB 加载链，不在该列表里，读它恒 false（v2.1.5 已登记证伪该路径；
+				   v2.1.20 起 fertility-expansion 适配器同口径改用 window.EdenChildData/EdenCheats 探测）。
 				   正确入口（ModUtils v2.101.1）：getModListNameNoAlias() 返回全部已加载 mod 的 boot.json name，
 				   getMod(name) 走 alias 匹配。任一命中即视为已装。
 				   为什么需要这一条：$farm.* 字段不是模组在初始化阶段创建的，而是它用 TweeReplacer 注入原版农场
@@ -3224,33 +3224,15 @@ CHEAT_ADAPTERS["dolmod"] = {
    注：该模组自带 eden-cheats.js / eden-cheats-ui.js 作弊面板（10 项）。v2.0.0.002 起 CE 不做"只写数值"的
    缩水适配——04a-14-fert-cheats.js 直接复用其 window.EdenCheats，把模组面板的 10 项等价搬到 CE 的模组作弊页，
    与模组共用同一套 guard / 快照回滚 / feats.locked 语义（不重写它的 sync 链，避免两套写入口互相打架）。 */
-/* 共享 helper：判定 ModLoader 是否装了某个名字的 mod。
-   window.modDataValueZipList 的条目形态不稳定（string / {name|modName|id} 两种都见过），故都兼容。 */
-function mbCEHasModNamed(names) {
-	try {
-		if (typeof window === "undefined") { return false; }
-		var want = Array.isArray(names) ? names : [names];
-		var list = window.modDataValueZipList;
-		if (list && list.length) {
-			for (var i = 0; i < list.length; i++) {
-				var it = list[i];
-				var n = "";
-				if (typeof it === "string") { n = it; }
-				else if (it && typeof it === "object") { n = String(it.name || it.modName || it.id || ""); }
-				if (!n) { continue; }
-				for (var j = 0; j < want.length; j++) {
-					if (n.indexOf(want[j]) >= 0) { return true; }
-				}
-			}
-		}
-		return false;
-	} catch (e) { return false; }
-}
 CHEAT_ADAPTERS["fertility-expansion"] = {
 	detect: function () {
 		try {
 			if (typeof window === "undefined") { return false; }
-			if (typeof mbCEHasModNamed === "function" && mbCEHasModNamed(["FertilityExpansion", "Fertility Expansion"])) { return true; }
+			/* v2.1.20：删除 mbCEHasModNamed 探测——它读 window.modDataValueZipList = LocalLoader 内置插件表，
+			   玩家 IDB 装载的 mod 不在其中、恒 false（死分支，v2.1.5 已在 CHANGELOG 登记证伪）。
+			   正路判定：模组加载后暴露 window.EdenChildData / window.EdenCheats（04a-14/15 复用的 API）；
+			   兜底：老存档 V.eden 已存在（schema 迁移对象）。 */
+			if (window.EdenChildData || window.EdenCheats) { return true; }
 			var V = (typeof getV === "function") ? getV() : null;
 			return !!(V && V.eden && typeof V.eden === "object");
 		} catch (e) { return false; }
@@ -3407,9 +3389,12 @@ function mbCEFertAddField(parent, label, key, value, dictKey) {
    必须在调用它的瞬间让它「看见」cheatsEnabled=true。做法：临时置 V.cheatsEnabled = true，
    调用返回后立即还原原值（原本没有该字段则删除），不污染存档、不触发原版作弊页 UI。
    模组其余安全闸（statFreeze / 战斗中 / 附属 NPC / 生产流程中 / NPCList[0]）仍全部生效。
-   置位到还原在同一个同步调用栈内完成（finally 覆盖 throw），SugarCube 的 autosave 只发生在 passage
-   导航/显式保存，不会插进这段同步栈 —— 结构性推理，非实机实测；enabled-cheats 全模组只有 1 处读它（:38）。 */
+   v2.1.20 取证升级（原注「结构性推理，非实机实测」→ 实证）：置位到还原在同一同步调用栈内（finally 覆盖 throw）；
+   SugarCube autosave 只在 passage 导航触发，而 1.7.0 eden-cheats.js 全文件 0 处 Engine.play / SugarCube.Engine
+   （grep 实证；导航只存在于 eden-profile.js:32/46/60/89/105 的档案页跳转按钮，与作弊动作调用链无关），
+   故 fn 同步返回期间不可能把 cheatsEnabled=true 落档。enabled-cheats 全模组只有 1 处读它（:38）。 */
 function mbCEFertWithCheats(fn) {
+	if (typeof fn !== "function") { return undefined; }
 	var V = null, had = false, old;
 	try { V = getV(); } catch (e) { V = null; }
 	if (!V || typeof V !== "object") { return fn(); }
@@ -4659,13 +4644,12 @@ function mbCEFertRenderChildren(container) {
 			var row = el("div", "mce-card" + (m.modId === curCheatModId ? " mce-sel" : ""));
 			var top = el("div", "mce-card-top");
 			top.appendChild(el("span", "mce-card-name", "▶ " + m.modName));
-			top.appendChild(el("span", "mce-badge " + (m.declared ? "mce-on" : "mce-off"), m.declared ? "可操控" : "未声明"));
+			top.appendChild(el("span", "mce-badge mce-on", "可操控"));
 			row.appendChild(top);
-			/* 已删去「未声明模组」守卫（原 if (!m.declared) 提示 / else 绑点击）：m.declared 在当前
-			   输入域恒为 true —— 注册表项经 normalizeCheatMod 强制 declared:true（04c-modcheat-util.js:4），
-			   唯一写 declared:false 的 CHEAT_PASSIVE_PROBES 在 03d-global-modzh.js:122 建空数组后全仓无 push，
-			   故该守卫无可达输入。若将来被动探针被填充或新增 declared:false 来源，必须在此恢复
-			   「未声明项不绑点击、只展示提示」的守卫（否则未声明模组会被误开子页）。 */
+			/* v2.1.20：徽章恒定「可操控」。原三元（m.declared）与其守卫已删——declared:false 的唯一来源
+			   CHEAT_PASSIVE_PROBES 建空数组后全仓无 push（v2.1.20 连定义一并删除），05a2 的被动探针渲染循环亦随本版删除，
+			   输入域恒为 true（注册表项经 normalizeCheatMod 强制 declared:true，04c-modcheat-util.js:4）。
+			   将来若恢复被动探针机制，必须同步恢复「未声明项不绑点击、只展示提示」的守卫与徽章三元。 */
 			row.addEventListener("click", (function (mod) {
 				return function () { curCheatModId = mod.modId; renderModCheatDetail(mod.modId); };
 			})(m));
@@ -4919,13 +4903,9 @@ function mbCEFertRenderChildren(container) {
 				seen[adIds[i]] = true;
 				out.push(normalizeCheatMod(ad.entry));
 			}
-			for (i = 0; i < CHEAT_PASSIVE_PROBES.length; i++) {
-				var p = CHEAT_PASSIVE_PROBES[i];
-				if (!p || !p.modId || seen[p.modId]) { continue; }
-				try { if (typeof p.detect !== "function" || !p.detect()) { continue; } } catch (e) { continue; }
-				seen[p.modId] = true;
-				out.push({ modId: p.modId, modName: p.modName, declared: false, tasks: [], stages: [], abilities: [], scenes: [], values: [] });
-			}
+			/* v2.1.20：删除被动探针渲染循环（CHEAT_PASSIVE_PROBES 建空数组后全仓无 push、本版连定义一并删除，
+			   declared:false 输入域恒空；05a 徽章随之为恒定「可操控」。将来恢复探针机制时，
+			   须同时恢复本循环与 05a 的未声明守卫/徽章三元。 */
 			return out;
 		} catch (e) { return []; }
 	}
@@ -5020,7 +5000,13 @@ function mbCEFertRenderChildren(container) {
 		row.appendChild(sel); row.appendChild(bSet); row.appendChild(bMax); row.appendChild(bMin);
 		return row;
 	}
-	function buildCheatAbilityRow(m, a) {
+	/* v2.1.20：numeric 能力显示「number（0/1）」——勾选写数字 1/0 而非 boolean true/false，
+   修掉 nkl_retaken 等 numeric 条目「说明」里误显示 boolean 的口径（仅展示层，写入通道不变）。 */
+function mceDeclTypeLabel(a) {
+	if (a && a.numeric) { return "number（0/1）"; }
+	return (a && a.type) || "boolean";
+}
+function buildCheatAbilityRow(m, a) {
 		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-mce-key", "abilities:" + a.key);
 		var box = el("input", "");
@@ -5037,7 +5023,7 @@ function mbCEFertRenderChildren(container) {
 		det.appendChild(el("summary", "mce-ab-sum", "说明"));
 		var body = el("div", "mce-ab-body");
 		if (a.varPath) { body.appendChild(el("div", "", "写入路径：" + a.varPath)); }
-		body.appendChild(el("div", "", "类型：" + (a.type || "boolean")));
+		body.appendChild(el("div", "", "类型：" + mceDeclTypeLabel(a)));
 		if (a.type === "number" && (a.min !== undefined || a.max !== undefined)) {
 			body.appendChild(el("div", "", "参考范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
 		}
@@ -6745,6 +6731,11 @@ function applyPlayerGender(V, g) {
 	try {
 		if (!V || typeof V !== "object") { return "FAIL: 存档变量不可用"; }
 		if (!V.player || typeof V.player !== "object") { V.player = {}; }
+		/* v2.1.20：切换前快照七键旧值——此前性别切换直写不留痕，回退中心撤销不到；
+		   现逐键写 V.mbCE_wrote（key=cheat:player-self:gender:<leaf>，首次 before 保留语义同 04b 执行器） */
+		var MB_CE_GENDER_KEYS = ["sex", "gender", "gender_body", "penisExist", "vaginaExist", "penissize", "ballsExist"];
+		var genderSnap = {}, gi;
+		for (gi = 0; gi < MB_CE_GENDER_KEYS.length; gi++) { genderSnap[MB_CE_GENDER_KEYS[gi]] = V.player[MB_CE_GENDER_KEYS[gi]]; }
 		var out = [];
 		if (g === "m") {
 			V.player.penisExist = true;
@@ -6776,6 +6767,21 @@ function applyPlayerGender(V, g) {
 		} else {
 			return "FAIL: 未知性别 " + g;
 		}
+		/* v2.1.20 留痕：直写后为发生变化的键逐条登记（未变化不写记录，幂等重切不刷留痕）；
+		   留痕失败不影响切换结果。 */
+		try {
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			var gNow = Date.now();
+			for (gi = 0; gi < MB_CE_GENDER_KEYS.length; gi++) {
+				var gleaf = MB_CE_GENDER_KEYS[gi];
+				if (genderSnap[gleaf] === V.player[gleaf]) { continue; }
+				var gkey = "cheat:player-self:gender:" + gleaf;
+				var gprev = V.mbCE_wrote[gkey];
+				var gbefore = (gprev && "before" in gprev) ? gprev.before : genderSnap[gleaf];
+				V.mbCE_wrote[gkey] = { type: "cheat", modId: "player-self", op: "gender", path: "player." + gleaf, before: gbefore, after: V.player[gleaf], t: gNow };
+			}
+			if (typeof mbCEWroteTrim === "function") { mbCEWroteTrim(V); }
+		} catch (eRec) { /* 留痕失败不影响切换结果 */ }
 		/* 引擎收敛（实测路径=测试路径修复）：原版 gender_appearance 由 exposure()→exposedcheck()
 		   在场景更新时重算；切性别后立即触发一次（alwaysRun=true 战斗内也收敛），同场景外观性别立即生效，
 		   避免下一场景前 UI/服装分型读到旧值。环境无引擎函数（单测沙箱）时静默跳过，不影响七键结果。 */
@@ -18678,10 +18684,27 @@ function renderAttitudesGroup(pane) {
 		} catch (e) {}
 		return String(path);
 	}
+	/* v2.1.20：无变化判定扩展——列表写入传 before/after 两个新数组引用，=== 恒不相等，
+	   导致「勾选已存在项」这类无变化操作也弹确认条。数组逐项比较（对象元素 JSON 序化），
+	   内容相同视为无变化直接放行。 */
+	function mbCEPreviewSame(a, b) {
+		if (a === b) { return true; }
+		if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
+			for (var i = 0; i < a.length; i++) {
+				if (a[i] === b[i]) { continue; }
+				if (a[i] !== null && b[i] !== null && typeof a[i] === "object" && typeof b[i] === "object") {
+					try { if (JSON.stringify(a[i]) === JSON.stringify(b[i])) { continue; } } catch (e) {}
+				}
+				return false;
+			}
+			return true;
+		}
+		return false;
+	}
 	/* 返回 true = 本次被拦下（已入队待确认），false = 放行 */
 	function mbCEPreviewGate(path, beforeVal, afterVal, run) {
 		if (mbCEPreviewReplay || !mbCEPreviewEnabled()) { return false; }
-		if (beforeVal === afterVal) { return false; }
+		if (mbCEPreviewSame(beforeVal, afterVal)) { return false; }
 		mbCEPendingQueue.push({ path: path, before: beforeVal, after: afterVal, run: run, t: Date.now() });
 		if (mbCEPendingQueue.length > MB_CE_PREVIEW_MAX) { mbCEPendingQueue.shift(); }
 		mbCEPendingPreview = mbCEPendingQueue[0];
@@ -19780,7 +19803,8 @@ function mbCEExportYanlingQuick() {
 				mbCEPreviewConfirm: mbCEPreviewConfirm,
 				mbCEPreviewConfirmAll: mbCEPreviewConfirmAll,
 				mbCEPreviewCancel: mbCEPreviewCancel,
-				mbCEPreviewGate: mbCEPreviewGate, mbCEAdapterAction: mbCEAdapterAction, hasV: hasV, CHEAT_ADAPTERS: CHEAT_ADAPTERS,
+				mbCEPreviewGate: mbCEPreviewGate, mbCEPreviewSame: mbCEPreviewSame, mbCEAdapterAction: mbCEAdapterAction, hasV: hasV, CHEAT_ADAPTERS: CHEAT_ADAPTERS,
+				mceDeclTypeLabel: mceDeclTypeLabel,
 				mbCEPaneRefresh: mbCEPaneRefresh,
 				/* v2.0.7 R1/R2/R3/R4：外观隐藏 + 小岛生存 + 地下妓院（07j / 07k） */
 				mbCEHideApply: mbCEHideApply,

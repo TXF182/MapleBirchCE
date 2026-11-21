@@ -111,13 +111,12 @@
 			var row = el("div", "mce-card" + (m.modId === curCheatModId ? " mce-sel" : ""));
 			var top = el("div", "mce-card-top");
 			top.appendChild(el("span", "mce-card-name", "▶ " + m.modName));
-			top.appendChild(el("span", "mce-badge " + (m.declared ? "mce-on" : "mce-off"), m.declared ? "可操控" : "未声明"));
+			top.appendChild(el("span", "mce-badge mce-on", "可操控"));
 			row.appendChild(top);
-			/* 已删去「未声明模组」守卫（原 if (!m.declared) 提示 / else 绑点击）：m.declared 在当前
-			   输入域恒为 true —— 注册表项经 normalizeCheatMod 强制 declared:true（04c-modcheat-util.js:4），
-			   唯一写 declared:false 的 CHEAT_PASSIVE_PROBES 在 03d-global-modzh.js:122 建空数组后全仓无 push，
-			   故该守卫无可达输入。若将来被动探针被填充或新增 declared:false 来源，必须在此恢复
-			   「未声明项不绑点击、只展示提示」的守卫（否则未声明模组会被误开子页）。 */
+			/* v2.1.20：徽章恒定「可操控」。原三元（m.declared）与其守卫已删——declared:false 的唯一来源
+			   CHEAT_PASSIVE_PROBES 建空数组后全仓无 push（v2.1.20 连定义一并删除），05a2 的被动探针渲染循环亦随本版删除，
+			   输入域恒为 true（注册表项经 normalizeCheatMod 强制 declared:true，04c-modcheat-util.js:4）。
+			   将来若恢复被动探针机制，必须同步恢复「未声明项不绑点击、只展示提示」的守卫与徽章三元。 */
 			row.addEventListener("click", (function (mod) {
 				return function () { curCheatModId = mod.modId; renderModCheatDetail(mod.modId); };
 			})(m));

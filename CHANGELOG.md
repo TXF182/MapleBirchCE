@@ -2,6 +2,14 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.1.20（2026-11-21 作弊面板七项自查修复）
+
+- 性别切换/部件直写补留痕（`cheat:player-self:gender:<键>`），可单键回退；预览门控新增数组逐项比较，列表类写入内容未变不再重复弹「确认」。
+- fertility 适配器探测修死分支：改判 `window.EdenChildData` / `window.EdenCheats` 挂载 + `$eden` 兜底，删除恒为 false 的 `modDataValueZipList` 通道。
+- 猫咖品种写入改仅缺失时补（ifMissing），不再覆盖玩家已养猫的品种。
+- 能力行类型显示修复：numeric 声明正确显示「number（0/1）」，boolean 声明不再被误标为 number。
+- 删除恒空的被动探针渲染循环与其徽章分支；fert 作弊守卫加 fn 类型检查，注释改为实测取证结论。
+
 ## v2.1.19（2026-11-20 元数据去点名，避免被外部站判成前置依赖）
 
 - 仓库描述与 README 首段不再点名适配模组（原写成「枯木逢春/归途之书/…」），改为「12 个第三方模组键级适配，逐项清单见适配器一览」；外部 ModHub 抓取描述与首屏时不会再把这些适配对象当成前置依赖。

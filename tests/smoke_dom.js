@@ -1081,20 +1081,25 @@ mfTopKeys.forEach(function (k) {
   assert(modsPaneTxt().indexOf("更多农场升级") !== -1, "顶层资源键逐个命中（" + k + "）→ more-farm 适配器渲染");
   delete V[k];
 });
-/* 04a-13 fertility-expansion：mbCEHasModNamed 三种条目形态 + V.eden 兜底 */
-const fertileDetect = function (list, edenObj) {
-  window.modDataValueZipList = list;
+/* 04a-13 fertility-expansion：window API 判定 + V.eden 兜底（v2.1.20 删除 modDataValueZipList 死分支，
+   该列表是 LocalLoader 内置插件表，玩家 IDB 装载的 mod 不在其中、恒 false） */
+const fertileDetect = function (apiObj, edenObj) {
+  const hadCD = Object.prototype.hasOwnProperty.call(window, "EdenChildData");
+  const hadCE = Object.prototype.hasOwnProperty.call(window, "EdenCheats");
+  if (apiObj === undefined) { delete window.EdenChildData; delete window.EdenCheats; }
+  else if (apiObj === "CD") { window.EdenChildData = { entries: function () { return []; } }; delete window.EdenCheats; }
+  else if (apiObj === "CE") { window.EdenCheats = { available: function () { return true; } }; delete window.EdenChildData; }
   V.eden = edenObj;
   api.renderModCheats();
-  return modsPaneTxt().indexOf("FertilityExpansion") !== -1;
+  const hit = modsPaneTxt().indexOf("FertilityExpansion") !== -1;
+  if (!hadCD) { delete window.EdenChildData; } if (!hadCE) { delete window.EdenCheats; }
+  return hit;
 };
-assert(fertileDetect(["FertilityExpansion"], undefined), "modDataValueZipList 字符串形态命中 → fertility 适配器渲染");
-assert(fertileDetect([{ name: "FertilityExpansion" }], undefined), "对象 name 形态命中 → fertility 适配器渲染");
-assert(fertileDetect([{ id: "x-fert" }], undefined) === false, "对象 id 不含关键词且无 $eden → detect 为假");
-assert(fertileDetect([{ modName: "Fertility Expansion" }], {}), "对象 modName 形态（空格变体）命中");
-assert(fertileDetect(["", "abc"], {}), "空名/无关条目被跳过 → 回落 $eden 对象判定命中");
-assert(fertileDetect([], undefined) === false, "空列表 + 无 $eden → detect 为假");
-delete window.modDataValueZipList; delete V.eden;
+assert(fertileDetect("CD", undefined), "window.EdenChildData 挂载 → fertility 适配器渲染（无需 V.eden）");
+assert(fertileDetect("CE", undefined), "window.EdenCheats 挂载 → fertility 适配器渲染");
+assert(fertileDetect(undefined, {}), "无 API + V.eden 存在 → 兜底命中");
+assert(fertileDetect(undefined, undefined) === false, "无 API 且无 V.eden → detect 为假");
+delete V.eden;
 V.farm = mfFarmBackup;
 api.renderModCheats();
 /* ---------- 7g. v2.0.3 P3 悬浮球拖动链（09-exports.js:106-165 pointerdown/move/up + rAF + 位置持久化） ---------- */

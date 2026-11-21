@@ -335,7 +335,8 @@
 				mbCEPreviewConfirm: mbCEPreviewConfirm,
 				mbCEPreviewConfirmAll: mbCEPreviewConfirmAll,
 				mbCEPreviewCancel: mbCEPreviewCancel,
-				mbCEPreviewGate: mbCEPreviewGate, mbCEAdapterAction: mbCEAdapterAction, hasV: hasV, CHEAT_ADAPTERS: CHEAT_ADAPTERS,
+				mbCEPreviewGate: mbCEPreviewGate, mbCEPreviewSame: mbCEPreviewSame, mbCEAdapterAction: mbCEAdapterAction, hasV: hasV, CHEAT_ADAPTERS: CHEAT_ADAPTERS,
+				mceDeclTypeLabel: mceDeclTypeLabel,
 				mbCEPaneRefresh: mbCEPaneRefresh,
 				/* v2.0.7 R1/R2/R3/R4：外观隐藏 + 小岛生存 + 地下妓院（07j / 07k） */
 				mbCEHideApply: mbCEHideApply,

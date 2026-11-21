@@ -24,6 +24,11 @@ function applyPlayerGender(V, g) {
 	try {
 		if (!V || typeof V !== "object") { return "FAIL: 存档变量不可用"; }
 		if (!V.player || typeof V.player !== "object") { V.player = {}; }
+		/* v2.1.20：切换前快照七键旧值——此前性别切换直写不留痕，回退中心撤销不到；
+		   现逐键写 V.mbCE_wrote（key=cheat:player-self:gender:<leaf>，首次 before 保留语义同 04b 执行器） */
+		var MB_CE_GENDER_KEYS = ["sex", "gender", "gender_body", "penisExist", "vaginaExist", "penissize", "ballsExist"];
+		var genderSnap = {}, gi;
+		for (gi = 0; gi < MB_CE_GENDER_KEYS.length; gi++) { genderSnap[MB_CE_GENDER_KEYS[gi]] = V.player[MB_CE_GENDER_KEYS[gi]]; }
 		var out = [];
 		if (g === "m") {
 			V.player.penisExist = true;
@@ -55,6 +60,21 @@ function applyPlayerGender(V, g) {
 		} else {
 			return "FAIL: 未知性别 " + g;
 		}
+		/* v2.1.20 留痕：直写后为发生变化的键逐条登记（未变化不写记录，幂等重切不刷留痕）；
+		   留痕失败不影响切换结果。 */
+		try {
+			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
+			var gNow = Date.now();
+			for (gi = 0; gi < MB_CE_GENDER_KEYS.length; gi++) {
+				var gleaf = MB_CE_GENDER_KEYS[gi];
+				if (genderSnap[gleaf] === V.player[gleaf]) { continue; }
+				var gkey = "cheat:player-self:gender:" + gleaf;
+				var gprev = V.mbCE_wrote[gkey];
+				var gbefore = (gprev && "before" in gprev) ? gprev.before : genderSnap[gleaf];
+				V.mbCE_wrote[gkey] = { type: "cheat", modId: "player-self", op: "gender", path: "player." + gleaf, before: gbefore, after: V.player[gleaf], t: gNow };
+			}
+			if (typeof mbCEWroteTrim === "function") { mbCEWroteTrim(V); }
+		} catch (eRec) { /* 留痕失败不影响切换结果 */ }
 		/* 引擎收敛（实测路径=测试路径修复）：原版 gender_appearance 由 exposure()→exposedcheck()
 		   在场景更新时重算；切性别后立即触发一次（alwaysRun=true 战斗内也收敛），同场景外观性别立即生效，
 		   避免下一场景前 UI/服装分型读到旧值。环境无引擎函数（单测沙箱）时静默跳过，不影响七键结果。 */

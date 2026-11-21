@@ -40,10 +40,27 @@
 		} catch (e) {}
 		return String(path);
 	}
+	/* v2.1.20：无变化判定扩展——列表写入传 before/after 两个新数组引用，=== 恒不相等，
+	   导致「勾选已存在项」这类无变化操作也弹确认条。数组逐项比较（对象元素 JSON 序化），
+	   内容相同视为无变化直接放行。 */
+	function mbCEPreviewSame(a, b) {
+		if (a === b) { return true; }
+		if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
+			for (var i = 0; i < a.length; i++) {
+				if (a[i] === b[i]) { continue; }
+				if (a[i] !== null && b[i] !== null && typeof a[i] === "object" && typeof b[i] === "object") {
+					try { if (JSON.stringify(a[i]) === JSON.stringify(b[i])) { continue; } } catch (e) {}
+				}
+				return false;
+			}
+			return true;
+		}
+		return false;
+	}
 	/* 返回 true = 本次被拦下（已入队待确认），false = 放行 */
 	function mbCEPreviewGate(path, beforeVal, afterVal, run) {
 		if (mbCEPreviewReplay || !mbCEPreviewEnabled()) { return false; }
-		if (beforeVal === afterVal) { return false; }
+		if (mbCEPreviewSame(beforeVal, afterVal)) { return false; }
 		mbCEPendingQueue.push({ path: path, before: beforeVal, after: afterVal, run: run, t: Date.now() });
 		if (mbCEPendingQueue.length > MB_CE_PREVIEW_MAX) { mbCEPendingQueue.shift(); }
 		mbCEPendingPreview = mbCEPendingQueue[0];

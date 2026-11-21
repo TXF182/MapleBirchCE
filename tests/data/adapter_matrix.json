@@ -8413,7 +8413,8 @@
             "value": "橘猫",
             "if": {
               "min": 1
-            }
+            },
+            "ifMissing": true
           },
           {
             "path": "catArr",

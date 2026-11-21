@@ -13,10 +13,12 @@ echo "[pre-commit] 检查验证缓存（tools/verify_cache.ps1 -Check）..."
 
 # fail-closed：本机无 PowerShell 时无法执行验证链，必须阻止提交而不是静默放行
 # （历史实现为 exit 0 跳过，等于整条门禁凭空失效 → 未验证代码可直接进 main）
-if command -v powershell.exe >/dev/null 2>&1; then
-  PS_BIN=powershell.exe
-elif command -v pwsh >/dev/null 2>&1; then
+# 2026-11-21：优先 pwsh 7——Windows PowerShell 5.1 会把 UTF-8 无 BOM 脚本按 GBK 读，
+# 中文注释乱码导致 ParserError 误拦提交；pwsh 7 默认 UTF-8 解析正确。
+if command -v pwsh >/dev/null 2>&1; then
   PS_BIN=pwsh
+elif command -v powershell.exe >/dev/null 2>&1; then
+  PS_BIN=powershell.exe
 else
   echo "[pre-commit] 未检测到 powershell.exe / pwsh，无法运行验证链。"
   echo "[pre-commit] fail-closed：提交已阻止。请在具备 PowerShell 的环境提交；确需绕过请显式用 git commit --no-verify 并自担风险。"

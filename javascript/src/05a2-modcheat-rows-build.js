@@ -17,13 +17,9 @@
 				seen[adIds[i]] = true;
 				out.push(normalizeCheatMod(ad.entry));
 			}
-			for (i = 0; i < CHEAT_PASSIVE_PROBES.length; i++) {
-				var p = CHEAT_PASSIVE_PROBES[i];
-				if (!p || !p.modId || seen[p.modId]) { continue; }
-				try { if (typeof p.detect !== "function" || !p.detect()) { continue; } } catch (e) { continue; }
-				seen[p.modId] = true;
-				out.push({ modId: p.modId, modName: p.modName, declared: false, tasks: [], stages: [], abilities: [], scenes: [], values: [] });
-			}
+			/* v2.1.20：删除被动探针渲染循环（CHEAT_PASSIVE_PROBES 建空数组后全仓无 push、本版连定义一并删除，
+			   declared:false 输入域恒空；05a 徽章随之为恒定「可操控」。将来恢复探针机制时，
+			   须同时恢复本循环与 05a 的未声明守卫/徽章三元。 */
 			return out;
 		} catch (e) { return []; }
 	}
@@ -118,7 +114,13 @@
 		row.appendChild(sel); row.appendChild(bSet); row.appendChild(bMax); row.appendChild(bMin);
 		return row;
 	}
-	function buildCheatAbilityRow(m, a) {
+	/* v2.1.20：numeric 能力显示「number（0/1）」——勾选写数字 1/0 而非 boolean true/false，
+   修掉 nkl_retaken 等 numeric 条目「说明」里误显示 boolean 的口径（仅展示层，写入通道不变）。 */
+function mceDeclTypeLabel(a) {
+	if (a && a.numeric) { return "number（0/1）"; }
+	return (a && a.type) || "boolean";
+}
+function buildCheatAbilityRow(m, a) {
 		var row = el("div", MCE_CLS.row);
 		row.setAttribute("data-mce-key", "abilities:" + a.key);
 		var box = el("input", "");
@@ -135,7 +137,7 @@
 		det.appendChild(el("summary", "mce-ab-sum", "说明"));
 		var body = el("div", "mce-ab-body");
 		if (a.varPath) { body.appendChild(el("div", "", "写入路径：" + a.varPath)); }
-		body.appendChild(el("div", "", "类型：" + (a.type || "boolean")));
+		body.appendChild(el("div", "", "类型：" + mceDeclTypeLabel(a)));
 		if (a.type === "number" && (a.min !== undefined || a.max !== undefined)) {
 			body.appendChild(el("div", "", "参考范围：" + (a.min !== undefined ? a.min : "-∞") + " ~ " + (a.max !== undefined ? a.max : "∞")));
 		}

@@ -18,10 +18,10 @@
 				{ key: "cat_owncat", name: "养猫 · 是否已领养", varPath: "pchaveCat",
 				  levels: [0, 1], labels: ["未养猫", "已养猫"],
 				  sync: { set: [
-					{ path: "firstCat_variety", value: "橘猫", if: { min: 1 } },
+					{ path: "firstCat_variety", value: "橘猫", if: { min: 1 }, ifMissing: true },
 					{ path: "catArr", value: [{ name: "咪咪", love: 0, play: 0 }], if: { min: 1 }, ifMissing: true }
 				  ] },
-				  note: "写「已养猫」自动补猫数据（仅当 catArr 不存在时，已有猫不重置；名字「咪咪」/好感 0/玩力 0）" },
+				  note: "写「已养猫」自动补猫数据与品种（均仅当不存在时补，已有猫/品种不重置——v2.1.20 品种补 ifMissing；名字「咪咪」/好感 0/玩力 0）" },
 				{ key: "cat_garden", name: "出租屋 · 花园升级", varPath: "pcGardenupgrade",
 				  levels: [0, 1], labels: ["未升级", "已升级"] },
 				{ key: "cat_fly", name: "飞行 · 全图飞行解锁", varPath: "birdFly",

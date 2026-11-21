@@ -114,9 +114,12 @@ function mbCEFertAddField(parent, label, key, value, dictKey) {
    必须在调用它的瞬间让它「看见」cheatsEnabled=true。做法：临时置 V.cheatsEnabled = true，
    调用返回后立即还原原值（原本没有该字段则删除），不污染存档、不触发原版作弊页 UI。
    模组其余安全闸（statFreeze / 战斗中 / 附属 NPC / 生产流程中 / NPCList[0]）仍全部生效。
-   置位到还原在同一个同步调用栈内完成（finally 覆盖 throw），SugarCube 的 autosave 只发生在 passage
-   导航/显式保存，不会插进这段同步栈 —— 结构性推理，非实机实测；enabled-cheats 全模组只有 1 处读它（:38）。 */
+   v2.1.20 取证升级（原注「结构性推理，非实机实测」→ 实证）：置位到还原在同一同步调用栈内（finally 覆盖 throw）；
+   SugarCube autosave 只在 passage 导航触发，而 1.7.0 eden-cheats.js 全文件 0 处 Engine.play / SugarCube.Engine
+   （grep 实证；导航只存在于 eden-profile.js:32/46/60/89/105 的档案页跳转按钮，与作弊动作调用链无关），
+   故 fn 同步返回期间不可能把 cheatsEnabled=true 落档。enabled-cheats 全模组只有 1 处读它（:38）。 */
 function mbCEFertWithCheats(fn) {
+	if (typeof fn !== "function") { return undefined; }
 	var V = null, had = false, old;
 	try { V = getV(); } catch (e) { V = null; }
 	if (!V || typeof V !== "object") { return fn(); }
