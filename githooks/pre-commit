@@ -27,6 +27,12 @@ fi
 
 $PS_BIN -NoProfile -ExecutionPolicy Bypass -File "tools/verify_cache.ps1" -Check
 verdict=$?
+if [ "$verdict" = "3" ]; then
+  echo "[pre-commit] 版本双源缺失（boot.json / javascript/src/01-core.js），提交已阻止。"
+  echo "[pre-commit] 先恢复：git checkout -- boot.json javascript/src/01-core.js"
+  exit 1
+fi
+
 if [ "$verdict" = "0" ] || [ "$verdict" = "2" ]; then
   echo "[pre-commit] 跳过全链（verify_cache exit=$verdict：0=已验证且未改动，2=纯文档变更）。"
   exit 0

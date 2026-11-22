@@ -12,6 +12,8 @@
 #   0 = 指纹命中，当前代码已全链验证且未改动 → 跳过 run_all
 #   2 = 本次提交只动了纯文档（docs/ .learnings/ CHANGELOG LICENSE CONTRIBUTING README.md）
 #       → 不可能破坏产物，跳过 run_all
+#   3 = 版本双源缺失（boot.json / javascript/src/01-core.js 不在工作区）→ 致命，
+#       pre-commit 必须直接阻止提交（不能去跑全链：build 不读 boot.json，缺它也可能全绿）
 #   1 = 需要跑全链（无缓存 / 指纹不符 / 有未暂存改动 / 任何异常）
 #
 # 判据原则：只认「文件内容 SHA256」，不认 mtime；拿不准一律 exit 1（fail-safe → 跑全链）。
@@ -152,6 +154,18 @@ if ($Write) {
 }
 
 if ($Check) {
+  # 版本双源存在性（fail-closed，2026-11-22 事故后加）：boot.json / javascript/src/01-core.js
+  # 任一在工作区缺失即拒绝提交，并返回 exit 3 让 pre-commit 直接阻止（不再去跑全链）。
+  # 为什么不能只靠全链：build 只拼 javascript/src，不读 boot.json —— 缺 boot.json 时全链仍可能全绿，
+  # 提交就会带上这两条 delete 记录进 main。
+  foreach ($rel in @("boot.json", "javascript/src/01-core.js")) {
+    if (-not (Test-Path -LiteralPath (Join-Path $root $rel))) {
+      Write-Host ("[verify-cache] 致命：版本双源缺失 {0}（工作区无此文件）→ 拒绝提交" -f $rel)
+      Write-Host ("[verify-cache] 恢复：git checkout -- boot.json javascript/src/01-core.js")
+      exit 3
+    }
+  }
+
   $git = Get-GitExe
   if (-not $git) {
     Write-Host "[verify-cache] 未找到 git，无法判定暂存状态 → 跑全链"

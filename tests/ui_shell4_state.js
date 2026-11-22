@@ -5,7 +5,7 @@
  *   2. 主题边饰（4 套 SVG 帧 + 响应式降级，零动画）
  *   3. 外观三开关（动效 fx / 纹理 tex / 边饰 orn，data 属性 gate + 持久化）
  *   4. 按压反馈只缩放不下沉（后写覆盖 07a 的 translateY 规则）
- *   5. ≤560 底部抽屉（几何 + 悬浮球让位快照/恢复 + 宽屏不触发）
+ *   5. ≤560 窄屏全屏（2026-11-22 撤除底部抽屉：长列表操作不便，回归铺满视口）
  *   6. 滚动摘 backdrop-filter（160ms 恢复）
  *   7. Esc 关闭 + aria-expanded 同步
  *   8. 无障碍结构（complementary / tablist / roving tabindex / Home/End）
@@ -129,23 +129,22 @@ const pressRule = SOURCE.slice(pressNew, SOURCE.indexOf("}", pressNew) + 1);
 assert(pressRule.indexOf("translateY") === -1, "4.3 追加规则无 translateY（只缩放不下沉）");
 assert(pressRule.indexOf("scale(.96)") !== -1, "4.4 追加规则保留统一缩放 scale(.96)");
 
-section("5. ≤560 底部抽屉（悬浮球让位快照/恢复）");
-assert(hasCss("@media (max-width:560px)") && hasCss("62vh"), "5.1 抽屉几何存在（62vh）");
-assert(hasCss("mce-drawer-in"), "5.2 抽屉进入动画 keyframes 存在");
+section("5. ≤560 窄屏全屏（撤除底部抽屉）");
+assert(hasCss("#mce-root{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}"), "5.1 窄屏全屏几何存在（铺满视口）");
+assert(!hasCss("62vh") && !hasCss("mce-drawer-in") && !hasCss("mce-drawer-out"), "5.2 抽屉几何与进出动画已撤除（无 62vh / 无 mce-drawer）");
 toggle.style.top = "300px"; toggle.style.left = "100px"; toggle.style.right = "auto"; toggle.style.bottom = "auto";
 api.open();
-assert(document.documentElement.getAttribute("data-mce-drawer-open") === "1", "5.3 open 时 html data-mce-drawer-open=1");
-const lifted = parseInt(toggle.style.top, 10);
-assert(isFinite(lifted) && lifted <= 226, "5.4 被盖住的球临时抬到抽屉上沿之上（300 → " + lifted + "）");
+assert(document.documentElement.getAttribute("data-mce-drawer-open") === null, "5.3 窄屏 open 不再挂 data-mce-drawer-open");
+assert(toggle.style.top === "300px", "5.4 悬浮球不再被抬升（保持 300px）");
 assert(toggle.getAttribute("aria-expanded") === "true", "5.5 面板开 → aria-expanded=true");
 api.close();
 await sleep(220);
-assert(document.documentElement.getAttribute("data-mce-drawer-open") === null, "5.6 关闭后 data-mce-drawer-open 移除");
-assert(toggle.style.top === "300px" && toggle.style.left === "100px", "5.7 悬浮球位置快照恢复（300/100）");
+assert(document.documentElement.getAttribute("data-mce-drawer-open") === null, "5.6 关闭后仍无抽屉属性");
+assert(toggle.style.top === "300px" && toggle.style.left === "100px", "5.7 球位置未被快照改写（300/100）");
 assert(toggle.getAttribute("aria-expanded") === "false", "5.8 面板关 → aria-expanded=false");
 mqNarrow = false;
 api.open();
-assert(document.documentElement.getAttribute("data-mce-drawer-open") === null, "5.9 宽屏 open 不触发抽屉");
+assert(document.documentElement.getAttribute("data-mce-drawer-open") === null, "5.9 宽屏 open 同样无抽屉属性");
 api.close();
 await sleep(220);
 mqNarrow = true;

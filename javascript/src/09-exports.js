@@ -44,9 +44,8 @@
 			root.classList.add("mce-open"); /* v1.9.14 效果6：display:none→flex 重放 pop-in 缩放淡入 */
 		}
 		try {
-			/* v2.2.1 无障碍 + 底部抽屉：开面板即同步 aria-expanded 与悬浮球让位（函数体自带抽屉模式判定） */
+			/* v2.2.1 无障碍：开面板即同步 aria-expanded（2026-11-22 撤抽屉，悬浮球让位协议随之删除） */
 			if (toggleBtn && toggleBtn.setAttribute) { toggleBtn.setAttribute("aria-expanded", "true"); }
-			mbCEDrawerLift();
 		} catch (e) { /* 装饰层失败不影响面板开关 */ }
 		mbCEUpdateErrBadge(true); /* 四巡：面板打开时立即刷新错误徽标（关闭期只记数据不写 DOM） */
 		render();
@@ -62,9 +61,8 @@
 				root.classList.remove("mce-open");
 				root.classList.remove("mce-closing");
 				try {
-					/* v2.2.1：关面板收尾——aria-expanded 回落 + 悬浮球位置快照恢复 */
+					/* v2.2.1：关面板收尾——aria-expanded 回落（抽屉快照恢复已随抽屉一并撤除） */
 					if (toggleBtn && toggleBtn.setAttribute) { toggleBtn.setAttribute("aria-expanded", "false"); }
-					mbCEDrawerRestore();
 				} catch (e) { /* 装饰层失败不影响面板开关 */ }
 			}, 130);
 		}

@@ -160,7 +160,12 @@ const TESTS = [
   /* 2026-11-22 艾弗里线放逐后保留房子（07q-avery-mansion-keep.js）：fate 四值读取、
      dismissed→active 复位、解雇场景标志清理、缺壳补建（不带 mb_ce_shell）、
      vcore→ExtUndo→KindUndo→EconUndo→MB_CE_ECON_UNDO.avery-keep 回退全链、UI 渲染。 */
-  "tests/avery_mansion_keep.js"
+  "tests/avery_mansion_keep.js",
+  /* 2026-11-22 新增（v2.2.0 发布事故后）：版本双源门禁（tools/lib/guard.js）的夹具级单测。
+     13 个场景覆盖「boot.json/01-core.js 缺失、JSON 损坏、MCE_VERSION 缺失、双源不一致、
+     工作区与 HEAD 字节不一致、README 滞后/无标记、git 不可用」，全部断言 fail-closed。
+     只操作 %TEMP% 夹具（一次 init + checkout 复位），不加载产物，不影响覆盖率数字。 */
+  "tests/tools_guard.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

@@ -19,6 +19,7 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const guard = require("./lib/guard");
 
 const REPO = "TXF182/MapleBirchCE";
 const ASSET = "MapleBirchCE.mod.zip";
@@ -29,9 +30,23 @@ const GIT = process.env.GIT_EXE || "C:\\Users\\27352\\Git\\cmd\\git.exe"; // 本
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry");
 const vi = args.indexOf("--version");
-const VERSION = vi >= 0 && args[vi + 1] ? args[vi + 1]
-  : fs.readFileSync(path.join(ROOT, "javascript", "src", "01-core.js"), "utf8")
-      .match(/MCE_VERSION = "([^"]+)"/)[1];
+const EXPLICIT_VERSION = vi >= 0 && args[vi + 1] ? args[vi + 1] : null;
+
+/* 版本双源门禁（fail-closed，2026-11-22 事故后加）：本脚本读的是**工作区**的 01-core.js ——
+   文件缺失会原生 ENOENT（本次就是这层卡住的），被恢复成旧版则会拿旧版本号建 Release，
+   而 zip 与其 SHA 都自洽、抓不出来。发布还额外要求 README 版本标记与双源一致。
+   显式 --version 也必须与双源一致：要补发旧版请先同步双源，不允许绕过门禁。 */
+let GUARD;
+try { GUARD = guard.ensureVersionSources(ROOT, { git: GIT, requireReadme: true }); }
+catch (e) { console.error("FAIL: " + e.message); process.exit(2); }
+
+if (EXPLICIT_VERSION && EXPLICIT_VERSION !== GUARD.info.bootVersion) {
+  console.error("FAIL: --version " + EXPLICIT_VERSION + " 与双源版本 " + GUARD.info.bootVersion
+    + " 不一致（先同步 boot.json / javascript/src/01-core.js / README.md）");
+  process.exit(2);
+}
+
+const VERSION = EXPLICIT_VERSION || GUARD.info.coreVersion;
 const TAG = "v" + VERSION;
 
 const ZIP = path.join(ROOT, ASSET);

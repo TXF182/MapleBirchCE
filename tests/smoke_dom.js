@@ -2587,11 +2587,15 @@ setTimeout(function () {
     failures++;
     console.error("FAIL: 20 v2.0.7 新页面渲染异常: " + (e20 && e20.message ? e20.message : e20));
   }
-  /* §21 v2.0.7 P5：窄屏（≤520px）控件拥挤适配——面板转全屏、行内 label 独占一行、按钮网格单列、确认条说明换行 */
+  /* §21 v2.0.7 P5：窄屏（≤560px，2026-11-22 撤底部抽屉后由 520 对齐到 560）控件拥挤适配——
+     面板转全屏、行内 label 独占一行、按钮网格单列、确认条说明换行；同时守抽屉不得回潮 */
   try {
-    const at21 = mceCss.indexOf("@media (max-width:520px)");
-    assert(at21 !== -1, "21.1 CSS 含 ≤520px 媒体查询（窄屏分支已注入）");
-    const seg21 = at21 === -1 ? "" : mceCss.slice(at21);
+    const at21 = mceCss.indexOf("@media (max-width:560px)");
+    assert(at21 !== -1, "21.1 CSS 含 ≤560px 媒体查询（窄屏分支已注入）");
+    const next21 = at21 === -1 ? -1 : mceCss.indexOf("@media", at21 + 20);
+    const seg21 = at21 === -1 ? "" : mceCss.slice(at21, next21 === -1 ? undefined : next21);
+    assert(!mceCss.includes("62vh") && !mceCss.includes("mce-drawer-in"),
+      "21.1b 底部抽屉几何/动画已撤除（无 62vh、无抽屉 keyframes）");
     assert(seg21.indexOf(".mce-row-lbl,.mce-row-name{flex:1 1 100%;min-width:0}") !== -1,
       "21.2 窄屏下行标签独占一行（min-width:120px 不再把控件挤到换行）");
     assert(seg21.indexOf(".mce-btn-grid{grid-template-columns:1fr}") !== -1,

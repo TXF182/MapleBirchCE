@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.2.0";
+	var MCE_VERSION = "2.2.1";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -7235,9 +7235,9 @@ function renderPlayerEdit() {
 		".mce-anchor-prompt.mce-theme-starry button:hover{background:var(--mce-bg-hover)}" +
 		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark)}" +
 		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}" +
-		/* v2.0.7 P5：窄屏（≤520px，手机竖屏 / 桌面分屏）控件拥挤——面板转全屏、行内 label 独占一行、
-		   按钮网格单列、预览条说明换行，避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位 */
-		"@media (max-width:520px){" +
+		/* v2.0.7 P5：窄屏（≤560px，原 520——2026-11-22 撤底部抽屉后与旧抽屉门槛对齐，避免 521-560 落回 430px 侧栏）
+		   控件拥挤——面板转全屏、行内 label 独占一行、按钮网格单列、预览条说明换行，避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位 */
+		"@media (max-width:560px){" +
 		"#mce-root{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}" +
 		".mce-body{padding:8px}" +
 		".mce-tabs button{padding:8px 5px}html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-tabs button{padding:8px 5px!important}" +
@@ -8123,13 +8123,13 @@ function mceRenderThemePicker(pane) {
 	return row;
 }
 
-/* 职责：面板装饰层与行为精修 —— 主题边饰 / 外观三开关 / 按压语义修正 / 底部抽屉 / 滚动摘模糊 / 无障碍（aria + roving tabindex + Esc）
+/* 职责：面板装饰层与行为精修 —— 主题边饰 / 外观三开关 / 按压语义修正 / 滚动摘模糊 / 无障碍（aria + roving tabindex + Esc）
  * 07a-shell4-orn：P0–P2 灯台学习落地（2026-11-22，参考 MapleLantern 1.5.1 原文）
  *   - 边饰：DoL-Project\MapleLantern\src\ornaments.css（4 套 SVG 帧原样取形，颜色对齐 CE 四主题 accent；
  *     零 DOM 节点、零动画、pointer-events:none；≤600px 收细 8px、≤420px 帧关）
  *   - 按压语义修正：MapleLantern 1.4.22「只缩放不下沉」——覆盖 07a-shell.js 的 translateY(1px) 下沉
- *   - 底部抽屉：MapleLantern ≤560px/高度≤520px 自动抽屉的先例；CE 落地为 ≤560px 且无主 UI mobile 类时
- *     （mce-host-mobile 全屏是 A4 契约，优先）；打开时悬浮球让位（快照/恢复，同 dossier-theme 的协议）
+ *   - 底部抽屉（2026-11-22 撤除）：作弊项多、六成屏高的抽屉要滚很长才能摸到底 → 窄屏回归全屏铺满；
+ *     原 MapleLantern ≤560px / 高度≤520px 自动抽屉的先例不再沿用，悬浮球让位（快照/恢复）协议一并删除
  *   - 滚动摘 backdrop-filter：MapleLantern KNOWLEDGE 1.3.7（160ms 恢复），仅在窄屏媒体查询内生效
  *   - 外观三开关：MapleLantern「逐项开关 + data-* gate + 结构约束常开」——fx/tex/orn 三档只动装饰层，
  *     面板几何/排版（结构约束）不随开关变化
@@ -8171,16 +8171,9 @@ MB_CSS +=
 MB_CSS +=
 	"#mce-root .mce-btn:active{transform:scale(.96)}";
 
-/* ---- 底部抽屉（≤560px 且无主 UI mobile 类）+ 滚动摘 backdrop-filter + 星空手机降载 ---- */
+/* ---- 滚动摘 backdrop-filter + 星空手机降载（窄屏媒体块；2026-11-22 撤底部抽屉，几何见 07a-shell.js 全屏段） ---- */
 MB_CSS +=
-	"@keyframes mce-drawer-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}" +
-	"@keyframes mce-drawer-out{from{opacity:1}to{opacity:0;transform:translateY(24px)}}" +
 	"@media (max-width:560px){" +
-	"#mce-root:not(.mce-host-mobile){top:auto;bottom:0;left:0;right:0;width:100vw;max-width:100vw;" +
-	"height:62vh;max-height:62vh;border-radius:18px 18px 0 0;border:none}" +
-	"#mce-root:not(.mce-host-mobile).mce-open{animation:mce-drawer-in .24s cubic-bezier(.2,.8,.25,1)}" +
-	"#mce-root:not(.mce-host-mobile).mce-closing{animation:mce-drawer-out .14s ease-in forwards}" +
-	"html[data-mce-drawer-open=\"1\"] #mce-toggle{bottom:calc(62vh + 12px)!important}" +
 	"#mce-root[data-mce-scroll=\"1\"]{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}" +
 	"#mce-root.mce-theme-starry{--mce-tex-panel:radial-gradient(90% 65% at 18% 0%,rgba(111,90,255,.18),transparent 58%)," +
 	"radial-gradient(1.5px 1.5px at 20% 12%,rgba(255,255,255,.55) 0,rgba(255,255,255,0) 2px)," +
@@ -8249,56 +8242,6 @@ function mceRenderUiOpts(pane) {
 	});
 	body.appendChild(row);
 	return row;
-}
-
-/* ---- 底部抽屉：打开时悬浮球让位（快照/恢复协议，同 dossier-theme 的 snapshot/restore） ----
- * CSS 用 data-mce-drawer-open 处理「默认 right/bottom 定位」的球（bottom 提升到抽屉上沿）；
- * 拖过位置的球走 left/top 体系（CSS bottom 对它无效），JS 快照原 top/left → 临时抬到上沿 → 关闭恢复。 */
-var mbCEDrawerSnap = null;
-function mbCEIsDrawerMode() {
-	try {
-		if (!root || !root.classList || root.classList.contains("mce-host-mobile")) { return false; }
-		if (typeof window === "undefined" || !window.matchMedia) { return false; }
-		return !!(window.matchMedia("(max-width:560px)").matches);
-	} catch (e) { return false; }
-}
-/* 抽屉上沿（38vh）——抽纯函数压复杂度 */
-function mbCEDrawerEdge() {
-	try {
-		var h = (typeof window !== "undefined" && window.innerHeight) ? window.innerHeight : 720;
-		return (h > 0 ? h : 720) * 0.38;
-	} catch (e) { return 273; }
-}
-/* 悬浮球让位：仅 top 体系（拖动过）且球心越过上沿时快照并抬升 */
-function mbCEDrawerLiftBall(tg, edge) {
-	try {
-		if (!tg || !tg.top || tg.top === "auto") { return; }
-		var cur = parseInt(tg.top, 10);
-		if (!isFinite(cur) || (cur + 56) <= edge) { return; }
-		mbCEDrawerSnap = { top: tg.top, left: tg.left };
-		tg.top = Math.max(0, Math.floor(edge) - 66) + "px";
-	} catch (e) { /* 抬升失败保持原位置 */ }
-}
-function mbCEDrawerLift() {
-	try {
-		if (!mbCEIsDrawerMode()) { return; }
-		var tg = toggleBtn && toggleBtn.style;
-		mbCEDrawerLiftBall(tg, mbCEDrawerEdge());
-		var de = document.documentElement;
-		if (de) { de.setAttribute("data-mce-drawer-open", "1"); }
-	} catch (e) { /* 抽屉让位失败不影响面板开关 */ }
-}
-function mbCEDrawerRestore() {
-	try {
-		var tg = toggleBtn && toggleBtn.style;
-		if (mbCEDrawerSnap && tg) {
-			tg.top = mbCEDrawerSnap.top;
-			tg.left = mbCEDrawerSnap.left;
-		}
-		mbCEDrawerSnap = null;
-		var de = document.documentElement;
-		if (de) { de.removeAttribute("data-mce-drawer-open"); }
-	} catch (e) { /* 恢复失败留到下次 open 重算 */ }
 }
 
 /* ---- 滚动摘 backdrop-filter（160ms 恢复；属性常设，CSS 只在窄屏媒体查询内生效） ---- */
@@ -20082,9 +20025,8 @@ function renderAttitudesGroup(pane) {
 			root.classList.add("mce-open"); /* v1.9.14 效果6：display:none→flex 重放 pop-in 缩放淡入 */
 		}
 		try {
-			/* v2.2.1 无障碍 + 底部抽屉：开面板即同步 aria-expanded 与悬浮球让位（函数体自带抽屉模式判定） */
+			/* v2.2.1 无障碍：开面板即同步 aria-expanded（2026-11-22 撤抽屉，悬浮球让位协议随之删除） */
 			if (toggleBtn && toggleBtn.setAttribute) { toggleBtn.setAttribute("aria-expanded", "true"); }
-			mbCEDrawerLift();
 		} catch (e) { /* 装饰层失败不影响面板开关 */ }
 		mbCEUpdateErrBadge(true); /* 四巡：面板打开时立即刷新错误徽标（关闭期只记数据不写 DOM） */
 		render();
@@ -20100,9 +20042,8 @@ function renderAttitudesGroup(pane) {
 				root.classList.remove("mce-open");
 				root.classList.remove("mce-closing");
 				try {
-					/* v2.2.1：关面板收尾——aria-expanded 回落 + 悬浮球位置快照恢复 */
+					/* v2.2.1：关面板收尾——aria-expanded 回落（抽屉快照恢复已随抽屉一并撤除） */
 					if (toggleBtn && toggleBtn.setAttribute) { toggleBtn.setAttribute("aria-expanded", "false"); }
-					mbCEDrawerRestore();
 				} catch (e) { /* 装饰层失败不影响面板开关 */ }
 			}, 130);
 		}

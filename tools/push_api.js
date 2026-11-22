@@ -27,6 +27,7 @@
 "use strict";
 const { execFileSync } = require("child_process");
 const path = require("path");
+const guard = require("./lib/guard");
 
 const REPO = "TXF182/MapleBirchCE";
 const BRANCH = "main";
@@ -84,6 +85,11 @@ function readIndex() {
 }
 
 (async () => {
+  /* 版本双源门禁（fail-closed，2026-11-22 事故后加）：本脚本读 index，工作区缺文件也不影响推送本身，
+     但紧接着 release.js 读的是**工作区** —— 双源在 push 之后消失就会一路 ENOENT/发错版。
+     故在动手前先断言：存在 + 可解析 + 双源一致 + 工作区与 HEAD 字节一致。dry 同样要过。 */
+  guard.ensureVersionSources(ROOT, { git: GIT, requireReadme: false });
+
   const rows = readIndex();
   const headTree = gitText(["rev-parse", "HEAD^{tree}"]);
   const indexTree = gitText(["write-tree"]); // 只写对象，不改 index

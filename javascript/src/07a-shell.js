@@ -366,9 +366,9 @@
 		".mce-anchor-prompt.mce-theme-starry button:hover{background:var(--mce-bg-hover)}" +
 		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark)}" +
 		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}" +
-		/* v2.0.7 P5：窄屏（≤520px，手机竖屏 / 桌面分屏）控件拥挤——面板转全屏、行内 label 独占一行、
-		   按钮网格单列、预览条说明换行，避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位 */
-		"@media (max-width:520px){" +
+		/* v2.0.7 P5：窄屏（≤560px，原 520——2026-11-22 撤底部抽屉后与旧抽屉门槛对齐，避免 521-560 落回 430px 侧栏）
+		   控件拥挤——面板转全屏、行内 label 独占一行、按钮网格单列、预览条说明换行，避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位 */
+		"@media (max-width:560px){" +
 		"#mce-root{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}" +
 		".mce-body{padding:8px}" +
 		".mce-tabs button{padding:8px 5px}html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-tabs button{padding:8px 5px!important}" +
