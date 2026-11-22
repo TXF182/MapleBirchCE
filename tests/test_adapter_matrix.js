@@ -173,6 +173,14 @@ for (const item of matrix.items) {
     const back = readPath(V, item.varPath);
     assert(!!undo && undo.ok === true, label + " 回退失败：" + (undo && undo.message));
     assert(same(back, init), label + " 回退未还原写入前状态：期望 " + JSON.stringify(init) + "，实际 " + JSON.stringify(back));
+    if (t !== "list") {
+      /* 2026-11-22 v2.2.2：联动目标也必须随主键回退（seed 只建父链 → 期望 undefined）。
+         跨树 clear / copyMax 的还原由 tests/unit_modcheat_write.js §6 逐键覆盖。 */
+      for (const s of syncSet) {
+        const sBack = readPath(V, s.path);
+        assert(sBack === undefined, label + " 回退未还原联动目标：" + s.path + "（实际 " + JSON.stringify(sBack) + "）");
+      }
+    }
     row.asserts += (pass + fail) - before;
   }
 }

@@ -152,5 +152,98 @@ function loadWrite(opts) {
   assert(varPaths >= 420, "varPath 声明总条数 >=420（实际 " + varPaths + "；口径：与 adapter_matrix 的 425 条同为 stages+abilities+values，validate_adapters 的 426 另含 1 条 scenes 无写入探针；2026-11-12 撤下 Dolonline 后由 470 降至 425，下界随基线校准并留 5 条余量）");
 }
 
+/* ---------- 6. 联动写入（applyCheatSync）留痕：undo 必须连带还原联动目标 ---------- */
+/* 2026-11-22 v2.2.2：此前 applyCheatSync 直接改联动键、不记 before，undo 只还原主键——
+   会把 clear 掉的原数据（校园着装的 proposal）或「一键装应用」清掉的应用永久留成 null。 */
+function hostWrite(V) {
+  const s = loadWrite({ V: V });
+  s.mbCEWroteTrim = function () { /* 留痕有界化不参与本组断言 */ };
+  return s;
+}
+
+{
+  const V = {
+    LifeSimulation: { school: { dress: { active: "uniform", proposal: { who: "robin" }, trialUntil: 900, highest: "uniform" } } },
+    mbCE_wrote: {}
+  };
+  const s = hostWrite(V);
+  const sync = {
+    clear: ["LifeSimulation.school.dress.proposal"],
+    set: [{ path: "LifeSimulation.school.dress.trialUntil", value: 0 }],
+    copyMax: { path: "LifeSimulation.school.dress.highest", order: ["uniform", "free", "revealing", "optionalNudity", "nudeDay", "mandatoryNudity"] }
+  };
+  const r = s.cheatWriteValue("deadwood", "dress_active", "set", "LifeSimulation.school.dress.active", "free", "string", undefined, undefined, sync);
+  assert(r.ok === true, "6.1 写入成功（" + r.message + "）");
+  assert(V.LifeSimulation.school.dress.proposal === null, "6.2 clear 生效（proposal 置 null）");
+  assert(V.LifeSimulation.school.dress.highest === "free", "6.3 copyMax 生效（uniform → free）");
+  const rec = V.mbCE_wrote["cheat:deadwood:dress_active"];
+  assert(!!rec && Array.isArray(rec.sync) && rec.sync.length === 3, "6.4 联动快照 3 条（实际 " + (rec && rec.sync && rec.sync.length) + "）");
+  assert(rec.sync[0].path === "LifeSimulation.school.dress.proposal" && rec.sync[0].had === true && rec.sync[0].before && rec.sync[0].before.who === "robin", "6.5 快照保留 proposal 原对象");
+  assert(rec.sync[1].before === 900 && rec.sync[2].before === "uniform", "6.6 快照保留 trialUntil / highest 原值");
+  const u = s.undoCheatModValue("deadwood", "dress_active");
+  assert(u.ok === true, "6.7 回退成功（" + u.message + "）");
+  assert(V.LifeSimulation.school.dress.active === "uniform", "6.8 主键还原（档位回到 uniform）");
+  assert(V.LifeSimulation.school.dress.proposal && V.LifeSimulation.school.dress.proposal.who === "robin", "6.9 proposal 随回退还原（不被 clear 永久吞掉）");
+  assert(V.LifeSimulation.school.dress.trialUntil === 900, "6.10 trialUntil 还原 900");
+  assert(V.LifeSimulation.school.dress.highest === "uniform", "6.11 highest 还原 uniform（copyMax 不残留抬高值）");
+}
+
+{
+  const V = { computerApps: { game_indie: false, game_aaa: true, video_stream: null }, mbCE_wrote: {} };
+  delete V.computerApps.music;
+  const s = hostWrite(V);
+  const sync = {
+    clear: ["computerApps.game_aaa", "computerApps.video_stream", "computerApps.music"],
+    set: [
+      { path: "computerApps.game_aaa", value: true, if: { min: 1 } },
+      { path: "computerApps.video_stream", value: true, if: { min: 1 } },
+      { path: "computerApps.music", value: true, if: { min: 1 } }
+    ]
+  };
+  const r = s.cheatWriteValue("dolmod", "dm_pc_apps", "set", "computerApps.game_indie", 1, "number", 0, 1, sync);
+  assert(r.ok === true, "6.12 一键装应用写入成功");
+  assert(V.computerApps.game_aaa === true && V.computerApps.music === true, "6.13 联动全部置 true");
+  const rec = V.mbCE_wrote["cheat:dolmod:dm_pc_apps"];
+  assert(rec.sync.length === 3, "6.14 同一键 clear+set 只记一条快照（实际 " + rec.sync.length + "）");
+  assert(rec.sync[1].before === null, "6.15 原本为 null 的 video_stream 快照保留 null");
+  const u = s.undoCheatModValue("dolmod", "dm_pc_apps");
+  assert(u.ok === true, "6.16 回退成功");
+  assert(V.computerApps.game_aaa === true && V.computerApps.video_stream === null, "6.17 原已装/原 null 的应用逐键还原");
+  assert(Object.prototype.hasOwnProperty.call(V.computerApps, "music") === false, "6.18 原本不存在的应用回退后仍是删除态（不留 null）");
+}
+
+{
+  /* 条件不满足 → 联动跳过、不进快照；undo 不得把未写的键误改 */
+  const V = { custom: { stage: 0, extra: { flag: false } }, mbCE_wrote: {} };
+  const s = hostWrite(V);
+  const r = s.cheatWriteValue("x", "k", "set", "custom.stage", 0, "number", 0, 99, { set: [{ path: "custom.extra.flag", value: true, if: { min: 1 } }] });
+  assert(r.ok === true, "6.19 主写入成功");
+  const rec = V.mbCE_wrote["cheat:x:k"];
+  assert(!rec.sync || rec.sync.length === 0, "6.20 未执行的联动不进快照");
+  assert(V.custom.extra.flag === false, "6.21 条件不满足的联动确实没写");
+  s.undoCheatModValue("x", "k");
+  assert(V.custom.extra.flag === false, "6.22 回退不误改未写入的联动键");
+}
+
+{
+  /* 旧记录（无 sync 字段）向后兼容 */
+  const V = { old: { mod: { value: 5 } }, mbCE_wrote: { "cheat:old:v": { type: "cheat", modId: "old", path: "old.mod.value", before: 5, after: 9, t: 1 } } };
+  const s = hostWrite(V);
+  const u = s.undoCheatModValue("old", "v");
+  assert(u.ok === true && V.old.mod.value === 5, "6.23 旧留痕（无 sync 字段）回退行为不变");
+}
+
+{
+  /* 联动父链在回退前被删 → 跳过该键并报告，主键仍还原 */
+  const V = { LifeSimulation: { school: { dress: { active: false } } }, MoreTransformations: { harbour: { ship: false } }, mbCE_wrote: {} };
+  const s = hostWrite(V);
+  const r = s.cheatWriteValue("deadwood", "d", "set", "LifeSimulation.school.dress.active", true, "boolean", undefined, undefined, { set: [{ path: "MoreTransformations.harbour.ship", value: true, if: { min: 1 } }] });
+  assert(r.ok === true && V.MoreTransformations.harbour.ship === true, "6.24 跨树联动写入成功");
+  delete V.MoreTransformations;
+  const u = s.undoCheatModValue("deadwood", "d");
+  assert(u.ok === true && V.LifeSimulation.school.dress.active === false, "6.25 主键仍还原");
+  assert(/跳过|结构/.test(u.message), "6.26 消息报告跳过的联动键（实际：" + u.message + "）");
+}
+
 console.log(failures === 0 ? "\nALL PASS（适配器路径豁免判定单测）" : "\nFAILED: " + failures);
 process.exit(failures === 0 ? 0 : 1);

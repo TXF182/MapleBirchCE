@@ -54,16 +54,27 @@
 	}
 	/* 联动写入（v1.9.6 扩展）：条目可声明 sync 字段，主键写入成功后按序执行联动，
 	   保持模组状态机一致（如写 dress.active 时同步清 proposal / 升 highest / 清试行期）。
-	   联动键不留痕（属主写入的伴随修正）；联动失败不影响主写入结果。
+	   v2.2.2 联动留痕：每改一个联动键先把「本次写入前的值」记进 log（同路径去重取首次——
+	     电脑应用「先 clear 置 null 再 set true」只能记原值，不能记成 null），
+	     由 cheatWriteValue 挂到主留痕 sync 字段，undo 逆序还原。
+	     修的是：主键回退原来只还原单键，联动清掉的原数据（校园着装 proposal、一键装应用前的应用）
+	     会被永久留成 null / 抬高值，玩家状态机半截。
+	   联动失败不影响主写入结果。
 	   v1.9.10 自查扩展：s.ifMissing = true 时仅在目标键不存在（undefined）才写入，
 	   防覆盖玩家已有数据（如 Cattery 养猫联动补 catArr，已有猫不重置）。 */
-	function applyCheatSync(V, syncData, newVal) {
+	function applyCheatSync(V, syncData, newVal, log) {
+		log = log || [];
 		try {
-			if (!syncData || typeof syncData !== "object") { return; }
+			if (!syncData || typeof syncData !== "object") { return log; }
+			var snap = function (p, r) {
+				if (r.ok !== true) { return; }
+				for (var i = 0; i < log.length; i++) { if (log[i].path === p) { return; } }
+				log.push({ path: p, had: Object.prototype.hasOwnProperty.call(r.parent, r.leaf), before: r.parent[r.leaf] });
+			};
 			if (Array.isArray(syncData.clear)) {
 				syncData.clear.forEach(function (p) {
 					var r = cheatResolvePath(p);
-					if (r.ok) { r.parent[r.leaf] = null; }
+					if (r.ok) { snap(p, r); r.parent[r.leaf] = null; }
 				});
 			}
 			if (Array.isArray(syncData.set)) {
@@ -73,6 +84,7 @@
 					   不满足则跳过该联动（如写 shrine.stage=0 重置时不补 feeds/init）。无 if 字段=无条件，兼容旧声明。
 					   v1.9.10：s.ifMissing 时目标已存在（r.exists）则跳过，防覆盖玩家数据。 */
 					if (r.ok && !(s.ifMissing && r.exists) && (!s.if || ((typeof s.if.min !== "number" || newVal >= s.if.min) && (typeof s.if.max !== "number" || newVal <= s.if.max)))) {
+						snap(s.path, r);
 						r.parent[r.leaf] = typeof s.value === "function" ? s.value(V) : s.value;
 					}
 				});
@@ -81,13 +93,12 @@
 				var tr = cheatResolvePath(syncData.copyMax.path);
 				if (tr.ok) {
 					var oi = syncData.copyMax.order.indexOf(newVal);
-					if (oi >= 0) {
-						var ci = syncData.copyMax.order.indexOf(tr.parent[tr.leaf]);
-						tr.parent[tr.leaf] = syncData.copyMax.order[Math.max(ci, oi)];
-					}
+					var ci = syncData.copyMax.order.indexOf(tr.parent[tr.leaf]);
+					if (oi >= 0 && ci < oi) { snap(syncData.copyMax.path, tr); tr.parent[tr.leaf] = syncData.copyMax.order[oi]; }
 				}
 			}
 		} catch (e) { /* 联动失败不影响主写入 */ }
+		return log;
 	}
 	/* 通用写入执行器（幂等防崩）：类型校验 + 保留下限 + 留痕（保留首次 before，回退可还原）。
 	   v1.9.10 用户需求：数值上限不钳制——声明 max 仅作 UI 参考范围提示，写入原样落档
@@ -139,9 +150,13 @@
 			}
 			r.parent[r.leaf] = val;
 			if (!V.mbCE_wrote || typeof V.mbCE_wrote !== "object") { V.mbCE_wrote = {}; }
-			V.mbCE_wrote["cheat:" + modId + ":" + itemKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: val, t: Date.now() };
+			var recKey = "cheat:" + modId + ":" + itemKey;
+			V.mbCE_wrote[recKey] = { type: "cheat", modId: modId, op: op, path: path, before: before, after: val, t: Date.now() };
+			/* v2.2.2：联动键快照并入同一条留痕，undo 才能连带还原；二次写入沿用首次 sync（与 before 同语义） */
+			var syncLog = (prev && Array.isArray(prev.sync)) ? prev.sync.slice() : [];
+			applyCheatSync(V, syncData, val, syncLog); /* 联动修正（主写入成功后） */
+			if (syncLog.length) { V.mbCE_wrote[recKey].sync = syncLog; }
 			mbCEWroteTrim(V); /* 九巡：留痕有界化 */
-			applyCheatSync(V, syncData, val); /* 联动修正（主写入成功后） */
 			return { ok: true, message: "已写入 " + path + " = " + JSON.stringify(val), before: before, after: val };
 		} catch (e) {
 			return { ok: false, message: "操作异常：" + mbCEErr(e) };
@@ -186,7 +201,8 @@
 			return { ok: false, message: "操作异常：" + mbCEErr(e) };
 		}
 	}
-	/* 回退：还原 before（首次面板写入前状态）；无痕迹 / 结构已变化 → 拒绝。 */
+	/* 回退：还原 before（首次面板写入前状态）；无痕迹 / 结构已变化 → 拒绝。
+	   v2.2.2：连同 sync 快照逆序还原联动键（后写的先撤），无法解析的跳过并点名；旧留痕无 sync 时行为不变。 */
 	function undoCheatModValue(modId, itemKey) {
 		try {
 			var V = getV();
@@ -197,13 +213,24 @@
 			if (!rec || rec.type !== "cheat") { return { ok: false, message: "该操作非面板写入（或已回退），无可撤销痕迹" }; }
 			var r = cheatResolvePath(rec.path);
 			if (r.ok !== true) { return { ok: false, message: "目标变量结构已变化，拒绝回退（" + rec.path + "）" }; }
+			var skipped = [], i, s, sr;
+			if (Array.isArray(rec.sync)) {
+				for (i = rec.sync.length - 1; i >= 0; i--) {
+					s = rec.sync[i];
+					sr = cheatResolvePath(s.path);
+					if (sr.ok !== true) { skipped.push(s.path); continue; }
+					if (s.had) { sr.parent[sr.leaf] = s.before; } else { try { delete sr.parent[sr.leaf]; } catch (e) { sr.parent[sr.leaf] = undefined; } }
+				}
+			}
 			if (rec.before === undefined) {
 				try { delete r.parent[r.leaf]; } catch (e) { r.parent[r.leaf] = undefined; }
 			} else {
 				r.parent[r.leaf] = rec.before;
 			}
 			try { delete V.mbCE_wrote[key]; } catch (e) { V.mbCE_wrote[key] = undefined; }
-			return { ok: true, message: "已回退（还原为面板写入前状态）" };
+			var msg = "已回退（还原为面板写入前状态）";
+			if (skipped.length) { msg += "；联动键结构已变化已跳过：" + skipped.join("、"); }
+			return { ok: true, message: msg };
 		} catch (e) {
 			return { ok: false, message: "回退异常：" + mbCEErr(e) };
 		}
