@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.1.20";
+	var MCE_VERSION = "2.2.0";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -1385,6 +1385,20 @@
 		{ key: "restock", name: "自动补给", run: function () { return mcRestockSupplies(); } },
 		{ key: "clean", name: "自动庄园打扫", run: function () { return mcCleanMansion(); } }
 	];
+	/* v2.2.1 自动维护项逐项过滤（抽 helper 压 mcAutoState 复杂度）：
+	   只认 true/1（布尔化 true），false/0/其他类型一律丢弃——此前整对象赋值，一个外源脏键污染全组。 */
+	function mcAutoCleanItems(items) {
+		var out = {};
+		try {
+			if (!items || typeof items !== "object") { return out; }
+			var ks = Object.keys(items);
+			for (var i = 0; i < ks.length; i++) {
+				var v = items[ks[i]];
+				if (v === true || v === 1) { out[ks[i]] = true; }
+			}
+		} catch (e) { /* 脏对象 → 空组 */ }
+		return out;
+	}
 	function mcAutoState() {
 		var st = { items: {}, lastDay: -1 };
 		try {
@@ -1393,8 +1407,9 @@
 				if (raw) {
 					var p = JSON.parse(raw);
 					if (p && typeof p === "object") {
-						if (p.items && typeof p.items === "object") { st.items = p.items; }
-						if (typeof p.lastDay === "number") { st.lastDay = p.lastDay; }
+						if (p.items) { st.items = mcAutoCleanItems(p.items); }
+						/* v2.2.1 lastDay 有限数校验：NaN/Infinity/脏串一律回落 -1（此前 typeof number 放过 NaN） */
+						if (typeof p.lastDay === "number" && isFinite(p.lastDay)) { st.lastDay = p.lastDay; }
 					}
 				}
 			}
@@ -7307,11 +7322,36 @@ function renderPlayerEdit() {
 		{ mce: "--mce-border", tok: "mist", def: "rgba(255,255,255,.16)" },
 		{ mce: "--mce-radius", tok: "radius", def: "12px" }
 	];
+	/* v2.2.1 手动主题优先：玩家在主题选择器里点过 → 本会话不再自动跟随主 UI token。
+	   快照/销毁协议对照 MapleLantern dossier-theme.js：写前快照、销毁逐项 removeProperty，
+	   绝不整段覆盖 root.style（会误删拖动定位等本段无关的内联样式）。 */
+	var mbCEManualTheme = false;
+	function mbCEDropHostTokens() {
+		try {
+			var rootEl = document.getElementById("mce-root");
+			if (!rootEl || !rootEl.style) { return 0; }
+			var n = 0;
+			for (var i = 0; i < MCE_HOST_TOKEN_MAP.length; i++) {
+				var m = MCE_HOST_TOKEN_MAP[i];
+				if (rootEl.style.getPropertyValue(m.mce)) {
+					rootEl.style.removeProperty(m.mce);
+					n++;
+				}
+			}
+			return n;
+		} catch (e) { return 0; }
+	}
+	function mbCEMarkManualTheme() {
+		try { mbCEDropHostTokens(); } catch (e) { /* 无内联 token 时静默 */ }
+		mbCEManualTheme = true;
+	}
 
 	/* 返回成功写入的条数（测试/诊断用）；任何异常吞掉并返回 0 —— CE 是常驻面板，一次抛错就白屏。
+	   手动主题优先时返回 -1（与 0 区分：0=无宿主/无 token，-1=玩家已手动接管，本次跳过）。
 	   写入值形如 var(--dgu-accent, #d4a73c)：主 UI 变量存在则跟随，不存在时语法上仍合法并退化到 CE 原值。 */
 	function syncHostTokens() {
 		try {
+			if (mbCEManualTheme) { return -1; }
 			var api = window.DoLGameUI && window.DoLGameUI.ui;
 			if (!api || typeof api.getTheme !== "function") { return 0; }
 			var theme = api.getTheme();
@@ -7437,6 +7477,15 @@ function renderPlayerEdit() {
 		".mce-col{display:flex;flex-direction:column;gap:var(--mce-space-sm)}" +
 		".mce-statrow .mce-kv-sep{color:var(--mce-txt-star);font-size:var(--mce-fs-sm);margin:0 2px}";
 /* 职责：面板外壳续 —— 外层页签分发（switchOuterTab）、页签状态持久化（mbCEUiLoad / mbCEUiSave / mbCEUiCollapsed）、主题切换 */
+	/* 2026-11-22 性能：全量重绘后恢复滚动位。pane.textContent="" 的瞬间内容高度归零，
+	   浏览器会把 .mce-body.scrollTop 钳到 0（在列表底部点「应用」会跳回顶部）。
+	   keepTop 只由调用方在「目标 pane 激活」时提供（非激活 pane 不得动共享滚动容器）。 */
+	function mceRestoreScroll(bodyEl, keepTop) {
+		try {
+			if (!bodyEl || !(keepTop > 0)) { return; }
+			bodyEl.scrollTop = Math.min(keepTop, Math.max(0, bodyEl.scrollHeight || 0));
+		} catch (e) { /* 恢复失败不影响渲染 */ }
+	}
 	function switchOuterTab(name) {
 		var tabs = root.querySelectorAll(".mce-tabs button");
 		var i;
@@ -7459,8 +7508,30 @@ function renderPlayerEdit() {
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
 	/** @type {any} */
-	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0", placeOpen: {} };
+	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0", placeOpen: {}, fx: "1", tex: "1", orn: "1" };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
+	var mbCEUiSavedRaw = null; /* v2.2.1 上次实际写入 localStorage 的串化值（同值跳过） */
+	/* v2.2.1 UI 精修：折叠类标志逐键过滤（mceFilterFlags）——损坏/外源写入的脏键按条丢弃，
+	   不整对象替换（避免一个脏键污染全组）。fx/tex/orn 为外观三开关，白名单 "1"/"0"。 */
+	function mceFilterFlags(obj) {
+		var out = {};
+		try {
+			if (!obj || typeof obj !== "object") { return out; }
+			var ks = Object.keys(obj);
+			for (var i = 0; i < ks.length; i++) {
+				var v = obj[ks[i]];
+				if (v === 1 || v === 0) { out[ks[i]] = v; }
+			}
+		} catch (e) { /* 脏对象 → 空组 */ }
+		return out;
+	}
+	/* v2.2.1 外观三开关单键白名单赋值（load/save 共用；抽 helper 压函数复杂度） */
+	function mceUiOptApply(src, dst, key) {
+		try {
+			var v = src && src[key];
+			if (v === "1" || v === "0") { dst[key] = v; }
+		} catch (e) { /* 脏入参 → 跳过 */ }
+	}
 	/* v2.0.23 四主题：黑金 gold（默认，不挂类）/ 星空蓝 starry / 赛博朋克 cyberpunk / 青瓷 jade。
 	   设计参考 MapleLantern v1.1.8 src/style.css 的 amber / star / cyberpunk / jade 四套 token 原文；
 	   CE 的 gold 保持不变，只新增两套并把 starry 升级到 MapleLantern 的 star 数值。
@@ -7475,7 +7546,7 @@ function renderPlayerEdit() {
 			if (obj && typeof obj === "object") {
 				if (typeof obj.tab === "string") { mbCEUiState.tab = obj.tab; }
 				if (typeof obj.filter === "string") { mbCEUiState.filter = obj.filter; curPlayerFilter = obj.filter; }
-				if (obj.collapsed && typeof obj.collapsed === "object") { mbCEUiState.collapsed = obj.collapsed; }
+				if (obj.collapsed && typeof obj.collapsed === "object") { mbCEUiState.collapsed = mceFilterFlags(obj.collapsed); }
 				/* v1.8.12 二轮优化：记住上次操作角色与角色页内层页签（切存档/重开面板免重新找） */
 				if (typeof obj.curName === "string") { mbCEUiState.curName = obj.curName; }
 				if (obj.innerTab === "romance" || obj.innerTab === "transform") { mbCEUiState.innerTab = obj.innerTab; curInnerTab = obj.innerTab; }
@@ -7491,7 +7562,10 @@ function renderPlayerEdit() {
 				}
 				/* v2.0.16：场景直达子入口折叠状态（组 id → 1 展开 / 0 收起）。此前无此键，
 				   加子入口后若不持久化，切页签或重开面板就会全部收回折叠态。 */
-				if (obj.placeOpen && typeof obj.placeOpen === "object") { mbCEUiState.placeOpen = obj.placeOpen; }
+				if (obj.placeOpen && typeof obj.placeOpen === "object") { mbCEUiState.placeOpen = mceFilterFlags(obj.placeOpen); }
+				/* v2.2.1 外观三开关持久化（fx 动效 / tex 纹理 / orn 边饰），只认 "1"/"0" */
+				var optKeys = ["fx", "tex", "orn"];
+				for (var oi = 0; oi < optKeys.length; oi++) { mceUiOptApply(obj, mbCEUiState, optKeys[oi]); }
 			}
 		} catch (e) { /* 读不到偏好 → 保留默认 UI 状态 */ }
 	}
@@ -7513,9 +7587,18 @@ function renderPlayerEdit() {
 				}
 				/* v2.0.16：场景直达子入口折叠状态（组 id → 1/0），与 collapsed 同款白名单合并 */
 				if (partial.placeOpen && typeof partial.placeOpen === "object") { mbCEUiState.placeOpen = partial.placeOpen; }
+				/* v2.2.1 外观三开关（同载入白名单） */
+				var optKeys = ["fx", "tex", "orn"];
+				for (var oi = 0; oi < optKeys.length; oi++) { mceUiOptApply(partial, mbCEUiState, optKeys[oi]); }
 			}
 			if (typeof localStorage !== "undefined" && localStorage) {
-				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));
+				/* v2.2.1 同值不写：17 个调用点高频触发（折叠/切页签/悬浮球拖动），
+				   串化比对跳过无变化的 setItem，摊平 localStorage 写放大（P2-11）。 */
+				var serialized = JSON.stringify(mbCEUiState);
+				if (serialized !== mbCEUiSavedRaw) {
+					mbCEUiSavedRaw = serialized;
+					localStorage.setItem(mbCEUiStateKey, serialized);
+				}
 			}
 		} catch (e) { /* 持久化失败 → 偏好仅本次会话生效，不打断面板操作 */ }
 	}
@@ -7531,8 +7614,12 @@ function renderPlayerEdit() {
 	   token 覆盖全在 07a-shell3-fx.js（MB_CSS += 追加，段序在 07a-shell.js 之后 → 同特异度后写生效），
 	   所以本文件不碰 CSS，07a-shell.js 的 400 行顶格约束不受影响。 */
 	var MCE_THEME_CLASSES = ["mce-theme-starry", "mce-theme-cyberpunk", "mce-theme-jade"];
-	function setTheme(name, silent) {
+	function setTheme(name, silent, manual) {
 		try {
+			/* v2.2.1 第三参 manual：主题选择器/循环切换传 true → 摘宿主 token 并切到手动主题
+			   （mbCEMarkManualTheme 在 07a-host-compat.js，段序更早 → 函数声明同作用域可用）；
+			   ensureDom 的存档恢复仍走 silent（不夺手动优先权）。 */
+			if (manual === true) { mbCEMarkManualTheme(); }
 			var t = mbCEThemeValid(name) ? name : "gold"; /* 非法/未知一律回落 gold，不写脏值 */
 			mbCETheme = t;
 			var cls = t === "gold" ? "" : "mce-theme-" + t;
@@ -7571,7 +7658,7 @@ function renderPlayerEdit() {
 		var cur = mbCETheme;
 		var idx = MCE_THEMES.indexOf(cur);
 		var next = MCE_THEMES[(idx + 1) % MCE_THEMES.length];
-		return setTheme(next);
+		return setTheme(next, false, true);
 	}
 
 	/* ============ v1.8.12 面板内错误收集器（window error + console.error → 红点 + 堆栈 + 一键复制） ============ */
@@ -8004,7 +8091,17 @@ var MCE_THEME_NAME = { gold: "黑金", starry: "星空蓝", cyberpunk: "赛博�
 var MCE_THEME_TIP = { gold: "黑金 · 默认暖金材质", starry: "星空蓝 ✦ 愿星光指引你", cyberpunk: "赛博朋克 ⚡ 霓虹已通电", jade: "青瓷 · 温润如玉" };
 var MCE_THEME_ICON = { gold: "◇", starry: "★", cyberpunk: "⚡", jade: "◆" };
 /* 渲染四档选择器并插进 pane（renderGlobal 传入 [data-pane="global"]）。
-   点击后整页重绘：高亮换到新档，标题栏的版本号/状态条一起刷新。 */
+   v2.2.1 零重建：点击只换主题 + 刷新高亮，不再 renderGlobal() 整页重绘——
+   重绘会清空玩家正在输入的关键字、刚展开的折叠组与滚动位置（P0-5）。 */
+function mceThemePickerSync() {
+	try {
+		var cur = getTheme();
+		var picks = root ? root.querySelectorAll(".mce-theme-pick") : [];
+		for (var i = 0; i < picks.length; i++) {
+			picks[i].classList.toggle("mce-on", picks[i].getAttribute("data-theme") === cur);
+		}
+	} catch (e) { /* 面板卸载瞬间同步失败无碍 */ }
+}
 function mceRenderThemePicker(pane) {
 	if (!pane) { return null; }
 	var cur = getTheme();
@@ -8017,8 +8114,8 @@ function mceRenderThemePicker(pane) {
 		b.title = MCE_THEME_TIP[name] || name;
 		b.addEventListener("click", function () {
 			if (getTheme() === name) { return; }
-			setTheme(name);
-			renderGlobal();
+			setTheme(name, false, true);
+			mceThemePickerSync();
 		});
 		row.appendChild(b);
 	});
@@ -8026,6 +8123,301 @@ function mceRenderThemePicker(pane) {
 	return row;
 }
 
+/* 职责：面板装饰层与行为精修 —— 主题边饰 / 外观三开关 / 按压语义修正 / 底部抽屉 / 滚动摘模糊 / 无障碍（aria + roving tabindex + Esc）
+ * 07a-shell4-orn：P0–P2 灯台学习落地（2026-11-22，参考 MapleLantern 1.5.1 原文）
+ *   - 边饰：DoL-Project\MapleLantern\src\ornaments.css（4 套 SVG 帧原样取形，颜色对齐 CE 四主题 accent；
+ *     零 DOM 节点、零动画、pointer-events:none；≤600px 收细 8px、≤420px 帧关）
+ *   - 按压语义修正：MapleLantern 1.4.22「只缩放不下沉」——覆盖 07a-shell.js 的 translateY(1px) 下沉
+ *   - 底部抽屉：MapleLantern ≤560px/高度≤520px 自动抽屉的先例；CE 落地为 ≤560px 且无主 UI mobile 类时
+ *     （mce-host-mobile 全屏是 A4 契约，优先）；打开时悬浮球让位（快照/恢复，同 dossier-theme 的协议）
+ *   - 滚动摘 backdrop-filter：MapleLantern KNOWLEDGE 1.3.7（160ms 恢复），仅在窄屏媒体查询内生效
+ *   - 外观三开关：MapleLantern「逐项开关 + data-* gate + 结构约束常开」——fx/tex/orn 三档只动装饰层，
+ *     面板几何/排版（结构约束）不随开关变化
+ *   - 无障碍：面板是常驻非模态侧栏 → role=complementary（不抄灯台 aria-modal——语义不符会误导辅助技术）；
+ *     页签 roving tabindex（←/→/Home/End）+ aria-selected；Esc 关闭；aria-expanded 同步
+ * 为什么独立成段：07a-shell.js 顶到 400 行门禁、07a-host-compat/shell2/shell3 各有职责且余量不足；
+ * 全部追加逻辑经 MB_CSS += / 新函数落地，manifest 段序在 07a-shell3-fx.js 之后（后写覆盖按压旧规则）。 */
+
+/* ---- 主题边饰：4 套 64×64 SVG 帧（data: URL 承载，DoL CSP 只允许 data:）+ 应用层 ----
+ * gold 用 :root 默认值（gold 无主题类，历史兼容）；starry/cyberpunk/jade 由主题类覆盖。
+ * ::before 边框压在面板内容之上（z-index:6，pointer-events:none 不拦点击），root 同步加
+ * padding 补偿（box-sizing:border-box 保持 430px 几何不变）——对照灯台「::before 边框 +
+ * 内容 padding-inline 补偿」的同款结构。 */
+MB_CSS +=
+	":root{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23E3B25F' stroke-width='1.4'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.34;--mce-orn-thick:12px;--mce-orn-pad:12px}" +
+	"#mce-root.mce-theme-starry{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%238FA6FF' stroke-width='1'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%238FA6FF'%3E%3Cpath d='M32 0l2 4 4 2-4 2-2 4-2-4-4-2 4-2z'/%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.34}" +
+	"#mce-root.mce-theme-cyberpunk{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%2300E5FF' stroke-width='1.5'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%23FF3D9A'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3Cg transform='rotate(180 32 32)'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.30}" +
+	"#mce-root.mce-theme-jade{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%237FD6C5' stroke-width='1.2'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.30}" +
+	"#mce-root::before{content:\"\";position:absolute;inset:0;z-index:6;pointer-events:none;" +
+	"border:var(--mce-orn-thick) solid transparent;border-image-source:var(--mce-orn-frame);" +
+	"border-image-slice:24;border-image-repeat:repeat;opacity:var(--mce-orn-a)}" +
+	"html[data-mce-orn=\"1\"] #mce-root{box-sizing:border-box;padding:var(--mce-orn-pad) var(--mce-orn-pad) var(--mce-orn-pad) calc(var(--mce-orn-pad) + 1px)}" +
+	"html[data-mce-orn=\"off\"] #mce-root::before{display:none}" +
+	"html[data-mce-orn=\"off\"] #mce-root{padding:0}" +
+	"@media (max-width:600px){:root{--mce-orn-thick:8px;--mce-orn-pad:8px}}" +
+	"@media (max-width:420px){#mce-root::before{display:none}html[data-mce-orn=\"1\"] #mce-root{padding:0}}";
+
+/* ---- 外观三开关 gate（结构约束常开：只动装饰层，面板几何/排版不吃开关） ---- */
+MB_CSS +=
+	"html[data-mce-fx=\"off\"] #mce-root,html[data-mce-fx=\"off\"] #mce-root *," +
+	"html[data-mce-fx=\"off\"] #mce-toggle,html[data-mce-fx=\"off\"] .mce-anchor-prompt," +
+	"html[data-mce-fx=\"off\"] .mce-anchor-prompt *{animation:none!important;transition:none!important}" +
+	"html[data-mce-fx=\"off\"] #mce-press-ring{display:none!important}" +
+	"html[data-mce-tex=\"off\"] #mce-root,html[data-mce-tex=\"off\"] .mce-body," +
+	"html[data-mce-tex=\"off\"] .mce-group,html[data-mce-tex=\"off\"] .mce-card," +
+	"html[data-mce-tex=\"off\"] .mce-data-card{background-image:none!important}";
+
+/* ---- 按压反馈只缩放不下沉（灯台 1.4.22 语义修正；本段后写，同特异度覆盖 07a 旧规则的 translateY） ---- */
+MB_CSS +=
+	"#mce-root .mce-btn:active{transform:scale(.96)}";
+
+/* ---- 底部抽屉（≤560px 且无主 UI mobile 类）+ 滚动摘 backdrop-filter + 星空手机降载 ---- */
+MB_CSS +=
+	"@keyframes mce-drawer-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}" +
+	"@keyframes mce-drawer-out{from{opacity:1}to{opacity:0;transform:translateY(24px)}}" +
+	"@media (max-width:560px){" +
+	"#mce-root:not(.mce-host-mobile){top:auto;bottom:0;left:0;right:0;width:100vw;max-width:100vw;" +
+	"height:62vh;max-height:62vh;border-radius:18px 18px 0 0;border:none}" +
+	"#mce-root:not(.mce-host-mobile).mce-open{animation:mce-drawer-in .24s cubic-bezier(.2,.8,.25,1)}" +
+	"#mce-root:not(.mce-host-mobile).mce-closing{animation:mce-drawer-out .14s ease-in forwards}" +
+	"html[data-mce-drawer-open=\"1\"] #mce-toggle{bottom:calc(62vh + 12px)!important}" +
+	"#mce-root[data-mce-scroll=\"1\"]{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}" +
+	"#mce-root.mce-theme-starry{--mce-tex-panel:radial-gradient(90% 65% at 18% 0%,rgba(111,90,255,.18),transparent 58%)," +
+	"radial-gradient(1.5px 1.5px at 20% 12%,rgba(255,255,255,.55) 0,rgba(255,255,255,0) 2px)," +
+	"radial-gradient(1.5px 1.5px at 74% 26%,rgba(196,208,255,.45) 0,rgba(196,208,255,0) 2px)}" +
+	"#mce-root.mce-theme-starry .mce-body{background-image:none}" +
+	"}";
+
+/* ---- 外观三开关：状态存取 + data 属性应用 ---- */
+var MCE_UI_OPTS = ["fx", "tex", "orn"];
+function mbCEUiOpt(kind) {
+	try {
+		return (mbCEUiState && (mbCEUiState[kind] === "0" || mbCEUiState[kind] === "1")) ? mbCEUiState[kind] : "1";
+	} catch (e) { return "1"; }
+}
+function mbCEApplyUiOpts() {
+	try {
+		var de = document.documentElement;
+		if (!de) { return; }
+		for (var i = 0; i < MCE_UI_OPTS.length; i++) {
+			var k = MCE_UI_OPTS[i];
+			de.setAttribute("data-mce-" + k, mbCEUiOpt(k) === "1" ? "1" : "off");
+		}
+	} catch (e) { /* 无 DOM 环境（纯逻辑测试）静默 */ }
+}
+function mbCEUiOptToggle(kind) {
+	try {
+		if (MCE_UI_OPTS.indexOf(kind) === -1) { return null; }
+		mbCEUiState[kind] = mbCEUiOpt(kind) === "1" ? "0" : "1";
+		mbCEApplyUiOpts();
+		mbCEUiSave({});
+		return mbCEUiState[kind];
+	} catch (e) { return null; }
+}
+
+/* ---- 开关渲染：全局页主题组下方三颗 chip（点哪颗切哪颗，只翻转自身高亮不重绘整页） ---- */
+var MCE_UI_OPT_LABEL = {
+	fx: ["动效", "涟漪 / 呼吸 / 闪烁 / 开合动画"],
+	tex: ["纹理", "面板 / 正文 / 卡片的纸纹与星点"],
+	orn: ["边饰", "四边主题花边（随主题换纹样）"]
+};
+MB_CSS +=
+	".mce-opt-row{display:flex;gap:6px;flex-wrap:wrap}" +
+	".mce-opt-chip{flex:1 1 0;min-width:64px;padding:5px 8px;cursor:pointer;font-family:inherit;text-align:center;" +
+	"font-size:var(--mce-fs-sm);border-radius:var(--mce-radius-pill);border:1px solid var(--mce-border);" +
+	"background:var(--mce-bg-btn);color:var(--mce-txt-dim);transition:background .18s,color .18s,border-color .18s}" +
+	".mce-opt-chip:hover{border-color:var(--mce-accent);color:var(--mce-txt-strong)}" +
+	".mce-opt-chip.mce-on{border-color:var(--mce-accent);color:var(--mce-accent);background:var(--mce-bg-sel)}";
+function mceRenderUiOpts(pane) {
+	if (!pane) { return null; }
+	var body = mceNewGroup(pane, "面板特效", "三档开关 · 只影响外观，不动布局");
+	var row = el("div", "mce-opt-row");
+	MCE_UI_OPTS.forEach(function (kind) {
+		var on = mbCEUiOpt(kind) === "1";
+		var b = el("button", "mce-opt-chip" + (on ? " mce-on" : ""), MCE_UI_OPT_LABEL[kind][0]);
+		b.type = "button";
+		b.setAttribute("data-opt", kind);
+		b.title = (on ? "开 · " : "关 · ") + MCE_UI_OPT_LABEL[kind][1];
+		b.addEventListener("click", function () {
+			var nv = mbCEUiOptToggle(kind);
+			if (nv !== null) {
+				b.classList.toggle("mce-on", nv === "1");
+				b.title = (nv === "1" ? "开 · " : "关 · ") + MCE_UI_OPT_LABEL[kind][1];
+			}
+		});
+		row.appendChild(b);
+	});
+	body.appendChild(row);
+	return row;
+}
+
+/* ---- 底部抽屉：打开时悬浮球让位（快照/恢复协议，同 dossier-theme 的 snapshot/restore） ----
+ * CSS 用 data-mce-drawer-open 处理「默认 right/bottom 定位」的球（bottom 提升到抽屉上沿）；
+ * 拖过位置的球走 left/top 体系（CSS bottom 对它无效），JS 快照原 top/left → 临时抬到上沿 → 关闭恢复。 */
+var mbCEDrawerSnap = null;
+function mbCEIsDrawerMode() {
+	try {
+		if (!root || !root.classList || root.classList.contains("mce-host-mobile")) { return false; }
+		if (typeof window === "undefined" || !window.matchMedia) { return false; }
+		return !!(window.matchMedia("(max-width:560px)").matches);
+	} catch (e) { return false; }
+}
+/* 抽屉上沿（38vh）——抽纯函数压复杂度 */
+function mbCEDrawerEdge() {
+	try {
+		var h = (typeof window !== "undefined" && window.innerHeight) ? window.innerHeight : 720;
+		return (h > 0 ? h : 720) * 0.38;
+	} catch (e) { return 273; }
+}
+/* 悬浮球让位：仅 top 体系（拖动过）且球心越过上沿时快照并抬升 */
+function mbCEDrawerLiftBall(tg, edge) {
+	try {
+		if (!tg || !tg.top || tg.top === "auto") { return; }
+		var cur = parseInt(tg.top, 10);
+		if (!isFinite(cur) || (cur + 56) <= edge) { return; }
+		mbCEDrawerSnap = { top: tg.top, left: tg.left };
+		tg.top = Math.max(0, Math.floor(edge) - 66) + "px";
+	} catch (e) { /* 抬升失败保持原位置 */ }
+}
+function mbCEDrawerLift() {
+	try {
+		if (!mbCEIsDrawerMode()) { return; }
+		var tg = toggleBtn && toggleBtn.style;
+		mbCEDrawerLiftBall(tg, mbCEDrawerEdge());
+		var de = document.documentElement;
+		if (de) { de.setAttribute("data-mce-drawer-open", "1"); }
+	} catch (e) { /* 抽屉让位失败不影响面板开关 */ }
+}
+function mbCEDrawerRestore() {
+	try {
+		var tg = toggleBtn && toggleBtn.style;
+		if (mbCEDrawerSnap && tg) {
+			tg.top = mbCEDrawerSnap.top;
+			tg.left = mbCEDrawerSnap.left;
+		}
+		mbCEDrawerSnap = null;
+		var de = document.documentElement;
+		if (de) { de.removeAttribute("data-mce-drawer-open"); }
+	} catch (e) { /* 恢复失败留到下次 open 重算 */ }
+}
+
+/* ---- 滚动摘 backdrop-filter（160ms 恢复；属性常设，CSS 只在窄屏媒体查询内生效） ---- */
+var mbCEScrollTimer = 0;
+function mbCEOnBodyScroll() {
+	try {
+		if (!root || !root.setAttribute) { return; }
+		root.setAttribute("data-mce-scroll", "1");
+		if (mbCEScrollTimer) { clearTimeout(mbCEScrollTimer); }
+		mbCEScrollTimer = setTimeout(function () {
+			mbCEScrollTimer = 0;
+			try { if (root) { root.removeAttribute("data-mce-scroll"); } } catch (e2) { /* 面板已卸载 */ }
+		}, 160);
+	} catch (e) { /* 滚动监听自身失败静默 */ }
+}
+
+/* ---- 无障碍：complementary 语义 + 页签 roving tabindex + Esc 关闭 ----
+ * 面板是非模态常驻侧栏（打开时游戏正文仍可交互），用 role=complementary 而非 dialog+aria-modal；
+ * aria-expanded 由 open/close 维护（09-exports.js）。 */
+function mbCETabSyncA11y() {
+	try {
+		if (!root) { return; }
+		var btns = root.querySelectorAll(".mce-tabs button[data-tab]");
+		for (var i = 0; i < btns.length; i++) {
+			var active = btns[i].classList.contains("mce-active");
+			btns[i].setAttribute("aria-selected", active ? "true" : "false");
+			btns[i].setAttribute("tabindex", active ? "0" : "-1");
+		}
+	} catch (e) { /* DOM 半成品状态静默 */ }
+}
+/* 键盘导航判定与目标计算抽纯函数（压 mbCETabsKey 复杂度） */
+function mbCETabKeyValid(ev) {
+	try {
+		if (ev.defaultPrevented || ev.altKey || ev.ctrlKey || ev.metaKey) { return ""; }
+		var k = ev.key;
+		if (k === "ArrowRight" || k === "ArrowLeft" || k === "Home" || k === "End") { return k; }
+		return "";
+	} catch (e) { return ""; }
+}
+function mbCETabNext(cur, total, key) {
+	if (key === "ArrowRight") { return (cur + 1) % total; }
+	if (key === "ArrowLeft") { return (cur - 1 + total) % total; }
+	if (key === "Home") { return 0; }
+	return total - 1;
+}
+function mbCETabsKey(ev) {
+	try {
+		var k = mbCETabKeyValid(ev);
+		if (!k) { return; }
+		if (!root) { return; }
+		var btns = root.querySelectorAll(".mce-tabs button[data-tab]");
+		if (!btns.length) { return; }
+		var idx = 0;
+		for (var i = 0; i < btns.length; i++) {
+			if (btns[i].classList.contains("mce-active")) { idx = i; break; }
+		}
+		ev.preventDefault();
+		var next = mbCETabNext(idx, btns.length, k);
+		switchOuterTab(btns[next].getAttribute("data-tab"));
+		mbCETabSyncA11y();
+		try { btns[next].focus(); } catch (e2) { /* 无 focus 环境静默 */ }
+	} catch (e) { /* 键盘导航失败不影响点击路径 */ }
+}
+/* 一次性初始化（init 链调用，热重载守卫） */
+var mbCEShell4Bound = false;
+var mbCEEscBound = false;
+var mbCEScrollBound = false;
+function mbCEShell4Init() {
+	try {
+		if (mbCEShell4Bound) { return; }
+		mbCEShell4Bound = true;
+		mbCEApplyUiOpts();
+		if (root) {
+			root.setAttribute("role", "complementary");
+			root.setAttribute("aria-label", "Maplebirch CE 剧情条件解锁面板");
+		}
+		var tabsEl = root ? root.querySelector(".mce-tabs") : null;
+		if (tabsEl) {
+			tabsEl.setAttribute("role", "tablist");
+			/* 点击路径也要同步 roving（click 切 tab 不走键盘分支） */
+			tabsEl.addEventListener("click", mbCETabSyncA11y);
+			tabsEl.addEventListener("keydown", mbCETabsKey);
+			var btns = tabsEl.querySelectorAll("button[data-tab]");
+			for (var i = 0; i < btns.length; i++) {
+				btns[i].setAttribute("role", "tab");
+				btns[i].id = "mce-tab-" + btns[i].getAttribute("data-tab");
+			}
+			var panes = root.querySelectorAll(".mce-pane");
+			for (var j = 0; j < panes.length; j++) {
+				panes[j].setAttribute("role", "tabpanel");
+				var nm = panes[j].getAttribute("data-pane");
+				if (nm) { panes[j].setAttribute("aria-labelledby", "mce-tab-" + nm); }
+			}
+			mbCETabSyncA11y();
+		}
+		if (toggleBtn && toggleBtn.setAttribute) {
+			toggleBtn.setAttribute("aria-label", "开关 Maplebirch CE 剧情条件解锁面板");
+			toggleBtn.setAttribute("aria-expanded", openFlag ? "true" : "false");
+		}
+		var bodyEl = root ? root.querySelector(".mce-body") : null;
+		if (bodyEl && !mbCEScrollBound) {
+			mbCEScrollBound = true;
+			bodyEl.addEventListener("scroll", mbCEOnBodyScroll, { passive: true });
+		}
+		var doc = (typeof document !== "undefined" && document) ? document : null;
+		if (doc && !mbCEEscBound) {
+			mbCEEscBound = true;
+			doc.addEventListener("keydown", function (ev) {
+				try {
+					if (!openFlag || !(ev.key === "Escape" || ev.keyCode === 27)) { return; }
+					/* 灯台档案面板（#ml-panel，hidden 属性=关闭态）开着时让出 Esc：它自己会处理，
+					 * 否则一次 Esc 会把 CE 与对方一起关掉（v2.2.0 共存修，2026-11-22） */
+					if (doc && doc.querySelector("#ml-panel:not([hidden])")) { return; }
+					ev.preventDefault(); close();
+				} catch (e2) { /* Esc 处理失败不影响其他按键 */ }
+			});
+		}
+	} catch (e) { /* 无障碍初始化失败不阻断面板 */ }
+}
 /* 职责：角色一览卡片 —— 按类型分子页 / 搜索实时过滤 / 懒建卡片 */
 	/* ---- 角色一览卡片（v1.9.0：按类型拆子页面，按钮展开/收起） ---- */
 	/* v1.9.29 角色页搜索词（mbCEUiLoad 恢复时同步；input 实时过滤后重建卡片） */
@@ -10783,6 +11175,25 @@ mbCELockEnsureTimer();
 var mbCELurkerTimer = null;
 var MB_CE_LURKER_MAX = 9999; /* 数值写入上限（原版无上界，这里只做防呆） */
 var MB_CE_LURKER_FRIDGE_MAX = MB_CE_LURKER_MAX; /* 兼容旧符号：冰箱不再钳 5 */
+/* 2026-11-22 性能：tick 定点刷新三行数值，不重建全局页。
+   旧实现 tick 内调 renderGlobal()，其守卫 `root.querySelector('[data-pane="global"]')` 恒真
+   （pane 常驻、切换只动 display），等于玩家在任意页/面板关闭时都每 0.5s 重建约 400 节点。 */
+function mbCELurkerPaint() {
+	try {
+		var pane = (typeof root !== "undefined" && root && root.querySelector) ? root.querySelector('[data-pane="global"]') : null;
+		if (!pane) { return 0; }
+		var st = mbCELurkerState();
+		if (!st || !st.ok) { return 0; }
+		var vals = { "lurkers_held": st.held, "hookah.lurkers": st.fridge, "lurkers_stored": st.stored };
+		var spans = pane.querySelectorAll("[data-mce-lurk]");
+		for (var i = 0; i < spans.length; i++) {
+			var path = spans[i].getAttribute("data-mce-lurk");
+			var n = vals[path];
+			spans[i].textContent = spans[i].getAttribute("data-mce-lurk-name") + "（当前 " + (n == null ? "—" : n) + "）";
+		}
+		return spans.length;
+	} catch (e) { return 0; }
+}
 function mbCELurkerV() {
 	try { return (typeof getV === "function") ? getV() : null; } catch (e) { return null; }
 }
@@ -10858,7 +11269,7 @@ function mbCELurkerEnsureTimer() {
 		if (on && !mbCELurkerTimer) {
 			mbCELurkerTimer = setInterval(function () {
 				var moved = mbCELurkerAutoTick();
-				if (moved && typeof renderGlobal === "function" && root.querySelector('[data-pane="global"]')) { renderGlobal(); }
+				if (moved) { mbCELurkerPaint(); }
 			}, 500);
 		} else if (!on && mbCELurkerTimer) {
 			clearInterval(mbCELurkerTimer); mbCELurkerTimer = null;
@@ -10899,7 +11310,10 @@ function mbCERenderLurker(pane) {
 	];
 	rows.forEach(function (r) {
 		var row = el("div", MCE_CLS.row);
-		row.appendChild(el("span", MCE_CLS.rowLbl, r.name + "（当前 " + (r.cur == null ? "—" : r.cur) + "）"));
+		var lbl = el("span", MCE_CLS.rowLbl, r.name + "（当前 " + (r.cur == null ? "—" : r.cur) + "）");
+		lbl.setAttribute("data-mce-lurk", r.path); /* 2026-11-22 性能：tick 按此定点刷值（mbCELurkerPaint） */
+		lbl.setAttribute("data-mce-lurk-name", r.name);
+		row.appendChild(lbl);
 		var inp = el("input", MCE_CLS.inp);
 		inp.type = "text"; inp.inputmode = "decimal"; inp.value = (r.cur == null) ? "0" : String(r.cur);
 		inp.title = r.note;
@@ -10909,13 +11323,13 @@ function mbCERenderLurker(pane) {
 			if (!/^-?\d+(?:\.\d+)?$/.test(raw)) { setStatus("请输入数字", MCE_CLS.err); return; }
 			var res = mbCELurkerSet(r.path, Number(raw));
 			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
-			renderGlobal();
+			mbCELurkerPaint(); /* 2026-11-22 性能：只有本行数值变，定点刷新（原 renderGlobal 全量重建约 400 节点） */
 		});
 		var und = el("button", "", "回退"); und.type = "button";
 		und.addEventListener("click", function () {
 			var res = undoCheatModValue("player-self", "p:lurker:" + r.path);
 			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
-			renderGlobal();
+			mbCELurkerPaint();
 		});
 		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
 		sec.appendChild(row);
@@ -16497,8 +16911,10 @@ function renderNpcUndergroundSec(pane) {
      setup.foodstuff[undefined] 直接抛 TypeError。
    - 套：V.condoms 是顶层计数键（侧栏 Total condoms: $condoms），侧栏仅在 condomLevel>=1 时显示，数值本身随时可写。
    - 纹：纹身不是 V.tattoos，而是 V.skin[<部位>].pen === "tattoo"；原版清除 widget bodywriting_clear 的语义就是
-     `<<set $skin[_args[0]] to {}>>`（整部位重置）。原版「加纹身」依赖刺青店设计数据（$tattoo_parlour 的 clone），
-     凭空造不出来，所以本段只做「清除」与「把已有涂写标记为纹身」两种合法动作。 */
+     `<<set $skin[_args[0]] to {}>>`（整部位重置）。原版「加纹身」走 Tattoo Get：`clone(setup.bodywriting[$tattoo_choice])`
+     经 add_bodywriting widget 写进 $skin[<部位>] 并把 pen 置 "tattoo"（DoL 0.5.12.13 单文件 HTML 实证：
+     Tattoo Get @52151101 / Widgets Bodywriting @25956903）。v2.2.0 起本段样式直写 = 同一个 clone+pen 语义，
+     设计表运行时取 setup.bodywriting（宿主缺失即拒绝，不凭空造对象）；清除 / 标记两种旧动作保留。 */
 
 	var MCE_ECON_SUBJECTS = [
 		{ key: "science", zh: "科学" },
@@ -16518,8 +16934,33 @@ function renderNpcUndergroundSec(pane) {
 		pubic: "耻部", crotch: "裆部", buttocks: "臀", anus: "后穴", vagina: "私处", penis: "阴茎",
 		leftarm: "左臂", rightarm: "右臂", left_arm: "左臂", right_arm: "右臂",
 		left_hand: "左手", right_hand: "右手", left_thigh: "左大腿", right_thigh: "右大腿",
-		thigh: "大腿", left_bottom: "左小腿", right_bottom: "右小腿", feet: "脚", foot: "脚"
+		thigh: "大腿", left_bottom: "左臀", right_bottom: "右臀",
+		left_shoulder: "左肩", right_shoulder: "右肩", feet: "脚", foot: "脚"
 	};
+	/* v2.2.0 纹身样式：原版刺青店 9 图案（DoL 0.5.12.13 实证 Tattoo Choice @52148483；设计对象
+	   {index, writing, type, arrow, special, gender, lewd, degree}，写入走 clone 不读 index）。
+	   原版对全部部位通用同一样式表（渲染层 bodywriting.types 不按部位区分），故按刺青店分组呈现、不做部位过滤。 */
+	var MCE_ECON_TATTOO_STYLES = [
+		{ grp: "可爱（Girly）", items: [
+			{ key: "unicorn", zh: "独角兽" }, { key: "heart", zh: "爱心" }, { key: "flower", zh: "花朵" },
+			{ key: "butterfly", zh: "蝴蝶" }, { key: "star", zh: "星星" }
+		] },
+		{ grp: "帅气（Boyish）", items: [
+			{ key: "skull", zh: "骷髅" }, { key: "flame", zh: "火焰" }
+		] },
+		{ grp: "神圣（Holy）", items: [ { key: "cross", zh: "十字架" } ] },
+		{ grp: "异端（Deviant）", items: [ { key: "paw_print", zh: "爪印" } ] }
+	];
+	/* 原版 setup.bodyparts 12 部位（@19937570）；样式区部位下拉 = 12 部位 ∪ 存档已有皮肤键 */
+	var MCE_ECON_TATTOO_PARTS = ["forehead", "left_cheek", "right_cheek", "left_shoulder", "right_shoulder",
+		"breasts", "back", "left_bottom", "right_bottom", "pubic", "left_thigh", "right_thigh"];
+	function mbCEVanillaEconTattooStyleZh(key) {
+		var hit = null;
+		MCE_ECON_TATTOO_STYLES.forEach(function (g) {
+			g.items.forEach(function (it) { if (it.key === key) { hit = it.zh; } });
+		});
+		return hit;
+	}
 
 	function mbCEVanillaEconSubjectZh(key) {
 		var hit = null;
@@ -16828,8 +17269,29 @@ function renderNpcUndergroundSec(pane) {
 		mbCEVanillaTrace("tattoo-all", before, "skin", "一键清除全部纹身", "vcore-econ");
 		return { ok: true, message: "已清除 " + keys.length + " 处纹身", cleared: keys.length };
 	}
-
-	
+	/* v2.2.0 样式直写：等价原版 Tattoo Get 的 add_bodywriting(part, key, "tattoo")——clone(setup.bodywriting[key]) + pen="tattoo"；
+	   设计对象运行时取宿主，结构漂移跟随原版；留痕 id 复用 "tattoo-"+part，回退按 kind "tattoo"（had=false 删除原档不存在的部位）。 */
+	function mbCEVanillaEconTattooDesign(key) {
+		try {
+			var s = getSetup();
+			var d = s && s.bodywriting ? s.bodywriting[key] : null;
+			return (d && typeof d === "object") ? mbCEVanillaEconClone(d) : null;
+		} catch (eT) { return null; }
+	}
+	function mbCEVanillaEconTattooSet(part, key) {
+		var V = getV();
+		var skin = V && V.skin;
+		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
+		if (!mbCEVanillaEconTattooStyleZh(key)) { return { ok: false, message: "不在原版刺青店设计表里的样式（拒绝写入）" }; }
+		var design = mbCEVanillaEconTattooDesign(key);
+		if (!design) { return { ok: false, message: "原版设计数据不在（宿主缺失该设计），拒绝凭空造对象" }; }
+		var obj = skin[part];
+		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj), had: !!(obj && typeof obj === "object") };
+		design.pen = "tattoo";
+		skin[part] = design;
+		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "纹上样式（" + mbCEVanillaEconTattooStyleZh(key) + "）", "vcore-econ");
+		return { ok: true, message: "已在「" + mbCEVanillaEconBodyZh(part) + "」纹上「" + mbCEVanillaEconTattooStyleZh(key) + "」（等价原版刺青店操作，可回退）" };
+	}
 /* 职责：07m 五项直写的回退处理器（vcore-econ 留痕落地；拆分原因为结构门禁 S1 单段 400 行）。
    由 mbCEVanillaExtUndo 在未知 kind 处委派；未知 kind 返回 null。 */
 
@@ -16869,6 +17331,12 @@ function renderNpcUndergroundSec(pane) {
 		},
 		"tattoo": function (V, b, key) {
 			if (!V.skin || typeof V.skin !== "object") { return { ok: false, message: "皮肤数据已不在，无法回退" }; }
+			if (b.had === false) {
+				/* v2.2.0 样式直写：写入前该部位在存档里不存在 → 回退是删除，不是还原成 undefined */
+				try { delete V.skin[b.part]; } catch (eT0) { void eT0; }
+				delete V.mbCE_wrote[key];
+				return { ok: true, message: "已移除「" + mbCEVanillaEconBodyZh(b.part) + "」的纹身（该部位原档不存在）" };
+			}
 			V.skin[b.part] = mbCEVanillaEconClone(b.value);
 			delete V.mbCE_wrote[key];
 			return { ok: true, message: "已还原「" + mbCEVanillaEconBodyZh(b.part) + "」的皮肤数据" };
@@ -16931,6 +17399,27 @@ function renderNpcUndergroundSec(pane) {
 			var op = el("option", "", p[1]);
 			op.value = String(p[0]);
 			sel.appendChild(op);
+		});
+		row.appendChild(sel);
+		parent.appendChild(row);
+		return sel;
+	}
+	/* v2.2.0 分组下拉（optgroup）：纹身样式按原版刺青店四组呈现；groups = [{grp, items:[[value, 中文]]}] */
+	function mbCEVanillaEconUiSelectGrouped(parent, labelText, groups, tip) {
+		var row = el("div", MCE_CLS.row);
+		var lbl = el("span", MCE_CLS.rowLbl, labelText);
+		lbl.title = tip || labelText;
+		row.appendChild(lbl);
+		var sel = el("select", "mce-sel");
+		groups.forEach(function (g) {
+			var og = el("optgroup");
+			og.label = g.grp;
+			g.items.forEach(function (p) {
+				var op = el("option", "", p[1]);
+				op.value = String(p[0]);
+				og.appendChild(op);
+			});
+			sel.appendChild(og);
 		});
 		row.appendChild(sel);
 		parent.appendChild(row);
@@ -17121,14 +17610,25 @@ function renderNpcUndergroundSec(pane) {
 			}
 			var names = st.tattoo.parts.map(function (p) { return p.zh; }).join("、");
 			mbCEVanillaEconUiKv(body, [["纹身处数", st.tattoo.count + " 处"], ["部位", st.tattoo.count ? names : "无"]]);
-			var allParts = Object.keys(V.skin).filter(function (k) {
-				return V.skin[k] && typeof V.skin[k] === "object";
+			/* v2.2.0 部位下拉 = 原版 12 部位 ∪ 存档已有皮肤键（合并去重，全部中文名） */
+			var merged = MCE_ECON_TATTOO_PARTS.slice();
+			Object.keys(V.skin).forEach(function (k) {
+				if (merged.indexOf(k) < 0 && V.skin[k] && typeof V.skin[k] === "object") { merged.push(k); }
 			});
-			var pairs = allParts.map(function (k) { return [k, mbCEVanillaEconBodyZh(k)]; });
-			var sel = mbCEVanillaEconUiSelect(body, "部位", pairs, "只列该存档实际存在的皮肤部位，显示为中文名");
+			var pairs = merged.map(function (k) { return [k, mbCEVanillaEconBodyZh(k)]; });
+			var sel = mbCEVanillaEconUiSelect(body, "部位", pairs, "原版 12 个纹身部位 + 该存档已有的皮肤部位，显示为中文名");
 			/* 默认定位到已有纹身的第一个部位，省得玩家自己找 */
 			if (st.tattoo.parts.length) { sel.value = String(st.tattoo.parts[0].key); }
+			/* v2.2.0 样式下拉：原版刺青店 9 个图案设计按四组呈现（可爱 / 帅气 / 神圣 / 异端） */
+			var styleSel = mbCEVanillaEconUiSelectGrouped(body, "样式",
+				MCE_ECON_TATTOO_STYLES.map(function (g) {
+					return { grp: g.grp, items: g.items.map(function (it) { return [it.key, it.zh]; }) };
+				}),
+				"原版刺青店全部图案设计，按四组分类；原版渲染不按部位区分，所有样式对全部部位通用");
 			var g1 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g1, "纹上该样式", "把所选样式 clone 成原版设计对象写到所选部位（判为纹身）；覆盖该部位已有图案，可回退", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconTattooSet(sel.value, styleSel.value), redraw);
+			});
 			mbCEVanillaEconUiBtn(g1, "清除该部位", "整部位重置（等价原版「擦除涂写」）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClear(sel.value), redraw);
 			});
@@ -17138,10 +17638,10 @@ function renderNpcUndergroundSec(pane) {
 			mbCEVanillaEconUiBtn(g1, "一键清除全部", "所有带纹身的部位一次重置（其他部位不动）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClearAll(), redraw);
 			});
-			body.appendChild(mceFoldHint("原版加纹身要先有刺青设计数据（纹身店 clone 的部位对象），凭空造不出合法设计；"
-				+ "所以这里只给两条真实可行的路：清除，或把已有涂写 / 图案改判为纹身。"));
+			body.appendChild(mceFoldHint("「纹上该样式」走原版刺青店同一通道（clone 设计对象 + 判为纹身），不需要先有刺青数据；"
+				+ "原版对全部部位通用同一样式表（渲染层不按部位区分），这里按刺青店四组原样列出。清除、改判仍是两条真实可行的路。"));
 			var undos = [["tattoo-all", "回退全部纹身"]];
-			allParts.forEach(function (k) { undos.push(["tattoo-" + k, "回退 " + mbCEVanillaEconBodyZh(k)]); });
+			merged.forEach(function (k) { undos.push(["tattoo-" + k, "回退 " + mbCEVanillaEconBodyZh(k)]); });
 			mbCEVanillaEconUiUndoGrid(body, redraw, undos);
 		};
 		redraw();
@@ -17490,8 +17990,8 @@ function renderNpcUndergroundSec(pane) {
 		mbCEVanillaBirdSecMaterials(sec);
 		mbCEVanillaBirdSecUpgrades(sec);
 	}
-/* 职责：全局页 ⑬「礼顿把柄（学校）」——原版 $headblackmailed 清零（贴吧言灵 `$headblackmailed = 0`），
-   以及把三条来源分支一并清 0 的「彻底解除」；vcore-leighton 留痕，可回退。
+/* 职责：全局页 ⑬「礼顿把柄（学校）」——原版 $headblackmailed 清零（贴吧言灵 `$headblackmailed = 0`）、
+   把三条来源分支一并清 0 的「彻底解除」、以及 v2.2.0 的「获取把柄」直写 1；vcore-leighton 留痕，可回退。
    原版取证（DoL 0.5.12.13 单文件 HTML，game\Degrees of Lewdity.html，可复跑 Grep）：
      - 全库 12 处 headblackmailed，原版没有任何一处写 0；置 1 的三条路径：
        L686106、L686131（School First Shoot 两个接受分支）、L695630（科学展拿 £5000，同时 headmoney=1）、L695638（拘留，同时 headnodetention=1）。
@@ -17502,6 +18002,8 @@ function renderNpcUndergroundSec(pane) {
        只在版本升级时跑（L179027 Upgrade Waiting Room；L187986 backComp 且 _version lte 30408）。只清把柄会被下次跨版本升级回填。
      - 三条来源键同时被用于**跳过**礼顿线事件（L694235 / 694316 / 694868 / 694894 / 694902 / 853903 / 856490 / 856542 / 901193），
        清 0 等于把这些事件重新打开，故提供两个力度不同的按钮并写明后果。
+     - 「获取把柄」= 直接写 headblackmailed=1：原版只有三条事件路径置 1（无旁门），直写等价跳过事件进入被勒索状态；
+       来源分支与警局线不写（保持真实，版本升级迁移 L185169 也不会被误触发）。
      - headpolice 是另一条线（L643796 把证据交给警察，L380154 / 645122 / 645138 判定），本组只读不写。
    排版复用 07m-vanilla-econ-view.js 的 Ui* 助手；拆段不拆语义。 */
 
@@ -17555,9 +18057,24 @@ function renderNpcUndergroundSec(pane) {
 			+ "副作用：这三条分支同时被用来跳过礼顿线的拘留、写真、5000 英镑事件，清 0 后这些内容会按「未发生过」重新开放；警局线未动。" };
 	}
 
+	/* v2.2.0 获取把柄：直写 headblackmailed = 1（等价原版被勒索状态；原版置 1 只有三条事件路径，无旁门）。
+	   来源分支与警局线一律不写——来源保持真实，版本升级迁移（L185169）不会被误触发。 */
+	function mbCEVanillaLeightonGet() {
+		var sv = getV();
+		if (!sv) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		var before = { kind: "leighton-get",
+			val: { headblackmailed: sv.headblackmailed },
+			had: { headblackmailed: mbCEVanillaLeightonHas(sv, "headblackmailed") } };
+		sv.headblackmailed = 1;
+		mbCEVanillaTrace("leighton-get", before, "headblackmailed", "礼顿把柄获取（置 1）", "vcore-leighton");
+		return { ok: true, message: "已获取礼顿把柄（置 1）：礼顿会按「手上有你把柄」走勒索线；"
+			+ "来源分支与警局线未动（原版三条事件路径仍按未发生过开放），可回退。" };
+	}
+
 	function mbCEVanillaLeightonUndo(id, b, key) {
 		if (!b || typeof b !== "object") { return null; }
-		if (b.kind !== "leighton-clear" && b.kind !== "leighton-purge") { return null; }
+		var kinds = { "leighton-clear": 1, "leighton-purge": 1, "leighton-get": 1 };
+		if (!kinds[b.kind]) { return null; }
 		var sv = getV();
 		if (!sv) { return { ok: false, message: "存档变量不可用" }; }
 		var val = b.val && typeof b.val === "object" ? b.val : {};
@@ -17585,16 +18102,19 @@ function renderNpcUndergroundSec(pane) {
 			["来源分支", srcTxt]
 		]);
 		var g = mceBtnGrid(body);
-		mbCEVanillaEconUiBtn(g, "解除把柄", "只把礼顿把柄写 0（贴吧言灵口径）；版本升级可能被原版迁移回填", function () {
+		mbCEVanillaEconUiBtn(g, "获取把柄", "把礼顿把柄置 1（等价原版被拍到照片后的勒索状态）；来源分支与警局线不动", function () {
+		mbCEVanillaEconUiRun(mbCEVanillaLeightonGet(), redraw);
+	});
+	mbCEVanillaEconUiBtn(g, "解除把柄", "只把礼顿把柄写 0（贴吧言灵口径）；版本升级可能被原版迁移回填", function () {
 			mbCEVanillaEconUiRun(mbCEVanillaLeightonClear(false), redraw);
 		});
 		mbCEVanillaEconUiBtn(g, "彻底解除", "把柄 + 拘留线 + 5000 英镑线 + 写真线一起清 0：升级不会回填，但这些事件会重新开放", function () {
 			mbCEVanillaEconUiRun(mbCEVanillaLeightonClear(true), redraw);
 		});
-		body.appendChild(mceFoldHint("原版没有「解除勒索」的分支：把柄只能由科学展 £5000、拘留、写真三条路径置 1。"
-			+ "清 0 后，礼顿不再把你当被勒索者（学校名声勒索台词、Leighton Private 兽/旁观分支、每周舞蹈拒绝判定等都会按无把柄走）；"
-			+ "礼顿身上已经获得的 unforgiving 特质属于 NPC 数据，不会因此撤销。"));
-		mbCEVanillaEconUiUndoGrid(body, redraw, [["leighton-clear", "回退解除把柄"], ["leighton-purge", "回退彻底解除"]]);
+		body.appendChild(mceFoldHint("原版把柄只能由科学展 £5000、拘留、写真三条路径置 1，也没有「解除勒索」的分支。"
+			+ "「获取把柄」直接写 1，跳过事件进入被勒索状态（礼顿按勒索者对待，学校名声勒索台词等都会出现）；"
+			+ "清 0 后礼顿不再把你当被勒索者，但礼顿身上已经获得的 unforgiving 特质属于 NPC 数据，不会因此撤销。"));
+		mbCEVanillaEconUiUndoGrid(body, redraw, [["leighton-get", "回退获取把柄"], ["leighton-clear", "回退解除把柄"], ["leighton-purge", "回退彻底解除"]]);
 	}
 
 	function mbCERenderVanillaLeighton(pane) {
@@ -17607,6 +18127,484 @@ function renderNpcUndergroundSec(pane) {
 		var redraw = function () { mbCEVanillaLeightonSecBody(body, redraw); };
 		redraw();
 	}
+/* 职责：原版「食物库存 / 鱼获」直写（全局页 ⑬，vcore 留痕；回退挂 07m 的 MB_CE_ECON_UNDO["food"]）。
+
+   原版事实（DoL 0.5.12.13 单文件 HTML 实证，勿凭印象改口径）：
+   - setup.foodstuff 每键 { index, name, singular, plural, icon, category, kitchen_item_type_icon, prop_folder, ... }；
+     category 实测含 seafood（12 种鱼）/ produce / mushroom / flower / dish 等。
+   - 钓上来的鱼直接进 V.foodstuff[<fishKey>].amount —— 原版判断 `$foodstuff[...]?.amount gte 1`，
+     所以「食物」与「钓鱼获取」是同一个系统，没有第二个鱼获仓库。
+   - 原版没有食材数量上限：全库 foodstuff 相关的 (cap|max|limit) 命中只有 CSS class "cap"，
+     写入只有 `amount +=`（6 处局部变量写法）。因此社区要的「食物材料上限」正确落点是
+     「直接设定数量」，不存在需要解除的 cap —— 本区块不提供无效的「解除上限」开关。
+   - V.foodstuff[key] 不存在时补 { amount: 0 }；带 recipe 的（料理）另补 knows_recipe:false，
+     原版对 dish 读该字段（食材类不读）。
+   - 不写 V.fishing.record：图鉴的 numCaught / largest 会触发原版成就（Wet Rod / Master Baiter），作弊不碰成就。
+   - amount 归一为 0–999999 的整数；越界 / 非数一律拒绝，不静默截断。
+*/
+
+	var MCE_FOOD_CAT_ZH = {
+		seafood: "鱼获 / 海鲜", produce: "农产", mushroom: "蘑菇", flower: "花卉",
+		dish: "料理", ingredient: "食材", sweet: "甜点", drink: "饮品", meat: "肉"
+	};
+	/* 只收录已实证的中文名（12 鱼 + 下面四项），其余回退 setup.foodstuff[key].name（原版英文名），不臆造译名 */
+	var MCE_FOOD_ZH = {
+		haddock: "黑线鳕", salmon: "鲑鱼", trout: "鳟鱼", herring: "鲱鱼", whiting: "牙鳕", mackerel: "鲭鱼",
+		flounder: "比目鱼", bass: "鲈鱼", roach: "欧鳊", perch: "河鲈", chub: "白鲑", grayling: "茴鱼",
+		truffle: "松露", bottle_of_milk: "牛奶", chicken_egg: "鸡蛋", bottle_of_breast_milk: "母乳瓶"
+	};
+	var MCE_FOOD_FISH = ["haddock", "salmon", "trout", "herring", "whiting", "mackerel",
+		"flounder", "bass", "roach", "perch", "chub", "grayling"];
+
+	/* ---------- 数据层 ---------- */
+	function mbCEFoodSetup() {
+		try { return (typeof setup !== "undefined" && setup && setup.foodstuff) ? setup.foodstuff : null; } catch (e) { return null; }
+	}
+	function mbCEFoodKeys() {
+		var s = mbCEFoodSetup();
+		if (!s) { return []; }
+		try { return Object.keys(s); } catch (e) { return []; }
+	}
+	function mbCEFoodDef(key) {
+		var s = mbCEFoodSetup();
+		return (s && Object.prototype.hasOwnProperty.call(s, key)) ? s[key] : null;
+	}
+	function mbCEFoodZh(key) {
+		if (MCE_FOOD_ZH[key]) { return MCE_FOOD_ZH[key]; }
+		var d = mbCEFoodDef(key);
+		return (d && d.name) ? String(d.name) : String(key);
+	}
+	function mbCEFoodCatOf(key) {
+		var d = mbCEFoodDef(key);
+		return (d && d.category) ? String(d.category) : "";
+	}
+	function mbCEFoodIsFish(key) { return MCE_FOOD_FISH.indexOf(key) !== -1 || mbCEFoodCatOf(key) === "seafood"; }
+	function mbCEFoodFishKeys() {
+		var out = [];
+		mbCEFoodKeys().forEach(function (k) { if (mbCEFoodIsFish(k)) { out.push(k); } });
+		return out;
+	}
+	function mbCEFoodHas(key) {
+		var V = getV();
+		return !!(V && V.foodstuff && typeof V.foodstuff === "object"
+			&& V.foodstuff[key] && typeof V.foodstuff[key] === "object");
+	}
+	function mbCEFoodAmount(key) {
+		var V = getV();
+		if (!V || !V.foodstuff || typeof V.foodstuff !== "object") { return 0; }
+		var it = V.foodstuff[key];
+		return (it && typeof it.amount === "number" && isFinite(it.amount)) ? it.amount : 0;
+	}
+	function mbCEFoodNum(raw, min, max) {
+		var s = (raw === undefined || raw === null || raw === "") ? "" : String(raw).trim();
+		if (!s) { return null; }
+		var n = Number(s);
+		if (!isFinite(n) || Math.floor(n) !== n) { return null; }
+		if (n < min || n > max) { return null; }
+		return n;
+	}
+	function mbCEFoodEnsure(V, key) {
+		if (!V.foodstuff || typeof V.foodstuff !== "object") { V.foodstuff = {}; }
+		var it = V.foodstuff[key];
+		if (!it || typeof it !== "object") {
+			it = { amount: 0 };
+			if (mbCEFoodDef(key) && mbCEFoodDef(key).recipe) { it.knows_recipe = false; }
+			V.foodstuff[key] = it;
+		}
+		return it;
+	}
+	/* 首次写入前快照：amounts 记数值、exists 记对象是否存在（回退时区分「删除」与「还原」） */
+	function mbCEFoodSnap(keys) {
+		var before = { kind: "food", amounts: {}, exists: {} };
+		keys.forEach(function (k) { before.exists[k] = mbCEFoodHas(k); before.amounts[k] = mbCEFoodAmount(k); });
+		return before;
+	}
+
+	function mbCEFoodSet(key, raw) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		if (!mbCEFoodDef(key)) { return { ok: false, message: "未知食物：" + String(key) + "（不在 setup.foodstuff 里）" }; }
+		var n = mbCEFoodNum(raw, 0, 999999);
+		if (n === null) { return { ok: false, message: "数量必须是 0–999999 的整数" }; }
+		mbCEVanillaTrace("food-" + key, mbCEFoodSnap([key]), "foodstuff." + key + ".amount",
+			"食物库存直写（" + mbCEFoodZh(key) + "）", "vcore");
+		mbCEFoodEnsure(V, key).amount = n;
+		return { ok: true, message: mbCEFoodZh(key) + " 库存 → " + n, id: "food-" + key };
+	}
+	function mbCEFoodAddList(keys, add, id, text) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+		var list = (keys || []).filter(function (k) { return !!mbCEFoodDef(k); });
+		if (!list.length) { return { ok: false, message: "没有可写入的食物项（setup.foodstuff 不含这些键）" }; }
+		var step = Number(add);
+		if (!isFinite(step) || Math.floor(step) !== step) { return { ok: false, message: "批量增量必须是整数" }; }
+		mbCEVanillaTrace(id, mbCEFoodSnap(list), "foodstuff.*.amount", text, "vcore");
+		list.forEach(function (k) {
+			var it = mbCEFoodEnsure(V, k);
+			var cur = (typeof it.amount === "number" && isFinite(it.amount)) ? it.amount : 0;
+			var next = cur + step;
+			it.amount = next < 0 ? 0 : (next > 999999 ? 999999 : next);
+		});
+		return { ok: true, message: text + "（" + list.length + " 项）", id: id };
+	}
+	function mbCEFoodAddFish(add) {
+		var ks = mbCEFoodFishKeys();
+		return mbCEFoodAddList(ks, add, "food-fish", ks.length + " 种鱼获各 " + (add >= 0 ? "+" : "") + add);
+	}
+	function mbCEFoodAddAll(add) { return mbCEFoodAddList(mbCEFoodKeys(), add, "food-all", "全部食物各 " + (add >= 0 ? "+" : "") + add); }
+
+	/* 回退处理器：统一回退中心 → 08c vcore 分支 → mbCEVanillaExtUndo → mbCEVanillaEconUndo → 这里 */
+	function mbCEFoodUndoKind(V, b, key) {
+		if (!V.foodstuff || typeof V.foodstuff !== "object") { return { ok: false, message: "食物数据已不在，无法回退" }; }
+		var amounts = b.amounts || {}, exists = b.exists || {}, n = 0;
+		Object.keys(amounts).forEach(function (k) {
+			if (exists[k] === false) {
+				try { delete V.foodstuff[k]; } catch (eD) { void eD; }
+			} else {
+				var it = V.foodstuff[k];
+				if (!it || typeof it !== "object") { it = { amount: 0 }; V.foodstuff[k] = it; }
+				it.amount = Number(amounts[k]) || 0;
+			}
+			n += 1;
+		});
+		delete V.mbCE_wrote[key];
+		return { ok: true, message: "已还原 " + n + " 项食物库存" };
+	}
+	/* 注册到 07m 的 kind 表（字面量对象的类型没有 food 键，用索引表断言避免 tsc 债务） */
+	var MCE_FOOD_UNDO_REG = /** @type {Object<string, any>} */ (MB_CE_ECON_UNDO);
+	if (MCE_FOOD_UNDO_REG) { MCE_FOOD_UNDO_REG.food = mbCEFoodUndoKind; }
+
+	/* ---------- 视图层 ---------- */
+	function mbCEFoodStats() {
+		var keys = mbCEFoodKeys(), fish = 0, fishN = 0, other = 0;
+		keys.forEach(function (k) {
+			var a = mbCEFoodAmount(k);
+			if (mbCEFoodIsFish(k)) { fish += a; if (a > 0) { fishN += 1; } } else { other += a; }
+		});
+		return { keys: keys.length, fishAll: mbCEFoodFishKeys().length, fishKeys: fishN, fishTotal: fish, otherTotal: other };
+	}
+	function mbCEFoodRun(res, redraw) {
+		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+		if (res.ok) { redraw(); }
+	}
+	function mbCEFoodSecOverview(sec) {
+		var body = mceNewGroup(sec, "库存总览与批量", "全部数据来自原版 setup.foodstuff；未收录的键不会出现在这里");
+		var redraw = function () {
+			while (body.firstChild) { body.removeChild(body.firstChild); }
+			var st = mbCEFoodStats();
+			var kv = el("div", "mce-statrow");
+			[["鱼获总量", st.fishTotal + " 份"], ["已解锁鱼种", st.fishKeys + " / " + st.fishAll],
+				["食物种类", st.keys + " 种"], ["其余食材总量", st.otherTotal + " 份"]].forEach(function (p, i) {
+				if (i) { kv.appendChild(el("span", "mce-kv-sep", "｜")); }
+				kv.appendChild(el("span", MCE_CLS.rowLbl, p[0]));
+				kv.appendChild(el("span", "mce-value", p[1]));
+			});
+			body.appendChild(kv);
+			var g = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g, "鱼获 +10", "12 种鱼各 +10（等价钓到 10 条，直接进原版食物库存）", function () {
+				mbCEFoodRun(mbCEFoodAddFish(10), redraw);
+			});
+			mbCEVanillaEconUiBtn(g, "鱼获 +100", "12 种鱼各 +100", function () {
+				mbCEFoodRun(mbCEFoodAddFish(100), redraw);
+			});
+			mbCEVanillaEconUiBtn(g, "全部食物 +50", "含鱼、农产、蘑菇、花卉、料理全部 +50", function () {
+				mbCEFoodRun(mbCEFoodAddAll(50), redraw);
+			});
+			body.appendChild(mceFoldHint("原版没有食物数量上限：源码里 foodstuff 相关的 cap / max / limit 命中只有 CSS 类名 \"cap\"，"
+				+ "所有写入都是 amount +=。所以社区问的「食物材料上限」不需要解除开关——直接在这里写数量就能超过任何获取节奏。"
+				+ "钓到的鱼正是写进同一个 $foodstuff，两类需求是同一处落点。"));
+		};
+		redraw();
+	}
+	function mbCEFoodGroups() {
+		var groups = [], map = {};
+		mbCEFoodKeys().forEach(function (k) {
+			var cat = mbCEFoodCatOf(k) || "other";
+			if (!map[cat]) { map[cat] = { grp: MCE_FOOD_CAT_ZH[cat] || ("其他（" + cat + "）"), items: [] }; groups.push(map[cat]); }
+			map[cat].items.push([k, mbCEFoodZh(k)]);
+		});
+		return groups;
+	}
+	function mbCEFoodSecEdit(sec) {
+		var body = mceNewGroup(sec, "单项设定", "按原版分类分组；数量 0–999999 的整数");
+		var redraw = function () {
+			while (body.firstChild) { body.removeChild(body.firstChild); }
+			var sel = mbCEVanillaEconUiSelectGrouped(body, "选择食物", mbCEFoodGroups(), "按 setup.foodstuff 的 category 分组");
+			var inp = mbCEVanillaEconUiNumRow(body, "数量", "0–999999；原版无上限", mbCEFoodAmount(sel.value));
+			sel.addEventListener("change", function () { inp.value = String(mbCEFoodAmount(sel.value)); });
+			var g = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g, "设为该数量", "把选中的食物库存写成上方数值", function () {
+				mbCEFoodRun(mbCEFoodSet(sel.value, inp.value), redraw);
+			});
+			mbCEVanillaEconUiBtn(g, "+99", "在当前库存基础上 +99", function () {
+				mbCEFoodRun(mbCEFoodSet(sel.value, mbCEFoodAmount(sel.value) + 99), redraw);
+			});
+			mbCEVanillaEconUiBtn(g, "归零", "把选中的食物库存清 0（留痕可回退）", function () {
+				mbCEFoodRun(mbCEFoodSet(sel.value, 0), redraw);
+			});
+			body.appendChild(el("div", MCE_CLS.hint, "当前选中：" + mbCEFoodZh(sel.value) + " = " + mbCEFoodAmount(sel.value) + " 份"));
+		};
+		redraw();
+	}
+	function mbCEFoodSecUndo(sec) {
+		var body = mceNewGroup(sec, "回退", "只还原本区块写过的库存，图鉴与成就一律不动");
+		var redraw = function () {
+			while (body.firstChild) { body.removeChild(body.firstChild); }
+			var ids = [];
+			try {
+				var V = getV(), w = (V && V.mbCE_wrote) || {};
+				Object.keys(w).forEach(function (k) { if (k.indexOf("vcore:food-") === 0) { ids.push(k.slice(6)); } });
+			} catch (e) { void e; }
+			if (!ids.length) { body.appendChild(el("div", MCE_CLS.hint, "本区块还没有写入记录。")); return; }
+			var items = ids.slice(0, 8).map(function (id) { return [id, "回退 " + id.replace(/^food-/, "")]; });
+			mbCEVanillaEconUiUndoGrid(body, redraw, items);
+			if (ids.length > 8) { body.appendChild(el("div", MCE_CLS.hint, "另有 " + (ids.length - 8) + " 条较早的留痕，可在「统一回退中心」按条回退。")); }
+		};
+		redraw();
+	}
+	function mbCERenderVanillaFood(pane) {
+		if (!pane) { return; }
+		var sec = mceNewSec(pane, 0, "食物与鱼获（原版库存）",
+			"钓上来的鱼、农场收获、商店食材都在同一处（$foodstuff）；原版没有数量上限，这里直接写数量。");
+		if (!mbCEFoodKeys().length) {
+			sec.appendChild(el("div", MCE_CLS.hint, "未检测到 setup.foodstuff（游戏尚未就绪，或该版本没有食物系统）。"));
+			return;
+		}
+		mbCEFoodSecOverview(sec);
+		mbCEFoodSecEdit(sec);
+		mbCEFoodSecUndo(sec);
+	}
+/* 07q-avery-mansion-keep — 艾弗里线「放逐后保留房子」
+ *
+ * 社区需求（QQ 群）："可不可以放逐线保留房子"。
+ *
+ * 原版事实（DoL 0.5.12.13 单文件 HTML 实证，全部回原文取证）：
+ *   · $avery_fate 是顶层变量，取值只有 saved / fallen / ascended / kicked（写入 7 处 / 判定 149 处 / 总引用 242）。
+ *     fallen 来自 "Save yourself" 逃生，kicked 来自 "Kick Avery off the building"，两者都紧跟 <<dismissAvery "hard">>；
+ *     另有 Destroy Avery's mansion 直接置 fallen。
+ *   · 庄园能否使用只看甲：`V.avery_mansion && avery_fate !== "fallen" && !== "kicked"`（hasMansion 判据）。
+ *     一旦 fallen/kicked，每日例程走 passRentTick → 庄园免租失效、退回孤儿院房租，庄园入口关闭。
+ *   · <<dismissAvery "hard">> 只做四件事：npcset Avery state "dismissed"、unset 8 个约会计数、
+ *     set $averyDismissalSceneWait to 1、loveInterestRemove "Avery"。**它不删 $avery_mansion**：
+ *     全库 `unset $avery_mansion`（整对象）实测 0 处，4 处命中全是 .folder / .fox.message /
+ *     .bedroom_state / .rage.ingredients 子键 → 房子数据本来就在，只是 hasMansion 判定被 fate 关掉。
+ *   · <<unDismissAvery>>（原版自带复位 widget）= unset $averyDismissalScene / $averyDismissalSceneWait
+ *     + npcset Avery state "active"。
+ *   · $averyDismissalSceneWait 是「解雇即刻场景」的防抖位：孤儿院周日 20 点事件条件是
+ *     `$averyDismissalScene and $averyDismissalSceneWait isnot 1`。复位时两键一起清，避免旧场景重播。
+ *   · C.npc.X 实为 V.NPCName[V.NPCNameList.indexOf("X")] 的别名（initCNPC 55579-55595 实证），
+ *     所以改 V 侧 NPCName 数组即等价 npcset（CE 07i 言灵动作已用同一写法）。
+ *
+ * 本段写入四项：
+ *   ① V.avery_fate = "saved"  —— 唯一能让 hasMansion 复活的路径（原版判据写死，挂庇护标记无效）
+ *   ② Avery 的 NPC 状态 dismissed → active（对齐 unDismissAvery）
+ *   ③ 清 $averyDismissalScene / $averyDismissalSceneWait
+ *   ④ 庄园或高塔对象缺失时补壳（**不带 mb_ce_shell**，否则会被 07f 的启动清理当成 CE 壳误撤）
+ *
+ * 明确不做（CE 纪律：不动玩家真实进度）：
+ *   · 不恢复恋爱关系（loveInterestRemove 已把 Avery 移出 loveInterestList，属玩家真实关系进度）
+ *   · 不动庄园建造进度 / 家具 / 派对状态（只恢复 fate 与 NPC 状态，房子里的东西原样）
+ *   · 不动 $avery_tower 进度；saved 线高塔转烧毁态是原版行为，UI 里写清
+ */
+"use strict";
+
+/* fate 中文映射（UI 用） */
+var MCE_AVERY_FATE_ZH = {
+	saved: "救星线（saved）",
+	fallen: "自己逃走（fallen）",
+	kicked: "踢下大楼（kicked）",
+	ascended: "飞升线（ascended）",
+	"": "未进入火灾线"
+};
+var MCE_AVERY_KEEP_KEY = "avery-keep";
+
+/* 取 Avery 的 NPC 对象（V.NPCName 别名，等同 C.npc.Avery） */
+function mbCEAveryNpc() {
+	var V = getV();
+	if (!V) { return null; }
+	var list = V.NPCNameList, arr = V.NPCName;
+	if (!Array.isArray(list) || !Array.isArray(arr)) { return null; }
+	var i = list.indexOf("Avery");
+	if (i < 0) { return null; }
+	var o = arr[i];
+	return (o && typeof o === "object") ? o : null;
+}
+
+/* 庄园壳：照原版 avery_mansion_init 初值；**不写 mb_ce_shell**（这是玩家主动恢复的房子，不是 CE 兜底壳） */
+function mbCEAveryMansionShell(V) {
+	V.avery_mansion = {
+		version: 5,
+		pool: 0, kitchen: 0, lounge: 0, display: 0, bedroom: 0, bathroom: 0,
+		dining: 0, garden: 0, study: 0, garage: 0,
+		jobs: [],
+		schedule: "home",
+		state: "normal",
+		days: 0, days_absent: 0, walk_cycle: 0, display_antiques: 0,
+		food: "hamburger", food_last: "none", date_ready: false,
+		rage: { work: false, apologetic: false, dinner_missed: 0, dinner_done: 0, dinner_wrong: false, assess: 0, timer: 0 },
+		fox: { progress: 0, known: false },
+		date_seen: false,
+		party_state: "waiting",
+		guest: "Bailey",
+		landry: 0, vault_progress: 0,
+		study_unlocked: 0, folder: 0, folder_gone: false,
+		kitchen_made: 0, recipe: [],
+		attend: {}
+	};
+}
+function mbCEAveryTowerShell(V) {
+	V.avery_tower = { progress: 0, effects: [], stage: 0, intro: 0 };
+}
+
+/* 当前状态（只读，拆小函数压复杂度） */
+function mbCEAveryFateOf(V) {
+	var f = V.avery_fate;
+	if (f === undefined || f === null) { return ""; }
+	return String(f);
+}
+function mbCEAveryNpcStateOf(npc) {
+	if (!npc || !npc.state) { return ""; }
+	return String(npc.state);
+}
+function mbCEAveryFlagOf(V, k) {
+	if (V[k] === undefined) { return ""; }
+	return String(V[k]);
+}
+function mbCEAveryCanKeep(fate, npcState, hasMansion) {
+	if (!(fate === "fallen" || fate === "kicked" || npcState === "dismissed")) { return false; }
+	if (fate === "" && !hasMansion) { return false; }
+	return true;
+}
+function mbCEAveryKeepState() {
+	var V = getV();
+	if (!V) { return { ok: false }; }
+	var npc = mbCEAveryNpc();
+	var fate = mbCEAveryFateOf(V);
+	var npcState = mbCEAveryNpcStateOf(npc);
+	var hasMansion = !!(V.avery_mansion && typeof V.avery_mansion === "object");
+	return {
+		ok: true,
+		fate: fate,
+		npcState: npcState,
+		mansion: hasMansion,
+		tower: !!(V.avery_tower && typeof V.avery_tower === "object"),
+		dismissScene: mbCEAveryFlagOf(V, "averyDismissalScene"),
+		dismissWait: mbCEAveryFlagOf(V, "averyDismissalSceneWait"),
+		/* 可恢复：命运是 fallen/kicked，或 NPC 被解雇；且不是「从没进过这条线」的空档 */
+		canKeep: mbCEAveryCanKeep(fate, npcState, hasMansion),
+		/* 已恢复：fate 是 saved 且 NPC 不是 dismissed */
+		done: (fate === "saved" && npcState !== "dismissed")
+	};
+}
+/* 写入前快照 */
+function mbCEAverySnapshot(V, st) {
+	return {
+		kind: MCE_AVERY_KEEP_KEY,
+		fate: st.fate,
+		npcState: st.npcState,
+		dismissScene: (V.averyDismissalScene === undefined ? null : V.averyDismissalScene),
+		dismissWait: (V.averyDismissalSceneWait === undefined ? null : V.averyDismissalSceneWait),
+		mansionBuilt: !st.mansion,
+		towerBuilt: !st.tower
+	};
+}
+
+/* 主写入：恢复 fate + NPC 状态 + 清解雇标志 + 缺壳补建 */
+function mbCEAveryKeep() {
+	var V = getV();
+	if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+	var st = mbCEAveryKeepState();
+	if (!st.ok) { return { ok: false, message: "存档变量不可用" }; }
+	if (st.done) { return { ok: false, message: "当前已是救星线且 Avery 在场，不需要恢复" }; }
+	if (!st.canKeep) { return { ok: false, message: "该存档还没进入艾弗里火灾线（avery_fate 为空且无庄园数据），没有可恢复的房子" }; }
+
+	var before = mbCEAverySnapshot(V, st);
+	mbCEVanillaTrace(MCE_AVERY_KEEP_KEY, before, "avery_fate / Avery.state / averyDismissalScene*", "放逐后保留艾弗里庄园", "vcore");
+
+	V.avery_fate = "saved";
+	var npc = mbCEAveryNpc();
+	if (npc && npc.state === "dismissed") { npc.state = "active"; }
+	delete V.averyDismissalScene;
+	delete V.averyDismissalSceneWait;
+	if (!st.mansion) { mbCEAveryMansionShell(V); }
+	if (!st.tower) { mbCEAveryTowerShell(V); }
+
+	return {
+		ok: true,
+		id: MCE_AVERY_KEEP_KEY,
+		message: "已恢复：avery_fate = saved（庄园可用、免租恢复），Avery 状态 active。"
+			+ "庄园数据与建造进度未改动；恋爱关系不自动恢复（原版解雇时已移除，属你的真实进度）。"
+	};
+}
+
+/* 回退辅助：fate 为空则删键，否则写回 */
+function mbCEAveryRestoreFate(V, val) {
+	if (val === "" || val === undefined || val === null) { delete V.avery_fate; return; }
+	V.avery_fate = val;
+}
+/* 回退辅助：值为 null/undefined 则删键，否则写回（0 与有值都写回） */
+function mbCEAveryRestoreKey(V, k, val) {
+	if (val === null || val === undefined) { delete V[k]; return; }
+	V[k] = val;
+}
+/* 回退处理器：还原 fate / NPC 状态 / 解雇标志；本次补建的壳删除 */
+function mbCEAveryUndoKind(V, b, key) {
+	if (!V || !b) { return null; }
+	if (b.kind !== MCE_AVERY_KEEP_KEY) { return null; }
+	mbCEAveryRestoreFate(V, b.fate);
+	var npc = mbCEAveryNpc();
+	if (npc && b.npcState) { npc.state = b.npcState; }
+	mbCEAveryRestoreKey(V, "averyDismissalScene", b.dismissScene);
+	mbCEAveryRestoreKey(V, "averyDismissalSceneWait", b.dismissWait);
+	if (b.mansionBuilt) { delete V.avery_mansion; }
+	if (b.towerBuilt) { delete V.avery_tower; }
+	delete V.mbCE_wrote[key];
+	return { ok: true, message: "已还原艾弗里状态（fate = " + (b.fate || "空") + "，NPC = " + (b.npcState || "原状") + "）" };
+}
+/* 注册进统一经济回退表（07m 的 MB_CE_ECON_UNDO；同 07p 食物做法，不改 07m/07n 一行） */
+var MCE_AVERY_UNDO_REG = /** @type {Object<string, any>} */ (MB_CE_ECON_UNDO);
+if (MCE_AVERY_UNDO_REG) { MCE_AVERY_UNDO_REG[MCE_AVERY_KEEP_KEY] = mbCEAveryUndoKind; }
+
+/* 对外回退入口：走统一回退链 08c vcore → 07l ExtUndo → 07n KindUndo → 07m EconUndo → 本段处理器 */
+function mbCEAveryUndo(id) {
+	if (typeof mbCEVanillaExtUndo !== "function") { return { ok: false, message: "回退通道不可用" }; }
+	return mbCEVanillaExtUndo(id || MCE_AVERY_KEEP_KEY);
+}
+
+/* 面板区块 */
+function mbCERenderAveryKeep(sec) {
+	var body = mceNewGroup(sec, "艾弗里庄园 · 放逐后保留房子", "改 avery_fate 与 NPC 状态；房子里的数据原样");
+	var redraw = function () {
+		while (body.firstChild) { body.removeChild(body.firstChild); }
+		var st = mbCEAveryKeepState();
+		var kv = el("div", "mce-statrow");
+		[["命运", MCE_AVERY_FATE_ZH[st.fate || ""] || st.fate || "未进入火灾线"],
+			["Avery", st.npcState === "dismissed" ? "已解雇（dismissed）" : (st.npcState || "未初始化")],
+			["庄园数据", st.mansion ? "在（可恢复）" : "缺失（恢复时补壳）"],
+			["高塔", st.tower ? "在" : "缺失（恢复时补壳）"]].forEach(function (p, i) {
+			if (i) { kv.appendChild(el("span", "mce-kv-sep", "｜")); }
+			kv.appendChild(el("span", MCE_CLS.rowLbl, p[0]));
+			kv.appendChild(el("span", "mce-value", p[1]));
+		});
+		body.appendChild(kv);
+		var g = mceBtnGrid(body);
+		mbCEVanillaEconUiBtn(g, "保留房子（恢复庄园）", "avery_fate → saved + Avery 状态回 active + 清解雇场景标志；庄园数据与建造进度不动", function () {
+			var res = mbCEAveryKeep();
+			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+			if (res.ok) { redraw(); }
+		});
+		mbCEVanillaEconUiBtn(g, "回退", "把命运 / NPC 状态 / 解雇标志还原到恢复前", function () {
+			var res = mbCEAveryUndo(MCE_AVERY_KEEP_KEY);
+			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+			if (res.ok) { redraw(); }
+		});
+		body.appendChild(mceFoldHint("原版判定：庄园能否使用只看 avery_fate —— fallen（自己逃走）/ kicked（踢下大楼）都会关闭庄园并恢复孤儿院房租；"
+			+ "而 dismissAvery 并不会删掉庄园数据（全库 unset $avery_mansion 整对象 0 处）。所以「保留房子」只需把 fate 改回 saved 并把 Avery 的 NPC 状态复位，"
+			+ "房子里的家具、派对、藏宝进度一概不动。\n"
+			+ "不做的事：恋爱关系不恢复（解雇时 loveInterestRemove 已移除，那是你的真实进度）；saved 线高塔转烧毁态是原版行为，与本项无关。"));
+	};
+	redraw();
+}
 /* 职责：NPC 特质获取 + 誓言修复 + 时间推进（Now / Advance / Jump） */
 	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
 	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
@@ -17767,41 +18765,39 @@ function renderNpcUndergroundSec(pane) {
 /* 职责：全局页渲染（renderGlobal）—— 批量操作 / 世界数值 / 原版态度 / 庄园维护等分组 */
 	function renderGlobal() {
 		var pane = root.querySelector('[data-pane="global"]');
+		/* 2026-11-22 性能：pane.textContent="" 的瞬间内容高度归零，浏览器会把 .mce-body 的
+		   scrollTop 钳到 0（在列表底部点一次「应用」就跳回顶部）。仅当全局页激活时记位并写回。 */
+		var bodyEl = root ? root.querySelector(".mce-body") : null;
+		var keepTop = (bodyEl && pane.classList.contains("mce-active")) ? bodyEl.scrollTop : 0;
 		pane.textContent = "";
 		if (!frameworkReady()) {
 			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架。"));
 			return;
 		}
-		/* v2.1.0 外观主题四档选择器：全局页第一块（在悬浮球锁定等业务分组之前）——
-		   换肤是玩家最想先做的动作，埋在中间要滚半天。 */
-		mceRenderThemePicker(pane);
-		mcRenderFabSettings(pane);
-		mcRenderBatchSec(pane);
-		mcRenderCollectSec(pane);
-		mcRenderTimeSec(pane);
-		mcRenderVowTraitSec(pane);
-		mcRenderCombatSec(pane);
-		mcRenderAutoMaintSec(pane);
-		mcRenderWorldCorruptSec(pane);
-		/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js）
-		   犯罪连案底一起清 / 古董只收集 + 成就 / 雷米疤面头衔 —— 三项各走独立 vcore 留痕，可在回退中心逐条还原 */
-		mbCERenderVanillaExt(pane);
-		/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js）
-		   房租/欠租、学校出勤、地块催熟、避孕套数量、玩家纹身清除与标记 —— 独立 vcore-econ 留痕，可逐条回退 */
-		mbCERenderVanillaEcon(pane);
-		/* v2.1.15：鹰塔工地（07n-vanilla-bird.js）——清洁度 + 八种材料补足，独立 vcore-bird 留痕可回退 */
-		mbCERenderVanillaBird(pane);
-		/* v2.1.15：礼顿把柄（07o-vanilla-leighton.js）——解除把柄 / 彻底解除，独立 vcore-leighton 留痕可回退 */
-		mbCERenderVanillaLeighton(pane);
-
-		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
-		mbCERenderLock(pane);
-		/* v2.0.0.002 潜伏者（07f-lurker.js）：捕捉上限等价解除 + 水烟馆冰箱（0–5）+ 农场蒸馏笼 */
-		mbCERenderLurker(pane);
-		/* v2.0.0.003 需求②：原版「你对什么感到不安?」直写（$uncomfortable，绕开 attitudesControl 重算门控） */
-		renderAttitudesGroup(pane);
-		/* v2.0.3 P4-1：统一回退中心（08c-undo-center.js）——收敛全部留痕回退入口 */
-		mbCEUndoCenterRender(pane);
+		/* 分组顺序即玩家看到的区块顺序：外观（主题/三开关/悬浮球）→ 批量/收集/时间/誓言/战斗/自动维护/
+		   世界腐化 → 原版扩展（档案·收藏·头衔 / 经济·学业·农田·消耗品·纹身 / 鹰塔工地 / 礼顿把柄）→
+		   数值固定 / 潜伏者 / 原版态度 / 回退中心。
+		   2026-11-22 性能轮：清单数组化（原 13 行调用压成 1 行循环，行数余量转给滚动保持）。 */
+		[
+			mceRenderThemePicker, mceRenderUiOpts, mcRenderFabSettings, mcRenderBatchSec,
+			mcRenderCollectSec, mcRenderTimeSec, mcRenderVowTraitSec, mcRenderCombatSec,
+			mcRenderAutoMaintSec, mcRenderWorldCorruptSec,
+			/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js），各走独立 vcore 留痕可逐条回退 */
+			mbCERenderVanillaExt,
+			/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js），vcore-econ 留痕 */
+			mbCERenderVanillaEcon,
+			/* v2.1.15：鹰塔工地（07n，vcore-bird）/ 礼顿把柄（07o，vcore-leighton） */
+			mbCERenderVanillaBird, mbCERenderVanillaLeighton,
+			/* v2.2.1：食物库存 / 鱼获（07p-vanilla-food.js），vcore 留痕 + MB_CE_ECON_UNDO.food 回退 */
+			mbCERenderVanillaFood,
+			/* v2.2.0：艾弗里线放逐后保留房子（07q-avery-mansion-keep.js），vcore 留痕 + MB_CE_ECON_UNDO.avery-keep 回退 */
+			mbCERenderAveryKeep,
+			/* v1.9.15 数值固定（07f-lock）/ v2.0.0.002 潜伏者（07f-lurker） */
+			mbCERenderLock, mbCERenderLurker,
+			/* v2.0.0.003 原版「你对什么感到不安?」直写 / v2.0.3 P4-1 统一回退中心 */
+			renderAttitudesGroup, mbCEUndoCenterRender
+		].forEach(function (f) { f(pane); });
+		mceRestoreScroll(bodyEl, keepTop);
 	}
 	/* 以下为 renderGlobal 的分组渲染器：v2.1.6 按区块拆出（区块间无共享局部变量，作用域不变） */
 	function mcRenderFabSettings(pane) {
@@ -18919,7 +19915,8 @@ function renderAttitudesGroup(pane) {
 	/* 礼顿把柄留痕 id → 中文（07o-vanilla-leighton.js 的 vcore-leighton 留痕） */
 	var MB_CE_UNDO_LEIGHTON = {
 		"leighton-clear": "礼顿把柄",
-		"leighton-purge": "礼顿把柄与来源分支"
+		"leighton-purge": "礼顿把柄与来源分支",
+		"leighton-get": "礼顿把柄（获取）"
 	};
 	function mbCEUndoLeightonFixName(name, ns, rest, rec) {
 		if (ns !== "vcore" || !rec || rec.type !== "vcore-leighton") { return name; }
@@ -19084,6 +20081,11 @@ function renderAttitudesGroup(pane) {
 			root.classList.remove("mce-closing");
 			root.classList.add("mce-open"); /* v1.9.14 效果6：display:none→flex 重放 pop-in 缩放淡入 */
 		}
+		try {
+			/* v2.2.1 无障碍 + 底部抽屉：开面板即同步 aria-expanded 与悬浮球让位（函数体自带抽屉模式判定） */
+			if (toggleBtn && toggleBtn.setAttribute) { toggleBtn.setAttribute("aria-expanded", "true"); }
+			mbCEDrawerLift();
+		} catch (e) { /* 装饰层失败不影响面板开关 */ }
 		mbCEUpdateErrBadge(true); /* 四巡：面板打开时立即刷新错误徽标（关闭期只记数据不写 DOM） */
 		render();
 	}
@@ -19097,6 +20099,11 @@ function renderAttitudesGroup(pane) {
 				mceCloseTimer = null;
 				root.classList.remove("mce-open");
 				root.classList.remove("mce-closing");
+				try {
+					/* v2.2.1：关面板收尾——aria-expanded 回落 + 悬浮球位置快照恢复 */
+					if (toggleBtn && toggleBtn.setAttribute) { toggleBtn.setAttribute("aria-expanded", "false"); }
+					mbCEDrawerRestore();
+				} catch (e) { /* 装饰层失败不影响面板开关 */ }
 			}, 130);
 		}
 	}
@@ -19406,6 +20413,8 @@ function renderAttitudesGroup(pane) {
 			a.vanillaEconCondomsAdd = mbCEVanillaEconCondomsAdd;
 			a.vanillaEconTattooClear = mbCEVanillaEconTattooClear;
 			a.vanillaEconTattooMark = mbCEVanillaEconTattooMark;
+			/* v2.2.0 纹身样式直写（原版刺青店设计表 clone + pen 通道） */
+			a.vanillaEconTattooSet = mbCEVanillaEconTattooSet;
 			a.vanillaEconTattooClearAll = mbCEVanillaEconTattooClearAll;
 			/* 回退按 id 走统一分发：先查 vcore 留痕再按 kind 还原（测试与诊断直接调这一个入口） */
 			a.vanillaEconUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
@@ -19420,9 +20429,32 @@ function renderAttitudesGroup(pane) {
 			/* v2.1.15 礼顿把柄（07o-vanilla-leighton.js） */
 			a.vanillaLeightonStats = mbCEVanillaLeightonState;
 			a.vanillaLeightonClear = mbCEVanillaLeightonClear;
+			/* v2.2.0 获取把柄（直写 headblackmailed=1，不动来源分支与警局线） */
+			a.vanillaLeightonGet = mbCEVanillaLeightonGet;
 			a.vanillaLeightonUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
 			a.renderVanillaLeighton = mbCERenderVanillaLeighton;
+			/* v2.2.1 食物库存 / 鱼获（07p-vanilla-food.js）：12 鱼批量 + 单项设定，回退走 vcore 链 */
+			a.vanillaFoodKeys = mbCEFoodKeys;
+			a.vanillaFoodFishKeys = mbCEFoodFishKeys;
+			a.vanillaFoodStats = mbCEFoodStats;
+			a.vanillaFoodSet = mbCEFoodSet;
+			a.vanillaFoodAddFish = mbCEFoodAddFish;
+			a.vanillaFoodAddAll = mbCEFoodAddAll;
+			a.vanillaFoodUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
+			a.renderVanillaFood = mbCERenderVanillaFood;
+			/* v2.2.0 艾弗里线放逐后保留房子（07q-avery-mansion-keep.js）：恢复 fate + NPC 状态复位 + 缺壳补建 */
+			a.vanillaAveryState = mbCEAveryKeepState;
+			a.vanillaAveryKeep = mbCEAveryKeep;
+			a.vanillaAveryUndo = function (id) { return mbCEAveryUndo(String(id || MCE_AVERY_KEEP_KEY)); };
+			a.vanillaAveryUndoKind = mbCEAveryUndoKind;
+			a.renderAveryKeep = mbCERenderAveryKeep;
 			if (typeof mbCEUndoItemName === "function") { a.mbCEUndoItemName = mbCEUndoItemName; }
+			/* v2.2.1 面板装饰层：外观三开关 / 宿主 token 快照协议 / 自动维护状态读取（测试与诊断入口） */
+			a.mbCEUiOptToggle = mbCEUiOptToggle;
+			a.mbCEApplyUiOpts = mbCEApplyUiOpts;
+			a.syncHostTokens = syncHostTokens;
+			a.mbCEDropHostTokens = mbCEDropHostTokens;
+			a.mcAutoState = mcAutoState;
 		} catch (e) { void e; }
 	}
 /* 职责：v2.0.9 原版档案 / 收藏 / 头衔（vcore 六键）导出。
@@ -19504,11 +20536,11 @@ function mbCEExportYanlingQuick() {
 		mbCEFrameworkGateOnce(); /* v2.1.2 框架版本闸门：注入即体检，结论挂 window.__mceFrameworkGate（01c-fwgate.js） */
 		if (document.body) {
 			ensureDom();
-			hookRefresh();
+			hookRefresh(); mbCEShell4Init(); /* v2.2.1 装饰层一次性初始化（外观开关/边饰/抽屉/滚动摘blur/aria+roving+Esc，函数体带热重载守卫） */
 		} else {
 			document.addEventListener("DOMContentLoaded", function () {
 				ensureDom();
-				hookRefresh();
+				hookRefresh(); mbCEShell4Init();
 			});
 		}
 	}

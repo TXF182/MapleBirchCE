@@ -94,7 +94,8 @@
 	/* 礼顿把柄留痕 id → 中文（07o-vanilla-leighton.js 的 vcore-leighton 留痕） */
 	var MB_CE_UNDO_LEIGHTON = {
 		"leighton-clear": "礼顿把柄",
-		"leighton-purge": "礼顿把柄与来源分支"
+		"leighton-purge": "礼顿把柄与来源分支",
+		"leighton-get": "礼顿把柄（获取）"
 	};
 	function mbCEUndoLeightonFixName(name, ns, rest, rec) {
 		if (ns !== "vcore" || !rec || rec.type !== "vcore-leighton") { return name; }

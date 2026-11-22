@@ -246,7 +246,17 @@ var MCE_THEME_NAME = { gold: "黑金", starry: "星空蓝", cyberpunk: "赛博�
 var MCE_THEME_TIP = { gold: "黑金 · 默认暖金材质", starry: "星空蓝 ✦ 愿星光指引你", cyberpunk: "赛博朋克 ⚡ 霓虹已通电", jade: "青瓷 · 温润如玉" };
 var MCE_THEME_ICON = { gold: "◇", starry: "★", cyberpunk: "⚡", jade: "◆" };
 /* 渲染四档选择器并插进 pane（renderGlobal 传入 [data-pane="global"]）。
-   点击后整页重绘：高亮换到新档，标题栏的版本号/状态条一起刷新。 */
+   v2.2.1 零重建：点击只换主题 + 刷新高亮，不再 renderGlobal() 整页重绘——
+   重绘会清空玩家正在输入的关键字、刚展开的折叠组与滚动位置（P0-5）。 */
+function mceThemePickerSync() {
+	try {
+		var cur = getTheme();
+		var picks = root ? root.querySelectorAll(".mce-theme-pick") : [];
+		for (var i = 0; i < picks.length; i++) {
+			picks[i].classList.toggle("mce-on", picks[i].getAttribute("data-theme") === cur);
+		}
+	} catch (e) { /* 面板卸载瞬间同步失败无碍 */ }
+}
 function mceRenderThemePicker(pane) {
 	if (!pane) { return null; }
 	var cur = getTheme();
@@ -259,8 +269,8 @@ function mceRenderThemePicker(pane) {
 		b.title = MCE_THEME_TIP[name] || name;
 		b.addEventListener("click", function () {
 			if (getTheme() === name) { return; }
-			setTheme(name);
-			renderGlobal();
+			setTheme(name, false, true);
+			mceThemePickerSync();
 		});
 		row.appendChild(b);
 	});

@@ -53,11 +53,36 @@
 		{ mce: "--mce-border", tok: "mist", def: "rgba(255,255,255,.16)" },
 		{ mce: "--mce-radius", tok: "radius", def: "12px" }
 	];
+	/* v2.2.1 手动主题优先：玩家在主题选择器里点过 → 本会话不再自动跟随主 UI token。
+	   快照/销毁协议对照 MapleLantern dossier-theme.js：写前快照、销毁逐项 removeProperty，
+	   绝不整段覆盖 root.style（会误删拖动定位等本段无关的内联样式）。 */
+	var mbCEManualTheme = false;
+	function mbCEDropHostTokens() {
+		try {
+			var rootEl = document.getElementById("mce-root");
+			if (!rootEl || !rootEl.style) { return 0; }
+			var n = 0;
+			for (var i = 0; i < MCE_HOST_TOKEN_MAP.length; i++) {
+				var m = MCE_HOST_TOKEN_MAP[i];
+				if (rootEl.style.getPropertyValue(m.mce)) {
+					rootEl.style.removeProperty(m.mce);
+					n++;
+				}
+			}
+			return n;
+		} catch (e) { return 0; }
+	}
+	function mbCEMarkManualTheme() {
+		try { mbCEDropHostTokens(); } catch (e) { /* 无内联 token 时静默 */ }
+		mbCEManualTheme = true;
+	}
 
 	/* 返回成功写入的条数（测试/诊断用）；任何异常吞掉并返回 0 —— CE 是常驻面板，一次抛错就白屏。
+	   手动主题优先时返回 -1（与 0 区分：0=无宿主/无 token，-1=玩家已手动接管，本次跳过）。
 	   写入值形如 var(--dgu-accent, #d4a73c)：主 UI 变量存在则跟随，不存在时语法上仍合法并退化到 CE 原值。 */
 	function syncHostTokens() {
 		try {
+			if (mbCEManualTheme) { return -1; }
 			var api = window.DoLGameUI && window.DoLGameUI.ui;
 			if (!api || typeof api.getTheme !== "function") { return 0; }
 			var theme = api.getTheme();

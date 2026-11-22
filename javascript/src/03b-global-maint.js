@@ -246,6 +246,20 @@
 		{ key: "restock", name: "自动补给", run: function () { return mcRestockSupplies(); } },
 		{ key: "clean", name: "自动庄园打扫", run: function () { return mcCleanMansion(); } }
 	];
+	/* v2.2.1 自动维护项逐项过滤（抽 helper 压 mcAutoState 复杂度）：
+	   只认 true/1（布尔化 true），false/0/其他类型一律丢弃——此前整对象赋值，一个外源脏键污染全组。 */
+	function mcAutoCleanItems(items) {
+		var out = {};
+		try {
+			if (!items || typeof items !== "object") { return out; }
+			var ks = Object.keys(items);
+			for (var i = 0; i < ks.length; i++) {
+				var v = items[ks[i]];
+				if (v === true || v === 1) { out[ks[i]] = true; }
+			}
+		} catch (e) { /* 脏对象 → 空组 */ }
+		return out;
+	}
 	function mcAutoState() {
 		var st = { items: {}, lastDay: -1 };
 		try {
@@ -254,8 +268,9 @@
 				if (raw) {
 					var p = JSON.parse(raw);
 					if (p && typeof p === "object") {
-						if (p.items && typeof p.items === "object") { st.items = p.items; }
-						if (typeof p.lastDay === "number") { st.lastDay = p.lastDay; }
+						if (p.items) { st.items = mcAutoCleanItems(p.items); }
+						/* v2.2.1 lastDay 有限数校验：NaN/Infinity/脏串一律回落 -1（此前 typeof number 放过 NaN） */
+						if (typeof p.lastDay === "number" && isFinite(p.lastDay)) { st.lastDay = p.lastDay; }
 					}
 				}
 			}

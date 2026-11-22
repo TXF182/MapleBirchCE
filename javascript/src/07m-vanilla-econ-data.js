@@ -16,8 +16,10 @@
      setup.foodstuff[undefined] 直接抛 TypeError。
    - 套：V.condoms 是顶层计数键（侧栏 Total condoms: $condoms），侧栏仅在 condomLevel>=1 时显示，数值本身随时可写。
    - 纹：纹身不是 V.tattoos，而是 V.skin[<部位>].pen === "tattoo"；原版清除 widget bodywriting_clear 的语义就是
-     `<<set $skin[_args[0]] to {}>>`（整部位重置）。原版「加纹身」依赖刺青店设计数据（$tattoo_parlour 的 clone），
-     凭空造不出来，所以本段只做「清除」与「把已有涂写标记为纹身」两种合法动作。 */
+     `<<set $skin[_args[0]] to {}>>`（整部位重置）。原版「加纹身」走 Tattoo Get：`clone(setup.bodywriting[$tattoo_choice])`
+     经 add_bodywriting widget 写进 $skin[<部位>] 并把 pen 置 "tattoo"（DoL 0.5.12.13 单文件 HTML 实证：
+     Tattoo Get @52151101 / Widgets Bodywriting @25956903）。v2.2.0 起本段样式直写 = 同一个 clone+pen 语义，
+     设计表运行时取 setup.bodywriting（宿主缺失即拒绝，不凭空造对象）；清除 / 标记两种旧动作保留。 */
 
 	var MCE_ECON_SUBJECTS = [
 		{ key: "science", zh: "科学" },
@@ -37,8 +39,33 @@
 		pubic: "耻部", crotch: "裆部", buttocks: "臀", anus: "后穴", vagina: "私处", penis: "阴茎",
 		leftarm: "左臂", rightarm: "右臂", left_arm: "左臂", right_arm: "右臂",
 		left_hand: "左手", right_hand: "右手", left_thigh: "左大腿", right_thigh: "右大腿",
-		thigh: "大腿", left_bottom: "左小腿", right_bottom: "右小腿", feet: "脚", foot: "脚"
+		thigh: "大腿", left_bottom: "左臀", right_bottom: "右臀",
+		left_shoulder: "左肩", right_shoulder: "右肩", feet: "脚", foot: "脚"
 	};
+	/* v2.2.0 纹身样式：原版刺青店 9 图案（DoL 0.5.12.13 实证 Tattoo Choice @52148483；设计对象
+	   {index, writing, type, arrow, special, gender, lewd, degree}，写入走 clone 不读 index）。
+	   原版对全部部位通用同一样式表（渲染层 bodywriting.types 不按部位区分），故按刺青店分组呈现、不做部位过滤。 */
+	var MCE_ECON_TATTOO_STYLES = [
+		{ grp: "可爱（Girly）", items: [
+			{ key: "unicorn", zh: "独角兽" }, { key: "heart", zh: "爱心" }, { key: "flower", zh: "花朵" },
+			{ key: "butterfly", zh: "蝴蝶" }, { key: "star", zh: "星星" }
+		] },
+		{ grp: "帅气（Boyish）", items: [
+			{ key: "skull", zh: "骷髅" }, { key: "flame", zh: "火焰" }
+		] },
+		{ grp: "神圣（Holy）", items: [ { key: "cross", zh: "十字架" } ] },
+		{ grp: "异端（Deviant）", items: [ { key: "paw_print", zh: "爪印" } ] }
+	];
+	/* 原版 setup.bodyparts 12 部位（@19937570）；样式区部位下拉 = 12 部位 ∪ 存档已有皮肤键 */
+	var MCE_ECON_TATTOO_PARTS = ["forehead", "left_cheek", "right_cheek", "left_shoulder", "right_shoulder",
+		"breasts", "back", "left_bottom", "right_bottom", "pubic", "left_thigh", "right_thigh"];
+	function mbCEVanillaEconTattooStyleZh(key) {
+		var hit = null;
+		MCE_ECON_TATTOO_STYLES.forEach(function (g) {
+			g.items.forEach(function (it) { if (it.key === key) { hit = it.zh; } });
+		});
+		return hit;
+	}
 
 	function mbCEVanillaEconSubjectZh(key) {
 		var hit = null;
@@ -347,5 +374,26 @@
 		mbCEVanillaTrace("tattoo-all", before, "skin", "一键清除全部纹身", "vcore-econ");
 		return { ok: true, message: "已清除 " + keys.length + " 处纹身", cleared: keys.length };
 	}
-
-	
+	/* v2.2.0 样式直写：等价原版 Tattoo Get 的 add_bodywriting(part, key, "tattoo")——clone(setup.bodywriting[key]) + pen="tattoo"；
+	   设计对象运行时取宿主，结构漂移跟随原版；留痕 id 复用 "tattoo-"+part，回退按 kind "tattoo"（had=false 删除原档不存在的部位）。 */
+	function mbCEVanillaEconTattooDesign(key) {
+		try {
+			var s = getSetup();
+			var d = s && s.bodywriting ? s.bodywriting[key] : null;
+			return (d && typeof d === "object") ? mbCEVanillaEconClone(d) : null;
+		} catch (eT) { return null; }
+	}
+	function mbCEVanillaEconTattooSet(part, key) {
+		var V = getV();
+		var skin = V && V.skin;
+		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
+		if (!mbCEVanillaEconTattooStyleZh(key)) { return { ok: false, message: "不在原版刺青店设计表里的样式（拒绝写入）" }; }
+		var design = mbCEVanillaEconTattooDesign(key);
+		if (!design) { return { ok: false, message: "原版设计数据不在（宿主缺失该设计），拒绝凭空造对象" }; }
+		var obj = skin[part];
+		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj), had: !!(obj && typeof obj === "object") };
+		design.pen = "tattoo";
+		skin[part] = design;
+		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "纹上样式（" + mbCEVanillaEconTattooStyleZh(key) + "）", "vcore-econ");
+		return { ok: true, message: "已在「" + mbCEVanillaEconBodyZh(part) + "」纹上「" + mbCEVanillaEconTattooStyleZh(key) + "」（等价原版刺青店操作，可回退）" };
+	}

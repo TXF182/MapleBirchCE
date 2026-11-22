@@ -33,7 +33,20 @@ global.V = V;
 global.State = { variables: V, passage: "Room" };
 const setupObj = {
   foodstuff: { wheat: { tending: { growth_days: 10 } }, carrot: { tending: { growth_days: 6 } } },
-  bodyparts: ["chest", "face", "feet", "leftarm", "rightarm", "neck", "thigh", "tummy"]
+  bodyparts: ["chest", "face", "feet", "leftarm", "rightarm", "neck", "thigh", "tummy"],
+  /* 原版 setup.bodywriting 结构镜像（DoL 0.5.12.13 单文件 HTML 实证：{index,writing,type,arrow,special,gender,lewd,degree}）；
+     index 值为镜像占位，CE 写入只 clone 整个对象不读 index，故不作断言对象 */
+  bodywriting: {
+    unicorn: { index: 70, writing: "unicorn", type: "object", arrow: 0, special: "none", gender: "f", lewd: 0, degree: 0 },
+    heart: { index: 71, writing: "heart", type: "object", arrow: 0, special: "none", gender: "f", lewd: 0, degree: 0 },
+    flower: { index: 72, writing: "flower", type: "object", arrow: 0, special: "none", gender: "f", lewd: 0, degree: 0 },
+    butterfly: { index: 73, writing: "butterfly", type: "object", arrow: 0, special: "none", gender: "f", lewd: 0, degree: 0 },
+    star: { index: 74, writing: "star", type: "object", arrow: 0, special: "none", gender: "f", lewd: 0, degree: 0 },
+    skull: { index: 75, writing: "skull", type: "object", arrow: 0, special: "none", gender: "m", lewd: 0, degree: 0 },
+    flame: { index: 76, writing: "flame", type: "object", arrow: 0, special: "none", gender: "m", lewd: 0, degree: 0 },
+    cross: { index: 77, writing: "cross", type: "object", arrow: 0, special: "none", gender: "n", lewd: 0, degree: 0 },
+    paw_print: { index: 78, writing: "paw print", type: "object", arrow: 0, special: "bestiality", gender: "n", lewd: 0, degree: 0 }
+  }
 };
 global.setup = setupObj;
 global.getSetup = function () { return setupObj; };
@@ -47,6 +60,7 @@ const jsPath = path.join(__dirname, "..", "javascript", "maplebirchce.js");
 eval(fs.readFileSync(jsPath, "utf8") + "\n//# sourceURL=" + jsPath.replace(/\\/g, "/"));
 const api = setup.mbStageCE;
 assert(typeof api.vanillaEconStats === "function" && typeof api.vanillaEconRipen === "function", "经济/农田直写 API 已导出");
+assert(typeof api.vanillaEconTattooSet === "function", "纹身样式直写 API 已导出");
 
 /* ================= 1. 房租与欠租 ================= */
 section("1 房租与欠租");
@@ -169,6 +183,34 @@ assert(V.skin.face.show === 1, "无纹身部位不动");
 u = api.vanillaEconUndo("tattoo-all");
 assert(u.ok === true && V.skin["tummy"].pen === "tattoo" && V.skin["left_cheek"].pen === "tattoo" && V.skin.face.show === 1, "回退整块还原皮肤对象");
 
+/* ================= 5b. 纹身样式直写（v2.2.0：等价原版 Tattoo Get 的 clone+pen 通道） ================= */
+section("5b 纹身样式直写");
+V.skin = { "forehead": {}, "left_cheek": { type: "text", pen: "tattoo", writing: "★" } };
+V.mbCE_wrote = {};
+r = api.vanillaEconTattooSet("forehead", "heart");
+assert(r.ok === true && V.skin.forehead.pen === "tattoo" && V.skin.forehead.type === "object" && V.skin.forehead.writing === "heart", "样式写入 = clone 原版设计对象 + pen 置纹身");
+assert(V.mbCE_wrote["vcore:tattoo-forehead"].before.kind === "tattoo" && V.mbCE_wrote["vcore:tattoo-forehead"].before.had === true, "留痕 kind 纹身且记录部位原已存在");
+assert(JSON.stringify(V.mbCE_wrote["vcore:tattoo-forehead"].before.value) === "{}", "留痕 before 是写入前的空部位对象");
+u = api.vanillaEconUndo("tattoo-forehead");
+assert(u.ok === true && JSON.stringify(V.skin.forehead) === "{}", "回退还原为空部位");
+r = api.vanillaEconTattooSet("left_cheek", "star");
+assert(r.ok === true && V.skin.left_cheek.writing === "star" && V.skin.left_cheek.pen === "tattoo", "覆盖已有纹身部位（原版 add_bodywriting 同语义）");
+u = api.vanillaEconUndo("tattoo-left_cheek");
+assert(u.ok === true && V.skin.left_cheek.writing === "★", "回退还原原纹身");
+r = api.vanillaEconTattooSet("breasts", "paw_print");
+assert(r.ok === true && V.skin.breasts.special === "bestiality", "原档没有的部位 → 创建（paw_print 带 special 字段随设计对象写入）");
+u = api.vanillaEconUndo("tattoo-breasts");
+assert(u.ok === true && !("breasts" in V.skin), "回退删除原本不存在的部位");
+r = api.vanillaEconTattooSet("forehead", "nope_key");
+assert(r.ok === false, "不在原版设计表里的样式 key → 拒绝");
+const bw5 = setupObj.bodywriting; delete setupObj.bodywriting;
+r = api.vanillaEconTattooSet("forehead", "heart");
+setupObj.bodywriting = bw5;
+assert(r.ok === false, "宿主 setup 缺 bodywriting 数据 → 拒绝（不凭空造设计对象）");
+delete V.skin;
+r = api.vanillaEconTattooSet("forehead", "heart");
+assert(r.ok === false, "无 skin → 拒绝");
+
 /* ================= 6. 宿主缺失拒绝 ================= */
 section("6 宿主缺失拒绝");
 delete V.skin;
@@ -196,7 +238,7 @@ pane.setAttribute("data-pane", "global");
 document.body.appendChild(pane);
 api.renderVanillaEcon(pane);
 const selects = pane.querySelectorAll("select");
-assert(selects.length === 3, "三个下拉：科目 / 地块 / 部位（共 " + selects.length + " 个）");
+assert(selects.length === 4, "四个下拉：科目 / 地块 / 部位 / 样式（共 " + selects.length + " 个）");
 const opts = Array.prototype.slice.call(selects[0].querySelectorAll("option"));
 assert(opts.length === 6, "科目下拉 6 项");
 assert(opts[0].textContent === "科学" && opts[5].textContent === "家政", "科目显示中文名，不是裸键名");
@@ -204,6 +246,12 @@ const farmOpts = Array.prototype.slice.call(selects[1].querySelectorAll("option"
 assert(farmOpts[0].textContent === "孤儿院花园" && farmOpts[1].textContent === "亚历克斯农场", "地块显示中文名");
 const tattooOpts = Array.prototype.slice.call(selects[2].querySelectorAll("option"));
 assert(tattooOpts.some(function (o) { return o.textContent === "左脸颊"; }), "部位下拉含中文部位名");
+const styleSel = selects[3];
+const styleGroups = Array.prototype.slice.call(styleSel.querySelectorAll("optgroup"));
+assert(styleGroups.length === 4, "样式下拉按原版刺青店四组分类（可爱/帅气/神圣/异端）");
+const styleOpts = Array.prototype.slice.call(styleSel.querySelectorAll("option"));
+assert(styleOpts.length === 9, "样式下拉 9 个图案设计（共 " + styleOpts.length + " 个）");
+assert(styleOpts.some(function (o) { return o.textContent === "独角兽" && o.value === "unicorn"; }), "样式显示中文名且 value 为原版设计键");
 const txt = pane.textContent;
 assert(txt.indexOf("$") === -1, "面板文案不出现任何裸变量名（$ 开头）");
 assert(txt.indexOf("经济 · 学业 · 农田 · 消耗品 · 纹身") !== -1, "区块标题存在（全局页 ⑪）");
@@ -218,6 +266,14 @@ if (allBtn) {
   allBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   assert(V.daily.school.attended.maths === 1 && V.daily.school.attended.housekeeping === 1, "点击按钮把六科写出勤（UI 到存档链路打通）");
   assert(!!V.mbCE_wrote["vcore:school"], "点击后落了 vcore 留痕");
+}
+/* 纹身样式链路：部位默认 left_cheek、样式默认第一组第一项，点「纹上该样式」应把设计对象写进该部位 */
+const setBtn = btns.filter(function (b) { return b.textContent === "纹上该样式"; })[0];
+assert(!!setBtn, "找到「纹上该样式」按钮");
+if (setBtn) {
+  setBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert(V.skin["left_cheek"].pen === "tattoo" && V.skin["left_cheek"].type === "object", "点击「纹上该样式」把所选设计写进所选部位（UI 到存档链路打通）");
+  assert(!!V.mbCE_wrote["vcore:tattoo-left_cheek"], "样式写入后落 vcore 留痕");
 }
 
 console.log("\n" + (failures ? "FAILED: " + failures + " / " + (passes + failures) : "ALL PASS: " + passes));

@@ -42,6 +42,7 @@ const jsPath = path.join(__dirname, "..", "javascript", "maplebirchce.js");
 eval(fs.readFileSync(jsPath, "utf8") + "\n//# sourceURL=" + jsPath.replace(/\\/g, "/"));
 const api = setup.mbStageCE;
 assert(typeof api.vanillaLeightonClear === "function" && typeof api.vanillaLeightonStats === "function", "礼顿 API 已导出（clear / stats）");
+assert(typeof api.vanillaLeightonGet === "function", "礼顿获取把柄 API 已导出");
 assert(typeof api.vanillaLeightonUndo === "function" && typeof api.renderVanillaLeighton === "function", "礼顿 API 已导出（undo / render）");
 
 /* ================= 1. 空档：未设置把柄 ================= */
@@ -86,6 +87,32 @@ u = api.vanillaLeightonUndo("leighton-purge");
 assert(u.ok === true && V.headblackmailed === 1 && V.headmoney === 1 && V.headnodetention === 1, "回退还原把柄与来源分支");
 assert(V.headphotoshoot === 0, "原本为 0 的写真线回退成 0（不是删除/未定义）");
 
+/* ================= 3b. 获取把柄（v2.2.0：直写 1，不动来源分支与警局线） ================= */
+section("3b 获取把柄");
+V.mbCE_wrote = {};
+r = api.vanillaLeightonGet();
+assert(r.ok === true && V.headblackmailed === 1, "获取把柄 = 写 1（等价原版被勒索状态）");
+assert(V.headmoney === 1 && V.headnodetention === 1 && V.headphotoshoot === 0 && V.headpolice === 1, "来源分支与警局线保持原值不动");
+assert(V.mbCE_wrote["vcore:leighton-get"].type === "vcore-leighton", "留痕类型 vcore-leighton（回退中心单独分组）");
+assert(V.mbCE_wrote["vcore:leighton-get"].before.had.headblackmailed === true && V.mbCE_wrote["vcore:leighton-get"].before.val.headblackmailed === 1, "留痕记住原值 1（幂等写入）");
+u = api.vanillaLeightonUndo("leighton-get");
+assert(u.ok === true && V.headblackmailed === 1, "回退还原把柄 1（获取前已是 1）");
+
+/* ================= 3c. 空档获取 ================= */
+section("3c 空档获取");
+delete V.headblackmailed;
+delete V.headmoney;
+delete V.headnodetention;
+delete V.headphotoshoot;
+delete V.headpolice;
+V.mbCE_wrote = {};
+r = api.vanillaLeightonGet();
+assert(r.ok === true && V.headblackmailed === 1, "空档获取把柄 = 创建键并写 1");
+assert(!("headmoney" in V) && !("headpolice" in V), "空档不凭空创建来源分支与警局键");
+assert(V.mbCE_wrote["vcore:leighton-get"].before.had.headblackmailed === false, "留痕记住原档没有这个键");
+u = api.vanillaLeightonUndo("leighton-get");
+assert(u.ok === true && !("headblackmailed" in V), "回退删除获取前不存在的键");
+
 /* ================= 4. 面板渲染（玩家实际路径：全局页 ⑬） ================= */
 section("4 面板渲染");
 V.headblackmailed = 1;
@@ -102,10 +129,17 @@ assert(txt.indexOf("礼顿") !== -1 && txt.indexOf("把柄") !== -1, "区块标�
 assert(txt.indexOf("$") === -1, "面板文案不出现裸变量名");
 assert(!/undefined/.test(txt), "文案不把 undefined 漏给玩家");
 const btns = Array.prototype.slice.call(pane.querySelectorAll("button"));
+const getBtn = btns.filter(function (b) { return b.textContent === "获取把柄"; })[0];
 const clearBtn = btns.filter(function (b) { return b.textContent === "解除把柄"; })[0];
 const purgeBtn = btns.filter(function (b) { return b.textContent === "彻底解除"; })[0];
+assert(!!getBtn, "找到「获取把柄」按钮");
 assert(!!clearBtn, "找到「解除把柄」按钮");
 assert(!!purgeBtn, "找到「彻底解除」按钮");
+if (getBtn) {
+  getBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert(V.headblackmailed === 1 && V.headnodetention === 1, "点击获取把柄只写把柄，不动拘留线");
+  assert(!!V.mbCE_wrote["vcore:leighton-get"], "获取把柄落 vcore-leighton 留痕");
+}
 if (clearBtn) {
   clearBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   assert(V.headblackmailed === 0 && V.headnodetention === 1, "点击只清把柄，不动拘留线");
@@ -130,10 +164,12 @@ assert(threw === null && pane2.textContent.indexOf("礼顿") !== -1, "空档下�
 /* ================= 5. 回退中心文案 ================= */
 section("5 回退中心文案");
 V.mbCE_wrote = {};
+api.vanillaLeightonGet();
 api.vanillaLeightonClear(false);
 api.vanillaLeightonClear(true);
 assert(typeof api.mbCEUndoItemName === "function", "回退中心命名入口可用");
 if (typeof api.mbCEUndoItemName === "function") {
+  assert(api.mbCEUndoItemName("vcore:leighton-get", V.mbCE_wrote["vcore:leighton-get"]) === "礼顿把柄（获取）", "leighton-get 显示为「礼顿把柄（获取）」");
   assert(api.mbCEUndoItemName("vcore:leighton-clear", V.mbCE_wrote["vcore:leighton-clear"]) === "礼顿把柄", "leighton-clear 显示为「礼顿把柄」");
   assert(api.mbCEUndoItemName("vcore:leighton-purge", V.mbCE_wrote["vcore:leighton-purge"]) === "礼顿把柄与来源分支", "leighton-purge 显示为「礼顿把柄与来源分支」");
 }

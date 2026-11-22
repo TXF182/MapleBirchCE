@@ -1,41 +1,39 @@
 /* 职责：全局页渲染（renderGlobal）—— 批量操作 / 世界数值 / 原版态度 / 庄园维护等分组 */
 	function renderGlobal() {
 		var pane = root.querySelector('[data-pane="global"]');
+		/* 2026-11-22 性能：pane.textContent="" 的瞬间内容高度归零，浏览器会把 .mce-body 的
+		   scrollTop 钳到 0（在列表底部点一次「应用」就跳回顶部）。仅当全局页激活时记位并写回。 */
+		var bodyEl = root ? root.querySelector(".mce-body") : null;
+		var keepTop = (bodyEl && pane.classList.contains("mce-active")) ? bodyEl.scrollTop : 0;
 		pane.textContent = "";
 		if (!frameworkReady()) {
 			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架。"));
 			return;
 		}
-		/* v2.1.0 外观主题四档选择器：全局页第一块（在悬浮球锁定等业务分组之前）——
-		   换肤是玩家最想先做的动作，埋在中间要滚半天。 */
-		mceRenderThemePicker(pane);
-		mcRenderFabSettings(pane);
-		mcRenderBatchSec(pane);
-		mcRenderCollectSec(pane);
-		mcRenderTimeSec(pane);
-		mcRenderVowTraitSec(pane);
-		mcRenderCombatSec(pane);
-		mcRenderAutoMaintSec(pane);
-		mcRenderWorldCorruptSec(pane);
-		/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js）
-		   犯罪连案底一起清 / 古董只收集 + 成就 / 雷米疤面头衔 —— 三项各走独立 vcore 留痕，可在回退中心逐条还原 */
-		mbCERenderVanillaExt(pane);
-		/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js）
-		   房租/欠租、学校出勤、地块催熟、避孕套数量、玩家纹身清除与标记 —— 独立 vcore-econ 留痕，可逐条回退 */
-		mbCERenderVanillaEcon(pane);
-		/* v2.1.15：鹰塔工地（07n-vanilla-bird.js）——清洁度 + 八种材料补足，独立 vcore-bird 留痕可回退 */
-		mbCERenderVanillaBird(pane);
-		/* v2.1.15：礼顿把柄（07o-vanilla-leighton.js）——解除把柄 / 彻底解除，独立 vcore-leighton 留痕可回退 */
-		mbCERenderVanillaLeighton(pane);
-
-		/* v1.9.15 数值固定（07f-lock.js）：预设推荐 + 自定义 varPath 锁定向，1s 强制写回 */
-		mbCERenderLock(pane);
-		/* v2.0.0.002 潜伏者（07f-lurker.js）：捕捉上限等价解除 + 水烟馆冰箱（0–5）+ 农场蒸馏笼 */
-		mbCERenderLurker(pane);
-		/* v2.0.0.003 需求②：原版「你对什么感到不安?」直写（$uncomfortable，绕开 attitudesControl 重算门控） */
-		renderAttitudesGroup(pane);
-		/* v2.0.3 P4-1：统一回退中心（08c-undo-center.js）——收敛全部留痕回退入口 */
-		mbCEUndoCenterRender(pane);
+		/* 分组顺序即玩家看到的区块顺序：外观（主题/三开关/悬浮球）→ 批量/收集/时间/誓言/战斗/自动维护/
+		   世界腐化 → 原版扩展（档案·收藏·头衔 / 经济·学业·农田·消耗品·纹身 / 鹰塔工地 / 礼顿把柄）→
+		   数值固定 / 潜伏者 / 原版态度 / 回退中心。
+		   2026-11-22 性能轮：清单数组化（原 13 行调用压成 1 行循环，行数余量转给滚动保持）。 */
+		[
+			mceRenderThemePicker, mceRenderUiOpts, mcRenderFabSettings, mcRenderBatchSec,
+			mcRenderCollectSec, mcRenderTimeSec, mcRenderVowTraitSec, mcRenderCombatSec,
+			mcRenderAutoMaintSec, mcRenderWorldCorruptSec,
+			/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js），各走独立 vcore 留痕可逐条回退 */
+			mbCERenderVanillaExt,
+			/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js），vcore-econ 留痕 */
+			mbCERenderVanillaEcon,
+			/* v2.1.15：鹰塔工地（07n，vcore-bird）/ 礼顿把柄（07o，vcore-leighton） */
+			mbCERenderVanillaBird, mbCERenderVanillaLeighton,
+			/* v2.2.1：食物库存 / 鱼获（07p-vanilla-food.js），vcore 留痕 + MB_CE_ECON_UNDO.food 回退 */
+			mbCERenderVanillaFood,
+			/* v2.2.0：艾弗里线放逐后保留房子（07q-avery-mansion-keep.js），vcore 留痕 + MB_CE_ECON_UNDO.avery-keep 回退 */
+			mbCERenderAveryKeep,
+			/* v1.9.15 数值固定（07f-lock）/ v2.0.0.002 潜伏者（07f-lurker） */
+			mbCERenderLock, mbCERenderLurker,
+			/* v2.0.0.003 原版「你对什么感到不安?」直写 / v2.0.3 P4-1 统一回退中心 */
+			renderAttitudesGroup, mbCEUndoCenterRender
+		].forEach(function (f) { f(pane); });
+		mceRestoreScroll(bodyEl, keepTop);
 	}
 	/* 以下为 renderGlobal 的分组渲染器：v2.1.6 按区块拆出（区块间无共享局部变量，作用域不变） */
 	function mcRenderFabSettings(pane) {

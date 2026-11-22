@@ -182,6 +182,11 @@
       "layer": "ui"
     },
     {
+      "file": "07a-shell4-orn.js",
+      "layer": "ui",
+      "note": "v2.2.1 P0-P2 面板装饰精修：主题边饰 4 套 SVG 帧（MapleLantern ornaments.css 取形改色）/ 外观三开关 fx·tex·orn（data-* gate，结构约束常开）/ 按压只缩放不下沉（后写覆盖 07a 旧 translateY）/ ≤560 底部抽屉（悬浮球让位快照/恢复）/ 滚动摘 backdrop-filter / 星空手机降载 / complementary+roving tabindex+Esc"
+    },
+    {
       "file": "07b-char.js",
       "layer": "ui"
     },
@@ -349,6 +354,16 @@
       "file": "07o-vanilla-leighton.js",
       "layer": "ui",
       "note": "v2.1.15 礼顿把柄：解除把柄 / 彻底解除（连三条来源分支）+ vcore-leighton 留痕（全局页 ⑬）"
+    },
+    {
+      "file": "07p-vanilla-food.js",
+      "layer": "ui",
+      "note": "v2.2.1 食物库存 / 鱼获直写（12 鱼批量 + 单项设定，vcore 留痕，回退挂 MB_CE_ECON_UNDO.food）"
+    },
+    {
+      "file": "07q-avery-mansion-keep.js",
+      "layer": "ui",
+      "note": "v2.2.0 艾弗里线放逐后保留房子：avery_fate fallen/kicked → saved + NPC dismissed → active + 清解雇场景标志（vcore 留痕，回退挂 MB_CE_ECON_UNDO.avery-keep）"
     },
     {
       "file": "08-npc-traits.js",

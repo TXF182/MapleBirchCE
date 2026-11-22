@@ -36,11 +36,11 @@
 		mbCEFrameworkGateOnce(); /* v2.1.2 框架版本闸门：注入即体检，结论挂 window.__mceFrameworkGate（01c-fwgate.js） */
 		if (document.body) {
 			ensureDom();
-			hookRefresh();
+			hookRefresh(); mbCEShell4Init(); /* v2.2.1 装饰层一次性初始化（外观开关/边饰/抽屉/滚动摘blur/aria+roving+Esc，函数体带热重载守卫） */
 		} else {
 			document.addEventListener("DOMContentLoaded", function () {
 				ensureDom();
-				hookRefresh();
+				hookRefresh(); mbCEShell4Init();
 			});
 		}
 	}

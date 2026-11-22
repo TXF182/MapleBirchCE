@@ -12,6 +12,25 @@
 var mbCELurkerTimer = null;
 var MB_CE_LURKER_MAX = 9999; /* 数值写入上限（原版无上界，这里只做防呆） */
 var MB_CE_LURKER_FRIDGE_MAX = MB_CE_LURKER_MAX; /* 兼容旧符号：冰箱不再钳 5 */
+/* 2026-11-22 性能：tick 定点刷新三行数值，不重建全局页。
+   旧实现 tick 内调 renderGlobal()，其守卫 `root.querySelector('[data-pane="global"]')` 恒真
+   （pane 常驻、切换只动 display），等于玩家在任意页/面板关闭时都每 0.5s 重建约 400 节点。 */
+function mbCELurkerPaint() {
+	try {
+		var pane = (typeof root !== "undefined" && root && root.querySelector) ? root.querySelector('[data-pane="global"]') : null;
+		if (!pane) { return 0; }
+		var st = mbCELurkerState();
+		if (!st || !st.ok) { return 0; }
+		var vals = { "lurkers_held": st.held, "hookah.lurkers": st.fridge, "lurkers_stored": st.stored };
+		var spans = pane.querySelectorAll("[data-mce-lurk]");
+		for (var i = 0; i < spans.length; i++) {
+			var path = spans[i].getAttribute("data-mce-lurk");
+			var n = vals[path];
+			spans[i].textContent = spans[i].getAttribute("data-mce-lurk-name") + "（当前 " + (n == null ? "—" : n) + "）";
+		}
+		return spans.length;
+	} catch (e) { return 0; }
+}
 function mbCELurkerV() {
 	try { return (typeof getV === "function") ? getV() : null; } catch (e) { return null; }
 }
@@ -87,7 +106,7 @@ function mbCELurkerEnsureTimer() {
 		if (on && !mbCELurkerTimer) {
 			mbCELurkerTimer = setInterval(function () {
 				var moved = mbCELurkerAutoTick();
-				if (moved && typeof renderGlobal === "function" && root.querySelector('[data-pane="global"]')) { renderGlobal(); }
+				if (moved) { mbCELurkerPaint(); }
 			}, 500);
 		} else if (!on && mbCELurkerTimer) {
 			clearInterval(mbCELurkerTimer); mbCELurkerTimer = null;
@@ -128,7 +147,10 @@ function mbCERenderLurker(pane) {
 	];
 	rows.forEach(function (r) {
 		var row = el("div", MCE_CLS.row);
-		row.appendChild(el("span", MCE_CLS.rowLbl, r.name + "（当前 " + (r.cur == null ? "—" : r.cur) + "）"));
+		var lbl = el("span", MCE_CLS.rowLbl, r.name + "（当前 " + (r.cur == null ? "—" : r.cur) + "）");
+		lbl.setAttribute("data-mce-lurk", r.path); /* 2026-11-22 性能：tick 按此定点刷值（mbCELurkerPaint） */
+		lbl.setAttribute("data-mce-lurk-name", r.name);
+		row.appendChild(lbl);
 		var inp = el("input", MCE_CLS.inp);
 		inp.type = "text"; inp.inputmode = "decimal"; inp.value = (r.cur == null) ? "0" : String(r.cur);
 		inp.title = r.note;
@@ -138,13 +160,13 @@ function mbCERenderLurker(pane) {
 			if (!/^-?\d+(?:\.\d+)?$/.test(raw)) { setStatus("请输入数字", MCE_CLS.err); return; }
 			var res = mbCELurkerSet(r.path, Number(raw));
 			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
-			renderGlobal();
+			mbCELurkerPaint(); /* 2026-11-22 性能：只有本行数值变，定点刷新（原 renderGlobal 全量重建约 400 节点） */
 		});
 		var und = el("button", "", "回退"); und.type = "button";
 		und.addEventListener("click", function () {
 			var res = undoCheatModValue("player-self", "p:lurker:" + r.path);
 			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
-			renderGlobal();
+			mbCELurkerPaint();
 		});
 		row.appendChild(inp); row.appendChild(b); row.appendChild(und);
 		sec.appendChild(row);

@@ -37,6 +37,12 @@
 		},
 		"tattoo": function (V, b, key) {
 			if (!V.skin || typeof V.skin !== "object") { return { ok: false, message: "皮肤数据已不在，无法回退" }; }
+			if (b.had === false) {
+				/* v2.2.0 样式直写：写入前该部位在存档里不存在 → 回退是删除，不是还原成 undefined */
+				try { delete V.skin[b.part]; } catch (eT0) { void eT0; }
+				delete V.mbCE_wrote[key];
+				return { ok: true, message: "已移除「" + mbCEVanillaEconBodyZh(b.part) + "」的纹身（该部位原档不存在）" };
+			}
 			V.skin[b.part] = mbCEVanillaEconClone(b.value);
 			delete V.mbCE_wrote[key];
 			return { ok: true, message: "已还原「" + mbCEVanillaEconBodyZh(b.part) + "」的皮肤数据" };

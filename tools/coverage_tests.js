@@ -144,7 +144,23 @@ const TESTS = [
   "tests/vanilla_bird_state.js",
   /* v2.1.15 礼顿把柄（07o）：只清把柄 / 彻底解除两条力度、来源分支与警局线边界、
      vcore-leighton 留痕与删除语义回退、全局页 ⑬ 面板点击到存档的真实链路。 */
-  "tests/vanilla_leighton_state.js"
+  "tests/vanilla_leighton_state.js",
+  /* v2.2.1 UI 精修（07a-shell4-orn / 07a-shell2 / 07a-host-compat / 03b）：坏字段逐项修复、
+     主题边饰四套帧、外观三开关 gate 与持久化、按压只缩放、≤560 抽屉让位快照、滚动摘 backdrop-filter、
+     Esc/aria/roving tabindex、切主题零重建、宿主 token 快照协议、同值不写。
+     2026-11-22 补入：此前只在手动单跑（覆盖率/CI 双门禁都没跑到新段），属门禁遗漏。 */
+  "tests/ui_shell4_state.js",
+  /* 2026-11-22 性能轮（07a-shell2 mceRestoreScroll / 08-npc-traits2 renderGlobal / 07f-lurker）：
+     重绘保持滚动位（显式写回、顶部不写、非激活 pane 不动共享容器）、潜伏者自动搬运 tick 只刷
+     3 行文本不重建全局页（含面板关闭期）、区块子节点身份保持。行为级断言，不测墙钟时间。 */
+  "tests/perf_guards.js",
+  /* 2026-11-22 食物库存 / 鱼获（07p-vanilla-food.js）：宿主键识别、单键/批量写入与首写前快照、
+     参数拒收、vcore→ExtUndo→EconUndo→MB_CE_ECON_UNDO.food 回退全链、UI 渲染与宿主缺失拒绝。 */
+  "tests/vanilla_food.js",
+  /* 2026-11-22 艾弗里线放逐后保留房子（07q-avery-mansion-keep.js）：fate 四值读取、
+     dismissed→active 复位、解雇场景标志清理、缺壳补建（不带 mb_ce_shell）、
+     vcore→ExtUndo→KindUndo→EconUndo→MB_CE_ECON_UNDO.avery-keep 回退全链、UI 渲染。 */
+  "tests/avery_mansion_keep.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

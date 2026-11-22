@@ -1,4 +1,13 @@
 /* 职责：面板外壳续 —— 外层页签分发（switchOuterTab）、页签状态持久化（mbCEUiLoad / mbCEUiSave / mbCEUiCollapsed）、主题切换 */
+	/* 2026-11-22 性能：全量重绘后恢复滚动位。pane.textContent="" 的瞬间内容高度归零，
+	   浏览器会把 .mce-body.scrollTop 钳到 0（在列表底部点「应用」会跳回顶部）。
+	   keepTop 只由调用方在「目标 pane 激活」时提供（非激活 pane 不得动共享滚动容器）。 */
+	function mceRestoreScroll(bodyEl, keepTop) {
+		try {
+			if (!bodyEl || !(keepTop > 0)) { return; }
+			bodyEl.scrollTop = Math.min(keepTop, Math.max(0, bodyEl.scrollHeight || 0));
+		} catch (e) { /* 恢复失败不影响渲染 */ }
+	}
 	function switchOuterTab(name) {
 		var tabs = root.querySelectorAll(".mce-tabs button");
 		var i;
@@ -21,8 +30,30 @@
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
 	/** @type {any} */
-	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0", placeOpen: {} };
+	var mbCEUiState = { tab: "char", filter: "", collapsed: {}, curName: "", innerTab: "romance", placesTab: "direct", theme: "gold", charFilter: "", diffPreview: "0", placeOpen: {}, fx: "1", tex: "1", orn: "1" };
 	var mbCEUiStateKey = "mbCE_ui_state_v1";
+	var mbCEUiSavedRaw = null; /* v2.2.1 上次实际写入 localStorage 的串化值（同值跳过） */
+	/* v2.2.1 UI 精修：折叠类标志逐键过滤（mceFilterFlags）——损坏/外源写入的脏键按条丢弃，
+	   不整对象替换（避免一个脏键污染全组）。fx/tex/orn 为外观三开关，白名单 "1"/"0"。 */
+	function mceFilterFlags(obj) {
+		var out = {};
+		try {
+			if (!obj || typeof obj !== "object") { return out; }
+			var ks = Object.keys(obj);
+			for (var i = 0; i < ks.length; i++) {
+				var v = obj[ks[i]];
+				if (v === 1 || v === 0) { out[ks[i]] = v; }
+			}
+		} catch (e) { /* 脏对象 → 空组 */ }
+		return out;
+	}
+	/* v2.2.1 外观三开关单键白名单赋值（load/save 共用；抽 helper 压函数复杂度） */
+	function mceUiOptApply(src, dst, key) {
+		try {
+			var v = src && src[key];
+			if (v === "1" || v === "0") { dst[key] = v; }
+		} catch (e) { /* 脏入参 → 跳过 */ }
+	}
 	/* v2.0.23 四主题：黑金 gold（默认，不挂类）/ 星空蓝 starry / 赛博朋克 cyberpunk / 青瓷 jade。
 	   设计参考 MapleLantern v1.1.8 src/style.css 的 amber / star / cyberpunk / jade 四套 token 原文；
 	   CE 的 gold 保持不变，只新增两套并把 starry 升级到 MapleLantern 的 star 数值。
@@ -37,7 +68,7 @@
 			if (obj && typeof obj === "object") {
 				if (typeof obj.tab === "string") { mbCEUiState.tab = obj.tab; }
 				if (typeof obj.filter === "string") { mbCEUiState.filter = obj.filter; curPlayerFilter = obj.filter; }
-				if (obj.collapsed && typeof obj.collapsed === "object") { mbCEUiState.collapsed = obj.collapsed; }
+				if (obj.collapsed && typeof obj.collapsed === "object") { mbCEUiState.collapsed = mceFilterFlags(obj.collapsed); }
 				/* v1.8.12 二轮优化：记住上次操作角色与角色页内层页签（切存档/重开面板免重新找） */
 				if (typeof obj.curName === "string") { mbCEUiState.curName = obj.curName; }
 				if (obj.innerTab === "romance" || obj.innerTab === "transform") { mbCEUiState.innerTab = obj.innerTab; curInnerTab = obj.innerTab; }
@@ -53,7 +84,10 @@
 				}
 				/* v2.0.16：场景直达子入口折叠状态（组 id → 1 展开 / 0 收起）。此前无此键，
 				   加子入口后若不持久化，切页签或重开面板就会全部收回折叠态。 */
-				if (obj.placeOpen && typeof obj.placeOpen === "object") { mbCEUiState.placeOpen = obj.placeOpen; }
+				if (obj.placeOpen && typeof obj.placeOpen === "object") { mbCEUiState.placeOpen = mceFilterFlags(obj.placeOpen); }
+				/* v2.2.1 外观三开关持久化（fx 动效 / tex 纹理 / orn 边饰），只认 "1"/"0" */
+				var optKeys = ["fx", "tex", "orn"];
+				for (var oi = 0; oi < optKeys.length; oi++) { mceUiOptApply(obj, mbCEUiState, optKeys[oi]); }
 			}
 		} catch (e) { /* 读不到偏好 → 保留默认 UI 状态 */ }
 	}
@@ -75,9 +109,18 @@
 				}
 				/* v2.0.16：场景直达子入口折叠状态（组 id → 1/0），与 collapsed 同款白名单合并 */
 				if (partial.placeOpen && typeof partial.placeOpen === "object") { mbCEUiState.placeOpen = partial.placeOpen; }
+				/* v2.2.1 外观三开关（同载入白名单） */
+				var optKeys = ["fx", "tex", "orn"];
+				for (var oi = 0; oi < optKeys.length; oi++) { mceUiOptApply(partial, mbCEUiState, optKeys[oi]); }
 			}
 			if (typeof localStorage !== "undefined" && localStorage) {
-				localStorage.setItem(mbCEUiStateKey, JSON.stringify(mbCEUiState));
+				/* v2.2.1 同值不写：17 个调用点高频触发（折叠/切页签/悬浮球拖动），
+				   串化比对跳过无变化的 setItem，摊平 localStorage 写放大（P2-11）。 */
+				var serialized = JSON.stringify(mbCEUiState);
+				if (serialized !== mbCEUiSavedRaw) {
+					mbCEUiSavedRaw = serialized;
+					localStorage.setItem(mbCEUiStateKey, serialized);
+				}
 			}
 		} catch (e) { /* 持久化失败 → 偏好仅本次会话生效，不打断面板操作 */ }
 	}
@@ -93,8 +136,12 @@
 	   token 覆盖全在 07a-shell3-fx.js（MB_CSS += 追加，段序在 07a-shell.js 之后 → 同特异度后写生效），
 	   所以本文件不碰 CSS，07a-shell.js 的 400 行顶格约束不受影响。 */
 	var MCE_THEME_CLASSES = ["mce-theme-starry", "mce-theme-cyberpunk", "mce-theme-jade"];
-	function setTheme(name, silent) {
+	function setTheme(name, silent, manual) {
 		try {
+			/* v2.2.1 第三参 manual：主题选择器/循环切换传 true → 摘宿主 token 并切到手动主题
+			   （mbCEMarkManualTheme 在 07a-host-compat.js，段序更早 → 函数声明同作用域可用）；
+			   ensureDom 的存档恢复仍走 silent（不夺手动优先权）。 */
+			if (manual === true) { mbCEMarkManualTheme(); }
 			var t = mbCEThemeValid(name) ? name : "gold"; /* 非法/未知一律回落 gold，不写脏值 */
 			mbCETheme = t;
 			var cls = t === "gold" ? "" : "mce-theme-" + t;
@@ -133,7 +180,7 @@
 		var cur = mbCETheme;
 		var idx = MCE_THEMES.indexOf(cur);
 		var next = MCE_THEMES[(idx + 1) % MCE_THEMES.length];
-		return setTheme(next);
+		return setTheme(next, false, true);
 	}
 
 	/* ============ v1.8.12 面板内错误收集器（window error + console.error → 红点 + 堆栈 + 一键复制） ============ */

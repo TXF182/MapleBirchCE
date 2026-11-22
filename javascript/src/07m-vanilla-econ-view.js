@@ -49,6 +49,27 @@
 		parent.appendChild(row);
 		return sel;
 	}
+	/* v2.2.0 分组下拉（optgroup）：纹身样式按原版刺青店四组呈现；groups = [{grp, items:[[value, 中文]]}] */
+	function mbCEVanillaEconUiSelectGrouped(parent, labelText, groups, tip) {
+		var row = el("div", MCE_CLS.row);
+		var lbl = el("span", MCE_CLS.rowLbl, labelText);
+		lbl.title = tip || labelText;
+		row.appendChild(lbl);
+		var sel = el("select", "mce-sel");
+		groups.forEach(function (g) {
+			var og = el("optgroup");
+			og.label = g.grp;
+			g.items.forEach(function (p) {
+				var op = el("option", "", p[1]);
+				op.value = String(p[0]);
+				og.appendChild(op);
+			});
+			sel.appendChild(og);
+		});
+		row.appendChild(sel);
+		parent.appendChild(row);
+		return sel;
+	}
 	function mbCEVanillaEconUiBtn(grid, text, tip, fn) {
 		var b = el("button", MCE_CLS.btn, text);
 		b.type = "button";
@@ -234,14 +255,25 @@
 			}
 			var names = st.tattoo.parts.map(function (p) { return p.zh; }).join("、");
 			mbCEVanillaEconUiKv(body, [["纹身处数", st.tattoo.count + " 处"], ["部位", st.tattoo.count ? names : "无"]]);
-			var allParts = Object.keys(V.skin).filter(function (k) {
-				return V.skin[k] && typeof V.skin[k] === "object";
+			/* v2.2.0 部位下拉 = 原版 12 部位 ∪ 存档已有皮肤键（合并去重，全部中文名） */
+			var merged = MCE_ECON_TATTOO_PARTS.slice();
+			Object.keys(V.skin).forEach(function (k) {
+				if (merged.indexOf(k) < 0 && V.skin[k] && typeof V.skin[k] === "object") { merged.push(k); }
 			});
-			var pairs = allParts.map(function (k) { return [k, mbCEVanillaEconBodyZh(k)]; });
-			var sel = mbCEVanillaEconUiSelect(body, "部位", pairs, "只列该存档实际存在的皮肤部位，显示为中文名");
+			var pairs = merged.map(function (k) { return [k, mbCEVanillaEconBodyZh(k)]; });
+			var sel = mbCEVanillaEconUiSelect(body, "部位", pairs, "原版 12 个纹身部位 + 该存档已有的皮肤部位，显示为中文名");
 			/* 默认定位到已有纹身的第一个部位，省得玩家自己找 */
 			if (st.tattoo.parts.length) { sel.value = String(st.tattoo.parts[0].key); }
+			/* v2.2.0 样式下拉：原版刺青店 9 个图案设计按四组呈现（可爱 / 帅气 / 神圣 / 异端） */
+			var styleSel = mbCEVanillaEconUiSelectGrouped(body, "样式",
+				MCE_ECON_TATTOO_STYLES.map(function (g) {
+					return { grp: g.grp, items: g.items.map(function (it) { return [it.key, it.zh]; }) };
+				}),
+				"原版刺青店全部图案设计，按四组分类；原版渲染不按部位区分，所有样式对全部部位通用");
 			var g1 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g1, "纹上该样式", "把所选样式 clone 成原版设计对象写到所选部位（判为纹身）；覆盖该部位已有图案，可回退", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconTattooSet(sel.value, styleSel.value), redraw);
+			});
 			mbCEVanillaEconUiBtn(g1, "清除该部位", "整部位重置（等价原版「擦除涂写」）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClear(sel.value), redraw);
 			});
@@ -251,10 +283,10 @@
 			mbCEVanillaEconUiBtn(g1, "一键清除全部", "所有带纹身的部位一次重置（其他部位不动）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClearAll(), redraw);
 			});
-			body.appendChild(mceFoldHint("原版加纹身要先有刺青设计数据（纹身店 clone 的部位对象），凭空造不出合法设计；"
-				+ "所以这里只给两条真实可行的路：清除，或把已有涂写 / 图案改判为纹身。"));
+			body.appendChild(mceFoldHint("「纹上该样式」走原版刺青店同一通道（clone 设计对象 + 判为纹身），不需要先有刺青数据；"
+				+ "原版对全部部位通用同一样式表（渲染层不按部位区分），这里按刺青店四组原样列出。清除、改判仍是两条真实可行的路。"));
 			var undos = [["tattoo-all", "回退全部纹身"]];
-			allParts.forEach(function (k) { undos.push(["tattoo-" + k, "回退 " + mbCEVanillaEconBodyZh(k)]); });
+			merged.forEach(function (k) { undos.push(["tattoo-" + k, "回退 " + mbCEVanillaEconBodyZh(k)]); });
 			mbCEVanillaEconUiUndoGrid(body, redraw, undos);
 		};
 		redraw();
