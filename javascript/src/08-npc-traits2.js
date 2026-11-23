@@ -10,29 +10,31 @@
 			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架。"));
 			return;
 		}
-		/* 分组顺序即玩家看到的区块顺序：外观（主题/三开关/悬浮球）→ 批量/收集/时间/誓言/战斗/自动维护/
-		   世界腐化 → 原版扩展（档案·收藏·头衔 / 经济·学业·农田·消耗品·纹身 / 鹰塔工地 / 礼顿把柄）→
-		   数值固定 / 潜伏者 / 原版态度 / 回退中心。
-		   2026-11-22 性能轮：清单数组化（原 13 行调用压成 1 行循环，行数余量转给滚动保持）。 */
+		/* 排版优化：全局页收进 5 个顶层可折叠组，外观与面板默认展开、其余 4 组默认收起（长页收起）；
+		   组顺序即编号 ①~⑦ → ⑧⑨ → ⑩~⑬ → 态度/回退，顺带修正旧版 ⑧⑨ 排到 ⑩⑪⑫⑬ 之后的乱序。 */
+		var gApp = mceNewGroup(pane, "外观与面板", "主题 · 面板特效 · 悬浮球", false);
 		[
-			mceRenderThemePicker, mceRenderUiOpts, mcRenderFabSettings, mcRenderBatchSec,
-			mcRenderCollectSec, mcRenderTimeSec, mcRenderVowTraitSec, mcRenderCombatSec,
-			mcRenderAutoMaintSec, mcRenderWorldCorruptSec,
-			/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js），各走独立 vcore 留痕可逐条回退 */
-			mbCERenderVanillaExt,
-			/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js），vcore-econ 留痕 */
-			mbCERenderVanillaEcon,
-			/* v2.1.15：鹰塔工地（07n，vcore-bird）/ 礼顿把柄（07o，vcore-leighton） */
-			mbCERenderVanillaBird, mbCERenderVanillaLeighton,
-			/* v2.2.1：食物库存 / 鱼获（07p-vanilla-food.js），vcore 留痕 + MB_CE_ECON_UNDO.food 回退 */
-			mbCERenderVanillaFood,
-			/* v2.2.0：艾弗里线放逐后保留房子（07q-avery-mansion-keep.js），vcore 留痕 + MB_CE_ECON_UNDO.avery-keep 回退 */
-			mbCERenderAveryKeep,
-			/* v1.9.15 数值固定（07f-lock）/ v2.0.0.002 潜伏者（07f-lurker） */
-			mbCERenderLock, mbCERenderLurker,
-			/* v2.0.0.003 原版「你对什么感到不安?」直写 / v2.0.3 P4-1 统一回退中心 */
-			renderAttitudesGroup, mbCEUndoCenterRender
-		].forEach(function (f) { f(pane); });
+			mceRenderThemePicker, mceRenderUiOpts, mcRenderFabSettings
+		].forEach(function (f) { f(gApp); });
+
+		var gBatch = mceNewGroup(pane, "批量与速成", "①~⑦ 批量 · 收集 · 时间 · 誓言 · 战斗 · 维护 · 腐化", true);
+		[
+			mcRenderBatchSec, mcRenderCollectSec, mcRenderTimeSec, mcRenderVowTraitSec, mcRenderCombatSec,
+			mcRenderAutoMaintSec, mcRenderWorldCorruptSec
+		].forEach(function (f) { f(gBatch); });
+
+		var gGuard = mceNewGroup(pane, "防护", "⑧ 数值固定 · ⑨ 潜伏者", true);
+		[mbCERenderLock, mbCERenderLurker].forEach(function (f) { f(gGuard); });
+
+		/* 原版扩展：档案/收藏/头衔 07l · 经济/学业/农田/消耗品/纹身 07m · 鹰塔 07n · 礼顿把柄 07o · 食物/鱼获 07p · 艾弗里 07q，均走独立 vcore 留痕可逐条回退 */
+		var gExt = mceNewGroup(pane, "原版扩展", "⑩~⑬ 档案 · 经济 · 鹰塔 · 礼顿 · 食物 · 艾弗里", true);
+		[
+			mbCERenderVanillaExt, mbCERenderVanillaEcon, mbCERenderVanillaBird, mbCERenderVanillaLeighton,
+			mbCERenderVanillaFood, mbCERenderAveryKeep
+		].forEach(function (f) { f(gExt); });
+
+		var gAudit = mceNewGroup(pane, "态度与回退", "原版态度 · 统一回退中心", true);
+		[renderAttitudesGroup, mbCEUndoCenterRender].forEach(function (f) { f(gAudit); });
 		mceRestoreScroll(bodyEl, keepTop);
 	}
 	/* 以下为 renderGlobal 的分组渲染器：v2.1.6 按区块拆出（区块间无共享局部变量，作用域不变） */

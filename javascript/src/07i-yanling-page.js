@@ -45,12 +45,13 @@
 			   旧版把"说明与边界"塞在第 4 位却排在最后、区块顺序 s1→s2→s3→s5→s6→s7→s8→s4，编号与文案里的 ①②③ 完全脱节；
 			   现在按「玩家要解决什么问题」分组：着装与名声（想穿什么就穿什么）/ 身体与数值（把状态拉回舒服）/
 			   角色状态（把碍事的 NPC 挪开），说明统一收进最底折叠块。 */
-			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声");
-			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气");
-			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 囚禁（原版 state 层）");
-			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式（无副作用）");
-			/* v2.1.17 原帖 52 条补丁：独立 E 组 + 4 个页内选项卡（同类型合并），不挤进 A~D 的开关语义 */
-			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡");
+			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声 / 枝叶变装", true);
+			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气", true);
+			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 监狱 / 格威岚 / 绝望轮回", true);
+			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式（无副作用）", true);
+			/* v2.1.17 原帖 52 条补丁：独立 E 组 + 4 个页内选项卡（同类型合并），不挤进 A~D 的开关语义。
+			   v2.2.x 排版：A~E 五组默认收起（点组头展开），长页只留 5 行组头，点开再看区块。 */
+			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡", true);
 
 			/* ① 核心：无性别着装 */
 			var s1 = mceNewSec(gA, 1, "无视着装性别", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。");
@@ -228,6 +229,77 @@
 			mkBtn(s9g, "纹身狱友庇护", MCE_CLS.gold, function () { return mbCEYanlingPrisonProtect("tattooed"); }, "prison.protection = \"tattooed\"（651145 / 658072 有对应判定分支）");
 			mkBtn(s9g, "清除庇护", "", function () { return mbCEYanlingPrisonProtect(""); }, "prison.protection = \"\"（空串为假值，恢复 attention 事件的随机遭遇）");
 			s9.appendChild(el("div", MCE_CLS.hint, "注意：狱友声望档位（0-5）与纹身程度（0-100）是另外两个**数字**档位（狱友线声望），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
+
+			/* ⑬ 格威岚 · 森林商店（合并原 ⑬ / ⑭ 项圈 / ⑮ 三块：按主题收拢，按钮顺序 = 今日对话 → 仪式与委托 → 计数与渴望 → 催眠 → 项圈）
+			   逐条对应 dol吧「言灵分享：森林商店相关」帖：4L 讲故事 / 6L 街机 / 7L 仪式 / 8L 渴望 / 11L 委托 / 12L 催眠 / 15L 计数 / 17L 宠物床 / 16-17L 项圈。
+			   原版取证行号：414843-414859 / 141655 / 532472 / 414891 / 405614 / 392995-393061 / 345281-345282 / 78554 / 169336 / 384348 / 414728 / 405620 / 392612 / 415091 / 169245 / 169373 / 198062-198065 / 198496。 */
+			var s13 = mceNewSec(gC, 13, "格威岚 · 森林商店", "按主题收拢的格威岚全功能组：今日对话 / 仪式与委托 / 计数与渴望 / 催眠 / 项圈。每按钮 hint 标原版行号；只在原版键已存在的档上写，未开线明确拒绝。");
+			var gTxt = "读取失败";
+			try {
+				var Vs = getV();
+				var gt = (Vs && Vs.daily && Vs.daily.gwylan && typeof Vs.daily.gwylan === "object") ? Vs.daily.gwylan : {};
+				var gws = (Vs && Vs.gwylan && typeof Vs.gwylan === "object") ? Vs.gwylan : {};
+				var tt = (gws.timer && typeof gws.timer === "object") ? gws.timer : {};
+				var talkTxt = "话 " + (typeof gt.clothesTalk === "number" ? String(gt.clothesTalk) : "—") + "/3" + (gt.enoughTalk === true ? "（今日已锁）" : "");
+				var ritTxt = (typeof tt.ritual === "number") ? "仪式到期 " + String(tt.ritual) : "未开仪式线";
+				var reqTxt = (gws.request && gws.request.event) ? String(gws.request.event) : "无委托";
+				var pbTxt = (typeof tt.petBed === "number") ? "床 " + String(tt.petBed) : "无床";
+				var seaTxt = (typeof gws.sea === "number") ? String(gws.sea) : "—";
+				var sexTxt = (Vs && Vs.dateCount && typeof Vs.dateCount.GwylanSex === "number") ? String(Vs.dateCount.GwylanSex) : "—";
+				var arcTxt = (typeof Vs.tenyclusPlayCount === "number") ? String(Vs.tenyclusPlayCount) : "0";
+				var cdTxt = "—";
+				var devS = Vs && Vs.hypnosisTimers && Vs.hypnosisTimers.devotion;
+				if (devS && typeof devS.time === "number") { cdTxt = String(devS.time); }
+				var nkS = (Vs && Vs.worn && Vs.worn.neck && typeof Vs.worn.neck === "object") ? Vs.worn.neck : null;
+				var colTxt = !nkS ? "—" : ((nkS.name || "naked") + (nkS.cursed === 1 ? "（已锁" + (Array.isArray(nkS.type) && nkS.type.indexOf("broken") !== -1 ? "·破损" : "") + "）" : ""));
+				gTxt = "故事 " + talkTxt + " ｜ " + ritTxt + " ｜ 委托：" + reqTxt + " ｜ " + pbTxt + " ｜ 看海 " + seaTxt + " / 亲密 " + sexTxt + " ｜ 街机 " + arcTxt + " ｜ 催眠cd " + cdTxt + " ｜ 项圈：" + colTxt;
+			} catch (eS) { void eS; }
+			s13.appendChild(el("div", MCE_CLS.hint, "当前：" + gTxt));
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 今日对话"));
+			var s13g = mceBtnGrid(s13);
+			mkBtn(s13g, "解除今日讲故事限制", MCE_CLS.gold, mbCEYanlingGwylanTalk, "clothesTalk=-1000、enoughTalk=false（414843-414859；只当日有效，跨日自动恢复 3 件限制）");
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 仪式与委托"));
+			var s13r = mceBtnGrid(s13);
+			mkBtn(s13r, "无限仪式（冷却清零）", MCE_CLS.gold, mbCEYanlingGwylanRitualReady, "$gwylan.timer.ritual=当前时刻（414891 判据 dayDifference<=0）");
+			mkBtn(s13r, "仪式延期 7 天", "", mbCEYanlingGwylanRitualDelay, "ritual=+7 天（同原版完成一次后的冷却 405614）");
+			mkBtn(s13r, "完成当前委托", MCE_CLS.gold, mbCEYanlingGwylanRequestDone, "等价 <<gwylanRequestEnd>>（392995-393061）：requestDone + count++ + timer[event]+14 天");
+			mkBtn(s13r, "宠物床续 7 天", "", mbCEYanlingGwylanPetBed, "timer.petBed=+7 天（392612；需已解锁 partners，415091）");
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 计数与渴望"));
+			var s13c = mceBtnGrid(s13);
+			mkBtn(s13c, "渴望拉满（lust/dom）", MCE_CLS.gold, mbCEYanlingGwylanDesire, "lust=100 / dom=150（clamp 345281-345282；原帖 $NPCName[7].corr 在本版 0 命中）");
+			mkBtn(s13c, "看海次数 +20", "", mbCEYanlingGwylanSea, "$gwylan.sea += 20（384348 / 414728 按 >=5 判定）");
+			mkBtn(s13c, "亲密仪式 +5", "", mbCEYanlingGwylanSex, "$dateCount.GwylanSex += 5（partners 门槛 >=5，414728）");
+			mkBtn(s13c, "街机计数设为 7", "", mbCEYanlingArcadeCount, "$tenyclusPlayCount=7（future_suit 需求 141655；gte 1 and lt 7 的 Play Tenyclus 入口随之关闭）");
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 催眠"));
+			var s13h = mceBtnGrid(s13);
+			mkBtn(s13h, "重置催眠 cd", "", mbCEYanlingHypnoCd, "$hypnosisTimers.devotion.time → 阶段满值-10（78554 阈值 + 169336 档位表）");
+			mkBtn(s13h, "刷新当天催眠次数", "", mbCEYanlingHypnoDaily, "delete $daily.gwylan.hypnosis + $hypnosis_potency（386337 / 389060）");
+			mkBtn(s13h, "清除好奇（催眠特质）", "mce-red", mbCEYanlingClearCuriosity, "delete $hypnosis_traits.devotion / $hypnosisTimers.devotion；其它催眠键不动");
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 项圈（破损不可逆）"));
+			var s13k = mceBtnGrid(s13);
+			mkBtn(s13k, "戴上眷属项圈并锁死", MCE_CLS.gold, mbCEYanlingCollarLock, "$worn.neck → familiar collar + cursed=1（169245 / 169373 锁死判据）；原颈饰进衣柜");
+			mkBtn(s13k, "标记项圈破损（broken）", "mce-red", mbCEYanlingCollarBreak, "type+broken + eventskipoverrule=1（198062-198065 / 198496 空分支：不脱、只改描述）");
+
+			/* ⑭ 绝望轮回 · 结局与成就（与格威岚无关，独立成块） */
+			var s14 = mceNewSec(gC, 14, "绝望轮回 · 结局与成就", "贴吧 90L：$hcEndings 七项 A-F/S（画廊 309419 显示 x/7）+ Trials of Faith 成就（定义 103326，授予点 621081）。成就在作弊模式下被原版 earnFeat 门控（104773），故按 CE 既有先例直写 V.feats.currentSave。只补结局与成就，不伪造轮回进度键。");
+			var endTxt = "读取失败";
+			try {
+				var Ve = getV();
+				var ed0 = "—/7";
+				if (Ve && Array.isArray(Ve.hcEndings)) {
+					ed0 = Ve.hcEndings.length + "/7" + ((Ve.feats && Ve.feats.currentSave && Ve.feats.currentSave["Trials of Faith"] !== undefined) ? "（成就已有）" : "");
+				}
+				endTxt = "结局 " + ed0;
+			} catch (eE) { void eE; }
+			s14.appendChild(el("div", MCE_CLS.hint, "当前：" + endTxt));
+			var s14g = mceBtnGrid(s14);
+			mkBtn(s14g, "绝望轮回：补齐七结局 + 成就", MCE_CLS.gold, mbCEYanlingHopelessEndings, "$hcEndings 补 A-F/S（锁子甲需求 141965）+ V.feats.currentSave[\"Trials of Faith\"] 直写");
+
 
 			/* ⑪ 艾弗里办公室（补）（v2.1.16：玩家给的 SugarCube setter 片段落地为按钮 + 撤销） */
 			var s11 = mceNewSec(gD, 11, "艾弗里办公室（补）", "等价于原版信件交付线结尾的 `<<set $averySeen.pushUnique(\"office\")>>`（791859）：补上「办公室」标记后，办公室板块（623696 / 623857）直接出现「艾弗里 · 个人助理」打工入口，Avery 排班（71279-71280）也把他算作可打工对象。仍不伪造的部分：Avery 必须已登场（71275 首行判 init）、未被驱逐、且艾弗里未受伤（$avery_injury 为真时入口不出现）。重复点击不会累积（原版是 pushUnique，不是 concat 追加）。");

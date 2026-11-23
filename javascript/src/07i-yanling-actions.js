@@ -308,6 +308,29 @@
 		} catch (e) { return { ok: false, msg: "召回异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 格威岚 · 当日讲故事解限（贴吧「言灵分享：森林商店相关（0.5.6+）」原帖口径，按 0.5.12.13 复核）：
+	   原版进森林商店时先 `$daily.gwylan.clothesTalk ||= 0`（414843），讲满 3 件且未锁时置
+	   `$daily.gwylan.enoughTalk = true`（414844-414845），之后只显示「明天再来」（414857-414859）；
+	   每讲完一件 `clothesTalk++`（378374 / 378579 / 378671 … 379968 各服装线）。
+	   把 clothesTalk 压到 -1000、enoughTalk 置 false，当天无论再讲多少件都到不了 3；
+	   $daily 跨日重建（183255-183273 默认 gwylan:{}），次日自动恢复原版限制，不产生永久解锁。
+	   只动当日计数，不改爱意 / 剧情进度 / 已解锁服装（那些走 03a 特殊服装与 03c gwylan 事件）。 */
+	function mbCEYanlingGwylanTalk() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			if (!V.daily || typeof V.daily !== "object") { return { ok: false, msg: "本存档无 $daily（尚未进入每日循环）" }; }
+			var g = V.daily.gwylan;
+			if (!g || typeof g !== "object") { g = {}; V.daily.gwylan = g; }
+			var before = { clothesTalk: g.clothesTalk, enoughTalk: g.enoughTalk };
+			var changed = (g.clothesTalk !== -1000) || (g.enoughTalk !== false);
+			g.clothesTalk = -1000;
+			g.enoughTalk = false;
+			if (changed) { mbCEYanlingTrace("gwylan_talk", before, { clothesTalk: -1000, enoughTalk: false }); }
+			return { ok: true, msg: "今日讲故事限制已解除（clothesTalk → -1000，enoughTalk → false；当天不限件数，跨日自动恢复原版 3 件限制）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
 	/* 凯拉尔 · 送监狱：原版合法值 "active" / "" / "prison" / 0（654113 起监狱专属线按 state is "prison" 触发） */
 	function mbCEYanlingKylar(prison) {
 		try {

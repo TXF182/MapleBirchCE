@@ -92,18 +92,6 @@
 		if (parent) { parent.appendChild(sec); }
 		return body;
 	}
-	/* 二级分组：返回组内 body 容器（组名 + 右侧副标） */
-	function mceNewGroup(parent, title, sub) {
-		var g = el("div", "mce-group");
-		var head = el("div", "mce-group-h");
-		head.appendChild(el("span", "", title));
-		if (sub) { head.appendChild(el("span", "mce-group-n", sub)); }
-		g.appendChild(head);
-		var body = el("div", "mce-group-b");
-		g.appendChild(body);
-		if (parent) { parent.appendChild(g); }
-		return body;
-	}
 	/* 2 列按钮网格容器 */
 	function mceBtnGrid(parent) {
 		var g = el("div", "mce-btn-grid");
@@ -230,6 +218,9 @@
 		".mce-group{margin:8px 0 4px;padding:6px 8px 8px;background:var(--mce-bg-block);border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);contain:content}" +
 		".mce-group-h{display:flex;align-items:baseline;gap:6px;color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-btn);margin-bottom:2px}" +
 		".mce-group-n{color:var(--mce-gold-soft);font-size:var(--mce-fs-sm);font-weight:400;opacity:.85}" +
+		".mce-group-arrow{margin-left:auto;color:var(--mce-accent);font-size:var(--mce-fs-sm);line-height:1;padding-left:6px}" +
+		".mce-group-b[data-collapsed=\"1\"]{display:none}" +
+		".mce-group-b[data-collapsed=\"0\"]{animation:mce-fade-in .2s ease-out}" +
 		".mce-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--mce-space-sm);margin:var(--mce-space-sm) 0 2px}" +
 		".mce-btn-grid .mce-btn{width:100%;text-align:center;white-space:normal;line-height:1.35;padding:6px 8px}" +
 		".mce-btn-grid .mce-btn:only-child{grid-column:1 / -1}" +
@@ -283,8 +274,8 @@
 		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，减少大列表（如枯木 28 数值项展开）对 DoL-Game-UI 每帧 rAF 全量扫描的主线程压力 */
 		".mce-grp{border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);margin:var(--mce-space) 0;padding:8px;background:var(--mce-bg-block);contain:content}" +
 		".mce-grp-t{color:var(--mce-txt-strong);font-weight:700;font-size:var(--mce-fs-base);margin-bottom:6px}" +
-		".mce-collapse-head{cursor:pointer;user-select:none}" +
-		".mce-collapse-head:hover{color:var(--mce-gold-soft)}" +
+		".mce-collapse-head,.mce-group-fold-head{cursor:pointer;user-select:none}" +
+		".mce-collapse-head:hover,.mce-group-fold-head:hover{color:var(--mce-gold-soft)}" +
 		".mce-grp-body[data-collapsed=\"1\"]{display:none}" +
 		/* v1.9.14 效果4：折叠组展开淡入（display:none→block 切换时动画自动重放，覆盖 Mod 作弊/特质/角色/剧情全部折叠组） */
 		".mce-grp-body[data-collapsed=\"0\"]{animation:mce-fade-in .2s ease-out}" +

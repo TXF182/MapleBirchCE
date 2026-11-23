@@ -165,7 +165,19 @@ const TESTS = [
      13 个场景覆盖「boot.json/01-core.js 缺失、JSON 损坏、MCE_VERSION 缺失、双源不一致、
      工作区与 HEAD 字节不一致、README 滞后/无标记、git 不可用」，全部断言 fail-closed。
      只操作 %TEMP% 夹具（一次 init + checkout 复位），不加载产物，不影响覆盖率数字。 */
-  "tests/tools_guard.js"
+  "tests/tools_guard.js",
+  /* 2026-11-23 覆盖率提升轮：07m 经济/学业/农田/消耗品/纹身 plain 拒绝侧（幂等 / 非数组地块 /
+     无作物催熟 / 超限钳制 / 纹身三态）+ 07i 言灵补丁非法入参与撤销结构变化。 */
+  "tests/coverage_plain_econ.js",
+  "tests/coverage_plain_yanling.js",
+  /* 2026-11-23 覆盖率提升轮：07n 鹰塔 plain 拒绝侧（空壳读空串 / 满级无 bird / 撤销结构已不在 / 渲染缺 materials）。 */
+  "tests/coverage_plain_bird.js",
+  /* 2026-11-23 覆盖率提升轮：07p 食物 plain 拒绝侧与钳制（空串 / 无鱼种批量 / 负增量钳 0 / 超限钳 999999 / 回退数据不在）。 */
+  "tests/coverage_plain_food.js",
+  /* 2026-11-23 覆盖率提升轮：09-exports 悬浮球缩放钳位兜底（zs<=0 / bw<=0 / bh<=0 / 越界钳制）。 */
+  "tests/coverage_plain_zoom.js",
+  /* 2026-11-23 覆盖率提升轮：07l 原版档案 plain 拒绝侧（无犯罪/无博物馆/无 Remy / 留痕不存在 / 回退结构已不在）。 */
+  "tests/coverage_plain_ext.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

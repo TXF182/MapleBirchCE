@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.2.2";
+	var MCE_VERSION = "2.2.3";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -6988,18 +6988,6 @@ function renderPlayerEdit() {
 		if (parent) { parent.appendChild(sec); }
 		return body;
 	}
-	/* 二级分组：返回组内 body 容器（组名 + 右侧副标） */
-	function mceNewGroup(parent, title, sub) {
-		var g = el("div", "mce-group");
-		var head = el("div", "mce-group-h");
-		head.appendChild(el("span", "", title));
-		if (sub) { head.appendChild(el("span", "mce-group-n", sub)); }
-		g.appendChild(head);
-		var body = el("div", "mce-group-b");
-		g.appendChild(body);
-		if (parent) { parent.appendChild(g); }
-		return body;
-	}
 	/* 2 列按钮网格容器 */
 	function mceBtnGrid(parent) {
 		var g = el("div", "mce-btn-grid");
@@ -7126,6 +7114,9 @@ function renderPlayerEdit() {
 		".mce-group{margin:8px 0 4px;padding:6px 8px 8px;background:var(--mce-bg-block);border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);contain:content}" +
 		".mce-group-h{display:flex;align-items:baseline;gap:6px;color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-btn);margin-bottom:2px}" +
 		".mce-group-n{color:var(--mce-gold-soft);font-size:var(--mce-fs-sm);font-weight:400;opacity:.85}" +
+		".mce-group-arrow{margin-left:auto;color:var(--mce-accent);font-size:var(--mce-fs-sm);line-height:1;padding-left:6px}" +
+		".mce-group-b[data-collapsed=\"1\"]{display:none}" +
+		".mce-group-b[data-collapsed=\"0\"]{animation:mce-fade-in .2s ease-out}" +
 		".mce-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--mce-space-sm);margin:var(--mce-space-sm) 0 2px}" +
 		".mce-btn-grid .mce-btn{width:100%;text-align:center;white-space:normal;line-height:1.35;padding:6px 8px}" +
 		".mce-btn-grid .mce-btn:only-child{grid-column:1 / -1}" +
@@ -7179,8 +7170,8 @@ function renderPlayerEdit() {
 		/* v1.9.1（DoL-Game-UI 冲突排查）：.mce-grp 加 contain:content——限制组内重排/重绘范围，减少大列表（如枯木 28 数值项展开）对 DoL-Game-UI 每帧 rAF 全量扫描的主线程压力 */
 		".mce-grp{border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);margin:var(--mce-space) 0;padding:8px;background:var(--mce-bg-block);contain:content}" +
 		".mce-grp-t{color:var(--mce-txt-strong);font-weight:700;font-size:var(--mce-fs-base);margin-bottom:6px}" +
-		".mce-collapse-head{cursor:pointer;user-select:none}" +
-		".mce-collapse-head:hover{color:var(--mce-gold-soft)}" +
+		".mce-collapse-head,.mce-group-fold-head{cursor:pointer;user-select:none}" +
+		".mce-collapse-head:hover,.mce-group-fold-head:hover{color:var(--mce-gold-soft)}" +
 		".mce-grp-body[data-collapsed=\"1\"]{display:none}" +
 		/* v1.9.14 效果4：折叠组展开淡入（display:none→block 切换时动画自动重放，覆盖 Mod 作弊/特质/角色/剧情全部折叠组） */
 		".mce-grp-body[data-collapsed=\"0\"]{animation:mce-fade-in .2s ease-out}" +
@@ -7293,6 +7284,59 @@ function renderPlayerEdit() {
 		if (!st) { return; }
 		st.textContent = text;
 		st.className = "mce-status" + (cls ? " " + cls : "");
+	}
+	/* 职责：可折叠二级分组容器 mceNewGroup（从 07a-shell.js 拆出，S1 单段预算）。
+	   组头可点折叠，复用全局 data-collapsed 约定 + mbCEUiState.collapsed 持久化（key="group:"+title）。
+	   第 4 参 collapsed=true 表示「无记忆时默认收起」（言灵页 A~E、全局页顶层组用它把长页收起来）；
+	   缺省 false 保持向后兼容（区块内二级分组仍默认展开）。 */
+
+	/* 读折叠态：优先记忆，无记忆按 collapsed 兜底（记忆值为 0 表示展开）。 */
+	function mceReadGroupFold(gkey, collapsed) {
+		var saved = (mbCEUiState && mbCEUiState.collapsed && mbCEUiState.collapsed[gkey] != null)
+			? mbCEUiState.collapsed[gkey] : null;
+		if (saved != null) { return Number(saved) === 0; }
+		return !collapsed;
+	}
+
+	/* 切换折叠态并落记忆（箭头文案随态翻转）。 */
+	function mceToggleGroupFold(body, head, gkey) {
+		var willClose = body.getAttribute("data-collapsed") === "0";
+		body.setAttribute("data-collapsed", willClose ? "1" : "0");
+		var arrowEl = head.querySelector(".mce-group-arrow");
+		if (arrowEl) { arrowEl.textContent = willClose ? "▸" : "▾"; }
+		if (mbCEUiState && typeof mbCEUiSave === "function") {
+			mbCEUiState.collapsed = mbCEUiState.collapsed || {};
+			mbCEUiState.collapsed[gkey] = willClose ? 1 : 0;
+			mbCEUiSave({ collapsed: mbCEUiState.collapsed });
+		}
+	}
+
+	/* 二级分组：返回组内 body 容器（组名 + 右侧副标 + 折叠箭头）。 */
+	function mceNewGroup(parent, title, sub, collapsed) {
+		var g = el("div", "mce-group");
+		var gkey = "group:" + String(title || "");
+		var isOpen = mceReadGroupFold(gkey, collapsed);
+		var head = el("div", "mce-group-h mce-group-fold-head");
+		head.setAttribute("role", "button");
+		head.setAttribute("tabindex", "0");
+		head.title = (sub ? sub + " · " : "") + "点击展开 / 收起";
+		head.appendChild(el("span", "", title));
+		if (sub) { head.appendChild(el("span", "mce-group-n", sub)); }
+		head.appendChild(el("span", "mce-group-arrow", isOpen ? "▾" : "▸"));
+		g.appendChild(head);
+		var body = el("div", "mce-group-b");
+		body.setAttribute("data-collapsed", isOpen ? "0" : "1");
+		g.appendChild(body);
+		var onFold = function () { mceToggleGroupFold(body, head, gkey); };
+		head.addEventListener("click", onFold);
+		head.addEventListener("keydown", function (ev) {
+			if (ev.key === "Enter" || ev.key === " " || ev.keyCode === 13 || ev.keyCode === 32) {
+				ev.preventDefault();
+				onFold();
+			}
+		});
+		if (parent) { parent.appendChild(g); }
+		return body;
 	}
 /* 职责：与外部 UI 模组共存 —— 主题 token 同步 / 断点跟随 / 按钮尺寸封回 */
 	/* ============ UI 兼容层：与外部 UI 模组（DoL-Game-UI）共存 ============
@@ -14275,6 +14319,29 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "召回异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 格威岚 · 当日讲故事解限（贴吧「言灵分享：森林商店相关（0.5.6+）」原帖口径，按 0.5.12.13 复核）：
+	   原版进森林商店时先 `$daily.gwylan.clothesTalk ||= 0`（414843），讲满 3 件且未锁时置
+	   `$daily.gwylan.enoughTalk = true`（414844-414845），之后只显示「明天再来」（414857-414859）；
+	   每讲完一件 `clothesTalk++`（378374 / 378579 / 378671 … 379968 各服装线）。
+	   把 clothesTalk 压到 -1000、enoughTalk 置 false，当天无论再讲多少件都到不了 3；
+	   $daily 跨日重建（183255-183273 默认 gwylan:{}），次日自动恢复原版限制，不产生永久解锁。
+	   只动当日计数，不改爱意 / 剧情进度 / 已解锁服装（那些走 03a 特殊服装与 03c gwylan 事件）。 */
+	function mbCEYanlingGwylanTalk() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			if (!V.daily || typeof V.daily !== "object") { return { ok: false, msg: "本存档无 $daily（尚未进入每日循环）" }; }
+			var g = V.daily.gwylan;
+			if (!g || typeof g !== "object") { g = {}; V.daily.gwylan = g; }
+			var before = { clothesTalk: g.clothesTalk, enoughTalk: g.enoughTalk };
+			var changed = (g.clothesTalk !== -1000) || (g.enoughTalk !== false);
+			g.clothesTalk = -1000;
+			g.enoughTalk = false;
+			if (changed) { mbCEYanlingTrace("gwylan_talk", before, { clothesTalk: -1000, enoughTalk: false }); }
+			return { ok: true, msg: "今日讲故事限制已解除（clothesTalk → -1000，enoughTalk → false；当天不限件数，跨日自动恢复原版 3 件限制）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
 	/* 凯拉尔 · 送监狱：原版合法值 "active" / "" / "prison" / 0（654113 起监狱专属线按 state is "prison" 触发） */
 	function mbCEYanlingKylar(prison) {
 		try {
@@ -14327,6 +14394,414 @@ var SCENE_LOCATIONS = {
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
+	/* 职责：言灵页第二批动作（贴吧「言灵分享：森林商店相关（0.5.6+）」87 / 90 / 92 楼）——
+	   ① 眷属项圈一键戴上并锁（穿上 familiar collar 且 cursed=1，之后原版禁止脱下）
+	   ② 绝望轮回全结局 + Trials of Faith 成就（$hcEndings 补齐 A-F/S，成就直写 currentSave）
+	   ③ 清除催眠·好奇（delete $hypnosis_traits.devotion / $hypnosisTimers.devotion）
+	   拆段原因：07i-yanling-actions.js 385/400，再加 3 个动作会破单段 400 行门禁（S1）。
+	   全部走变量直写 + mbCE_wrote 留痕（yanling: 前缀，回退可查），不依赖原版文案。 */
+
+	/* ① 眷属项圈（原版取证 DoL 0.5.12.13）：
+	   · 定义 @139392-139426：index 40 / slot "neck" / name "familiar collar" / variable "collarfamiliar"
+	     / type ["eerie","curious","enchanting"] / collared 1 / integrity 1000
+	   · 安装点 <<neckwear 40>> = generalWear("neck", 40,…)（widget "neckwear" @198057）
+	   · 锁死判据：$worn.neck.name is "familiar collar" and $worn.neck.cursed is 1
+	     —— 换衣/脱衣在 @169245、@169373 直接 return true / 100（原版拒绝脱下）
+	   · 版主原言灵还有一层：已 cursed 时 <<set $worn.neck.type.push("broken")>> + <<neckruined true>>
+	     （@198062-198065 leash widget 的破损处理）——本实现按「未穿 → 穿上并锁」的常规路径，
+	     已穿时只补 cursed，不强行造破损态（破损会让项圈耐久/描述变化，非玩家本意）。
+	   与 leaf 变装同口径：setup 件必须深拷贝进 $worn，否则 clothesIndex(@16566855) 按
+	   variable/modder 匹配时会把存档对象当原型，后续原版读写会错位。
+	   边界：当前 neck 已是其它诅咒衣物 → 拒绝（原版禁止脱下，硬覆盖等于绕过保护）；原普通颈饰入柜。 */
+
+	/* 共用小工具：$worn 是否可用 / 取衣物名 / 对象判定 / 诅咒锁判定（控制各动作函数的分支数） */
+	function mbCEYanlingWornOk(V) {
+		return !!(V && V.worn && typeof V.worn === "object");
+	}
+	function mbCEYanlingNameOf(x) {
+		return (x && typeof x === "object" && x.name) ? String(x.name) : "";
+	}
+	function mbCEYanlingObj(x) {
+		return (x && typeof x === "object") ? x : null;
+	}
+	function mbCEYanlingIsLocked(x) {
+		return !!(x && x.cursed === 1);
+	}
+
+	/* 原颈饰入柜（可入柜时返回名字，否则空串）；独立小函数，控住主流程复杂度 */
+	function mbCEYanlingNeckStash(V, cur) {
+		try {
+			var nm = mbCEYanlingNameOf(cur);
+			if (!nm || nm === "naked" || mbCEYanlingWardrobeSkip(nm)) { return ""; }
+			var w = mbCEYanlingWardrobePick(V);
+			var arr = w ? mbCEYanlingWardrobeSlot(w, "neck") : null;
+			var put = arr ? mbCEYanlingDeep(cur) : null;
+			if (!put) { return ""; }
+			put.mbCE_collarStored = 1;
+			arr.push(put);
+			return nm;
+		} catch (e) { return ""; }
+	}
+
+	/* 已穿项圈但未锁：只补 cursed，不重穿（保留玩家原本的颜色/耐久） */
+	function mbCEYanlingCollarRelock(cur) {
+		var b0 = { name: cur.name, cursed: cur.cursed };
+		cur.cursed = 1;
+		mbCEYanlingTrace("collar_lock", b0, { name: "familiar collar", cursed: 1 });
+		return { ok: true, msg: "已补锁：项圈原已穿着（未锁 → cursed=1，现在脱不掉了）" };
+	}
+
+	function mbCEYanlingCollarLock() {
+		try {
+			var V = getV();
+			if (!mbCEYanlingWornOk(V)) { return { ok: false, msg: "存档变量不可用" }; }
+			var hit = mbCEYanlingClothFind("familiar collar");
+			if (!hit) { return { ok: false, msg: "服装表缺少 familiar collar（游戏版本低于 0.5.6 或 setup.clothes 未初始化）" }; }
+			var cur = V.worn.neck;
+			var nm = mbCEYanlingNameOf(cur);
+			var locked = mbCEYanlingIsLocked(cur);
+			if (nm === "familiar collar") {
+				if (locked) { return { ok: true, msg: "已锁：当前穿的就是眷属项圈（cursed=1，原版禁止脱下）" }; }
+				return mbCEYanlingCollarRelock(cur);
+			}
+			if (locked) { return { ok: false, msg: "当前颈饰是其它诅咒衣物（" + nm + "），原版禁止脱下；请先处理它再上项圈" }; }
+			var stored = mbCEYanlingNeckStash(V, cur);
+			var item = mbCEYanlingDeep(hit.item);
+			if (!item) { return { ok: false, msg: "项圈复制失败" }; }
+			var before = { name: nm, cursed: locked ? 1 : 0, stored: stored };
+			item.cursed = 1;
+			V.worn.neck = item;
+			mbCEYanlingTrace("collar_lock", before, { name: "familiar collar", cursed: 1, stored: stored });
+			var msg = "已戴上眷属项圈并锁死（cursed=1，原版换衣/脱衣判定会拒绝；要取下只能改存档或用同页留痕撤销）";
+			if (stored) { msg += "；原颈饰 " + stored + " 已进衣柜"; }
+			return { ok: true, msg: msg };
+		} catch (e) { return { ok: false, msg: "项圈写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* ② 绝望轮回（Hopeless Cycle）全结局 + 成就：
+	   · 结局数组 $hcEndings 的值域 A/B/C/D/E/F/S（原版画廊 @309419 显示 `x/7 Endings`，S 单独标金）
+	   · 锁子甲 chain_tunic 解锁需求就是 `V.hcEndings?.includes("S")`（@141965 单件 requirements）
+	   · Trials of Faith 成就定义 @103326，真结局授予点 @621081（<<tearup>><<earnFeat "Trials of Faith">>）
+	   · 成就在作弊模式下会被原版 earnFeat 门控（V.cheatsEnabled===true 直接 return，@104773），
+	     所以按 CE 既有先例（07l-vanilla-ext：博物馆成就）直写 `V.feats.currentSave[feat] = new Date()`
+	   —— 只补结局与成就，不伪造当前正在进行的轮回进度（$hopelessCycle 系列状态键不动）。 */
+	function mbCEYanlingHcFill(V, keys) {
+		if (!Array.isArray(V.hcEndings)) { V.hcEndings = []; }
+		var added = [];
+		keys.forEach(function (k) { if (V.hcEndings.indexOf(k) === -1) { V.hcEndings.push(k); added.push(k); } });
+		return added;
+	}
+
+	function mbCEYanlingFeatGrant(V, feat) {
+		if (!V.feats || typeof V.feats !== "object") { V.feats = {}; }
+		if (!V.feats.currentSave || typeof V.feats.currentSave !== "object") { V.feats.currentSave = {}; }
+		if (V.feats.currentSave[feat] !== undefined) { return false; }
+		V.feats.currentSave[feat] = new Date();
+		return true;
+	}
+
+	function mbCEYanlingHopelessEndings() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var KEYS = ["A", "B", "C", "D", "E", "F", "S"];
+			var FEAT = "Trials of Faith";
+			var hadEndings = Array.isArray(V.hcEndings) ? V.hcEndings.slice() : V.hcEndings;
+			var hadFeat = !!(V.feats && V.feats.currentSave && V.feats.currentSave[FEAT] !== undefined);
+			var added = mbCEYanlingHcFill(V, KEYS);
+			var featNew = mbCEYanlingFeatGrant(V, FEAT);
+			mbCEYanlingTrace("hopeless_endings", { hcEndings: hadEndings, feat: hadFeat }, { hcEndings: KEYS.slice(), feat: FEAT });
+			var msg = "绝望轮回结局：" + V.hcEndings.length + "/7";
+			msg += added.length ? "（新增 " + added.join("") + "）" : "（已齐，无新增）";
+			msg += featNew ? "；成就 Trials of Faith 已写入" : "；成就 Trials of Faith 原本已有（保留原时间）";
+			return { ok: true, msg: msg };
+		} catch (e) { return { ok: false, msg: "结局写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* ③ 清除催眠·好奇：
+	   · 原帖 92 楼排障言灵 `[[清除好奇|$passage][delete $hypnosis_traits.devotion, delete $hypnosisTimers.devotion]]`
+	   · 判据 @78543：hypnosisTraits 遍历时 `key === "devotion"` 且非「项圈已锁」时生效——
+	     即 devotion 就是「好奇」条目；$hypnosisTimers 是对应计时器桶
+	   · 只删这两个键，不动 suggestion / scream / cover / deviancy 等其它催眠特质与其计时器。 */
+	function mbCEYanlingDelKey(obj, key) {
+		if (!obj || typeof obj !== "object" || !(key in obj)) { return false; }
+		delete obj[key];
+		return true;
+	}
+
+	function mbCEYanlingClearCuriosity() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var traits = mbCEYanlingObj(V.hypnosis_traits);
+			if (!traits) { return { ok: false, msg: "无 $hypnosis_traits（本档从未中过催眠）" }; }
+			var tmr = mbCEYanlingObj(V.hypnosisTimers);
+			var before = { trait: traits.devotion, timer: tmr ? tmr.devotion : undefined };
+			var n = 0;
+			if (mbCEYanlingDelKey(traits, "devotion")) { n += 1; }
+			if (mbCEYanlingDelKey(tmr, "devotion")) { n += 1; }
+			if (n) { mbCEYanlingTrace("clear_curiosity", before, { trait: undefined, timer: undefined }); }
+			return { ok: true, msg: "已清除好奇（" + n + " 项：" + "$hypnosis_traits.devotion" + (n > 1 ? " + $hypnosisTimers.devotion" : "") + " 已删除）" };
+		} catch (e) { return { ok: false, msg: "清除异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 贴吧第二批共用小工具（控制单函数复杂度，lint 棘轮只减不增） */
+	function mbCEYanlingEnsureDailyGwylan(V) {
+		var d = mbCEYanlingObj(V.daily);
+		if (!d) { d = {}; V.daily = d; }
+		var g = mbCEYanlingObj(d.gwylan);
+		if (!g) { g = {}; d.gwylan = g; }
+		return g;
+	}
+	function mbCEYanlingDeepOrEmpty(x) {
+		return mbCEYanlingDeep(x) || {};
+	}
+
+	/* ============ 第二批（截图补遗）：仪式 / 渴望 / 委托 / 宠物床 / 计数 / 催眠 cd ============
+	   全部按 DoL 0.5.12.13 原版行号复核（可复跑），对应 dol吧森林商店帖 7L / 8L / 11L / 12L / 15L / 17L。
+	   原则同前：只在原版键已存在的档上写（未开线的档明确拒绝），不硬造存档垃圾键。 */
+
+	/* ④ 格威岚 · 仪式冷却（7L「无限仪式」「仪式延期」）：
+	   · $gwylan.timer.ritual 是时间戳；到点判据 Time.date.dayDifference(...) <= 0
+	     —— 414891-414892 显示「还需 N 天」，否则 414899-414904 出现仪式入口；
+	   · 完成一次后原版写 +7 天（398721 / 405614 / 414894）。
+	   故「无限仪式」= 设为当前时刻（dayDifference 归 0，立即可再来）；
+	   「仪式延期」= +7 天（与完成后的冷却同值）。 */
+	function mbCEYanlingGwylanRitualAt(days, tag, okMsg) {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var t = V.gwylan && V.gwylan.timer;
+			if (!t || typeof t !== "object" || t.ritual === undefined) {
+				return { ok: false, msg: "本档尚未开启仪式线（$gwylan.timer.ritual 不存在），无冷却可改" };
+			}
+			var ts = mbCEYanlingDaysLater(days);
+			if (ts === null) { return { ok: false, msg: "无法计算游戏内时间戳（DateTime / Time.date 不可用）" }; }
+			var before = t.ritual;
+			t.ritual = ts;
+			mbCEYanlingTrace(tag, { ritual: before }, { ritual: ts });
+			return { ok: true, msg: okMsg };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+	function mbCEYanlingGwylanRitualReady() {
+		return mbCEYanlingGwylanRitualAt(0, "gwylan_ritual_ready", "仪式冷却已清零（dayDifference=0，进森林商店即可再来一次）");
+	}
+	function mbCEYanlingGwylanRitualDelay() {
+		return mbCEYanlingGwylanRitualAt(7, "gwylan_ritual_delay", "仪式已延后 7 天（与原版完成一次仪式后的冷却同值）");
+	}
+
+	/* ⑤ 格威岚 · 渴望拉满（8L「无比渴望 `$NPCName[7].corr += 150`」）：
+	   原帖键在 0.5.12.13 已不存在——全库 `\.corr\b` 0 命中（NPC 对象改由 corruption 承载，
+	   且 Gwylan 的 status 判定只读 dom / lust：71494-71541），照抄等于写死键；
+	   故按现行 clamp 语义给等价「拉满」：lust 0-100、dom -50-150（345281-345282）。
+	   dom 拉满会同时满足 partners 线门槛（414728：love>=80 + dom>=75 + dateCount.GwylanSex>=5 + sea>=5），
+	   属玩家主动作弊预期，不做二次拦截。 */
+	function mbCEYanlingGwylanDesire() {
+		try {
+			var npc = mbCEYanlingNpc("Gwylan");
+			if (!npc || typeof npc !== "object") { return { ok: false, msg: "本存档无格威岚槽位" }; }
+			if (npc.init === 0) { return { ok: false, msg: "格威岚尚未初始化（未相遇）" }; }
+			var before = { lust: npc.lust, dom: npc.dom };
+			npc.lust = 100;
+			npc.dom = 150;
+			mbCEYanlingTrace("gwylan_desire", before, { lust: 100, dom: 150 });
+			return { ok: true, msg: "格威岚渴望已拉满（lust 100 / dom 150，均为原版 clamp 上限）。注：原帖 `$NPCName[7].corr` 键在当前 0.5.12.13 已不存在（corr 全库 0 命中），此处按现行 dom/lust 语义等价实现" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* 委托 seed 递增（widget 393057-393060：0.001 步进、0.25-0.99 环） */
+	function mbCEYanlingGwylanSeed(g) {
+		if (!g || typeof g.requestSeed !== "number") { return; }
+		g.requestSeed = ((g.requestSeed - 0.25 + 0.001) % (0.99 - 0.25)) + 0.25;
+	}
+
+	/* ⑥ 格威岚 · 完成当前委托（11L「完成任务」= 原版 widget `<<gwylanRequestEnd>>`）：
+	   widget 定义 392995-393061：requestDone=true、requestCount++、daily.gwylan.request=true、
+	   给 `$gwylan.timer[当前 event]` 写 +14 天（防同一事件立刻重刷）、timer.requestLast=now、
+	   requestLast=旧 request 快照、request={}、requestSeed 递增。
+	   与帖主提醒一致：跳过「金首饰」这类前置任务后，原版靠 timer[event] 冷却 + 保险逻辑仍会把必要物品补回，
+	   本按钮只走同一语义，不额外发放物品。 */
+	function mbCEYanlingGwylanRequestDone() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var g = V.gwylan;
+			var req = g && g.request;
+			if (!req || !req.event) { return { ok: false, msg: "当前没有进行中的委托（$gwylan.request.event 为空）" }; }
+			var ev = String(req.event);
+			var before = { event: ev, requestDone: g.requestDone, requestCount: g.requestCount };
+			g.requestDone = true;
+			g.requestCount = (typeof g.requestCount === "number" ? g.requestCount : 0) + 1;
+			mbCEYanlingEnsureDailyGwylan(V).request = true;
+			var t = mbCEYanlingObj(g.timer);
+			if (!t) { t = {}; g.timer = t; }
+			var cool = mbCEYanlingDaysLater(14);
+			if (cool !== null) { t[ev] = cool; }
+			var now = mbCEYanlingDaysLater(0);
+			if (now !== null) { t.requestLast = now; }
+			g.requestLast = mbCEYanlingDeepOrEmpty(req);
+			g.request = {};
+			mbCEYanlingGwylanSeed(g);
+			mbCEYanlingTrace("gwylan_request_done", before, { event: ev, requestCount: g.requestCount });
+			return { ok: true, msg: "已完成格威岚的委托「" + ev + "」（requestCount=" + g.requestCount + "，同事件 14 天内不再刷出）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* ⑦ 格威岚 · 宠物床续期（17L「宠物床」）：
+	   · 到期键 $gwylan.timer.petBed，过关即被日结删除（78396）；
+	   · 原版首次放出 / 续期都写 +7 天（392612 / 392632 / 392635）。
+	   门控按 415091：需已解锁 partners 线，未解锁不提供（避免面板显示成功但森林商店不放床）。 */
+	function mbCEYanlingGwylanPetBed() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var gw = mbCEYanlingObj(V.gwylan);
+			var t = gw ? mbCEYanlingObj(gw.timer) : null;
+			if (!t) { return { ok: false, msg: "本档尚未开启格威岚线（$gwylan.timer 不存在）" }; }
+			var seen = Array.isArray(V.gwylanSeen) ? V.gwylanSeen : null;
+			if (!seen || seen.indexOf("partners") === -1) {
+				return { ok: false, msg: "尚未解锁伴侣线（$gwylanSeen 无 partners），原版不会提供宠物床（415091 门控）" };
+			}
+			var ts = mbCEYanlingDaysLater(7);
+			if (ts === null) { return { ok: false, msg: "无法计算游戏内时间戳（DateTime / Time.date 不可用）" }; }
+			var before = t.petBed;
+			t.petBed = ts;
+			mbCEYanlingTrace("gwylan_petbed", { petBed: before }, { petBed: ts });
+			return { ok: true, msg: "宠物床已续 7 天（" + (before === undefined ? "首次放出" : "原到期时间 " + String(before)) + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* ⑧ 格威岚 · 看海 / 亲密仪式计数（15L）：
+	   $gwylan.sea（383946-383948 每日首见 +1、384741 事件 +1；>=5 / >=10 参与解锁判定）
+	   $dateCount.GwylanSex（405620 每次仪式 ++；414728 partners 门槛 >=5）。
+	   两者都是累计计数、无上限，只在键已存在（已走过对应线）时累加。 */
+	function mbCEYanlingGwylanSea() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var g = mbCEYanlingObj(V.gwylan);
+			if (!g || typeof g.sea !== "number") {
+				return { ok: false, msg: "本档无 $gwylan.sea（尚未与格威岚看海，不硬建键）" };
+			}
+			var before = g.sea;
+			g.sea = before + 20;
+			mbCEYanlingTrace("gwylan_sea", { sea: before }, { sea: g.sea });
+			return { ok: true, msg: "看海次数 " + before + " → " + g.sea + "（原版 384348 / 414728 按 >=5 判定解锁线）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+	function mbCEYanlingGwylanSex() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var dc = mbCEYanlingObj(V.dateCount);
+			if (!dc || typeof dc.GwylanSex !== "number") {
+				return { ok: false, msg: "本档无 $dateCount.GwylanSex（尚未完成过亲密仪式，不硬建键）" };
+			}
+			var before = dc.GwylanSex;
+			dc.GwylanSex = before + 5;
+			mbCEYanlingTrace("gwylan_sex", { count: before }, { count: dc.GwylanSex });
+			return { ok: true, msg: "亲密仪式次数 " + before + " → " + dc.GwylanSex + "（414728 partners 门槛为 >=5）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* ⑨ 催眠 cd / 当天次数（12L 问答）：
+	   · cd：每日衰减 78539-78558，devotion 桶要降到 gwylanHypnoMax("value", devotion-1) 才「可再来一次」
+	     （表 169336-169353：level1 15 / 2 35 / 3 55 / 4 75 / 5 95 / 6 100）；帖主口径「满值-10」。
+	   · 当天次数：文案分支读 $daily.gwylan.hypnosis（386337），结束催眠时置 true 并 unset $hypnosis_potency（389060）。 */
+	function mbCEYanlingHypnoMaxFor(level) {
+		var t = [15, 35, 55, 75, 95, 100];
+		if (typeof level === "number" && level >= 1 && level <= 6) { return t[level - 1]; }
+		return 0;
+	}
+	function mbCEYanlingHypnoLevel(V) {
+		var tr = V.hypnosis_traits;
+		return (tr && typeof tr.devotion === "number") ? tr.devotion : 0;
+	}
+	function mbCEYanlingHypnoBucket(V) {
+		var tm = mbCEYanlingObj(V.hypnosisTimers);
+		var dev = tm ? mbCEYanlingObj(tm.devotion) : null;
+		return (dev && typeof dev.time === "number") ? dev : null;
+	}
+	function mbCEYanlingHypnoCd() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var lvl = mbCEYanlingHypnoLevel(V);
+			if (lvl < 1) { return { ok: false, msg: "本档没有好奇特质（$hypnosis_traits.devotion 为空或 <1），无需重置催眠 cd" }; }
+			var dev = mbCEYanlingHypnoBucket(V);
+			if (!dev) { return { ok: false, msg: "本档无 $hypnosisTimers.devotion 计时桶（尚未进入过催眠 cd 结算）" }; }
+			var max = mbCEYanlingHypnoMaxFor(lvl - 1);
+			var target = Math.max(0, max - 10);
+			var before = dev.time;
+			dev.time = target;
+			mbCEYanlingTrace("hypno_cd", { time: before, max: max }, { time: target });
+			return { ok: true, msg: "催眠 cd 已重置（" + before + " → " + target + "，阈值 " + max + "-10；下次找格威岚即可继续）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+	function mbCEYanlingHypnoDaily() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var cleared = [];
+			var d = mbCEYanlingObj(V.daily);
+			var g = d ? mbCEYanlingObj(d.gwylan) : null;
+			if (g && "hypnosis" in g) { delete g.hypnosis; cleared.push("$daily.gwylan.hypnosis"); }
+			if (V.hypnosis_potency !== undefined) { delete V.hypnosis_potency; cleared.push("$hypnosis_potency"); }
+			if (!cleared.length) { return { ok: true, msg: "当天催眠次数本就是可用状态（无需刷新）" }; }
+			mbCEYanlingTrace("hypno_daily", null, { cleared: cleared });
+			return { ok: true, msg: "当天催眠次数已刷新（已清 " + cleared.join(" / ") + "）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+	/* 职责：言灵页第三批动作（贴吧「言灵分享：森林商店相关」帖 6L 街机 / 16-17L 项圈破损）——
+	   ① 街机计数设 7（$tenyclusPlayCount：future_suit 需求 141655；入口显示条件 532472）
+	   ② 项圈破损层（type+broken + eventskipoverrule=1，原版 198062-198065 / 198496 空分支）
+	   拆段原因：07i-yanling-posts.js 403/400，再加动作会破单段预算（S1）；语义命名符合 S2。
+	   全部走变量直写 + mbCE_wrote 留痕（yanling: 前缀）。 */
+
+	/* ⑩ 街机计数（6L「V.tenyclusPlayCount >= 7」）：
+	   · 该计数就是 future_suit 套装的获取需求：requirements: () => V.tenyclusPlayCount >= 7（141655）；
+	   · 首页街机入口的显示条件是 `gte 1 and lt 7`（532472），写 7 后该入口关闭 = 剧情走完语义
+	     （原版 533180 每玩一局 ++，533181 在 6 档且无触手时直接跳到 7）；
+	   · 首次遇见时初始化 0（532464-532465）。
+	   故写 7 即「打过七次」，不伪造 hallucinations / daily.tenyclusPlayed 等见面门槛。 */
+	function mbCEYanlingArcadeCount() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
+			var before = V.tenyclusPlayCount;
+			if (typeof before === "number" && before >= 7) {
+				return { ok: true, msg: "街机计数已是 " + before + "（>=7，future_suit 需求 141655 已满足，无需再写）" };
+			}
+			V.tenyclusPlayCount = 7;
+			mbCEYanlingTrace("arcade_count", { count: before }, { count: 7 });
+			return { ok: true, msg: "街机计数 " + (before === undefined ? "未初始化" : String(before)) + " → 7（future_suit 服装需求满足；原版 `gte 1 and lt 7` 的 Play Tenyclus 入口随之关闭，属剧情走完语义）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
+
+	/* ⑪ 项圈破损层（87L 原言灵的 `type.push("broken")` + `<<neckruined>>`）：
+	   · 原版 leash widget 198061-198066：cursed 时先 type.push("broken") 再 <<neckruined>>，然后才 generalWear；
+	   · <<neckruined>> = generalRuined "neck"（198712-198715）；
+	   · generalRuined 198496 对「cursed 且尚未 broken/split」走**空分支**：不销毁、不移除、不进 ruined 列表，
+	     唯一实际写入是 198495 的 `$eventskipoverrule = 1`（Re-buy 198532 也因 198534 的 `cursed isnot 1` 被拦下，
+	     _noRebuy 对诅咒件无实际作用）。
+	   所以破损层的等价效果 = type 加 "broken" + eventskipoverrule=1，项圈仍留在身上、只改描述。 */
+	function mbCEYanlingCollarBreak() {
+		try {
+			var V = getV();
+			if (!mbCEYanlingWornOk(V)) { return { ok: false, msg: "存档变量不可用" }; }
+			var cur = V.worn.neck;
+			if (!cur || typeof cur !== "object" || cur.name !== "familiar collar") {
+				return { ok: false, msg: "当前没穿眷属项圈（先「戴上并锁死」，破损层只作用于已锁项圈）" };
+			}
+			if (cur.cursed !== 1) { return { ok: false, msg: "项圈未锁（cursed≠1）；原版破损处理只在 cursed 状态发生（198062）" }; }
+			var types = Array.isArray(cur.type) ? cur.type : (cur.type = []);
+			var dup = types.indexOf("broken") !== -1;
+			if (!dup) { types.push("broken"); }
+			V.eventskipoverrule = 1;
+			mbCEYanlingTrace("collar_break", { broken: dup, eventskipoverrule: undefined }, { broken: true, eventskipoverrule: 1 });
+			return { ok: true, msg: dup ? "项圈已是破损态（type 已含 broken），本次只补 eventskipoverrule=1" : "项圈已标记破损（type+broken、eventskipoverrule=1；项圈不脱、只改描述，符合原版 198496 空分支）" };
+		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
+	}
 	/* 职责：言灵页（07i）剧情闸门与系统开关 —— 艾弗里办公室标记补开（含撤销）/ 作弊模式强制开关（含撤销），全部按原版写入语义直写并留痕。 */
 	/* ==================== 剧情闸门（玩家给的 SugarCube 言灵片段，逐行取证后落地为按钮） ====================
 	   原始片段：[[开启艾弗里办公室·补|$passage][$averySeen = ($averySeen ? $averySeen : new Array()).concat(String.fromCharCode(111,102,102,105,99,101))]]
@@ -15309,12 +15784,13 @@ function renderYanlingQuick(parent) {
 			   旧版把"说明与边界"塞在第 4 位却排在最后、区块顺序 s1→s2→s3→s5→s6→s7→s8→s4，编号与文案里的 ①②③ 完全脱节；
 			   现在按「玩家要解决什么问题」分组：着装与名声（想穿什么就穿什么）/ 身体与数值（把状态拉回舒服）/
 			   角色状态（把碍事的 NPC 挪开），说明统一收进最底折叠块。 */
-			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声");
-			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气");
-			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 囚禁（原版 state 层）");
-			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式（无副作用）");
-			/* v2.1.17 原帖 52 条补丁：独立 E 组 + 4 个页内选项卡（同类型合并），不挤进 A~D 的开关语义 */
-			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡");
+			var gA = mceNewGroup(pane, "A · 着装与名声", "异装判定 / 性癖特质 / 负面名声 / 枝叶变装", true);
+			var gB = mceNewGroup(pane, "B · 身体与数值", "衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气", true);
+			var gC = mceNewGroup(pane, "C · 角色状态", "放逐 / 监狱 / 格威岚 / 绝望轮回", true);
+			var gD = mceNewGroup(pane, "D · 剧情与系统", "艾弗里办公室补开 / 作弊模式（无副作用）", true);
+			/* v2.1.17 原帖 52 条补丁：独立 E 组 + 4 个页内选项卡（同类型合并），不挤进 A~D 的开关语义。
+			   v2.2.x 排版：A~E 五组默认收起（点组头展开），长页只留 5 行组头，点开再看区块。 */
+			var gE = mceNewGroup(pane, "E · 言灵补丁（原帖 52 条）", "52 条 · 4 类选项卡", true);
 
 			/* ① 核心：无性别着装 */
 			var s1 = mceNewSec(gA, 1, "无视着装性别", "开启后 NPC 不再按服装标注性别判定异装：穿异性服装不触发异装判定、不涨异装癖、不产生学校异装名声，换衣间也不再出现「naughty」类文案。判定在 JS 层覆盖 isCrossdressing()，$crossdressing 恒为 0，版本升级不会像文本替换那样静默失效。");
@@ -15492,6 +15968,77 @@ function renderYanlingQuick(parent) {
 			mkBtn(s9g, "纹身狱友庇护", MCE_CLS.gold, function () { return mbCEYanlingPrisonProtect("tattooed"); }, "prison.protection = \"tattooed\"（651145 / 658072 有对应判定分支）");
 			mkBtn(s9g, "清除庇护", "", function () { return mbCEYanlingPrisonProtect(""); }, "prison.protection = \"\"（空串为假值，恢复 attention 事件的随机遭遇）");
 			s9.appendChild(el("div", MCE_CLS.hint, "注意：狱友声望档位（0-5）与纹身程度（0-100）是另外两个**数字**档位（狱友线声望），在「场景 → 地点」页的监狱组里调，与本组不是同一个变量。"));
+
+			/* ⑬ 格威岚 · 森林商店（合并原 ⑬ / ⑭ 项圈 / ⑮ 三块：按主题收拢，按钮顺序 = 今日对话 → 仪式与委托 → 计数与渴望 → 催眠 → 项圈）
+			   逐条对应 dol吧「言灵分享：森林商店相关」帖：4L 讲故事 / 6L 街机 / 7L 仪式 / 8L 渴望 / 11L 委托 / 12L 催眠 / 15L 计数 / 17L 宠物床 / 16-17L 项圈。
+			   原版取证行号：414843-414859 / 141655 / 532472 / 414891 / 405614 / 392995-393061 / 345281-345282 / 78554 / 169336 / 384348 / 414728 / 405620 / 392612 / 415091 / 169245 / 169373 / 198062-198065 / 198496。 */
+			var s13 = mceNewSec(gC, 13, "格威岚 · 森林商店", "按主题收拢的格威岚全功能组：今日对话 / 仪式与委托 / 计数与渴望 / 催眠 / 项圈。每按钮 hint 标原版行号；只在原版键已存在的档上写，未开线明确拒绝。");
+			var gTxt = "读取失败";
+			try {
+				var Vs = getV();
+				var gt = (Vs && Vs.daily && Vs.daily.gwylan && typeof Vs.daily.gwylan === "object") ? Vs.daily.gwylan : {};
+				var gws = (Vs && Vs.gwylan && typeof Vs.gwylan === "object") ? Vs.gwylan : {};
+				var tt = (gws.timer && typeof gws.timer === "object") ? gws.timer : {};
+				var talkTxt = "话 " + (typeof gt.clothesTalk === "number" ? String(gt.clothesTalk) : "—") + "/3" + (gt.enoughTalk === true ? "（今日已锁）" : "");
+				var ritTxt = (typeof tt.ritual === "number") ? "仪式到期 " + String(tt.ritual) : "未开仪式线";
+				var reqTxt = (gws.request && gws.request.event) ? String(gws.request.event) : "无委托";
+				var pbTxt = (typeof tt.petBed === "number") ? "床 " + String(tt.petBed) : "无床";
+				var seaTxt = (typeof gws.sea === "number") ? String(gws.sea) : "—";
+				var sexTxt = (Vs && Vs.dateCount && typeof Vs.dateCount.GwylanSex === "number") ? String(Vs.dateCount.GwylanSex) : "—";
+				var arcTxt = (typeof Vs.tenyclusPlayCount === "number") ? String(Vs.tenyclusPlayCount) : "0";
+				var cdTxt = "—";
+				var devS = Vs && Vs.hypnosisTimers && Vs.hypnosisTimers.devotion;
+				if (devS && typeof devS.time === "number") { cdTxt = String(devS.time); }
+				var nkS = (Vs && Vs.worn && Vs.worn.neck && typeof Vs.worn.neck === "object") ? Vs.worn.neck : null;
+				var colTxt = !nkS ? "—" : ((nkS.name || "naked") + (nkS.cursed === 1 ? "（已锁" + (Array.isArray(nkS.type) && nkS.type.indexOf("broken") !== -1 ? "·破损" : "") + "）" : ""));
+				gTxt = "故事 " + talkTxt + " ｜ " + ritTxt + " ｜ 委托：" + reqTxt + " ｜ " + pbTxt + " ｜ 看海 " + seaTxt + " / 亲密 " + sexTxt + " ｜ 街机 " + arcTxt + " ｜ 催眠cd " + cdTxt + " ｜ 项圈：" + colTxt;
+			} catch (eS) { void eS; }
+			s13.appendChild(el("div", MCE_CLS.hint, "当前：" + gTxt));
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 今日对话"));
+			var s13g = mceBtnGrid(s13);
+			mkBtn(s13g, "解除今日讲故事限制", MCE_CLS.gold, mbCEYanlingGwylanTalk, "clothesTalk=-1000、enoughTalk=false（414843-414859；只当日有效，跨日自动恢复 3 件限制）");
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 仪式与委托"));
+			var s13r = mceBtnGrid(s13);
+			mkBtn(s13r, "无限仪式（冷却清零）", MCE_CLS.gold, mbCEYanlingGwylanRitualReady, "$gwylan.timer.ritual=当前时刻（414891 判据 dayDifference<=0）");
+			mkBtn(s13r, "仪式延期 7 天", "", mbCEYanlingGwylanRitualDelay, "ritual=+7 天（同原版完成一次后的冷却 405614）");
+			mkBtn(s13r, "完成当前委托", MCE_CLS.gold, mbCEYanlingGwylanRequestDone, "等价 <<gwylanRequestEnd>>（392995-393061）：requestDone + count++ + timer[event]+14 天");
+			mkBtn(s13r, "宠物床续 7 天", "", mbCEYanlingGwylanPetBed, "timer.petBed=+7 天（392612；需已解锁 partners，415091）");
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 计数与渴望"));
+			var s13c = mceBtnGrid(s13);
+			mkBtn(s13c, "渴望拉满（lust/dom）", MCE_CLS.gold, mbCEYanlingGwylanDesire, "lust=100 / dom=150（clamp 345281-345282；原帖 $NPCName[7].corr 在本版 0 命中）");
+			mkBtn(s13c, "看海次数 +20", "", mbCEYanlingGwylanSea, "$gwylan.sea += 20（384348 / 414728 按 >=5 判定）");
+			mkBtn(s13c, "亲密仪式 +5", "", mbCEYanlingGwylanSex, "$dateCount.GwylanSex += 5（partners 门槛 >=5，414728）");
+			mkBtn(s13c, "街机计数设为 7", "", mbCEYanlingArcadeCount, "$tenyclusPlayCount=7（future_suit 需求 141655；gte 1 and lt 7 的 Play Tenyclus 入口随之关闭）");
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 催眠"));
+			var s13h = mceBtnGrid(s13);
+			mkBtn(s13h, "重置催眠 cd", "", mbCEYanlingHypnoCd, "$hypnosisTimers.devotion.time → 阶段满值-10（78554 阈值 + 169336 档位表）");
+			mkBtn(s13h, "刷新当天催眠次数", "", mbCEYanlingHypnoDaily, "delete $daily.gwylan.hypnosis + $hypnosis_potency（386337 / 389060）");
+			mkBtn(s13h, "清除好奇（催眠特质）", "mce-red", mbCEYanlingClearCuriosity, "delete $hypnosis_traits.devotion / $hypnosisTimers.devotion；其它催眠键不动");
+
+			s13.appendChild(el("div", MCE_CLS.hint, "▸ 项圈（破损不可逆）"));
+			var s13k = mceBtnGrid(s13);
+			mkBtn(s13k, "戴上眷属项圈并锁死", MCE_CLS.gold, mbCEYanlingCollarLock, "$worn.neck → familiar collar + cursed=1（169245 / 169373 锁死判据）；原颈饰进衣柜");
+			mkBtn(s13k, "标记项圈破损（broken）", "mce-red", mbCEYanlingCollarBreak, "type+broken + eventskipoverrule=1（198062-198065 / 198496 空分支：不脱、只改描述）");
+
+			/* ⑭ 绝望轮回 · 结局与成就（与格威岚无关，独立成块） */
+			var s14 = mceNewSec(gC, 14, "绝望轮回 · 结局与成就", "贴吧 90L：$hcEndings 七项 A-F/S（画廊 309419 显示 x/7）+ Trials of Faith 成就（定义 103326，授予点 621081）。成就在作弊模式下被原版 earnFeat 门控（104773），故按 CE 既有先例直写 V.feats.currentSave。只补结局与成就，不伪造轮回进度键。");
+			var endTxt = "读取失败";
+			try {
+				var Ve = getV();
+				var ed0 = "—/7";
+				if (Ve && Array.isArray(Ve.hcEndings)) {
+					ed0 = Ve.hcEndings.length + "/7" + ((Ve.feats && Ve.feats.currentSave && Ve.feats.currentSave["Trials of Faith"] !== undefined) ? "（成就已有）" : "");
+				}
+				endTxt = "结局 " + ed0;
+			} catch (eE) { void eE; }
+			s14.appendChild(el("div", MCE_CLS.hint, "当前：" + endTxt));
+			var s14g = mceBtnGrid(s14);
+			mkBtn(s14g, "绝望轮回：补齐七结局 + 成就", MCE_CLS.gold, mbCEYanlingHopelessEndings, "$hcEndings 补 A-F/S（锁子甲需求 141965）+ V.feats.currentSave[\"Trials of Faith\"] 直写");
+
 
 			/* ⑪ 艾弗里办公室（补）（v2.1.16：玩家给的 SugarCube setter 片段落地为按钮 + 撤销） */
 			var s11 = mceNewSec(gD, 11, "艾弗里办公室（补）", "等价于原版信件交付线结尾的 `<<set $averySeen.pushUnique(\"office\")>>`（791859）：补上「办公室」标记后，办公室板块（623696 / 623857）直接出现「艾弗里 · 个人助理」打工入口，Avery 排班（71279-71280）也把他算作可打工对象。仍不伪造的部分：Avery 必须已登场（71275 首行判 init）、未被驱逐、且艾弗里未受伤（$avery_injury 为真时入口不出现）。重复点击不会累积（原版是 pushUnique，不是 concat 追加）。");
@@ -18744,29 +19291,31 @@ function mbCERenderAveryKeep(sec) {
 			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架。"));
 			return;
 		}
-		/* 分组顺序即玩家看到的区块顺序：外观（主题/三开关/悬浮球）→ 批量/收集/时间/誓言/战斗/自动维护/
-		   世界腐化 → 原版扩展（档案·收藏·头衔 / 经济·学业·农田·消耗品·纹身 / 鹰塔工地 / 礼顿把柄）→
-		   数值固定 / 潜伏者 / 原版态度 / 回退中心。
-		   2026-11-22 性能轮：清单数组化（原 13 行调用压成 1 行循环，行数余量转给滚动保持）。 */
+		/* 排版优化：全局页收进 5 个顶层可折叠组，外观与面板默认展开、其余 4 组默认收起（长页收起）；
+		   组顺序即编号 ①~⑦ → ⑧⑨ → ⑩~⑬ → 态度/回退，顺带修正旧版 ⑧⑨ 排到 ⑩⑪⑫⑬ 之后的乱序。 */
+		var gApp = mceNewGroup(pane, "外观与面板", "主题 · 面板特效 · 悬浮球", false);
 		[
-			mceRenderThemePicker, mceRenderUiOpts, mcRenderFabSettings, mcRenderBatchSec,
-			mcRenderCollectSec, mcRenderTimeSec, mcRenderVowTraitSec, mcRenderCombatSec,
-			mcRenderAutoMaintSec, mcRenderWorldCorruptSec,
-			/* v2.0.9 需求②③④：原版档案 · 收藏 · 头衔（07l-vanilla-ext.js），各走独立 vcore 留痕可逐条回退 */
-			mbCERenderVanillaExt,
-			/* v2.1.14：经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-view.js），vcore-econ 留痕 */
-			mbCERenderVanillaEcon,
-			/* v2.1.15：鹰塔工地（07n，vcore-bird）/ 礼顿把柄（07o，vcore-leighton） */
-			mbCERenderVanillaBird, mbCERenderVanillaLeighton,
-			/* v2.2.1：食物库存 / 鱼获（07p-vanilla-food.js），vcore 留痕 + MB_CE_ECON_UNDO.food 回退 */
-			mbCERenderVanillaFood,
-			/* v2.2.0：艾弗里线放逐后保留房子（07q-avery-mansion-keep.js），vcore 留痕 + MB_CE_ECON_UNDO.avery-keep 回退 */
-			mbCERenderAveryKeep,
-			/* v1.9.15 数值固定（07f-lock）/ v2.0.0.002 潜伏者（07f-lurker） */
-			mbCERenderLock, mbCERenderLurker,
-			/* v2.0.0.003 原版「你对什么感到不安?」直写 / v2.0.3 P4-1 统一回退中心 */
-			renderAttitudesGroup, mbCEUndoCenterRender
-		].forEach(function (f) { f(pane); });
+			mceRenderThemePicker, mceRenderUiOpts, mcRenderFabSettings
+		].forEach(function (f) { f(gApp); });
+
+		var gBatch = mceNewGroup(pane, "批量与速成", "①~⑦ 批量 · 收集 · 时间 · 誓言 · 战斗 · 维护 · 腐化", true);
+		[
+			mcRenderBatchSec, mcRenderCollectSec, mcRenderTimeSec, mcRenderVowTraitSec, mcRenderCombatSec,
+			mcRenderAutoMaintSec, mcRenderWorldCorruptSec
+		].forEach(function (f) { f(gBatch); });
+
+		var gGuard = mceNewGroup(pane, "防护", "⑧ 数值固定 · ⑨ 潜伏者", true);
+		[mbCERenderLock, mbCERenderLurker].forEach(function (f) { f(gGuard); });
+
+		/* 原版扩展：档案/收藏/头衔 07l · 经济/学业/农田/消耗品/纹身 07m · 鹰塔 07n · 礼顿把柄 07o · 食物/鱼获 07p · 艾弗里 07q，均走独立 vcore 留痕可逐条回退 */
+		var gExt = mceNewGroup(pane, "原版扩展", "⑩~⑬ 档案 · 经济 · 鹰塔 · 礼顿 · 食物 · 艾弗里", true);
+		[
+			mbCERenderVanillaExt, mbCERenderVanillaEcon, mbCERenderVanillaBird, mbCERenderVanillaLeighton,
+			mbCERenderVanillaFood, mbCERenderAveryKeep
+		].forEach(function (f) { f(gExt); });
+
+		var gAudit = mceNewGroup(pane, "态度与回退", "原版态度 · 统一回退中心", true);
+		[renderAttitudesGroup, mbCEUndoCenterRender].forEach(function (f) { f(gAudit); });
 		mceRestoreScroll(bodyEl, keepTop);
 	}
 	/* 以下为 renderGlobal 的分组渲染器：v2.1.6 按区块拆出（区块间无共享局部变量，作用域不变） */
@@ -20466,6 +21015,30 @@ function mbCEExportYanlingQuick() {
 		a.YANLING_QUICK_TABS = MCE_YANLING_QUICK_TABS;
 	} catch (e) {}
 }
+/* 职责：言灵页第二批动作导出（贴吧森林商店帖 87 / 90 / 92 楼：项圈锁 / 绝望轮回全结局 / 清除好奇）。
+   仿 09-exports4-yanling-quick 的模式：mountApi 之后补齐，init 与顶层各调一次（幂等）。
+   拆段原因：09-exports2.js 已 399 行，触及单段 400 行门禁。 */
+function mbCEExportYanlingPosts() {
+	try {
+		var s = getSetup();
+		if (!s || !s.mbStageCE) { return; }
+		var a = s.mbStageCE;
+		a.yanlingCollarLock = mbCEYanlingCollarLock;
+		a.yanlingHopelessEndings = mbCEYanlingHopelessEndings;
+		a.yanlingClearCuriosity = mbCEYanlingClearCuriosity;
+		a.yanlingGwylanRitualReady = mbCEYanlingGwylanRitualReady;
+		a.yanlingGwylanRitualDelay = mbCEYanlingGwylanRitualDelay;
+		a.yanlingGwylanDesire = mbCEYanlingGwylanDesire;
+		a.yanlingGwylanRequestDone = mbCEYanlingGwylanRequestDone;
+		a.yanlingGwylanPetBed = mbCEYanlingGwylanPetBed;
+		a.yanlingGwylanSea = mbCEYanlingGwylanSea;
+		a.yanlingGwylanSex = mbCEYanlingGwylanSex;
+		a.yanlingHypnoCd = mbCEYanlingHypnoCd;
+		a.yanlingHypnoDaily = mbCEYanlingHypnoDaily;
+		a.yanlingArcadeCount = mbCEYanlingArcadeCount;
+		a.yanlingCollarBreak = mbCEYanlingCollarBreak;
+	} catch (e) {}
+}
 /* 职责：初始化与刷新钩子 —— hookRefresh（:passagedisplay）、init()、mountApi() 导出 */
 	function hookRefresh() {
 		var mb = resolveMB();
@@ -20491,7 +21064,7 @@ function mbCEExportYanlingQuick() {
 		if (initialized) { return; }
 		initialized = true;
 		if (typeof document === "undefined") { return; }
-		mountApi(); mbCEExportVcore(); mbCEExportLeaf(); mbCEExportYanlingQuick(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）+ v2.1.8 枝叶变装导出 + v2.1.17 言灵补丁导出，均与 mountApi 同步补齐 */
+		mountApi(); mbCEExportVcore(); mbCEExportLeaf(); mbCEExportYanlingQuick(); mbCEExportYanlingPosts(); /* v2.0.9 vcore 导出（原版档案/收藏/头衔）+ v2.1.8 枝叶变装导出 + v2.1.17 言灵补丁导出 + 2026-11-23 贴吧三键导出，均与 mountApi 同步补齐 */
 		hookPassageOverride();
 		hookPassageInit();
 		hookPassageEnd(); /* v1.9.23：锚定触发判定（走到锚定地点交互时弹确认条） */
@@ -20601,8 +21174,7 @@ function mbCEExportYanlingQuick() {
 				yanlingFarm: mbCEYanlingFarm,
 				yanlingMilk: mbCEYanlingMilk,
 				yanlingWeather: mbCEYanlingWeather,
-				yanlingGwylanBanish: mbCEYanlingGwylanBanish,
-				yanlingGwylanRecall: mbCEYanlingGwylanRecall,
+				yanlingGwylanBanish: mbCEYanlingGwylanBanish, yanlingGwylanRecall: mbCEYanlingGwylanRecall, yanlingGwylanTalk: mbCEYanlingGwylanTalk,
 				yanlingKylar: mbCEYanlingKylar,
 				yanlingWhitney: mbCEYanlingWhitney,
 				YANLING_WEATHER: mbCEYanlingWeatherMap, /* v2.1.16 剧情闸门 + 作弊模式（07i-yanling-gate.js） */ yanlingAveryOffice: mbCEYanlingAveryOffice, yanlingAveryOfficeRevert: mbCEYanlingAveryOfficeRevert, yanlingCheatOn: mbCEYanlingCheatOn, yanlingCheatOff: mbCEYanlingCheatOff,
@@ -20862,7 +21434,7 @@ function mbCEExportYanlingQuick() {
 			};
 		} catch (e) {}
 	}
-	mountApi(); mbCEExportLeaf(); mbCEExportYanlingQuick(); /* 顶层挂表后即补齐枝叶 2 键 + 言灵补丁键：init() 在无 document 环境下会提前 return，只有此处能兜底；两个导出函数均幂等 */
+	mountApi(); mbCEExportLeaf(); mbCEExportYanlingQuick(); mbCEExportYanlingPosts(); /* 顶层挂表后即补齐枝叶 2 键 + 言灵补丁键 + 贴吧三键：init() 在无 document 环境下会提前 return，只有此处能兜底；三个导出函数均幂等 */
 	init();
 })();
 

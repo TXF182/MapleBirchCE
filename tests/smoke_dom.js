@@ -612,6 +612,10 @@ const gbtn = function (label, exact) {
     return exact ? (b.textContent === label) : (b.textContent.indexOf(label) !== -1);
   })[0];
 };
+/* 排版优化：全局页按语义收进 5 个顶层可折叠组（外观与面板默认展开，其余 4 组默认收起） */
+const gTopGroups = [].slice.call(gpane().children).filter(function (g) { return g.classList.contains("mce-group"); });
+assert(gTopGroups.length === 5, "全局页 5 个顶层语义组（外观 / 批量速成 / 防护 / 原版扩展 / 态度与回退），实际 " + gTopGroups.length);
+assert(gTopGroups.filter(function (g) { var b = g.querySelector(".mce-group-b"); return b && b.getAttribute("data-collapsed") === "1"; }).length === 4, "全局页 4 个业务顶层组默认收起（仅外观与面板默认展开），实际收起 " + gTopGroups.filter(function (g) { var b = g.querySelector(".mce-group-b"); return b && b.getAttribute("data-collapsed") === "1"; }).length);
 /* 原版态度区（08b-attitude）：单项开关 → 全部解除 → 全部恢复 → 回退 */
 assert(gpane().textContent.indexOf("你对什么感到不安") !== -1, "全局页渲染原版态度区（$uncomfortable）");
 const attToggle = gbtn("解除不安", true);
@@ -739,11 +743,17 @@ const ylSnap = function () {
 assert(typeof ylApi.renderYanling === "function", "renderYanling 已导出（拆分后渲染层仍在 exports 里）");
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS1 = ylSnap();
-assert(ylS1.groups === 5 && ylS1.blocks === 13, "言灵页 5 个分组（A~D 原区块 + E 言灵补丁）+ 12 原区块 + 1 说明块 = 13 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
+assert(ylS1.groups === 5 && ylS1.blocks === 15, "言灵页 5 个分组（A~D 原区块 + E 言灵补丁）+ 14 业务区块 + 1 说明块 = 15 个 mce-block，实际 " + ylS1.groups + " 组 / " + ylS1.blocks + " 块");
 const ylQuickPane = document.querySelector('[data-pane="yanling"]');
+const ylTopGroups = [].slice.call(ylQuickPane.children).filter(function (g) { return g.classList.contains("mce-group"); });
+assert(ylTopGroups.length === 5 && ylTopGroups.filter(function (g) { var b = g.querySelector(".mce-group-b"); return b && b.getAttribute("data-collapsed") === "1"; }).length === 5, "言灵页 5 个分组默认收起（点组头展开），实际收起 " + ylTopGroups.filter(function (g) { var b = g.querySelector(".mce-group-b"); return b && b.getAttribute("data-collapsed") === "1"; }).length + " / " + ylTopGroups.length);
 assert(ylQuickPane.textContent.includes("言灵补丁（原帖 52 条）"), "言灵页含 E 组「言灵补丁（原帖 52 条）」");
 assert(ylQuickPane.querySelectorAll(".mce-subtabs .mce-btn").length === 4, "言灵补丁 4 个页内选项卡（贞洁统计 / 身体状态 / 名声 / 角色时间），实际 " + ylQuickPane.querySelectorAll(".mce-subtabs .mce-btn").length);
 assert(ylQuickPane.querySelectorAll(".mce-subtabs").length === 1, "页内选项卡容器唯一（外层 .mce-tabs 不被复用）");
+assert(ylQuickPane.textContent.includes("格威岚 · 森林商店") && ylQuickPane.textContent.includes("解除今日讲故事限制"), "言灵页含合并后的「格威岚 · 森林商店」大块 + 讲故事按钮（原 ⑬/⑭项圈/⑮ 三块收拢）");
+assert(ylQuickPane.textContent.includes("绝望轮回 · 结局与成就") && ylQuickPane.textContent.includes("绝望轮回：补齐七结局 + 成就"), "「绝望轮回 · 结局与成就」独立成块（与格威岚主题拆分）");
+assert(ylQuickPane.textContent.includes("▸ 今日对话") && ylQuickPane.textContent.includes("▸ 仪式与委托") && ylQuickPane.textContent.includes("▸ 计数与渴望") && ylQuickPane.textContent.includes("▸ 催眠") && ylQuickPane.textContent.includes("▸ 项圈（破损不可逆）"), "格威岚块内 5 个主题分隔（对话 / 仪式 / 计数 / 催眠 / 项圈）");
+assert(ylQuickPane.textContent.includes("无限仪式（冷却清零）") && ylQuickPane.textContent.includes("完成当前委托") && ylQuickPane.textContent.includes("重置催眠 cd") && ylQuickPane.textContent.includes("刷新当天催眠次数") && ylQuickPane.textContent.includes("街机计数设为 7") && ylQuickPane.textContent.includes("标记项圈破损（broken）") && ylQuickPane.textContent.includes("戴上眷属项圈并锁死"), "格威岚块关键按钮齐备（含新增街机计数 / 项圈破损）");
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS2 = ylSnap();
 assert(JSON.stringify(ylS1) === JSON.stringify(ylS2), "连续重渲染幂等（分组/区块/按钮数不增长），实际 " + JSON.stringify(ylS1) + " vs " + JSON.stringify(ylS2));

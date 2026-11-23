@@ -396,7 +396,10 @@ if (farmGrp) {
 const toggleEl = document.getElementById("mce-toggle");
 assert(!!toggleEl && toggleEl.textContent === "解锁", "F. 右下角悬浮球按钮存在（id=mce-toggle，文本「解锁」）");
 function findFabRow() {
-  return [].slice.call(globalPane.querySelectorAll("div")).filter(function (g) { return g.textContent.indexOf("悬浮入口") !== -1; })[0];
+  return [].slice.call(globalPane.querySelectorAll("div")).filter(function (g) {
+    var b = g.querySelector("button");
+    return b && b.textContent.indexOf("悬浮球拖动") !== -1;
+  })[0];
 }
 const fabRowF = findFabRow();
 assert(!!fabRowF, "F. 全局页顶部含「悬浮入口」固定按钮行");
