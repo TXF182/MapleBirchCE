@@ -177,7 +177,10 @@ const TESTS = [
   /* 2026-11-23 覆盖率提升轮：09-exports 悬浮球缩放钳位兜底（zs<=0 / bw<=0 / bh<=0 / 越界钳制）。 */
   "tests/coverage_plain_zoom.js",
   /* 2026-11-23 覆盖率提升轮：07l 原版档案 plain 拒绝侧（无犯罪/无博物馆/无 Remy / 留痕不存在 / 回退结构已不在）。 */
-  "tests/coverage_plain_ext.js"
+  "tests/coverage_plain_ext.js",
+  /* 2026-11-23 覆盖率提升轮（第二步）：01-core 纯函数 name||"" falsy fallback（displayName / isVanillaNPC /
+     isVanillaLoveInterest / isPerNpcRole）+ EdenChildIdOf 空串 + srcHasEndSignal 空串。 */
+  "tests/coverage_plain_core.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

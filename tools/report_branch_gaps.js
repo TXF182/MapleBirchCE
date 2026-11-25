@@ -146,6 +146,15 @@ function main() {
   console.log("分支总覆盖 " + (th * 100 / tb).toFixed(2) + "%（" + th + "/" + tb + "）· 有缺口分片 " + list.length + " 个");
   console.log("未覆盖分支按行文归因：" + Object.keys(byType).sort((a, b) => byType[b] - byType[a]).map(k => k + "=" + byType[k]).join("  ") + "（合计 " + (tb - th) + "）");
   console.log("  catch=防御性异常分支 / dead-guard=不可达守卫（getV() 恒返回兜底对象） / env-guard=typeof 环境守卫 / shortcircuit=&& || 短路兜底 / ternary=三元 / plain=普通 if-else（可补测欠账）");
+  /* 可测口径参考：只剔除「结构性不可达」的 dead-guard（getV 恒 truthy 判定的守卫）；
+   * catch（异常路径）与 env-guard（环境守卫）是「未测」而非「不可测」，保留在分母不剔除，
+   * 否则等于把测试基建尚未触达的欠账伪装成不可测。注意：dead-guard 判定当前只覆盖
+   * getV() 直接赋值形态，经包装函数（mbCELurkerV/mbCEIslandV 等）间接取 V 的守卫未纳入，实际可能更多。 */
+  const structural = byType["dead-guard"] || 0;
+  if (structural > 0) {
+    console.log("可测口径（剔除结构性不可达 dead-guard=" + structural + "）：" + (th * 100 / (tb - structural)).toFixed(2)
+      + "%（" + th + "/" + (tb - structural) + "）· 仅参考，不替代门禁");
+  }
   if (md) {
     console.log("");
     console.log("| 分片 | 分支覆盖 | 未覆盖分支 | 典型行号 |");

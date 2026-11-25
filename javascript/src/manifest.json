@@ -264,8 +264,14 @@
       "layer": "ui"
     },
     {
+      "file": "07f-pins4-override.js",
+      "layer": "ui",
+      "note": "passageoverride 判定主体（v2.2.4 拆自 07f-pins4-hook.js 的 onPassageOverride：101 复杂度 / 207 行 → 调度骨架 + 分阶段函数）"
+    },
+    {
       "file": "07f-pins4-hook.js",
-      "layer": "ui"
+      "layer": "ui",
+      "note": "钩子注册与 passageinit / unfreeze 收尾（override 判定主体在 -override 段）"
     },
     {
       "file": "07g-romance.js",
@@ -318,6 +324,16 @@
       "file": "07i-yanling-quick.js",
       "layer": "ui",
       "note": "v2.1.17 言灵补丁执行器 + 选项卡渲染 + 逐条/整页撤销（原版键自带解析，不复用拒绝原版根的 cheatWriteValue）"
+    },
+    {
+      "file": "07i-yanling-page-sections.js",
+      "layer": "ui",
+      "note": "言灵页区块渲染：①~⑭ 每块一个函数 + 页尾说明块（2026-11-25 从 renderYanling 365 行单函数拆出，区块级粒度以压住复杂度棘轮）"
+    },
+    {
+      "file": "07i-yanling-page-groups.js",
+      "layer": "ui",
+      "note": "renderYanling 的分组渲染（A~E 区块内容 + 页尾说明块），2026-11-25 从 365 行单函数拆出（Archify COMP-fa47d1743fa9）"
     },
     {
       "file": "07i-yanling-page.js",
@@ -393,8 +409,14 @@
       "layer": "ui"
     },
     {
+      "file": "08c-undo-center-handlers.js",
+      "layer": "ui",
+      "note": "单条回退分发器（v2.2.4 拆自 08c-undo-center.js 的 mbCEUndoOne：102 复杂度 / 130 行 → 按 type 独立处理器 + 注册表）"
+    },
+    {
       "file": "08c-undo-center.js",
-      "layer": "ui"
+      "layer": "ui",
+      "note": "统一回退中心标签 / 清单 / 批量入口 + 渲染（原 100 行渲染拆 6 函数）"
     },
     {
       "file": "08d-diff-preview.js",

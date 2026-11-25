@@ -6,7 +6,7 @@
  * 用法：node tests/smoke_dom.js（构建产物需已生成：node tools/build_js.js）
  */
 const { JSDOM } = require("jsdom");
-const fs = require("fs"), path = require("path");
+const fs = require("fs"), path = require("path"), crypto = require("crypto");
 /* 原版游戏 HTML（64MB，不入库）：路径可用 MCE_DOL_HTML 覆盖。
    缺原版时不再 SKIP：改用 tests/fixtures/scenes-widget.twee（由 tools/gen_test_fixture.js
    从原版抽出的 $scenes 元数据，68 KB），CI / 干净克隆跑同一批断言。 */
@@ -757,6 +757,41 @@ assert(ylQuickPane.textContent.includes("无限仪式（冷却清零）") && ylQ
 ylApi.renderYanling(); ylApi.renderYanling();
 const ylS2 = ylSnap();
 assert(JSON.stringify(ylS1) === JSON.stringify(ylS2), "连续重渲染幂等（分组/区块/按钮数不增长），实际 " + JSON.stringify(ylS1) + " vs " + JSON.stringify(ylS2));
+/* 结构指纹（2026-11-25 renderYanling 拆分重构的行为契约）：分组标题/副标 + 区块编号/标题 + 按钮数/文案序列哈希。
+   拆分只允许把代码搬家（renderYanling → 分组渲染函数），任何标题、按钮文案或 DOM 顺序变化都会改变指纹 → 红。
+   期望值 = 拆分前实现的实际输出（在此状态下采集，拆分后必须一字不差）。 */
+const ylFingerprint = function () {
+  const p = document.querySelector('[data-pane="yanling"]');
+  const groups = [].slice.call(p.querySelectorAll(".mce-group-h")).map(function (h) {
+    const t = h.querySelector("span");
+    const n = h.querySelector(".mce-group-n");
+    return (t ? t.textContent : "") + "|" + (n ? n.textContent : "");
+  });
+  const secs = [].slice.call(p.querySelectorAll(".mce-sec-title")).map(function (h) {
+    const n = h.querySelector(".mce-sec-n");
+    const t = h.querySelector(".mce-sec-t");
+    return (n ? n.textContent : "") + "|" + (t ? t.textContent : "");
+  });
+  const btns = [].slice.call(p.querySelectorAll("button")).map(function (b) { return b.textContent; });
+  return { groups: groups, secs: secs, btnCount: btns.length, btnHash: crypto.createHash("sha1").update(btns.join("\u0001")).digest("hex").slice(0, 12) };
+};
+ylApi.renderYanling();
+const ylFp = ylFingerprint();
+console.log("YANLING_FINGERPRINT=" + JSON.stringify(ylFp));
+assert(JSON.stringify(ylFp.groups) === JSON.stringify([
+  "A · 着装与名声|异装判定 / 性癖特质 / 负面名声 / 枝叶变装",
+  "B · 身体与数值|衣物湿度与耐久 / 体液与精神 / 快补数值 / 天气",
+  "C · 角色状态|放逐 / 监狱 / 格威岚 / 绝望轮回",
+  "D · 剧情与系统|艾弗里办公室补开 / 作弊模式（无副作用）",
+  "E · 言灵补丁（原帖 52 条）|52 条 · 4 类选项卡"
+]), "言灵页分组标题+副标指纹与拆分前一致，实际 " + JSON.stringify(ylFp.groups));
+assert(JSON.stringify(ylFp.secs) === JSON.stringify([
+  "①|无视着装性别", "②|异装癖压制", "③|负面名声清零", "⑩|枝叶变装",
+  "④|身体与衣物", "⑤|精神与体液", "⑥|数值快补", "⑦|天气",
+  "⑧|角色放逐", "⑨|监狱庇护", "⑬|格威岚 · 森林商店", "⑭|绝望轮回 · 结局与成就",
+  "⑪|艾弗里办公室（补）", "⑫|作弊模式", "|"
+]), "言灵页业务区块编号+标题指纹与拆分前一致，实际 " + JSON.stringify(ylFp.secs));
+assert(ylFp.btnCount === 79 && ylFp.btnHash === "5f24326fc7d4", "言灵页按钮数+文案哈希与拆分前一致，实际 " + ylFp.btnCount + " / " + ylFp.btnHash);
 V.mbCE_yanling = { noCross: true, noTrait: false };
 ylApi.yanlingInstall();
 const ylHookRef = window.isCrossdressing;
