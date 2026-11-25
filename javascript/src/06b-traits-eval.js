@@ -259,12 +259,34 @@ function compileVanillaTraits() {
 	VANILLA_TRAITS_CACHE = out;
 	return out;
 }
-/* 运行时发现模组特质：maplebirch.temporary.traitLists（MLI traits.inject 解析后的注入表） */
+/* 运行时模组特质的注入表来源（框架 5.6.2 实证：inject_early.js 内部 `aX.temporary.traitLists = r`
+   写到 SugarCube temporary；maplebirch 根对象没有 .temporary，见 fw562 core.d.ts:63-131、
+   host/DoL.d.ts:14 `readonly temporary: DoLTemporary`——属 maplebirch.host.dol）
+   顺序：window.T（=State.temporary，主来源）→ State.temporary → 宿主 host.dol.temporary → 旧框架根 temporary 兜底 */
+function mbCETempRoot() {
+	try { if (typeof window !== "undefined" && window.T && typeof window.T === "object") { return window.T; } } catch (e) {}
+	try { if (typeof State !== "undefined" && State && State.temporary) { return State.temporary; } } catch (e) {}
+	return null;
+}
+function mbCETraitListOf(obj) {
+	if (!obj || !Array.isArray(obj.traitLists)) { return null; }
+	return obj.traitLists;
+}
+function mbCEResolveTraitLists(mb) {
+	var tmp = mbCETraitListOf(mbCETempRoot());
+	if (tmp) { return tmp; }
+	var hostTmp = mbCETraitListOf(mb && mb.host && mb.host.dol && mb.host.dol.temporary);
+	if (hostTmp) { return hostTmp; }
+	var legTmp = mbCETraitListOf(mb && mb.temporary);
+	if (legTmp) { return legTmp; }
+	return null;
+}
+/* 运行时发现模组特质：SugarCube temporary.traitLists（MLI traits.inject 解析后的注入表） */
 function discoverModTraits() {
 	var out = [];
 	try {
 		var mb = resolveMB();
-		var lists = mb && mb.temporary && mb.temporary.traitLists;
+		var lists = mbCEResolveTraitLists(mb);
 		if (!Array.isArray(lists)) { return out; }
 		lists.forEach(function (cat) {
 			if (!cat || !Array.isArray(cat.traits)) { return; }

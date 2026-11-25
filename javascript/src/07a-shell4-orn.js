@@ -19,10 +19,10 @@
  * padding 补偿（box-sizing:border-box 保持 430px 几何不变）——对照灯台「::before 边框 +
  * 内容 padding-inline 补偿」的同款结构。 */
 MB_CSS +=
-	":root{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23E3B25F' stroke-width='1.4'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.34;--mce-orn-thick:12px;--mce-orn-pad:12px}" +
-	"#mce-root.mce-theme-starry{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%238FA6FF' stroke-width='1'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%238FA6FF'%3E%3Cpath d='M32 0l2 4 4 2-4 2-2 4-2-4-4-2 4-2z'/%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.34}" +
-	"#mce-root.mce-theme-cyberpunk{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%2300E5FF' stroke-width='1.5'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%23FF3D9A'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3Cg transform='rotate(180 32 32)'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.30}" +
-	"#mce-root.mce-theme-jade{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%237FD6C5' stroke-width='1.2'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.30}" +
+	":root{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23E3B25F' stroke-width='1.4'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.50;--mce-orn-thick:12px;--mce-orn-pad:12px}" +
+	"#mce-root.mce-theme-starry{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%238FA6FF' stroke-width='1'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%238FA6FF'%3E%3Cpath d='M32 0l2 4 4 2-4 2-2 4-2-4-4-2 4-2z'/%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.48}" +
+	"#mce-root.mce-theme-cyberpunk{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%2300E5FF' stroke-width='1.5'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%23FF3D9A'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3Cg transform='rotate(180 32 32)'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.54}" +
+	"#mce-root.mce-theme-jade{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%237FD6C5' stroke-width='1.2'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.48}" +
 	"#mce-root::before{content:\"\";position:absolute;inset:0;z-index:6;pointer-events:none;" +
 	"border:var(--mce-orn-thick) solid transparent;border-image-source:var(--mce-orn-frame);" +
 	"border-image-slice:24;border-image-repeat:repeat;opacity:var(--mce-orn-a)}" +
@@ -45,6 +45,21 @@ MB_CSS +=
 /* ---- 按压反馈只缩放不下沉（灯台 1.4.22 语义修正；本段后写，同特异度覆盖 07a 旧规则的 translateY） ---- */
 MB_CSS +=
 	"#mce-root .mce-btn:active{transform:scale(.96)}";
+
+/* ---- v2.2.5 UI 体检落地：页签溢出隐藏滚动条 + 触屏主要触控区 ≥44px ----
+ * 判据来源：dol-ui-design 视觉基线「主要触控区 ≥44px（手机紧凑排版仍保留）」。
+ * 只在 pointer:coarse 生效，桌面 38px 页签保持原密度；与主 UI 的按钮缩放契约（22px）冲突时，
+ * 触屏可达性优先——用同强度 !important 覆盖，不影响桌面共存。 */
+MB_CSS +=
+	".mce-tabs{scrollbar-width:none}" +
+	".mce-tabs::-webkit-scrollbar{height:0}" +
+	"@media (pointer:coarse){" +
+	":root{--mce-tab-h:44px}" +
+	".mce-tabs button{min-height:44px;padding:10px 6px}" +
+	".mce-header button,.mce-close{min-width:44px;min-height:44px;padding:0 8px}" +
+	"html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-row button{padding:6px 8px!important;min-height:44px!important}" +
+	"#mce-root .mce-actions .mce-btn,#mce-root .mce-btn-grid .mce-btn{min-height:44px}" +
+	"}";
 
 /* ---- 滚动摘 backdrop-filter + 星空手机降载（窄屏媒体块；2026-11-22 撤底部抽屉，几何见 07a-shell.js 全屏段） ---- */
 MB_CSS +=
@@ -203,12 +218,16 @@ function mbCEShell4Init() {
 			for (var i = 0; i < btns.length; i++) {
 				btns[i].setAttribute("role", "tab");
 				btns[i].id = "mce-tab-" + btns[i].getAttribute("data-tab");
+				btns[i].setAttribute("aria-controls", "mce-pane-" + btns[i].getAttribute("data-tab"));
 			}
 			var panes = root.querySelectorAll(".mce-pane");
 			for (var j = 0; j < panes.length; j++) {
 				panes[j].setAttribute("role", "tabpanel");
 				var nm = panes[j].getAttribute("data-pane");
-				if (nm) { panes[j].setAttribute("aria-labelledby", "mce-tab-" + nm); }
+				if (nm) {
+					panes[j].id = "mce-pane-" + nm;
+					panes[j].setAttribute("aria-labelledby", "mce-tab-" + nm);
+				}
 			}
 			mbCETabSyncA11y();
 		}

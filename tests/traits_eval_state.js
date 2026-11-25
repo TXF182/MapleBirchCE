@@ -230,6 +230,35 @@ assert(discovered[1].has === "", "函数型 has → has 字符串为空（走强
 assert(discovered.every(function (t) { return t.mod === true; }), "发现的特质带 mod 标记（UI 分组用）");
 assert(discovered[0].text === "说明一" && discovered[1].text === "说明二", "说明文本字符串/函数两种形态都能取到");
 
+/* 7b) 框架 5.6.x：根对象无 temporary（fw562 unpacked/dist/core.d.ts:63-131 属性表 + host/DoL.d.ts:14），
+      注入表实际落在 SugarCube temporary（T = State.temporary）或 maplebirch.host.dol.temporary。
+      判据：删掉根 temporary 后仍能发现注入特质。 */
+delete window.maplebirch.temporary;
+window.maplebirch.host = { dol: { temporary: { traitLists: [
+  { title: "宿主池", traits: [ { name: "H1", text: "宿主注入", has: "$hostVar gte 1" } ] }
+] } } };
+assert(api.discoverModTraits().length === 1, "5.6.2：根对象无 temporary 时从 host.dol.temporary 取到注入表");
+delete window.maplebirch.host;
+
+global.State.temporary = { traitLists: [
+  { title: "State池", traits: [ { name: "ST1", text: "State 注入", has: "$st gte 1" } ] }
+] };
+assert(api.discoverModTraits().length === 1, "无 T 时从 State.temporary 取到注入表");
+delete global.State.temporary;
+
+global.T = window.T = { traitLists: [
+  { title: "SC池", traits: [ { name: "S1", text: "SugarCube 注入", has: "$scVar gte 2" } ] }
+] };
+assert(api.discoverModTraits().length === 1, "从 SugarCube T 取到注入表（T 与 State.temporary 等价时优先 T）");
+global.T.traitLists = null;
+window.maplebirch.temporary = { traitLists: [
+  { title: "兜底池", traits: [ { name: "F1", text: "旧路径兜底", has: "$f gte 1" } ] }
+] };
+assert(api.discoverModTraits().length === 1, "T.traitLists 非数组 → 回退旧 mb.temporary 兜底（老框架兼容）");
+delete global.T;
+delete window.T;
+delete window.maplebirch.temporary;
+
 /* ================= 8. 收藏特质（localStorage 持久化） ================= */
 section("8 收藏特质");
 localStorage.clear();

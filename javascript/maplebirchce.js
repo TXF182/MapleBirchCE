@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.2.4";
+	var MCE_VERSION = "2.2.5";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -6030,7 +6030,7 @@ var VANILLA_TRAITS_RAW = [
 
 /* ============ v1.8.0 特质管理（替代 v1.7.0 玩家属性/模组属性区）
    数据源：① VANILLA_TRAITS_RAW（本体 traits widget 提取：cat/name/has）
-          ② discoverModTraits()（maplebirch.temporary.traitLists 运行时注入的模组特质，装了显示、没装隐藏）
+          ② discoverModTraits()（SugarCube temporary.traitLists 运行时注入的模组特质，装了显示、没装隐藏）
    能力：拥有判定（has 表达式求值）／ 获取+移除（has 全部条件变量写满足，主变量写回不满足）／ 数值可改（数值比较变量）
    ============ */
 var curPlayerFilter = "";
@@ -6370,12 +6370,34 @@ function compileVanillaTraits() {
 	VANILLA_TRAITS_CACHE = out;
 	return out;
 }
-/* 运行时发现模组特质：maplebirch.temporary.traitLists（MLI traits.inject 解析后的注入表） */
+/* 运行时模组特质的注入表来源（框架 5.6.2 实证：inject_early.js 内部 `aX.temporary.traitLists = r`
+   写到 SugarCube temporary；maplebirch 根对象没有 .temporary，见 fw562 core.d.ts:63-131、
+   host/DoL.d.ts:14 `readonly temporary: DoLTemporary`——属 maplebirch.host.dol）
+   顺序：window.T（=State.temporary，主来源）→ State.temporary → 宿主 host.dol.temporary → 旧框架根 temporary 兜底 */
+function mbCETempRoot() {
+	try { if (typeof window !== "undefined" && window.T && typeof window.T === "object") { return window.T; } } catch (e) {}
+	try { if (typeof State !== "undefined" && State && State.temporary) { return State.temporary; } } catch (e) {}
+	return null;
+}
+function mbCETraitListOf(obj) {
+	if (!obj || !Array.isArray(obj.traitLists)) { return null; }
+	return obj.traitLists;
+}
+function mbCEResolveTraitLists(mb) {
+	var tmp = mbCETraitListOf(mbCETempRoot());
+	if (tmp) { return tmp; }
+	var hostTmp = mbCETraitListOf(mb && mb.host && mb.host.dol && mb.host.dol.temporary);
+	if (hostTmp) { return hostTmp; }
+	var legTmp = mbCETraitListOf(mb && mb.temporary);
+	if (legTmp) { return legTmp; }
+	return null;
+}
+/* 运行时发现模组特质：SugarCube temporary.traitLists（MLI traits.inject 解析后的注入表） */
 function discoverModTraits() {
 	var out = [];
 	try {
 		var mb = resolveMB();
-		var lists = mb && mb.temporary && mb.temporary.traitLists;
+		var lists = mbCEResolveTraitLists(mb);
 		if (!Array.isArray(lists)) { return out; }
 		lists.forEach(function (cat) {
 			if (!cat || !Array.isArray(cat.traits)) { return; }
@@ -6929,9 +6951,18 @@ function renderPlayerEdit() {
 	function mceFoldHint(text) {
 		var h = el("div", "mce-hint mce-fold", text);
 		h.setAttribute("data-open", "0");
+		h.setAttribute("role", "button");
+		h.setAttribute("tabindex", "0");
+		h.setAttribute("aria-expanded", "false");
 		h.title = "点击展开 / 收起完整说明";
-		h.addEventListener("click", function () {
-			h.setAttribute("data-open", h.getAttribute("data-open") === "0" ? "1" : "0");
+		function foldToggle() {
+			var wasOpen = h.getAttribute("data-open") !== "0";
+			h.setAttribute("data-open", wasOpen ? "0" : "1");
+			h.setAttribute("aria-expanded", wasOpen ? "false" : "true");
+		}
+		h.addEventListener("click", foldToggle);
+		h.addEventListener("keydown", function (ev) {
+			if (ev.key === "Enter" || ev.key === " " || ev.keyCode === 13 || ev.keyCode === 32) { ev.preventDefault(); foldToggle(); }
 		});
 		return h;
 	}
@@ -7040,7 +7071,7 @@ function renderPlayerEdit() {
 		"--mce-border:rgba(255,255,255,.16);--mce-border-soft:rgba(255,255,255,.12);--mce-border-dim:rgba(255,255,255,.08);--mce-border-ctl:rgba(255,255,255,.14);--mce-border-stage:rgba(255,255,255,.22);" +
 		"--mce-txt:#E9E3D6;--mce-txt-bright:#FBF6EA;--mce-txt-on-accent:#1A1206;--mce-txt-hi:#E2DACB;--mce-txt-label:#D5CDBE;--mce-txt-strong:#E9E3D6;" +
 		"--mce-txt-mid:#C4BDB0;--mce-txt-dim:#B0A99C;--mce-txt-faint:#9E9789;--mce-txt-muted:#ADA69A;--mce-txt-weak:#857F75;--mce-txt-star:#6B665D;" +
-		"--mce-fs-xl:16px;--mce-fs-lg:15px;--mce-fs-tab:14px;--mce-fs-base:13px;--mce-fs-btn:12px;--mce-fs-sm:11px;--mce-fs-xs:10px;" +
+		"--mce-fs-xl:calc(16px * var(--dgu-font-scale,1));--mce-fs-lg:calc(15px * var(--dgu-font-scale,1));--mce-fs-tab:calc(14px * var(--dgu-font-scale,1));--mce-fs-base:calc(13px * var(--dgu-font-scale,1));--mce-fs-btn:calc(12px * var(--dgu-font-scale,1));--mce-fs-sm:calc(11px * var(--dgu-font-scale,1));--mce-fs-xs:calc(10px * var(--dgu-font-scale,1));" +
 		"--mce-radius:12px;--mce-radius-sm:6px;--mce-radius-pill:10px;--mce-radius-card:16px;--mce-radius-panel:18px;" +
 		"--mce-space:8px;--mce-space-md:6px;--mce-space-sm:4px;--mce-h-header:42px;--mce-panel-w:430px;--mce-panel-r:8px;--mce-row-h:34px;--mce-tab-h:36px;--mce-border-quiet:rgba(255,255,255,.08);--mce-scroll:8px;" +
 		"}" +
@@ -7101,7 +7132,7 @@ function renderPlayerEdit() {
 		".mce-btn:hover{background:var(--mce-bg-hover)}" +
 		".mce-btn:active{transform:translateY(1px) scale(.972);filter:brightness(1.14) saturate(1.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 8px rgba(0,0,0,.3),0 0 22px -7px var(--mce-press-glow)}" +
 		".mce-btn.mce-gold{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark);font-weight:700}" +
-		".mce-btn.mce-gold:hover{background:var(--mce-accent-hover);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}" +
+		"@media (hover:hover){.mce-btn.mce-gold:hover{background:var(--mce-accent-hover);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}}" +
 		".mce-btn.mce-gold:active{transform:scale(.96);box-shadow:none}" +
 		".mce-btn.mce-red{background:var(--mce-red-bg);color:var(--mce-red-soft);border-color:var(--mce-red-bg-b)}" +
 		".mce-btn.mce-red:hover{background:var(--mce-red-bg-h)}" +
@@ -7927,9 +7958,9 @@ function renderPlayerEdit() {
    :root 可以重复声明，这里追加的 7 个 token 与 07a-shell.js 里的 :root 无属性冲突。 */
 MB_CSS +=
 	":root{" +
-	"--mce-tex-panel:radial-gradient(120% 80% at 10% 0%,rgba(227,178,95,.20),transparent 58%),radial-gradient(90% 60% at 100% 100%,rgba(198,84,73,.09),transparent 62%),radial-gradient(70% 35% at 50% 100%,rgba(120,66,28,.10),transparent 72%),repeating-linear-gradient(92deg,rgba(255,255,255,.024) 0 1px,transparent 1px 4px),repeating-linear-gradient(2deg,rgba(227,178,95,.032) 0 1px,transparent 1px 7px);" +
-	"--mce-tex-body:radial-gradient(100% 70% at 50% 0%,rgba(227,178,95,.075),transparent 70%),repeating-linear-gradient(115deg,rgba(255,255,255,.018) 0 1px,transparent 1px 6px);" +
-	"--mce-tex-card:linear-gradient(135deg,rgba(227,178,95,.10),transparent 58%),radial-gradient(120% 80% at 10% 0%,rgba(255,235,200,.06),transparent 60%),repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 5px);" +
+	"--mce-tex-panel:radial-gradient(120% 80% at 10% 0%,rgba(227,178,95,.20),transparent 58%),radial-gradient(90% 60% at 100% 100%,rgba(198,84,73,.09),transparent 62%),radial-gradient(70% 35% at 50% 100%,rgba(120,66,28,.10),transparent 72%),repeating-linear-gradient(92deg,rgba(255,255,255,.014) 0 1px,transparent 1px 10px),repeating-linear-gradient(2deg,rgba(227,178,95,.018) 0 1px,transparent 1px 14px);" +
+	"--mce-tex-body:radial-gradient(100% 70% at 50% 0%,rgba(227,178,95,.075),transparent 70%),repeating-linear-gradient(115deg,rgba(255,255,255,.010) 0 1px,transparent 1px 12px);" +
+	"--mce-tex-card:linear-gradient(135deg,rgba(227,178,95,.10),transparent 58%),radial-gradient(120% 80% at 10% 0%,rgba(255,235,200,.06),transparent 60%),repeating-linear-gradient(0deg,rgba(255,255,255,.008) 0 1px,transparent 1px 11px);" +
 	"--mce-press-glow:rgba(227,178,95,.50);--mce-press-ripple:rgba(255,228,180,.22);--mce-blur:20px;" +
 	"--mce-shadow-panel:0 24px 64px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.35)}" ;
 
@@ -7982,6 +8013,8 @@ function mbCEPressRing(ev) {
 		if (!t || !t.closest || !t.closest(MCE_PRESS_SEL)) { return; }
 		var d = el("div", "");
 		d.className = "mce-press-ring";
+		/* v2.2.5 修复：CSS 用 #mce-press-ring（id 选择器），此前只写 className → 涟漪元素零样式、视觉完全失效 */
+		d.id = "mce-press-ring";
 		d.setAttribute("aria-hidden", "true");
 		d.style.left = ev.clientX + "px";
 		d.style.top = ev.clientY + "px";
@@ -8060,14 +8093,14 @@ MB_CSS +=
 	"--mce-tex-panel:linear-gradient(112deg,transparent 28%,rgba(190,255,240,.06) 40%,rgba(190,255,240,.012) 50%,transparent 62%)," +
 	"radial-gradient(110% 80% at 8% 0%,rgba(95,191,172,.2),transparent 58%),radial-gradient(80% 60% at 100% 100%,rgba(127,214,197,.1),transparent 62%)," +
 	"linear-gradient(118deg,transparent 42%,rgba(255,255,255,.04) 43%,transparent 44%)," +
-	"repeating-linear-gradient(66deg,rgba(127,214,197,.058) 0 1px,transparent 1px 10px)," +
+	"repeating-linear-gradient(66deg,rgba(127,214,197,.040) 0 1px,transparent 1px 16px)," +
 	"repeating-linear-gradient(28deg,transparent 0 21px,rgba(233,255,249,.038) 21px 22px)," +
 	"repeating-linear-gradient(-24deg,rgba(255,255,255,.028) 0 1px,transparent 1px 16px);" +
 	"--mce-tex-body:radial-gradient(100% 70% at 50% 0%,rgba(95,191,172,.07),transparent 70%)," +
-	"repeating-linear-gradient(66deg,rgba(127,214,197,.02) 0 1px,transparent 1px 9px)," +
-	"repeating-linear-gradient(28deg,transparent 0 21px,rgba(233,255,249,.016) 21px 22px);" +
+	"repeating-linear-gradient(66deg,rgba(127,214,197,.012) 0 1px,transparent 1px 14px)," +
+	"repeating-linear-gradient(28deg,transparent 0 28px,rgba(233,255,249,.010) 28px 29px);" +
 	"--mce-tex-card:linear-gradient(135deg,rgba(95,191,172,.1),transparent 58%),radial-gradient(120% 80% at 0% 0%,rgba(220,255,247,.05),transparent 55%)," +
-	"repeating-linear-gradient(-24deg,rgba(255,255,255,.016) 0 1px,transparent 1px 9px);" +
+	"repeating-linear-gradient(-24deg,rgba(255,255,255,.010) 0 1px,transparent 1px 14px);" +
 	"--mce-press-glow:rgba(127,214,197,.5);--mce-press-ripple:rgba(200,255,242,.22);--mce-shadow-panel:0 24px 64px rgba(0,0,0,.55),0 0 0 1px rgba(95,191,172,.1),0 0 30px rgba(95,191,172,.08)}" +
 	"#mce-root.mce-theme-jade{background-color:var(--mce-bg-panel);background-image:var(--mce-tex-panel);" +
 	"border-color:rgba(95,191,172,.34);box-shadow:var(--mce-shadow-panel),inset 0 1px 0 rgba(220,255,247,.13),inset 0 0 32px rgba(95,191,172,.07),inset 0 0 0 1px rgba(95,191,172,.06)}" +
@@ -8215,10 +8248,10 @@ function mceRenderThemePicker(pane) {
  * padding 补偿（box-sizing:border-box 保持 430px 几何不变）——对照灯台「::before 边框 +
  * 内容 padding-inline 补偿」的同款结构。 */
 MB_CSS +=
-	":root{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23E3B25F' stroke-width='1.4'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.34;--mce-orn-thick:12px;--mce-orn-pad:12px}" +
-	"#mce-root.mce-theme-starry{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%238FA6FF' stroke-width='1'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%238FA6FF'%3E%3Cpath d='M32 0l2 4 4 2-4 2-2 4-2-4-4-2 4-2z'/%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.34}" +
-	"#mce-root.mce-theme-cyberpunk{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%2300E5FF' stroke-width='1.5'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%23FF3D9A'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3Cg transform='rotate(180 32 32)'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.30}" +
-	"#mce-root.mce-theme-jade{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%237FD6C5' stroke-width='1.2'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.30}" +
+	":root{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23E3B25F' stroke-width='1.4'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-10 8-18 18-18'/%3E%3Cpath d='M3 14c0-6 5-11 11-11'/%3E%3Cpath d='M28 0v6M36 0v6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.50;--mce-orn-thick:12px;--mce-orn-pad:12px}" +
+	"#mce-root.mce-theme-starry{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%238FA6FF' stroke-width='1'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M28 0v5M36 0v5'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%238FA6FF'%3E%3Cpath d='M32 0l2 4 4 2-4 2-2 4-2-4-4-2 4-2z'/%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.48}" +
+	"#mce-root.mce-theme-cyberpunk{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%2300E5FF' stroke-width='1.5'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21V3h18'/%3E%3Cpath d='M32 0v9M29 7l3 3 3-3'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%23FF3D9A'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3Cg transform='rotate(180 32 32)'%3E%3Ccircle cx='6' cy='6' r='1.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.54}" +
+	"#mce-root.mce-theme-jade{--mce-orn-frame:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%237FD6C5' stroke-width='1.2'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3Cg transform='rotate(90 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(180 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3Cg transform='rotate(270 32 32)'%3E%3Cpath d='M3 21c0-11 9-18 18-18c-7 2-12 7-13 14'/%3E%3Cpath d='M26 0c2 4 6 6 12 6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");--mce-orn-a:.48}" +
 	"#mce-root::before{content:\"\";position:absolute;inset:0;z-index:6;pointer-events:none;" +
 	"border:var(--mce-orn-thick) solid transparent;border-image-source:var(--mce-orn-frame);" +
 	"border-image-slice:24;border-image-repeat:repeat;opacity:var(--mce-orn-a)}" +
@@ -8241,6 +8274,21 @@ MB_CSS +=
 /* ---- 按压反馈只缩放不下沉（灯台 1.4.22 语义修正；本段后写，同特异度覆盖 07a 旧规则的 translateY） ---- */
 MB_CSS +=
 	"#mce-root .mce-btn:active{transform:scale(.96)}";
+
+/* ---- v2.2.5 UI 体检落地：页签溢出隐藏滚动条 + 触屏主要触控区 ≥44px ----
+ * 判据来源：dol-ui-design 视觉基线「主要触控区 ≥44px（手机紧凑排版仍保留）」。
+ * 只在 pointer:coarse 生效，桌面 38px 页签保持原密度；与主 UI 的按钮缩放契约（22px）冲突时，
+ * 触屏可达性优先——用同强度 !important 覆盖，不影响桌面共存。 */
+MB_CSS +=
+	".mce-tabs{scrollbar-width:none}" +
+	".mce-tabs::-webkit-scrollbar{height:0}" +
+	"@media (pointer:coarse){" +
+	":root{--mce-tab-h:44px}" +
+	".mce-tabs button{min-height:44px;padding:10px 6px}" +
+	".mce-header button,.mce-close{min-width:44px;min-height:44px;padding:0 8px}" +
+	"html[data-dgu-buttons-scaled] #mce-root#mce-root .mce-row button{padding:6px 8px!important;min-height:44px!important}" +
+	"#mce-root .mce-actions .mce-btn,#mce-root .mce-btn-grid .mce-btn{min-height:44px}" +
+	"}";
 
 /* ---- 滚动摘 backdrop-filter + 星空手机降载（窄屏媒体块；2026-11-22 撤底部抽屉，几何见 07a-shell.js 全屏段） ---- */
 MB_CSS +=
@@ -8399,12 +8447,16 @@ function mbCEShell4Init() {
 			for (var i = 0; i < btns.length; i++) {
 				btns[i].setAttribute("role", "tab");
 				btns[i].id = "mce-tab-" + btns[i].getAttribute("data-tab");
+				btns[i].setAttribute("aria-controls", "mce-pane-" + btns[i].getAttribute("data-tab"));
 			}
 			var panes = root.querySelectorAll(".mce-pane");
 			for (var j = 0; j < panes.length; j++) {
 				panes[j].setAttribute("role", "tabpanel");
 				var nm = panes[j].getAttribute("data-pane");
-				if (nm) { panes[j].setAttribute("aria-labelledby", "mce-tab-" + nm); }
+				if (nm) {
+					panes[j].id = "mce-pane-" + nm;
+					panes[j].setAttribute("aria-labelledby", "mce-tab-" + nm);
+				}
 			}
 			mbCETabSyncA11y();
 		}
@@ -8491,12 +8543,60 @@ function mbCEShell4Init() {
 		});
 		body.appendChild(grid);
 	}
+	/* v2.2.5 UI 体检修复：搜索框常驻 + 200ms 去抖 + 输入法组合保护
+	   旧实现每敲一键 renderCards() 全量重建，连输入框自身也被销毁重建，
+	   中文输入法组合态被打断（候选词消失）、长列表每次全量重排。 */
+	var mbCECharSearchTimer = 0;
+	var mbCECharComposing = false;
+
+	function mbCECharSearchBind(inp) {
+		if (!inp || inp.getAttribute("data-mce-bound") === "1") { return; }
+		inp.setAttribute("data-mce-bound", "1");
+		inp.addEventListener("compositionstart", function () { mbCECharComposing = true; });
+		inp.addEventListener("compositionend", function () {
+			mbCECharComposing = false;
+			charSearch = inp.value.replace(/^\s+|\s+$/g, "");
+			mbCEUiSave({ charFilter: charSearch });
+			renderCards();
+		});
+		inp.addEventListener("input", function () {
+			charSearch = inp.value.replace(/^\s+|\s+$/g, "");
+			mbCEUiSave({ charFilter: charSearch });
+			if (mbCECharComposing) { return; } /* 组合中只记值，不重排 */
+			if (mbCECharSearchTimer) { clearTimeout(mbCECharSearchTimer); }
+			mbCECharSearchTimer = setTimeout(function () {
+				mbCECharSearchTimer = 0;
+				renderCards();
+			}, 200);
+		});
+	}
+	function mbCECharSearchRow() {
+		var row = el("div", "mce-build");
+		var inp = el("input", "mce-search-inp mce-char-search");
+		inp.type = "search";
+		inp.placeholder = "搜索角色（原名/显示名）…";
+		inp.value = charSearch;
+		mbCECharSearchBind(inp);
+		row.appendChild(inp);
+		return row;
+	}
+
+	function mbCECharSearchMount(pane, row) {
+		if (!row) { row = mbCECharSearchRow(); }
+		var box = row.querySelector(".mce-char-search");
+		if (box && box.value !== charSearch) { box.value = charSearch; }
+		pane.appendChild(row);
+	}
+
 	function renderCards() {
 		var pane = root.querySelector('[data-pane="char"]');
 		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* 重建后保持滚动位置（五巡一致） */
+		/* 搜索行常驻：先摘出旧节点，重建结果区后再挂回，输入框与输入法组合态不中断 */
+		var oldInp = pane.querySelector(".mce-char-search");
+		var searchRow = oldInp && oldInp.parentNode ? oldInp.parentNode : null;
 		pane.textContent = "";
 		if (!frameworkReady()) {
-			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架（window.maplebirch / setup.MapleBirch）。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "本页数据需要 Maplebirch 框架，当前未就绪（详情见底部状态栏）。"));
 			return;
 		}
 		var charsAll = listCharacters();
@@ -8509,22 +8609,9 @@ function mbCEShell4Init() {
 			pane.appendChild(el("div", MCE_CLS.hint, "注册池为空：未枚举到任何角色。"));
 			return;
 		}
-		/* v1.9.29 角色页搜索：与特质/Mod 数值搜索同款 .mce-search-inp；按原名/显示名实时过滤，词持久化 charFilter */
+		/* v2.2.5 搜索行常驻：输入框不随结果区重建，200ms 去抖 + 输入法组合保护 */
 		var q = charSearch.toLowerCase();
-		var searchRow = el("div", "mce-build");
-		var sInp = el("input", "mce-search-inp mce-char-search");
-		sInp.type = "search";
-		sInp.placeholder = "搜索角色（原名/显示名）…";
-		sInp.value = charSearch;
-		sInp.addEventListener("input", function () {
-			charSearch = sInp.value.replace(/^\s+|\s+$/g, "");
-			mbCEUiSave({ charFilter: charSearch });
-			renderCards();
-			var ni = pane.querySelector(".mce-char-search");
-			if (ni && document.activeElement !== ni) { try { ni.focus(); } catch (e2) {} }
-		});
-		searchRow.appendChild(sInp);
-		pane.appendChild(searchRow);
+		mbCECharSearchMount(pane, searchRow);
 		var hint = el("div", MCE_CLS.hint, "");
 		pane.appendChild(hint);
 		var matchCount = 0;
@@ -16147,10 +16234,19 @@ function renderYanlingQuick(parent) {
 		sInfobody.setAttribute("data-open", "0");
 		var sInfotoggle = el("div", "mce-hint mce-fold", "① 只拦「服装性别」链；② 压力循环不受影响；③ 不依赖原版文案，仅依赖 6 个变量键；④ 全部动作按 mbCE_wrote 留痕可回退；⑤ 关闭开关立即卸载钩子；⑥ 性别认知残留属正常。");
 		sInfotoggle.setAttribute("data-open", "0");
-		sInfotoggle.addEventListener("click", function () {
+		sInfotoggle.setAttribute("role", "button");
+		sInfotoggle.setAttribute("tabindex", "0");
+		sInfotoggle.setAttribute("aria-expanded", "false");
+		sInfotoggle.title = "点击展开 / 收起完整说明";
+		function ylInfoFold() {
 			var now = sInfobody.getAttribute("data-open") === "0" ? "1" : "0";
 			sInfobody.setAttribute("data-open", now);
 			sInfotoggle.setAttribute("data-open", "0"); /* body 收起时摘要保持 2 行 */
+			sInfotoggle.setAttribute("aria-expanded", now === "1" ? "true" : "false");
+		}
+		sInfotoggle.addEventListener("click", ylInfoFold);
+		sInfotoggle.addEventListener("keydown", function (ev) {
+			if (ev.key === "Enter" || ev.key === " " || ev.keyCode === 13 || ev.keyCode === 32) { ev.preventDefault(); ylInfoFold(); }
 		});
 		sInfobody.appendChild(sInfotoggle);
 		sInfobody.appendChild(el("div", MCE_CLS.hint, "① 只拦「服装性别」链，不改玩家性别、生殖器、外观性别（isGenitalMismatch 与原版 herm 链保持原样；双生殖器仍会按原版进 herm 分支，如需一并消掉请用上面的名声清零）。"));
@@ -19579,7 +19675,7 @@ function mbCERenderAveryKeep(sec) {
 		var keepTop = (bodyEl && pane.classList.contains("mce-active")) ? bodyEl.scrollTop : 0;
 		pane.textContent = "";
 		if (!frameworkReady()) {
-			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "本页数据需要 Maplebirch 框架，当前未就绪（详情见底部状态栏）。"));
 			return;
 		}
 		/* 排版优化：全局页收进 5 个顶层可折叠组，外观与面板默认展开、其余 4 组默认收起（长页收起）；

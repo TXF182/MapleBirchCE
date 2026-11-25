@@ -33,9 +33,18 @@
 	function mceFoldHint(text) {
 		var h = el("div", "mce-hint mce-fold", text);
 		h.setAttribute("data-open", "0");
+		h.setAttribute("role", "button");
+		h.setAttribute("tabindex", "0");
+		h.setAttribute("aria-expanded", "false");
 		h.title = "点击展开 / 收起完整说明";
-		h.addEventListener("click", function () {
-			h.setAttribute("data-open", h.getAttribute("data-open") === "0" ? "1" : "0");
+		function foldToggle() {
+			var wasOpen = h.getAttribute("data-open") !== "0";
+			h.setAttribute("data-open", wasOpen ? "0" : "1");
+			h.setAttribute("aria-expanded", wasOpen ? "false" : "true");
+		}
+		h.addEventListener("click", foldToggle);
+		h.addEventListener("keydown", function (ev) {
+			if (ev.key === "Enter" || ev.key === " " || ev.keyCode === 13 || ev.keyCode === 32) { ev.preventDefault(); foldToggle(); }
 		});
 		return h;
 	}
@@ -144,7 +153,7 @@
 		"--mce-border:rgba(255,255,255,.16);--mce-border-soft:rgba(255,255,255,.12);--mce-border-dim:rgba(255,255,255,.08);--mce-border-ctl:rgba(255,255,255,.14);--mce-border-stage:rgba(255,255,255,.22);" +
 		"--mce-txt:#E9E3D6;--mce-txt-bright:#FBF6EA;--mce-txt-on-accent:#1A1206;--mce-txt-hi:#E2DACB;--mce-txt-label:#D5CDBE;--mce-txt-strong:#E9E3D6;" +
 		"--mce-txt-mid:#C4BDB0;--mce-txt-dim:#B0A99C;--mce-txt-faint:#9E9789;--mce-txt-muted:#ADA69A;--mce-txt-weak:#857F75;--mce-txt-star:#6B665D;" +
-		"--mce-fs-xl:16px;--mce-fs-lg:15px;--mce-fs-tab:14px;--mce-fs-base:13px;--mce-fs-btn:12px;--mce-fs-sm:11px;--mce-fs-xs:10px;" +
+		"--mce-fs-xl:calc(16px * var(--dgu-font-scale,1));--mce-fs-lg:calc(15px * var(--dgu-font-scale,1));--mce-fs-tab:calc(14px * var(--dgu-font-scale,1));--mce-fs-base:calc(13px * var(--dgu-font-scale,1));--mce-fs-btn:calc(12px * var(--dgu-font-scale,1));--mce-fs-sm:calc(11px * var(--dgu-font-scale,1));--mce-fs-xs:calc(10px * var(--dgu-font-scale,1));" +
 		"--mce-radius:12px;--mce-radius-sm:6px;--mce-radius-pill:10px;--mce-radius-card:16px;--mce-radius-panel:18px;" +
 		"--mce-space:8px;--mce-space-md:6px;--mce-space-sm:4px;--mce-h-header:42px;--mce-panel-w:430px;--mce-panel-r:8px;--mce-row-h:34px;--mce-tab-h:36px;--mce-border-quiet:rgba(255,255,255,.08);--mce-scroll:8px;" +
 		"}" +
@@ -205,7 +214,7 @@
 		".mce-btn:hover{background:var(--mce-bg-hover)}" +
 		".mce-btn:active{transform:translateY(1px) scale(.972);filter:brightness(1.14) saturate(1.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 8px rgba(0,0,0,.3),0 0 22px -7px var(--mce-press-glow)}" +
 		".mce-btn.mce-gold{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark);font-weight:700}" +
-		".mce-btn.mce-gold:hover{background:var(--mce-accent-hover);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}" +
+		"@media (hover:hover){.mce-btn.mce-gold:hover{background:var(--mce-accent-hover);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.45)}}" +
 		".mce-btn.mce-gold:active{transform:scale(.96);box-shadow:none}" +
 		".mce-btn.mce-red{background:var(--mce-red-bg);color:var(--mce-red-soft);border-color:var(--mce-red-bg-b)}" +
 		".mce-btn.mce-red:hover{background:var(--mce-red-bg-h)}" +

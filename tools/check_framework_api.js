@@ -8,7 +8,7 @@
  * API 是否全部保留（不兼容就不能把"当前兼容版本"记录更新上去）。
  * 核对项 = src/04a-*.js（按模组拆分的适配器） / 01-core.js / 02-romance.js / 06b-traits-eval.js 里实际用到的
  * 框架接口（见 APIS 数组注释的源码出处）。打包产物是压缩单行，用子串/正则
- * 匹配（变量名被压缩，属性访问路径如 .temporary.traitLists 保留原样）。
+ * 匹配（变量名被压缩，属性访问路径如 temporary.traitLists 保留原样）。
  *
  * 输出：逐项 [有]/[缺] + 汇总；缺失项需人工确认是否为行为变化。
  * ========================================================================== */
@@ -29,8 +29,12 @@ const APIS = [
   /* 02-romance.js:16/288/305 maplebirch.npc 注册池（.data 为 Map / 按名索引） */
   ["maplebirch.npc 注册池", /maplebirch\.npc|\.npc\s*=|npc:\s*\{/],
   ["npc.data Map 结构", /\.npc\.data|npc\.data|\.data\s*=\s*new Map/],
-  /* 06b-traits-eval.js:476 运行时模组特质：maplebirch.temporary.traitLists（压缩后属性路径保留） */
-  ["maplebirch.temporary 命名空间", /\.temporary\.traitLists|temporary:\s*\{|\.temporary\s*=/],
+  /* 06b-traits-eval.js:263 运行时模组特质：框架内部把注入表写到 SugarCube temporary
+     （fw562 inject_early.js 实证：aX.temporary.traitLists = r）；根对象 maplebirch 无 .temporary
+     （core.d.ts:63-131 属性表），CE 已改读 window.T / State.temporary，host.dol.temporary 兜底 */
+  ["框架写入 temporary.traitLists 通路", /temporary\.traitLists\s*=|\.temporary\["traitLists"\]/],
+  /* 历史路径：5.6.x 根对象已无 .temporary；命中/缺失均不阻塞（CE 不依赖此形态） */
+  ["maplebirch.temporary 命名空间（历史路径）", /\.temporary\.traitLists|temporary:\s*\{|\.temporary\s*=/, "warn"],
   ["traitLists 注入表", /traitLists/],
   /* 01-core.js:19 回退：setup.MapleBirch（老框架兜底，5.5.0 确认无，缺失不阻塞主路径） */
   ["setup.MapleBirch 回退", /setup\.MapleBirch/],
@@ -41,11 +45,12 @@ const APIS = [
 ];
 
 console.log("===== MapleBirchCE 框架 API 兼容性核对：" + f + " =====");
-let pass = 0, fail = 0;
-for (const [name, re] of APIS) {
+let pass = 0, fail = 0, warn = 0;
+for (const [name, re, level] of APIS) {
   const ok = re.test(t);
-  if (ok) pass++; else fail++;
-  console.log((ok ? "[有] " : "[缺] ") + name + (ok ? "" : "  ← 需人工确认"));
+  if (ok) { pass++; console.log("[有] " + name); }
+  else if (level === "warn") { warn++; console.log("[参考] " + name + "  ← 非阻塞（老框架形态，5.6.x 不保证）"); }
+  else { fail++; console.log("[缺] " + name + "  ← 需人工确认"); }
 }
-console.log("核对完成：" + pass + " 项存在 / " + fail + " 项缺失");
+console.log("核对完成：" + pass + " 项存在 / " + fail + " 项缺失 / " + warn + " 项参考缺失");
 console.log("结论：" + (fail === 0 ? "核心 API 全部保留，兼容" : "存在缺失项，先人工确认再更新 declOverride"));

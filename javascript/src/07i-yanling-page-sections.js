@@ -301,10 +301,19 @@
 		sInfobody.setAttribute("data-open", "0");
 		var sInfotoggle = el("div", "mce-hint mce-fold", "① 只拦「服装性别」链；② 压力循环不受影响；③ 不依赖原版文案，仅依赖 6 个变量键；④ 全部动作按 mbCE_wrote 留痕可回退；⑤ 关闭开关立即卸载钩子；⑥ 性别认知残留属正常。");
 		sInfotoggle.setAttribute("data-open", "0");
-		sInfotoggle.addEventListener("click", function () {
+		sInfotoggle.setAttribute("role", "button");
+		sInfotoggle.setAttribute("tabindex", "0");
+		sInfotoggle.setAttribute("aria-expanded", "false");
+		sInfotoggle.title = "点击展开 / 收起完整说明";
+		function ylInfoFold() {
 			var now = sInfobody.getAttribute("data-open") === "0" ? "1" : "0";
 			sInfobody.setAttribute("data-open", now);
 			sInfotoggle.setAttribute("data-open", "0"); /* body 收起时摘要保持 2 行 */
+			sInfotoggle.setAttribute("aria-expanded", now === "1" ? "true" : "false");
+		}
+		sInfotoggle.addEventListener("click", ylInfoFold);
+		sInfotoggle.addEventListener("keydown", function (ev) {
+			if (ev.key === "Enter" || ev.key === " " || ev.keyCode === 13 || ev.keyCode === 32) { ev.preventDefault(); ylInfoFold(); }
 		});
 		sInfobody.appendChild(sInfotoggle);
 		sInfobody.appendChild(el("div", MCE_CLS.hint, "① 只拦「服装性别」链，不改玩家性别、生殖器、外观性别（isGenitalMismatch 与原版 herm 链保持原样；双生殖器仍会按原版进 herm 分支，如需一并消掉请用上面的名声清零）。"));

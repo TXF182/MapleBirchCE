@@ -57,12 +57,60 @@
 		});
 		body.appendChild(grid);
 	}
+	/* v2.2.5 UI 体检修复：搜索框常驻 + 200ms 去抖 + 输入法组合保护
+	   旧实现每敲一键 renderCards() 全量重建，连输入框自身也被销毁重建，
+	   中文输入法组合态被打断（候选词消失）、长列表每次全量重排。 */
+	var mbCECharSearchTimer = 0;
+	var mbCECharComposing = false;
+
+	function mbCECharSearchBind(inp) {
+		if (!inp || inp.getAttribute("data-mce-bound") === "1") { return; }
+		inp.setAttribute("data-mce-bound", "1");
+		inp.addEventListener("compositionstart", function () { mbCECharComposing = true; });
+		inp.addEventListener("compositionend", function () {
+			mbCECharComposing = false;
+			charSearch = inp.value.replace(/^\s+|\s+$/g, "");
+			mbCEUiSave({ charFilter: charSearch });
+			renderCards();
+		});
+		inp.addEventListener("input", function () {
+			charSearch = inp.value.replace(/^\s+|\s+$/g, "");
+			mbCEUiSave({ charFilter: charSearch });
+			if (mbCECharComposing) { return; } /* 组合中只记值，不重排 */
+			if (mbCECharSearchTimer) { clearTimeout(mbCECharSearchTimer); }
+			mbCECharSearchTimer = setTimeout(function () {
+				mbCECharSearchTimer = 0;
+				renderCards();
+			}, 200);
+		});
+	}
+	function mbCECharSearchRow() {
+		var row = el("div", "mce-build");
+		var inp = el("input", "mce-search-inp mce-char-search");
+		inp.type = "search";
+		inp.placeholder = "搜索角色（原名/显示名）…";
+		inp.value = charSearch;
+		mbCECharSearchBind(inp);
+		row.appendChild(inp);
+		return row;
+	}
+
+	function mbCECharSearchMount(pane, row) {
+		if (!row) { row = mbCECharSearchRow(); }
+		var box = row.querySelector(".mce-char-search");
+		if (box && box.value !== charSearch) { box.value = charSearch; }
+		pane.appendChild(row);
+	}
+
 	function renderCards() {
 		var pane = root.querySelector('[data-pane="char"]');
 		var keepScroll = typeof pane.scrollTop === "number" ? pane.scrollTop : 0; /* 重建后保持滚动位置（五巡一致） */
+		/* 搜索行常驻：先摘出旧节点，重建结果区后再挂回，输入框与输入法组合态不中断 */
+		var oldInp = pane.querySelector(".mce-char-search");
+		var searchRow = oldInp && oldInp.parentNode ? oldInp.parentNode : null;
 		pane.textContent = "";
 		if (!frameworkReady()) {
-			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架（window.maplebirch / setup.MapleBirch）。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "本页数据需要 Maplebirch 框架，当前未就绪（详情见底部状态栏）。"));
 			return;
 		}
 		var charsAll = listCharacters();
@@ -75,22 +123,9 @@
 			pane.appendChild(el("div", MCE_CLS.hint, "注册池为空：未枚举到任何角色。"));
 			return;
 		}
-		/* v1.9.29 角色页搜索：与特质/Mod 数值搜索同款 .mce-search-inp；按原名/显示名实时过滤，词持久化 charFilter */
+		/* v2.2.5 搜索行常驻：输入框不随结果区重建，200ms 去抖 + 输入法组合保护 */
 		var q = charSearch.toLowerCase();
-		var searchRow = el("div", "mce-build");
-		var sInp = el("input", "mce-search-inp mce-char-search");
-		sInp.type = "search";
-		sInp.placeholder = "搜索角色（原名/显示名）…";
-		sInp.value = charSearch;
-		sInp.addEventListener("input", function () {
-			charSearch = sInp.value.replace(/^\s+|\s+$/g, "");
-			mbCEUiSave({ charFilter: charSearch });
-			renderCards();
-			var ni = pane.querySelector(".mce-char-search");
-			if (ni && document.activeElement !== ni) { try { ni.focus(); } catch (e2) {} }
-		});
-		searchRow.appendChild(sInp);
-		pane.appendChild(searchRow);
+		mbCECharSearchMount(pane, searchRow);
 		var hint = el("div", MCE_CLS.hint, "");
 		pane.appendChild(hint);
 		var matchCount = 0;

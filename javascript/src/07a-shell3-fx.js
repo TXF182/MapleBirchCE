@@ -11,9 +11,9 @@
    :root 可以重复声明，这里追加的 7 个 token 与 07a-shell.js 里的 :root 无属性冲突。 */
 MB_CSS +=
 	":root{" +
-	"--mce-tex-panel:radial-gradient(120% 80% at 10% 0%,rgba(227,178,95,.20),transparent 58%),radial-gradient(90% 60% at 100% 100%,rgba(198,84,73,.09),transparent 62%),radial-gradient(70% 35% at 50% 100%,rgba(120,66,28,.10),transparent 72%),repeating-linear-gradient(92deg,rgba(255,255,255,.024) 0 1px,transparent 1px 4px),repeating-linear-gradient(2deg,rgba(227,178,95,.032) 0 1px,transparent 1px 7px);" +
-	"--mce-tex-body:radial-gradient(100% 70% at 50% 0%,rgba(227,178,95,.075),transparent 70%),repeating-linear-gradient(115deg,rgba(255,255,255,.018) 0 1px,transparent 1px 6px);" +
-	"--mce-tex-card:linear-gradient(135deg,rgba(227,178,95,.10),transparent 58%),radial-gradient(120% 80% at 10% 0%,rgba(255,235,200,.06),transparent 60%),repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 5px);" +
+	"--mce-tex-panel:radial-gradient(120% 80% at 10% 0%,rgba(227,178,95,.20),transparent 58%),radial-gradient(90% 60% at 100% 100%,rgba(198,84,73,.09),transparent 62%),radial-gradient(70% 35% at 50% 100%,rgba(120,66,28,.10),transparent 72%),repeating-linear-gradient(92deg,rgba(255,255,255,.014) 0 1px,transparent 1px 10px),repeating-linear-gradient(2deg,rgba(227,178,95,.018) 0 1px,transparent 1px 14px);" +
+	"--mce-tex-body:radial-gradient(100% 70% at 50% 0%,rgba(227,178,95,.075),transparent 70%),repeating-linear-gradient(115deg,rgba(255,255,255,.010) 0 1px,transparent 1px 12px);" +
+	"--mce-tex-card:linear-gradient(135deg,rgba(227,178,95,.10),transparent 58%),radial-gradient(120% 80% at 10% 0%,rgba(255,235,200,.06),transparent 60%),repeating-linear-gradient(0deg,rgba(255,255,255,.008) 0 1px,transparent 1px 11px);" +
 	"--mce-press-glow:rgba(227,178,95,.50);--mce-press-ripple:rgba(255,228,180,.22);--mce-blur:20px;" +
 	"--mce-shadow-panel:0 24px 64px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.35)}" ;
 
@@ -66,6 +66,8 @@ function mbCEPressRing(ev) {
 		if (!t || !t.closest || !t.closest(MCE_PRESS_SEL)) { return; }
 		var d = el("div", "");
 		d.className = "mce-press-ring";
+		/* v2.2.5 修复：CSS 用 #mce-press-ring（id 选择器），此前只写 className → 涟漪元素零样式、视觉完全失效 */
+		d.id = "mce-press-ring";
 		d.setAttribute("aria-hidden", "true");
 		d.style.left = ev.clientX + "px";
 		d.style.top = ev.clientY + "px";
@@ -144,14 +146,14 @@ MB_CSS +=
 	"--mce-tex-panel:linear-gradient(112deg,transparent 28%,rgba(190,255,240,.06) 40%,rgba(190,255,240,.012) 50%,transparent 62%)," +
 	"radial-gradient(110% 80% at 8% 0%,rgba(95,191,172,.2),transparent 58%),radial-gradient(80% 60% at 100% 100%,rgba(127,214,197,.1),transparent 62%)," +
 	"linear-gradient(118deg,transparent 42%,rgba(255,255,255,.04) 43%,transparent 44%)," +
-	"repeating-linear-gradient(66deg,rgba(127,214,197,.058) 0 1px,transparent 1px 10px)," +
+	"repeating-linear-gradient(66deg,rgba(127,214,197,.040) 0 1px,transparent 1px 16px)," +
 	"repeating-linear-gradient(28deg,transparent 0 21px,rgba(233,255,249,.038) 21px 22px)," +
 	"repeating-linear-gradient(-24deg,rgba(255,255,255,.028) 0 1px,transparent 1px 16px);" +
 	"--mce-tex-body:radial-gradient(100% 70% at 50% 0%,rgba(95,191,172,.07),transparent 70%)," +
-	"repeating-linear-gradient(66deg,rgba(127,214,197,.02) 0 1px,transparent 1px 9px)," +
-	"repeating-linear-gradient(28deg,transparent 0 21px,rgba(233,255,249,.016) 21px 22px);" +
+	"repeating-linear-gradient(66deg,rgba(127,214,197,.012) 0 1px,transparent 1px 14px)," +
+	"repeating-linear-gradient(28deg,transparent 0 28px,rgba(233,255,249,.010) 28px 29px);" +
 	"--mce-tex-card:linear-gradient(135deg,rgba(95,191,172,.1),transparent 58%),radial-gradient(120% 80% at 0% 0%,rgba(220,255,247,.05),transparent 55%)," +
-	"repeating-linear-gradient(-24deg,rgba(255,255,255,.016) 0 1px,transparent 1px 9px);" +
+	"repeating-linear-gradient(-24deg,rgba(255,255,255,.010) 0 1px,transparent 1px 14px);" +
 	"--mce-press-glow:rgba(127,214,197,.5);--mce-press-ripple:rgba(200,255,242,.22);--mce-shadow-panel:0 24px 64px rgba(0,0,0,.55),0 0 0 1px rgba(95,191,172,.1),0 0 30px rgba(95,191,172,.08)}" +
 	"#mce-root.mce-theme-jade{background-color:var(--mce-bg-panel);background-image:var(--mce-tex-panel);" +
 	"border-color:rgba(95,191,172,.34);box-shadow:var(--mce-shadow-panel),inset 0 1px 0 rgba(220,255,247,.13),inset 0 0 32px rgba(95,191,172,.07),inset 0 0 0 1px rgba(95,191,172,.06)}" +

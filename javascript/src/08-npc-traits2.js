@@ -7,7 +7,7 @@
 		var keepTop = (bodyEl && pane.classList.contains("mce-active")) ? bodyEl.scrollTop : 0;
 		pane.textContent = "";
 		if (!frameworkReady()) {
-			pane.appendChild(el("div", MCE_CLS.err, "未检测到 Maplebirch 框架。"));
+			pane.appendChild(el("div", MCE_CLS.hint, "本页数据需要 Maplebirch 框架，当前未就绪（详情见底部状态栏）。"));
 			return;
 		}
 		/* 排版优化：全局页收进 5 个顶层可折叠组，外观与面板默认展开、其余 4 组默认收起（长页收起）；

@@ -991,9 +991,18 @@ const ylInfoBlock = [].slice.call(ylpane().querySelectorAll(".mce-block")).filte
 const ylFold = ylInfoBlock ? ylInfoBlock.querySelector(".mce-fold") : null;
 assert(!!ylFold, "页尾「说明与边界」折叠摘要存在");
 if (ylFold) {
+  assert(ylFold.getAttribute("role") === "button" && ylFold.getAttribute("tabindex") === "0" && ylFold.getAttribute("aria-expanded") === "false",
+    "折叠摘要具备 role=button / tabindex=0 / aria-expanded=false，实际 " + [ylFold.getAttribute("role"), ylFold.getAttribute("tabindex"), ylFold.getAttribute("aria-expanded")].join("/"));
   ylFold.click();
   const ylFoldBody = ylInfoBlock.querySelector(".mce-foldbox");
   assert(!!ylFoldBody && ylFoldBody.getAttribute("data-open") === "1", "点折叠摘要 → body data-open=1，实际 " + (ylFoldBody ? ylFoldBody.getAttribute("data-open") : "无"));
+  assert(ylFold.getAttribute("aria-expanded") === "true", "展开后 aria-expanded=true，实际 " + ylFold.getAttribute("aria-expanded"));
+  const kev = document.createEvent("Event");
+  kev.initEvent("keydown", true, true);
+  kev.key = "Enter";
+  ylFold.dispatchEvent(kev);
+  assert(ylFoldBody.getAttribute("data-open") === "0" && ylFold.getAttribute("aria-expanded") === "false",
+    "Enter 收起 → data-open=0 / aria-expanded=false，实际 " + ylFoldBody.getAttribute("data-open") + "/" + ylFold.getAttribute("aria-expanded"));
 }
 /* 复位：恢复本轮临时改动的存档键，避免影响后续用例 */
 Object.keys(ylBackup).forEach(function (k) {
@@ -2047,12 +2056,18 @@ setTimeout(function () {
     assert(cs18.placeholder.indexOf("搜索角色") !== -1, "18 搜索框占位文案（placeholder 搜索角色）");
     cs18.value = "爱丽丝";
     cs18.dispatchEvent(new window.Event("input", { bubbles: true }));
+    /* v2.2.5 搜索改 200ms 去抖：测试显式刷新一次取渲染结果；去抖与输入法组合保护由下方源码断言守护 */
+    api.renderCards();
+    assert(js.indexOf("mbCECharSearchTimer = setTimeout") !== -1, "18.3 搜索 200ms 去抖已落地（防每键全量重建）");
+    assert(js.indexOf("compositionstart") !== -1 && js.indexOf("compositionend") !== -1, "18.3 输入法组合保护已落地（compositionstart/end 期间不重排）");
+    assert(js.indexOf("mbCECharSearchRow") !== -1 && js.indexOf("mbCECharSearchMount(pane, searchRow)") !== -1, "18.3 搜索框节点常驻复用（不再随结果区销毁重建）");
     const modHead18 = charPane18.querySelector('.mce-grp[data-tcat="模组角色"] .mce-grp-t');
     assert(!!modHead18 && modHead18.textContent.indexOf("模组角色（1）") !== -1, "18 搜索「爱丽丝」→ 模组角色分区计数 1，实际 " + (modHead18 ? modHead18.textContent : "无"));
     assert(charPane18.textContent.indexOf("匹配 1 个") !== -1, "18 hint 显示「匹配 1 个」");
     cs18 = charPane18.querySelector(".mce-char-search");
     cs18.value = "";
     cs18.dispatchEvent(new window.Event("input", { bubbles: true }));
+    api.renderCards();
     const modHead18b = charPane18.querySelector('.mce-grp[data-tcat="模组角色"] .mce-grp-t');
     assert(!!modHead18b && modHead18b.textContent.indexOf("模组角色（4）") !== -1, "18 清空搜索 → 恢复计数 4，实际 " + (modHead18b ? modHead18b.textContent : "无"));
     const st18b = JSON.parse(localStorage.getItem("mbCE_ui_state_v1") || "{}");

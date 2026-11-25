@@ -175,7 +175,7 @@ var VANILLA_TRAITS_RAW = [
 
 /* ============ v1.8.0 特质管理（替代 v1.7.0 玩家属性/模组属性区）
    数据源：① VANILLA_TRAITS_RAW（本体 traits widget 提取：cat/name/has）
-          ② discoverModTraits()（maplebirch.temporary.traitLists 运行时注入的模组特质，装了显示、没装隐藏）
+          ② discoverModTraits()（SugarCube temporary.traitLists 运行时注入的模组特质，装了显示、没装隐藏）
    能力：拥有判定（has 表达式求值）／ 获取+移除（has 全部条件变量写满足，主变量写回不满足）／ 数值可改（数值比较变量）
    ============ */
 var curPlayerFilter = "";
