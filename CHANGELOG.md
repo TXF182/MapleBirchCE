@@ -2,6 +2,12 @@
 
 版本线记录（v1.8.4 起；更早版本历史见会话存档）。版本双源：`javascript/src/01-core.js` 的 `MCE_VERSION` 与 `boot.json` 的 `version` 字段。
 
+## v2.2.6（2026-11-25 发布：框架 5.6.x 模组特质修复 + 面板精修）
+
+- 修：框架 5.6.x 根对象没有 `temporary`，CE「模组特质」读取恒空 → 改读 SugarCube `temporary.traitLists`，并保留 `host.dol.temporary` 与旧路径兜底。
+- 修：`check_framework_api.js` 判据由「根 temporary 命名空间」改为「框架写入 `temporary.traitLists` 通路」，历史路径降为参考项，不再产生假缺失。
+- 含 v2.2.5 面板界面精修：输入法去抖、字号随主 UI 缩放、44px 触控目标、无障碍补全。
+
 ## v2.2.5（2026-11-25 面板界面精修：输入法 / 字号 / 触控 / 无障碍）
 
 - 修：角色页搜索每键全量重建（连输入框一起重建），中文输入法组合态被打断 → 搜索行常驻复用 + 200ms 去抖 + 组合期不重排。
