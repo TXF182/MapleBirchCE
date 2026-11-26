@@ -180,7 +180,26 @@ const TESTS = [
   "tests/coverage_plain_ext.js",
   /* 2026-11-23 覆盖率提升轮（第二步）：01-core 纯函数 name||"" falsy fallback（displayName / isVanillaNPC /
      isVanillaLoveInterest / isPerNpcRole）+ EdenChildIdOf 空串 + srcHasEndSignal 空串。 */
-  "tests/coverage_plain_core.js"
+  "tests/coverage_plain_core.js",
+  /* v2.2.7 需求③④⑤⑥：租金单位换算/每周租金/金额锁定与 tick 纠正、格威岚消失期 A 档（清计时保剧情）、
+     Sam 公园驱逐 isInPark 包装与透传、认识角色 initnpc 初始化后数值写回 + 0→1 相认探测、三块阶段页 UI。 */
+  "tests/extra_npc_state.js",
+  /* v2.2.8 角色初见 7 条补录 + Eden/BlackWolf startPassage 修正 + 格威岚 13 条支线与 5 档阶段线：
+     初见键入口/段落/角色归组/原版区归属、修错位只认 ForestHuntDebug、格威岚好感公式与区间、
+     模拟写值后离开商店的还原、缺 yearning / wary>1 两条拒绝。 */
+  "tests/scene_intro_gwylan.js",
+  /* v2.2.8 艾弗里保持受伤（07v）：三档 timer/stage 档位、休养门控、每段冻结回写、
+     切档保留首快照、解除还原未定义键、无庄园降级「仅休养」、非法档位/重复解除。 */
+  "tests/avery_injury_hold.js",
+  /* v2.2.8 四项实机 bug（08e / 06c / 07i-leaf / 07f-pins3）：回退中心 vcore+yanling 全量中文名与未知兜底、
+     特质数值框「中文名（变量） 条件 阈值」标签、枝叶变装 variable 复用 plant + modder 唯一标记 +
+     setup 重建后 index 自愈 + 模板缺失降级裸装、农场 $farm_work 四动物字段补齐与不凭空创建。 */
+  "tests/panel_leaf_farm_fixes.js",
+"tests/undo_labels_coverage.js",
+  /* v2.2.7 贝利扣押拦截（07f-bailey）：默认不动原函数、开启后清单恒空（twee 走 rentdue 分支）、
+     原引用只保存一次、连续 sync 幂等、无原版函数时拒绝开启、apply/restore 全程不被替换、
+     旧档已扣押记录不被清空、UI 点击可切换。 */
+  "tests/bailey_keep.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

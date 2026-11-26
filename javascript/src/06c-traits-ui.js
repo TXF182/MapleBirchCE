@@ -230,6 +230,70 @@ function renderTraitsSection(pane, V, C) {
 	}
 	pane.appendChild(wrap);
 }
+/* v2.2.8 实机反馈：特质下的数值框只有裸数字，玩家看不出「翅膀」那 5 个数字分别是什么
+   （06b 的 values = 特质判定式里的数字比较变量，如 Wings 解析出 harpy/birdFly/angel/fallenangel/demon）。
+   这里给每个数值框配「中文名（变量名） 条件 阈值」标签：词表命中用中文，未收录回落变量名，绝不留空白。 */
+var MB_CE_TRAIT_VAR_ZH = {
+	harpy: "羽翼等级",
+	birdFly: "飞行能力",
+	winggrowth: "翅膀生长度",
+	angel: "天使转化",
+	fallenangel: "堕天使转化",
+	demon: "恶魔转化",
+	cat: "猫转化",
+	cow: "牛转化",
+	wolf: "狼转化",
+	slime: "黏液转化",
+	lurkers_held: "手持潜伏者",
+	temple_burden: "神殿负担",
+	scienceTrait: "科学天赋",
+	crossdressingTrait: "异装癖",
+	exhibitionismTrait: "暴露癖",
+	hypnosisTrait: "催眠深度",
+	physiquesize: "体格",
+	beauty: "美貌",
+	stress: "压力",
+	trauma: "创伤",
+	willpower: "意志",
+	purity: "纯洁",
+	corruption: "堕落",
+	grace: "优雅",
+	awareness: "警觉"
+};
+function mbCETraitVarTail(path) {
+	var s = String(path == null ? "" : path);
+	var i = s.lastIndexOf(".");
+	return i >= 0 ? s.slice(i + 1) : s;
+}
+/* 标签：羽翼等级（harpy） ≥ 6 */
+function traitVarLabel(path, op, val) {
+	var tail = mbCETraitVarTail(path);
+	var zh = MB_CE_TRAIT_VAR_ZH[tail] || tail;
+	var sym = (op === "gte") ? "≥" : (op === "gt") ? ">" : "=";
+	return zh + "（" + tail + "） " + sym + " " + val;
+}
+/* 单个可改数值控件组（拆出来是为了不给 renderTraitRow 加复杂度）：
+   v2.2.8 每个数值前插一段可见标签「中文名（变量名） ≥ 阈值」，否则玩家只看到裸数字框（翅膀那 5 个框报过） */
+function renderTraitValueInline(row, t, v, V) {
+	var cur = safeGetObj(V, v.path);
+	var num = (typeof cur === "number") ? cur : 0;
+	row.appendChild(el("span", MCE_CLS.hint, traitVarLabel(v.path, v.op, v.val)));
+	var inp = el("input", MCE_CLS.inp);
+	inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(num);
+	inp.placeholder = "+N / -N 相对";
+	inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值";
+	var bS = el("button", "", "改数值"); bS.type = "button";
+	bS.addEventListener("click", function () {
+		var res = traitWriteValue(t, V, v.path, inp.value);
+		actPlayer(res);
+	});
+	var bU = el("button", "", "回退"); bU.type = "button";
+	bU.addEventListener("click", function () {
+		var res = undoCheatModValue("player-self", "trait:" + v.path);
+		actPlayer(res);
+	});
+	row.appendChild(inp); row.appendChild(bS); row.appendChild(bU);
+}
 function renderTraitRow(grp, t, V, C, isMod) {
 	var owned = traitOwned(t, V, C);
 	var nameZh = traitDisplayName(t, V);
@@ -269,26 +333,9 @@ function renderTraitRow(grp, t, V, C, isMod) {
 	});
 	row.appendChild(bG);
 	/* 数值可改（数字比较变量）：写入走 player-self 留痕通道 + 回退
-	   （原版与模组注入特质均可用——discoverModTraits 已为模组特质生成 values 清单） */
-	t.values.forEach(function (v) {
-		var cur = safeGetObj(V, v.path);
-		var num = (typeof cur === "number") ? cur : 0;
-		var inp = el("input", MCE_CLS.inp);
-		inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(num);
-		inp.placeholder = "+N / -N 相对";
-		inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值";
-		var bS = el("button", "", "改数值"); bS.type = "button";
-		bS.addEventListener("click", function () {
-			var res = traitWriteValue(t, V, v.path, inp.value);
-			actPlayer(res);
-		});
-		var bU = el("button", "", "回退"); bU.type = "button";
-		bU.addEventListener("click", function () {
-			var res = undoCheatModValue("player-self", "trait:" + v.path);
-			actPlayer(res);
-		});
-		row.appendChild(inp); row.appendChild(bS); row.appendChild(bU);
-	});
+	   （原版与模组注入特质均可用——discoverModTraits 已为模组特质生成 values 清单）
+	   v2.2.8：每个数值前加「中文名（变量名） 条件 阈值」标签，控件仍在同一行内（不破坏既有行内布局） */
+	t.values.forEach(function (v) { renderTraitValueInline(row, t, v, V); });
 	grp.appendChild(row);
 }
 /* v1.8.12 特质收藏（数据层）：V.mbCE_favTraits 数组，key=cat\u0001name，收藏项渲染置顶 */

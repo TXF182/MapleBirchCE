@@ -79,7 +79,12 @@
 		} catch (e) { return { ok: false, msg: "加固异常：" + mbCEYanlingErr(e) }; }
 	}
 
-	/* 精液量：与原版 CheatExtend 同序（先补满 amount，再抬 volume） */
+	/* 精液量（原版语义实证，0.5.12.13）：
+	   · $semen_volume 是**容量**、$semen_amount 是**当前量**，且 amount ≤ volume ≤ $semen_max（L165034 / L165043 / L290801-290802）；
+	   · 「满」判据 = amount >= volume（L104935 Feeling Full 成就同时要求 volume >= 2000）；
+	   · 每日 clamp 以 $semen_max 为容量上限（L290801），写超过它次日会被压回。
+	   旧实现写 amount=旧volume、volume=旧volume+1000 → amount 恒小于 volume（永远不满），且容量次日被 clamp 压回。
+	   现实现：容量抬到 $semen_max（原版上限档，默认 3000），当前量同步写满。 */
 	function mbCEYanlingSemen() {
 		try {
 			var V = getV();
@@ -87,11 +92,13 @@
 			var vol = (typeof V.semen_volume === "number") ? V.semen_volume : null;
 			var amt = (typeof V.semen_amount === "number") ? V.semen_amount : null;
 			if (vol === null || amt === null) { return { ok: false, msg: "本存档无 $semen_volume / $semen_amount 键（不是男性生理档）" }; }
-			var before = { volume: vol, amount: amt };
-			V.semen_amount = vol;
-			V.semen_volume = vol + 1000;
+			var max = (typeof V.semen_max === "number" && V.semen_max > 0) ? V.semen_max : null;
+			if (max === null) { return { ok: false, msg: "本存档无 $semen_max（容量上限），无法确定可写容量" }; }
+			var before = { volume: vol, amount: amt, max: max };
+			V.semen_volume = max;
+			V.semen_amount = max;
 			mbCEYanlingTrace("semen", before, { volume: V.semen_volume, amount: V.semen_amount });
-			return { ok: true, msg: "精液量已补满（volume " + before.volume + " → " + V.semen_volume + "，amount → " + V.semen_amount + "）" };
+			return { ok: true, msg: "精液已补满（容量 " + before.volume + " → " + max + "，当前 " + before.amount + " → " + max + "；上限 $semen_max = " + max + "）" };
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
@@ -201,17 +208,23 @@
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
-	/* 奶量：先抬上限再写当前值（原版 290800 每日钳制到 [24, milk_max]） */
+	/* 奶量（原版语义实证，0.5.12.13）：
+	   · $milk_volume 是**容量**（下限 24，上限 $milk_max，L290800 clamp）、$milk_amount 是**当前量**（L165065 clamp 到 volume）；
+	   · $milk_max 只有 3000 / 6000 两档合法值（初始化 3000 L182102；事件改 6000/3000 L337731/337740/337750/337761）；
+	   · 「满」判据 = milk_amount >= milk_volume（L104935）。
+	   旧实现写 milk_max=10000（非原版档位）+ 只写 volume 不写 amount → 档位判定失配且永远「不满」。 */
 	function mbCEYanlingMilk() {
 		try {
 			var V = getV();
 			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
 			if (typeof V.milk_max !== "number" || typeof V.milk_volume !== "number") { return { ok: false, msg: "本存档无 $milk_volume / $milk_max 键" }; }
-			var before = { volume: V.milk_volume, max: V.milk_max };
-			V.milk_max = 10000;
-			V.milk_volume = 5000;
-			mbCEYanlingTrace("milk", before, { volume: V.milk_volume, max: V.milk_max });
-			return { ok: true, msg: "奶量 5000 / 上限 10000（原 " + before.volume + " / " + before.max + "）" };
+			var before = { volume: V.milk_volume, max: V.milk_max, amount: V.milk_amount };
+			var max = 6000;  /* 原版最高合法档；非法档（如旧版写过的 10000）一并归一 */
+			V.milk_max = max;
+			V.milk_volume = max;
+			if (typeof V.milk_amount === "number") { V.milk_amount = max; }
+			mbCEYanlingTrace("milk", before, { volume: V.milk_volume, max: V.milk_max, amount: V.milk_amount });
+			return { ok: true, msg: "奶量已补满（容量 " + before.volume + " → " + max + "，上限 " + before.max + " → " + max + "，当前量 " + String(before.amount) + " → " + String(V.milk_amount) + "）" };
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 

@@ -117,9 +117,9 @@
 	/* ⑤ 精神与体液（v2.0.2 从「身体与衣物」拆出：这两项不碰衣物，混在一起让玩家以为都是衣服相关） */
 	function mbCEYanlingSecMind(g, ctx) {
 		void ctx;
-		var s5 = mceNewSec(g, 5, "精神与体液", "精液补满：$semen_volume / $semen_amount（183097-183101 默认 90，同序写：先 amount 补到当前 volume，再把 volume +1000）。精神恢复：$control 拉满 1000（59989 的原版初值 0，不是上限）、$hallucinogen 归零（182681）。");
+		var s5 = mceNewSec(g, 5, "精神与体液", "精液补满：$semen_volume 是容量、$semen_amount 是当前量（183097-183101 默认 90），写入时容量抬到 $semen_max、当前量同步写满（原版满判据 amount >= volume，104935）。精神恢复：$control 拉满 1000（59989 的原版初值 0，不是上限）、$hallucinogen 归零（182681）。");
 		var s5g = mceBtnGrid(s5);
-		mbCEYanlingRenderBtn(s5g, "精液补满", MCE_CLS.gold, mbCEYanlingSemen, "$semen_amount 补到当前 volume，并把 volume +1000（与原版 CheatExtend 同序）");
+		mbCEYanlingRenderBtn(s5g, "精液补满", MCE_CLS.gold, mbCEYanlingSemen, "容量（$semen_volume）抬到 $semen_max、当前量（$semen_amount）同步写满——原版满判据是 amount >= volume（L104935），旧写法只到「半满」");
 		mbCEYanlingRenderBtn(s5g, "精神恢复（控制拉满 + 幻觉清零）", MCE_CLS.gold, mbCEYanlingMind, "$control=1000、$hallucinogen=0");
 	}
 
@@ -129,7 +129,7 @@
 		var s6 = mceNewSec(g, 6, "数值快补", "补 CE 快速面板没有入口的原版数值：施虐 / 受虐（$sadism / $masochism，钳制 0-1000，290866）、奶量（$milk_volume / $milk_max，每日钳到 [24, milk_max]，290800）、成就限制（$feats.locked 原版是布尔 true=锁定）、罗宾存款（$robinmoney）、艾弗里约会（$averydate is 1 且 21 点前，308105）、校长办公室密码（$headpasswordknown）、种子（window.unlockAllSeeds，76431）、农田（$farm.clearing=0 见 305874 / $fertiliser.current ++ 见 105354）。");
 		var s6g = mceBtnGrid(s6);
 		mbCEYanlingRenderBtn(s6g, "施虐 / 受虐拉满（1000）", MCE_CLS.gold, mbCEYanlingSadism, "$sadism / $masochism = 1000");
-		mbCEYanlingRenderBtn(s6g, "奶量 5000 / 上限 10000", MCE_CLS.gold, mbCEYanlingMilk, "先抬 milk_max 再写 milk_volume，避免被每日钳制卡回");
+		mbCEYanlingRenderBtn(s6g, "奶量补满（上限 6000）", MCE_CLS.gold, mbCEYanlingMilk, "milk_max 归一到原版合法档 6000（3000/6000 两档），milk_volume 与 milk_amount 一起写满，避开每日 clamp 与「不满」假象");
 		mbCEYanlingRenderBtn(s6g, "解除成就限制", MCE_CLS.gold, mbCEYanlingFeats, "$feats.locked = false（原版以 isnot true 判已解锁）");
 		mbCEYanlingRenderBtn(s6g, "罗宾存款清零", MCE_CLS.gold, mbCEYanlingRobinMoney, "$robinmoney = 0");
 		mbCEYanlingRenderBtn(s6g, "今晚艾弗里来约", MCE_CLS.gold, mbCEYanlingAveryDate, "$averydate = 1（21 点前到宅邸触发）");

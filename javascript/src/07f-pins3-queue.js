@@ -74,6 +74,46 @@
 			}
 		} catch (e) { /* farm/stock 结构异常时跳过补齐（不凭空造 farm 根，交由上层拒绝） */ }
 	}
+	/* v2.2.8 农场动物字段守卫（实机红屏实证）：
+	   <<farm_actions>>（HTML 487233）第一行就调 <<farm_gen_all>>（487597），而 <<farm_gen>>（487553）首行是
+	   `<<if $farm_work[_args[0]].monster_roll is true ...>>` —— horse/pig/dog/cattle 四个子对象缺失即
+	   TypeError: Cannot read properties of undefined (reading 'monster_roll')，整个 Farm Work 段落红屏，农场线无法进入。
+	   四键只在 <<farm_work_update>> 的「新一天」分支（486744 清空 + 486782-486796 建立）里生成，
+	   存档早于该分支、或用 CE 直达农场段落，就会缺。
+	   这里只补缺失字段、不改已有值；$farm_work 不存在（还没进农场线）时绝不创建 ——
+	   否则 farmStateReady 会恒真，绕过上面的农场防崩拦截。 */
+	/* 单字段补默认值：类型已匹配就跳过（幂等，不动已有值） */
+	function mbCEFarmWorkField(o, k, v) {
+		if (typeof o[k] === typeof v) { return 0; }
+		o[k] = v;
+		return 1;
+	}
+	function mbCEFarmWorkFill(o) {
+		var added = 0;
+		added += mbCEFarmWorkField(o, "monster_roll", false);
+		added += mbCEFarmWorkField(o, "monster", false);
+		added += mbCEFarmWorkField(o, "gender", "male");
+		added += mbCEFarmWorkField(o, "gender_plural", "males");
+		added += mbCEFarmWorkField(o, "genitals", "penis");
+		return added;
+	}
+	function mbCEFarmWorkGuard() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, created: 0, msg: "存档变量不可用" }; }
+			if (!V.farm_work || typeof V.farm_work !== "object") { return { ok: true, created: 0, msg: "未进农场线（$farm_work 未建立，不凭空创建）" }; }
+			var keys = ["horse", "pig", "dog", "cattle"];
+			var created = 0, i, k;
+			for (i = 0; i < keys.length; i++) {
+				k = keys[i];
+				if (!V.farm_work[k] || typeof V.farm_work[k] !== "object") { V.farm_work[k] = {}; created++; }
+				created += mbCEFarmWorkFill(V.farm_work[k]);
+			}
+			return created
+				? { ok: true, created: created, msg: "已补齐农场动物字段 " + created + " 项" }
+				: { ok: true, created: 0, msg: "农场动物字段完整" };
+		} catch (e) { return { ok: false, created: 0, msg: "农场字段守卫异常" }; }
+	}
 	function ensureAveryMansion() {
 		try {
 			var V = getV();

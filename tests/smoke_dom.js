@@ -791,7 +791,7 @@ assert(JSON.stringify(ylFp.secs) === JSON.stringify([
   "⑧|角色放逐", "⑨|监狱庇护", "⑬|格威岚 · 森林商店", "⑭|绝望轮回 · 结局与成就",
   "⑪|艾弗里办公室（补）", "⑫|作弊模式", "|"
 ]), "言灵页业务区块编号+标题指纹与拆分前一致，实际 " + JSON.stringify(ylFp.secs));
-assert(ylFp.btnCount === 79 && ylFp.btnHash === "5f24326fc7d4", "言灵页按钮数+文案哈希与拆分前一致，实际 " + ylFp.btnCount + " / " + ylFp.btnHash);
+assert(ylFp.btnCount === 79 && ylFp.btnHash === "67d492d5726d", "言灵页按钮数+文案哈希与拆分前一致（v2.2.7 有意改「精液补满」「奶量补满（上限 6000）」两条文案，故哈希随之更新），实际 " + ylFp.btnCount + " / " + ylFp.btnHash);
 V.mbCE_yanling = { noCross: true, noTrait: false };
 ylApi.yanlingInstall();
 const ylHookRef = window.isCrossdressing;
@@ -901,9 +901,9 @@ assert(V.worn.upper.integrity === 1050 && V.worn.lower.integrity === 1 && V.worn
 delete V.semen_volume; delete V.semen_amount;
 ylclick("精液补满");
 assert(V.semen_volume === undefined && V.semen_amount === undefined, "缺键时不硬建 semen 键");
-V.semen_volume = 90; V.semen_amount = 30;
+V.semen_max = 3000; V.semen_volume = 90; V.semen_amount = 30;
 ylclick("精液补满");
-assert(V.semen_volume === 1090 && V.semen_amount === 90, "精液补满 volume 90→1090 / amount→90，实际 " + V.semen_volume + "/" + V.semen_amount);
+assert(V.semen_volume === 3000 && V.semen_amount === 3000, "精液补满 容量/当前量都到 semen_max（3000/3000），实际 " + V.semen_volume + "/" + V.semen_amount);
 /* ⑤ 精神：control/hallucinogen 缺失时 SetNum 返回 false（不建垃圾键）→ 补齐后写 1000/0 */
 delete V.control; delete V.hallucinogen;
 ylclick("精神恢复（控制拉满 + 幻觉清零）");
@@ -927,11 +927,11 @@ ylclick("清理农田 + 补 5 袋堆肥");
 assert(V.farm.clearing === 0 && V.fertiliser.current === 7, "农田 clearing→0 / 堆肥 2→7，实际 " + V.farm.clearing + "/" + V.fertiliser.current);
 /* ⑧ 奶量缺键早退 → 写 5000/10000 */
 delete V.milk_max; delete V.milk_volume;
-ylclick("奶量 5000 / 上限 10000");
+ylclick("奶量补满（上限 6000）");
 assert(V.milk_max === undefined && V.milk_volume === undefined, "缺奶量键时不硬建");
-V.milk_max = 3000; V.milk_volume = 30;
-ylclick("奶量 5000 / 上限 10000");
-assert(V.milk_volume === 5000 && V.milk_max === 10000, "奶量写 5000/10000，实际 " + V.milk_volume + "/" + V.milk_max);
+V.milk_max = 3000; V.milk_volume = 30; V.milk_amount = 0;
+ylclick("奶量补满（上限 6000）");
+assert(V.milk_volume === 6000 && V.milk_max === 6000 && V.milk_amount === 6000, "奶量档位与容量/当前量都 6000，实际 " + V.milk_volume + "/" + V.milk_max + "/" + V.milk_amount);
 /* ⑨ 罗宾存款：非 number 早退 → 数值清零 */
 V.robinmoney = "abc";
 ylclick("罗宾存款清零");
@@ -1643,8 +1643,8 @@ setTimeout(function () {
       api.mbCEUiSave({ collapsed: {} });
       const sptxt = clickTabSafe("scenes");
       assert(sptxt.indexOf("THREW") === -1, "15 本体 111 键全量渲染不崩（THREW 检测）");
-      assert(sptxt.indexOf("原版剧情（游戏本体注册，110 场景）") !== -1, "15 原版区计数 = 110（本体 111 键中 placeHolder 是 /* */ 注释样本，v2.0.22 起已过滤），实际 " + sptxt.slice(sptxt.indexOf("原版剧情"), sptxt.indexOf("原版剧情") + 60));
-      assert(sptxt.indexOf("MOD 剧情（第三方模组注册，3 场景）") !== -1, "15 MOD 区计数 = 3（widget 注入 1 + 运行时注入 1 + EXTRA 1），实际 " + sptxt.slice(sptxt.indexOf("MOD 剧情"), sptxt.indexOf("MOD 剧情") + 60));
+      assert(sptxt.indexOf("原版剧情（游戏本体注册，117 场景）") !== -1, "15 原版区计数 = 117（本体 110 真实键 + v2.2.8 初见 7 条归原版），实际 " + sptxt.slice(sptxt.indexOf("原版剧情"), sptxt.indexOf("原版剧情") + 60));
+      assert(sptxt.indexOf("MOD 剧情（第三方模组注册，3 场景）") !== -1, "15 MOD 区计数 = 3（widget 注入 1 + 运行时注入 1 + EXTRA 非角色 1；格威岚 13 归独立角色组），实际 " + sptxt.slice(sptxt.indexOf("MOD 剧情"), sptxt.indexOf("MOD 剧情") + 60));
       /* v1.9.16：角色译名统一——Alex 分组标题「亚历克斯」→「艾利克斯」（与 01-core 角色名表一致） */
       assert(sptxt.indexOf("艾利克斯 Alex") !== -1 && sptxt.indexOf("亚历克斯 Alex") === -1, "15 角色译名：Alex 分组标题 = 艾利克斯 Alex（修复前显示 亚历克斯），实际 " + sptxt.slice(sptxt.indexOf("艾利克斯"), sptxt.indexOf("艾利克斯") + 30));
       /* v1.9.2 自查：MOD 场景区懒渲染折叠——收起时场景键不渲染，点击标题展开后才补建 */
@@ -1665,7 +1665,18 @@ setTimeout(function () {
       assert(!!modRegionB && modRegionB.querySelector(".mce-grp-body").getAttribute("data-collapsed") === "0", "15 展开状态持久化：重建后 MOD 区仍展开 data-collapsed=0");
       assert(modRegionB.querySelector(".mce-grp-body").textContent.indexOf("MOD-注入新场景") !== -1, "15 重建后展开组懒渲染内容保留（MOD-注入新场景）");
       delete V.scenes;
-      assert(sptxt.indexOf("惠特尼 Whitney（14 场景）") !== -1, "15 惠特尼组 14 场景（含修复后的 HalloweenWhitney），实际 " + (sptxt.match(/惠特尼 Whitney（(\d+) 场景）/) ? sptxt.match(/惠特尼 Whitney（(\d+) 场景）/)[1] : "无"));
+      /* v2.2.8：格威岚只有角色剧情、无原版场景 → 独立角色组（否则 5 档阶段按钮无处可点） */
+      const gwRegion = scPaneB.querySelector('.mce-grp[data-tcat="格威岚 Gwylan"]');
+      assert(!!gwRegion, "15 格威岚 Gwylan 独立角色组存在（MOD 角色也有剧情入口）");
+      if (gwRegion) {
+        assert(gwRegion.querySelector(".mce-grp-body").getAttribute("data-collapsed") === "1", "15 格威岚组默认收起（懒渲染）");
+        gwRegion.querySelector(".mce-grp-t").click();
+        const gwBtns = [].slice.call(gwRegion.querySelectorAll("button")).filter(function (b) { return /^阶段 [1-5] · /.test(b.textContent); });
+        assert(gwBtns.length === 5, "15 格威岚组展开后 5 个阶段按钮（实际 " + gwBtns.length + "）");
+        const gwTxt = gwRegion.querySelector(".mce-grp-body").textContent;
+        assert(gwTxt.indexOf("格威岚 · 帽子") !== -1 && gwTxt.indexOf("格威岚 · 仪式") !== -1, "15 格威岚支线卡片渲染（帽子 / 仪式）");
+      }
+      assert(sptxt.indexOf("惠特尼 Whitney（15 场景）") !== -1, "15 惠特尼组 15 场景（含修复后的 HalloweenWhitney + v2.2.8 咖啡店初见），实际 " + (sptxt.match(/惠特尼 Whitney（(\d+) 场景）/) ? sptxt.match(/惠特尼 Whitney（(\d+) 场景）/)[1] : "无"));
       function findBtnIn(scope, txt) {
         const btns = [].slice.call((scope || document).querySelectorAll("button"));
         return btns.filter(function (b) { return b.textContent.indexOf(txt) !== -1; })[0] || null;

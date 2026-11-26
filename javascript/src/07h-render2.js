@@ -68,7 +68,8 @@
 				var act = el("button", "mce-btn mce-gold", it.name);
 				act.type = "button";
 				act.addEventListener("click", function () {
-					setStatus(applyRolePlotAction(it.action), MCE_CLS.ok);
+					var ar = applyRolePlotActionResult(it.action);
+					setStatus(ar.message, ar.ok ? MCE_CLS.ok : MCE_CLS.err);
 					if (it.action === "kylarSeen") {
 						var cv = getDotPath("kylarSeen");
 						curBadge.textContent = "当前: " + (Array.isArray(cv) ? cv.length + " 项标记" : "未设置");
@@ -356,8 +357,19 @@
 		var allKeys = Object.keys(r.defs);
 		var vanillaKeys = allKeys.filter(function (k) { return isVanillaSceneKey(k); });
 		var modKeys = allKeys.filter(function (k) { return !isVanillaSceneKey(k); });
+		/* v2.2.8：只有角色剧情、没有原版场景的角色（格威岚）单独成组，
+		   其 MOD 场景不重复列在「全部 MOD 场景」里，否则 5 档阶段按钮无处可点 */
+		var rolesSeen = {};
+		vanillaKeys.forEach(function (k) { rolesSeen[sceneRoleOf(k)] = 1; });
+		var extraRoles = Object.keys(EXTRA_ROLE_PLOTS).filter(function (role) { return !rolesSeen[role]; });
+		var extraKeys = {};
+		extraRoles.forEach(function (role) { modKeys.forEach(function (k) { if (sceneRoleOf(k) === role) { extraKeys[k] = 1; } }); });
+		var plainModKeys = modKeys.filter(function (k) { return !extraKeys[k]; });
 		renderSceneRegion(pane, "原版剧情（游戏本体注册，" + vanillaKeys.length + " 场景）", vanillaKeys, r.defs, true);
-		renderSceneRegion(pane, "MOD 剧情（第三方模组注册，" + modKeys.length + " 场景）", modKeys, r.defs, false);
+		renderSceneRegion(pane, "MOD 剧情（第三方模组注册，" + plainModKeys.length + " 场景）", plainModKeys, r.defs, false);
+		extraRoles.forEach(function (role) {
+			renderRoleGroup(pane, role, modKeys.filter(function (k) { return sceneRoleOf(k) === role; }), r.defs);
+		});
 		/* 分区渲染：原版按角色分组（sceneRoleOf），MOD 单组 */
 		/* v2.0.0.002：renderSceneRegion 已拆到 07h-render3.js（C3 全库单文件 ≤400 行）。 */
 		/* 剧情进度控制块（任务三）：渲染 EXTRA_ROLE_PLOTS 条目，行内应用不重建整组 */

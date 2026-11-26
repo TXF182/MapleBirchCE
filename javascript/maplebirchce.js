@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.2.6";
+	var MCE_VERSION = "2.2.7";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -6663,6 +6663,70 @@ function renderTraitsSection(pane, V, C) {
 	}
 	pane.appendChild(wrap);
 }
+/* v2.2.8 实机反馈：特质下的数值框只有裸数字，玩家看不出「翅膀」那 5 个数字分别是什么
+   （06b 的 values = 特质判定式里的数字比较变量，如 Wings 解析出 harpy/birdFly/angel/fallenangel/demon）。
+   这里给每个数值框配「中文名（变量名） 条件 阈值」标签：词表命中用中文，未收录回落变量名，绝不留空白。 */
+var MB_CE_TRAIT_VAR_ZH = {
+	harpy: "羽翼等级",
+	birdFly: "飞行能力",
+	winggrowth: "翅膀生长度",
+	angel: "天使转化",
+	fallenangel: "堕天使转化",
+	demon: "恶魔转化",
+	cat: "猫转化",
+	cow: "牛转化",
+	wolf: "狼转化",
+	slime: "黏液转化",
+	lurkers_held: "手持潜伏者",
+	temple_burden: "神殿负担",
+	scienceTrait: "科学天赋",
+	crossdressingTrait: "异装癖",
+	exhibitionismTrait: "暴露癖",
+	hypnosisTrait: "催眠深度",
+	physiquesize: "体格",
+	beauty: "美貌",
+	stress: "压力",
+	trauma: "创伤",
+	willpower: "意志",
+	purity: "纯洁",
+	corruption: "堕落",
+	grace: "优雅",
+	awareness: "警觉"
+};
+function mbCETraitVarTail(path) {
+	var s = String(path == null ? "" : path);
+	var i = s.lastIndexOf(".");
+	return i >= 0 ? s.slice(i + 1) : s;
+}
+/* 标签：羽翼等级（harpy） ≥ 6 */
+function traitVarLabel(path, op, val) {
+	var tail = mbCETraitVarTail(path);
+	var zh = MB_CE_TRAIT_VAR_ZH[tail] || tail;
+	var sym = (op === "gte") ? "≥" : (op === "gt") ? ">" : "=";
+	return zh + "（" + tail + "） " + sym + " " + val;
+}
+/* 单个可改数值控件组（拆出来是为了不给 renderTraitRow 加复杂度）：
+   v2.2.8 每个数值前插一段可见标签「中文名（变量名） ≥ 阈值」，否则玩家只看到裸数字框（翅膀那 5 个框报过） */
+function renderTraitValueInline(row, t, v, V) {
+	var cur = safeGetObj(V, v.path);
+	var num = (typeof cur === "number") ? cur : 0;
+	row.appendChild(el("span", MCE_CLS.hint, traitVarLabel(v.path, v.op, v.val)));
+	var inp = el("input", MCE_CLS.inp);
+	inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(num);
+	inp.placeholder = "+N / -N 相对";
+	inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值";
+	var bS = el("button", "", "改数值"); bS.type = "button";
+	bS.addEventListener("click", function () {
+		var res = traitWriteValue(t, V, v.path, inp.value);
+		actPlayer(res);
+	});
+	var bU = el("button", "", "回退"); bU.type = "button";
+	bU.addEventListener("click", function () {
+		var res = undoCheatModValue("player-self", "trait:" + v.path);
+		actPlayer(res);
+	});
+	row.appendChild(inp); row.appendChild(bS); row.appendChild(bU);
+}
 function renderTraitRow(grp, t, V, C, isMod) {
 	var owned = traitOwned(t, V, C);
 	var nameZh = traitDisplayName(t, V);
@@ -6702,26 +6766,9 @@ function renderTraitRow(grp, t, V, C, isMod) {
 	});
 	row.appendChild(bG);
 	/* 数值可改（数字比较变量）：写入走 player-self 留痕通道 + 回退
-	   （原版与模组注入特质均可用——discoverModTraits 已为模组特质生成 values 清单） */
-	t.values.forEach(function (v) {
-		var cur = safeGetObj(V, v.path);
-		var num = (typeof cur === "number") ? cur : 0;
-		var inp = el("input", MCE_CLS.inp);
-		inp.type = "text"; inp.inputmode = "decimal"; inp.value = String(num);
-		inp.placeholder = "+N / -N 相对";
-		inp.title = "支持相对调整：+100 / -20；直接输入数字为绝对值";
-		var bS = el("button", "", "改数值"); bS.type = "button";
-		bS.addEventListener("click", function () {
-			var res = traitWriteValue(t, V, v.path, inp.value);
-			actPlayer(res);
-		});
-		var bU = el("button", "", "回退"); bU.type = "button";
-		bU.addEventListener("click", function () {
-			var res = undoCheatModValue("player-self", "trait:" + v.path);
-			actPlayer(res);
-		});
-		row.appendChild(inp); row.appendChild(bS); row.appendChild(bU);
-	});
+	   （原版与模组注入特质均可用——discoverModTraits 已为模组特质生成 values 清单）
+	   v2.2.8：每个数值前加「中文名（变量名） 条件 阈值」标签，控件仍在同一行内（不破坏既有行内布局） */
+	t.values.forEach(function (v) { renderTraitValueInline(row, t, v, V); });
 	grp.appendChild(row);
 }
 /* v1.8.12 特质收藏（数据层）：V.mbCE_favTraits 数组，key=cat\u0001name，收藏项渲染置顶 */
@@ -8743,6 +8790,9 @@ function mbCEShell4Init() {
 		card.appendChild(actions);
 		pane.appendChild(card);
 
+		/* v2.2.7 阶段页扩展块：认识状态（所有角色）/ 格威岚消失期 / Sam 公园遭遇（按角色名自渲染） */
+		mbCEStageExtrasSafe(pane, curName);
+
 		/* 内层标签（第二层） */
 		var inner = el("div", "mce-inner");
 		var bRom = el("button", curInnerTab === "romance" ? "mce-active" : "", "恋爱阶段");
@@ -10377,6 +10427,163 @@ function mbCETryOnShell(nm, V2) {
 		{ name: "Temple Sydney Ask", cn: "询问" },
 		{ name: "Temple Sydney Walk", cn: "散步" }
 	];
+/* 职责：角色初见补录 + 格威岚支线场景数据（v2.2.8）
+   20 条 EXTRA_SCENES 从 07e-scenes.js 拆出（单段 400 行预算），合并仍由 07e-scenes.js 的 mergeExtraScenes 负责；
+   Eden/BlackWolf startPassage 修正也在此（原名键在本体注册表里就存在，只能在合并后校正）。 */
+	var EXTRA_SCENES_EXTRA = {
+		/* 初见 7 条：原版有完整开头段、$scenes 未收录；入口段与一层后继逐字取自 0.5.12.13 段落名，
+		   不带 manualVariableChanges（各段自带 location 初始化）；键名以角色名开头，
+		   让 sceneRoleOf 归到对应角色组（07e-scenes2 的角色规则）。 */
+		"SamIntro": {
+			name: "山姆 · 公园初见",
+			startPassage: "Sam Park Intro",
+			passages: ["Sam Park Intro", "Sam Park Intro 2"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"DorenIntro": {
+			name: "多伦 · 出警局初见",
+			startPassage: "Doren Intro",
+			passages: ["Doren Intro", "Doren Intro Cry", "Doren Intro Talk"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"SydneyIntro": {
+			name: "悉尼 · 图书馆初见",
+			startPassage: "Sydney Library Intro",
+			passages: ["Sydney Library Intro", "Sydney Library Intro 2"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"WrenIntro": {
+			name: "雷恩 · 酒吧初见",
+			startPassage: "Smuggler Pub Wren Intro",
+			passages: ["Smuggler Pub Wren Intro", "Smuggler Pub Wren Intro Wait", "Smuggler Pub Wren Intro Tell", "Smuggler Pub Wren Intro Threaten"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"WhitneyIntro": {
+			name: "惠特尼 · 咖啡店初见",
+			startPassage: "Street Alex Cafe Whitney Intro",
+			passages: ["Street Alex Cafe Whitney Intro", "Street Alex Cafe Whitney Intro Bully", "Street Alex Cafe Whitney Intro Rival", "Street Alex Cafe Whitney Intro Friend", "Street Alex Cafe Whitney Intro Affection"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"AlexIntro": {
+			name: "艾利克斯 · 咖啡店初见",
+			startPassage: "Street Alex Cafe React Intro",
+			passages: ["Street Alex Cafe React Intro", "Street Alex Cafe Whitney Intro"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"KylarIntro": {
+			name: "凯拉尔 · 校园初见（出手介入）",
+			startPassage: "Kylar Intro Intervene",
+			passages: ["Kylar Intro Intervene", "Kylar Intro Help", "Kylar Intro Ignore"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		/* v2.2.8 格威岚支线直达：13 条有 passage 名的分支（阶段主线内联在 Gwylan Talk Shop，
+		   不走这里，见 07u-gwylan-stage.js）。入口段均取自 Forest Shop Entrance / Gwylan Widgets 的实际跳转目标。 */
+		"GwylanRitual": {
+			name: "格威岚 · 仪式",
+			startPassage: "Gwylan Ritual Select",
+			passages: ["Gwylan Ritual Select", "Gwylan Forest Journey Prep", "Gwylan Ritual Start"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanHypnosis": {
+			name: "格威岚 · 催眠求助",
+			startPassage: "Gwylan Hypnosis Start",
+			passages: ["Gwylan Hypnosis Start", "Gwylan Hypnosis Start 2", "Gwylan Hypnosis Deepest"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopNowhere": {
+			name: "格威岚 · Nowhere 梦境",
+			startPassage: "Forest Shop Nowhere",
+			passages: ["Forest Shop Nowhere", "Forest Shop Nowhere Passout"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopReunion": {
+			name: "格威岚 · 重逢",
+			startPassage: "Forest Shop Reunion",
+			passages: ["Forest Shop Reunion", "Forest Shop Taken Start"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopThief": {
+			name: "格威岚 · 偷窃",
+			startPassage: "Forest Shop Thief",
+			passages: ["Forest Shop Thief", "Forest Shop Stolen Wrap"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopTrauma": {
+			name: "格威岚 · 创伤",
+			startPassage: "Forest Shop Trauma",
+			passages: ["Forest Shop Trauma", "Forest Shop Trauma 2", "Forest Shop Trauma 3", "Forest Shop Trauma 4", "Forest Shop Trauma 5"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopIntruder": {
+			name: "格威岚 · 闯入者",
+			startPassage: "Forest Shop Intruder",
+			passages: ["Forest Shop Intruder", "Forest Shop Entrance"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopCollar": {
+			name: "格威岚 · 项圈",
+			startPassage: "Forest Shop Familiar Collar",
+			passages: ["Forest Shop Familiar Collar", "Forest Shop Familiar Collar Wear"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopHat": {
+			name: "格威岚 · 帽子",
+			startPassage: "Forest Shop Hat",
+			passages: ["Forest Shop Hat", "Forest Shop Hat 2"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopLights": {
+			name: "格威岚 · 灯光",
+			startPassage: "Forest Shop Lights",
+			passages: ["Forest Shop Lights", "Forest Shop Lights 2", "Forest Shop Lights 3"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanShopSnoop": {
+			name: "格威岚 · 暗室",
+			startPassage: "Forest Shop Snoop",
+			passages: ["Forest Shop Snoop", "Forest Shop Hunt Intro"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanYearning": {
+			name: "格威岚 · 渴望和解",
+			startPassage: "Gwylan Yearning Start",
+			passages: ["Gwylan Yearning Start", "Gwylan Yearning Start 2"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		},
+		"GwylanPubSulking": {
+			name: "格威岚 · 酒吧生气",
+			startPassage: "Gwylan Pub Sulking",
+			passages: ["Gwylan Pub Sulking", "Gwylan Pub Sulking Sit"],
+			manualVariableChanges: "", unlockedExpr: "", lockedExpr: ""
+		}
+
+	};
+	/* v2.2.8 初见入口修正：本体注册表里 EdenIntro / BlackWolfIntro 的 startPassage 写成 ForestHuntDebug
+	   （该段全文仅 <<foresthunt>>，是怨灵狩猎调试段，与两条初见无关）；重放会在错误段落开播。
+	   只改这一个错位值，其余键与已正确值一律不动。 */
+	var SCENE_START_FIXES = { "EdenIntro": "Forest Hunter Intro", "BlackWolfIntro": "Forest Wolf Cave Intro" };
+	function applySceneStartFixes(defs) {
+		if (!defs || typeof defs !== "object") { return defs; }
+		Object.keys(SCENE_START_FIXES).forEach(function (k) {
+			var d = defs[k];
+			if (d && d.startPassage === "ForestHuntDebug") { d.startPassage = SCENE_START_FIXES[k]; }
+		});
+		return defs;
+	}
+	var INTRO_SCENE_KEYS = ["SamIntro", "DorenIntro", "SydneyIntro", "WrenIntro", "WhitneyIntro", "AlexIntro", "KylarIntro"];
+	var GWYLAN_SIDE_KEYS = ["GwylanRitual", "GwylanHypnosis", "GwylanShopNowhere", "GwylanShopReunion", "GwylanShopThief",
+		"GwylanShopTrauma", "GwylanShopIntruder", "GwylanShopCollar", "GwylanShopHat", "GwylanShopLights",
+		"GwylanShopSnoop", "GwylanYearning", "GwylanPubSulking"];
+	function listExtraScenes(keys) {
+		var out = [];
+		keys.forEach(function (k) {
+			var s = EXTRA_SCENES[k] || (typeof EXTRA_SCENES_EXTRA !== "undefined" ? EXTRA_SCENES_EXTRA[k] : null);
+			if (s) { out.push({ key: k, name: s.name, startPassage: s.startPassage, passages: s.passages.slice() }); }
+		});
+		return out;
+	}
+	function mbCEIntroScenes() { return listExtraScenes(INTRO_SCENE_KEYS); }
+	function mbCEGwylanSideScenes() { return listExtraScenes(GWYLAN_SIDE_KEYS); }
 /* 职责：特殊剧情场景注册表解析 —— $scenes widget 文本 → JS 求值 → 阶段聚类 */
 	/* ============ 特殊剧情（DoL 场景注册表 $scenes / Scene Viewer 系统）
 	     方案A：不硬编码任何剧情。从游戏 Story 文本解析 `<<widget "scenes">>` 的注册表
@@ -10608,19 +10815,25 @@ function mbCETryOnShell(nm, V2) {
 	/* 合并 EXTRA_SCENES 到 defs；本体/MOD 已注册的同名键让位，不覆盖。
 	   仅在本体注册表非空时合并：本体注册表为空/损坏时保留空态，让剧情页照旧显式报「未读取到场景注册表」，
 	   不用 1 条自有场景把错误掩盖成「看起来正常」。 */
-	function mergeExtraScenes(defs) {
-		if (!defs || typeof defs !== "object") { return defs; }
-		if (Object.keys(defs).length === 0) { return defs; }
-		Object.keys(EXTRA_SCENES).forEach(function (k) {
+	function mergeOneSceneTable(defs, table) {
+		if (!table || typeof table !== "object") { return; }
+		Object.keys(table).forEach(function (k) {
 			if (defs[k]) { return; }
-			var s = EXTRA_SCENES[k];
+			var s = table[k];
 			defs[k] = {
 				name: s.name, startPassage: s.startPassage, passages: s.passages.slice(),
 				manualVariableChanges: s.manualVariableChanges,
 				unlockedExpr: s.unlockedExpr, lockedExpr: s.lockedExpr
 			};
 		});
-		return defs;
+	}
+	function mergeExtraScenes(defs) {
+		if (!defs || typeof defs !== "object") { return defs; }
+		if (Object.keys(defs).length === 0) { return defs; }
+		mergeOneSceneTable(defs, EXTRA_SCENES);
+		/* v2.2.8：初见 7 条 + 格威岚支线 13 条已拆到 07e-scenes-intro.js（单段行数预算） */
+		mergeOneSceneTable(defs, (typeof EXTRA_SCENES_EXTRA !== "undefined" ? EXTRA_SCENES_EXTRA : null));
+		return applySceneStartFixes(defs);
 	}
 	var scenesDefsCache = null; /* { ref, size, passRef, passLen, parsed, recovered } */
 	function getScenesDefs() {
@@ -10796,7 +11009,10 @@ function mbCETryOnShell(nm, V2) {
 		"WhitneySchoolBullySwimwear","WhitneyShoppingCentreClothes","WhitneyShoppingCentreCosmetics",
 		"WhitneyShoppingCentreHairDressers"
 	];
-	function isVanillaSceneKey(key) { return VANILLA_SCENE_KEYS.indexOf(key) !== -1; }
+	/* v2.2.8 初见补录键：本体 $scenes 未收录，但确属原版开头剧情 → 归「原版剧情」区（名单长度不变） */
+	var VANILLA_INTRO_KEYS = ["SamIntro", "DorenIntro", "SydneyIntro", "WrenIntro", "WhitneyIntro", "AlexIntro", "KylarIntro"];
+	function isVanillaSceneKey(key) { return VANILLA_SCENE_KEYS.indexOf(key) !== -1 || VANILLA_INTRO_KEYS.indexOf(key) !== -1; }
+	function vanillaSceneKeyCount() { return VANILLA_SCENE_KEYS.length; }
 	/* 场景键 → 角色分组（精确/前缀规则按顺序匹配，Nightmare 专项须在通用 Nightmare 之前） */
 	function sceneRoleOf(key) {
 		var k = String(key || "");
@@ -10805,6 +11021,11 @@ function mbCETryOnShell(nm, V2) {
 			{ test: /^NightmareEden/, role: "伊甸 Eden" },
 			{ test: /^NightmareHarper/, role: "哈珀 Harper" },
 			{ test: /^NightmareOffice/, role: "艾弗里 Avery" },
+			{ test: /^Sam/, role: "山姆 Sam" },
+			{ test: /^Doren/, role: "多伦 Doren" },
+			{ test: /^Sydney/, role: "悉尼 Sydney" },
+			{ test: /^Wren/, role: "雷恩 Wren" },
+			{ test: /^Gwylan/, role: "格威岚 Gwylan" },
 			{ test: /^Robin|^RentFirstRobin/, role: "罗宾 Robin" },
 			{ test: /^Whitney|^HalloweenWhitney/, role: "惠特尼 Whitney" },
 			{ test: /^Kylar|^HalloweenKylar/, role: "凯拉尔 Kylar" },
@@ -10855,6 +11076,18 @@ function mbCETryOnShell(nm, V2) {
 				{ key: "kylar_seen", name: "已看剧情标记补全", type: "action", action: "kylarSeen", note: "补全凯拉尔线 8 个已看标记：悉尼写作(sydneyWriting)·悉尼线 / 表白(saidLove)·主线 / 突击队(commando)·绑架线 / 冬季喷泉(fountainWinter)·冬季 / 喷泉初遇(fountainIntro)·初遇 / 聊天初遇(chatIntro)·初遇 / 食堂(canteen)·校园 / 地下室(basement)·绑架" },
 				{ key: "kylar_watch", name: "一键进入「被凯拉尔监视」", type: "action", action: "kylarWatch", note: "写 $kylarwatched=1 + $kylarwatchedtimer=2（本体街上事件池首设值）。之后在街上走动即触发「Something is watching you.」整条链，直到计时耗尽或换地点；是状态注射，不是重放" }
 			]
+		},
+		/* v2.2.8 格威岚阶段线：原版 5 档阶段全部内联在 Gwylan Talk Shop（进店按好感阈值自动播放并 stage++），
+		   没有独立 passage 名 → 只能「补足好感 + 写 stage=该阶段-1 + 进店」；播放会真实推进进度（与「一键完成」同类语义）。 */
+		"格威岚 Gwylan": {
+			intro: "5 档好感阶段（$gwylan.stage 0→5）+ 13 条支线直达（支线在下方场景区，点「直达触发」）",
+			items: [
+				{ key: "gwylan_stage_1", name: "阶段 1 · 修旧架子（≥10%）", type: "action", action: "gwylanStage1", note: "好感阈值 10%。会把 $gwylan.stage 写为 0 并补足好感，然后进入 Gwylan Talk Shop 播该段，播完 stage 升到 1" },
+				{ key: "gwylan_stage_2", name: "阶段 2 · 整理衣架（≥25%）", type: "action", action: "gwylanStage2", note: "好感阈值 25%。同上，播完 stage 升到 2" },
+				{ key: "gwylan_stage_3", name: "阶段 3 · 书架后探头（≥50%）", type: "action", action: "gwylanStage3", note: "好感阈值 50%。同上，播完 stage 升到 3" },
+				{ key: "gwylan_stage_4", name: "阶段 4 · 修藤蔓（≥75%）", type: "action", action: "gwylanStage4", note: "好感阈值 75%。同上，播完 stage 升到 4" },
+				{ key: "gwylan_stage_5", name: "阶段 5 · 背后拥抱（100% + 已见 yearning）", type: "action", action: "gwylanStage5", note: "阈值 100%，且需 $gwylanSeen 含 yearning；缺失时拒绝（不伪造标记，避免污染真实进度）" }
+			]
 		}
 	};
 	function getRolePlots(role) { return EXTRA_ROLE_PLOTS[role] || null; }
@@ -10893,7 +11126,156 @@ function mbCETryOnShell(nm, V2) {
 		}
 		return "未知动作";
 	}
+	/* v2.2.8：动作结果统一为 {ok, message}，让拒绝（如阶段 5 缺前置）能显示红字而不是一律绿色 */
+	function applyRolePlotActionResult(action) {
+		var m = /^gwylanStage([1-5])$/.exec(String(action || ""));
+		if (m) { return mbCEGwylanStagePlay(parseInt(m[1], 10)); }
+		return { ok: true, message: applyRolePlotAction(action) };
+	}
 
+/* 职责：贝利扣押拦截（全局页「防护」组）
+ *
+ * 原版机制（0.5.12.13 Bailey Confiscation System，行号取自 game\Degrees of Lewdity.html）：
+ *   · 触发：Orphanage 睡眠线 `<<elseif $renttime lte -21 and !$bailey_confiscation>>`（@43841899）
+ *     → `<<baileyRentConfiscation>>`
+ *   · widget `baileyRentConfiscation`（@44071041）：
+ *       `<<set _bundle to baileyConfiscationBundle($rentmoney + $babyRent)>>`
+ *       `<<if _bundle.items.length is 0>>` → 只走 `<<rentdue 0>>` / `<<rentduerobin 0>>`（正常催租）
+ *       `<<else>>` → `baileyConfiscationApply(_bundle)` 搬走衣物与家具，并把 `$renttime` 重置为 7 天赎回期
+ *   · 清单生成：`window.baileyConfiscationPool` / `window.baileyConfiscationBundle(target)`（@16508590 起）
+ *       `baileyClothingEligible` 排除特殊服装 / event 类 / cursed / heavy / 服装店买不到；
+ *       `baileyFurnitureEligible` 只取 bed/table/chair/desk/decoration/windowsill 且非 starter
+ *
+ * 拦截切口：只把 `baileyConfiscationBundle` 换成恒返回空清单的函数 —— 原版 widget 的
+ * `items.length is 0` 分支本就存在，于是自然退化为「只催租、不搬东西」，无需改 apply / restore，
+ * 也不动 `$bailey_confiscation` 结构（旧档已扣押记录照原版赎回）。
+ *
+ * 幂等：每个 passageinit 调一次 mbCEBaileySync；原函数引用只保存一次，关闭时写回同一引用。
+ * 边界：原版没有该函数（0.5.12.13 之前 / 其他分支）→ 明确拒绝开启，不伪造「已开启」。
+ */
+
+/* 空清单：形状必须与原版一致（twee 直接读 _bundle.items.length / 后续读 total） */
+function mbCEBaileyEmptyBundle() { return { items: [], total: 0 }; }
+mbCEBaileyEmptyBundle.__mbceBaileyEmpty = true;
+
+var mbCEBaileyOrig = null;
+
+/* 取值链：hasV() 未读档时 getV() 返回 {}（truthy 但不可写），必须先判「真实就绪」 */
+var mbCEBaileyVSources = [
+	function () { if (typeof hasV === "function" && hasV()) { return getV(); } return null; },
+	function () { if (typeof State !== "undefined" && State && State.variables) { return State.variables; } return null; },
+	function () { if (typeof window !== "undefined" && window && window.V) { return window.V; } return null; }
+];
+
+function mbCEBaileyTry(fn) {
+	try { return fn() || null; } catch (e) { return null; }
+}
+
+function mbCEBaileyV() {
+	for (var i = 0; i < mbCEBaileyVSources.length; i++) {
+		var v = mbCEBaileyTry(mbCEBaileyVSources[i]);
+		if (v) { return v; }
+	}
+	return null;
+}
+
+function mbCEBaileyOn(v) { return !!(v && (v.mbCE_baileyKeep === true || v.mbCE_baileyKeep === 1)); }
+
+/* 当前 window 上的清单函数（含自己装的空函数；都没有时返回 null） */
+function mbCEBaileyFn() {
+	try {
+		if (typeof window === "undefined" || !window) { return null; }
+		var f = window.baileyConfiscationBundle;
+		return (typeof f === "function") ? f : null;
+	} catch (e) { return null; }
+}
+
+/* 当前 window 上的原版清单函数（排除自己装的空函数） */
+function mbCEBaileyNative() {
+	var f = mbCEBaileyFn();
+	return (f && f.__mbceBaileyEmpty !== true) ? f : null;
+}
+
+/* 幂等：保存原引用 → 按开关装/卸。原版函数尚未定义时静默返回，等下一回合 passageinit 再补 */
+function mbCEBaileySync() {
+	try {
+		if (typeof window === "undefined" || !window) { return; }
+		var cur = window.baileyConfiscationBundle;
+		if (typeof cur !== "function") { return; }
+		if (cur.__mbceBaileyEmpty !== true && !mbCEBaileyOrig) { mbCEBaileyOrig = cur; }
+		var on = mbCEBaileyOn(mbCEBaileyV());
+		var want = on ? mbCEBaileyEmptyBundle : mbCEBaileyOrig;
+		if (want && cur !== want) { window.baileyConfiscationBundle = want; }
+	} catch (e) { /* 拦截失配一律静默，不阻断段落流转 */ }
+}
+
+function baileyKeepState() {
+	var v = mbCEBaileyV();
+	var hasNative = (mbCEBaileyNative() !== null) || (mbCEBaileyOrig !== null);
+	var active = false;
+	try {
+		active = (typeof window !== "undefined" && window) ? (window.baileyConfiscationBundle === mbCEBaileyEmptyBundle) : false;
+	} catch (e) { active = false; }
+	return {
+		on: mbCEBaileyOn(v),
+		hasNative: hasNative,
+		active: active,
+		reason: v ? (hasNative ? "" : "nonative") : "novars"
+	};
+}
+
+function baileyKeepSet(on) {
+	var v = mbCEBaileyV();
+	if (!v) { return { ok: false, on: false, message: "存档变量不可用：先进入游戏再开本项" }; }
+	var want = !!on;
+	if (want && mbCEBaileyFn() === null) {
+		return { ok: false, on: false, message: "未检测到原版贝利扣押函数（该机制需 0.5.12.13+，或游戏尚未加载完），本项未开启" };
+	}
+	v.mbCE_baileyKeep = want;
+	mbCEBaileySync();
+	return {
+		ok: true,
+		on: want,
+		message: want
+			? "已开启：欠租只走催租（付钱/拒绝/色诱），不搬衣物与家具；已扣押的旧记录仍按原版赎回"
+			: "已关闭：恢复原版扣押（欠租 21 天后搬走可再购买的衣物与卧室非初始家具，7 天内可赎回）"
+	};
+}
+
+function mbCEBaileyHint(on) {
+	var st = baileyKeepState();
+	if (st.reason === "novars") { return "存档变量不可用，先进入游戏再开本项。"; }
+	if (st.reason === "nonative") { return "当前游戏没有贝利扣押机制（需 0.5.12.13+）；开关不会生效。"; }
+	return on
+		? "已开启：欠租只走催租，不搬衣物家具；已扣押的旧记录仍照原版赎回。"
+		: "已关闭：原版扣押照旧 —— 欠租 21 天后搬走「能轻松再买到」的衣物与卧室非初始家具，7 天内可在办公室赎回。";
+}
+
+function mbCERenderBailey(pane) {
+	if (!pane) { return; }
+	var on = baileyKeepState().on;
+	var sec = mceNewSec(pane, 0, "贝利扣押拦截（欠租不搬衣物家具）",
+		"原版 0.5.12.13：`$renttime lte -21` 且当前无扣押记录时，贝利会把衣柜里「能在服装店重新买到」的衣物与卧室非初始家具搬走，给 7 天赎回期，超期典当。本项开启后原版清单恒为空（widget 的 0 件分支本就走正常催租），因此不搬东西、不产生扣押记录；已扣押的旧记录与其他租金线不受影响。安装包不含游戏本体，需 0.5.12.13+ 才生效。");
+	var row = el("div", MCE_CLS.row);
+	var sw = el("button", on ? "mce-btn mce-gold" : MCE_CLS.btn, on ? "不扣押：开" : "不扣押：关");
+	sw.type = "button";
+	sw.title = "开启后欠租不再被搬走衣物与家具；仍会正常催租（付钱/拒绝/色诱）";
+	var hint = el("div", MCE_CLS.hint, mbCEBaileyHint(on));
+	sw.addEventListener("click", function () {
+		var r = baileyKeepSet(!baileyKeepState().on);
+		setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err);
+		var now = baileyKeepState().on;
+		sw.textContent = now ? "不扣押：开" : "不扣押：关";
+		sw.className = now ? "mce-btn mce-gold" : MCE_CLS.btn;
+		hint.textContent = mbCEBaileyHint(now);
+	});
+	row.appendChild(sw);
+	sec.appendChild(row);
+	sec.appendChild(hint);
+}
+
+/* 载入即尝试一次（原版脚本若已加载则立即接管；未加载时由 passageinit 钩子补） */
+mbCEBaileySync();
 /* 职责：数值固定 —— 锁定 / 回填 / 恢复 / 定时器 / 渲染 */
 /* ============================================================
  * 07f-lock.js — 数值固定（Lock Values）
@@ -12291,6 +12673,46 @@ var SCENE_LOCATIONS = {
 			}
 		} catch (e) { /* farm/stock 结构异常时跳过补齐（不凭空造 farm 根，交由上层拒绝） */ }
 	}
+	/* v2.2.8 农场动物字段守卫（实机红屏实证）：
+	   <<farm_actions>>（HTML 487233）第一行就调 <<farm_gen_all>>（487597），而 <<farm_gen>>（487553）首行是
+	   `<<if $farm_work[_args[0]].monster_roll is true ...>>` —— horse/pig/dog/cattle 四个子对象缺失即
+	   TypeError: Cannot read properties of undefined (reading 'monster_roll')，整个 Farm Work 段落红屏，农场线无法进入。
+	   四键只在 <<farm_work_update>> 的「新一天」分支（486744 清空 + 486782-486796 建立）里生成，
+	   存档早于该分支、或用 CE 直达农场段落，就会缺。
+	   这里只补缺失字段、不改已有值；$farm_work 不存在（还没进农场线）时绝不创建 ——
+	   否则 farmStateReady 会恒真，绕过上面的农场防崩拦截。 */
+	/* 单字段补默认值：类型已匹配就跳过（幂等，不动已有值） */
+	function mbCEFarmWorkField(o, k, v) {
+		if (typeof o[k] === typeof v) { return 0; }
+		o[k] = v;
+		return 1;
+	}
+	function mbCEFarmWorkFill(o) {
+		var added = 0;
+		added += mbCEFarmWorkField(o, "monster_roll", false);
+		added += mbCEFarmWorkField(o, "monster", false);
+		added += mbCEFarmWorkField(o, "gender", "male");
+		added += mbCEFarmWorkField(o, "gender_plural", "males");
+		added += mbCEFarmWorkField(o, "genitals", "penis");
+		return added;
+	}
+	function mbCEFarmWorkGuard() {
+		try {
+			var V = getV();
+			if (!V) { return { ok: false, created: 0, msg: "存档变量不可用" }; }
+			if (!V.farm_work || typeof V.farm_work !== "object") { return { ok: true, created: 0, msg: "未进农场线（$farm_work 未建立，不凭空创建）" }; }
+			var keys = ["horse", "pig", "dog", "cattle"];
+			var created = 0, i, k;
+			for (i = 0; i < keys.length; i++) {
+				k = keys[i];
+				if (!V.farm_work[k] || typeof V.farm_work[k] !== "object") { V.farm_work[k] = {}; created++; }
+				created += mbCEFarmWorkFill(V.farm_work[k]);
+			}
+			return created
+				? { ok: true, created: created, msg: "已补齐农场动物字段 " + created + " 项" }
+				: { ok: true, created: 0, msg: "农场动物字段完整" };
+		} catch (e) { return { ok: false, created: 0, msg: "农场字段守卫异常" }; }
+	}
 	function ensureAveryMansion() {
 		try {
 			var V = getV();
@@ -13151,6 +13573,20 @@ function hookPassageOverride() {
    机制：固定触发跳转前设 mbCE_replayPending；首次进入该段落（pending=true）→ 消费标记、保留
    sceneViewSwitch（case 正常播放）；剧情结束链回（pending=false 且处于我们的重放）→ 清
    sceneViewSwitch 为无效值 → switch 走 default → 原版给出 Back 链接返回原位，不再重播。 */
+/* v2.2.7 进段补充钩子：五件事各自 self 兜底（异常一律静默，不阻断段落流转） */
+function mbCEOnPassageInitTicks(title) {
+	try { mbCEVanillaEconRentLockTick(); } catch (e1) {}
+	try { mbCEKnowProbe(title); } catch (e2) {}
+	try { mbCESamEnsureHook(); } catch (e3) {}
+	try { mbCEGwylanStageRestoreTick(title); } catch (e4) {}
+	try { mbCEAveryInjuryHoldTick(); } catch (e5) {}
+	/* v2.2.8：①枝叶装引用自愈（原版 <<clothing_data>> 每次加载重建 setup.clothes，注入项与 index 会失效 → 立绘整层不画）
+	   ②农场动物字段守卫（<<farm_gen>> 无条件读 $farm_work[..].monster_roll，缺失即 Farm Work 红屏） */
+	try { mbCEYanlingLeafRepairTick(); } catch (e6) {}
+	try { mbCEFarmWorkGuard(); } catch (e7) {}
+	/* v2.2.7 贝利扣押拦截：原版脚本可能晚于 CE 注入，逐回合幂等补装（开关关时只保存原引用、不覆盖） */
+	try { mbCEBaileySync(); } catch (e8) {}
+}
 function mbCEOnPassageInit(title) {
 	try {
 		/* v1.3.5：格威岚场景临时变量全局兜底——每次进入任意段落都先确保
@@ -13166,6 +13602,8 @@ function mbCEOnPassageInit(title) {
 		/* v1.9.x 庄园自动维护每日调度：任意段落进入时检查游戏日变化，
 		   执行已开启的自动维护项（AutoClean 模式，见 03-global.js mcAutoMaintainTick） */
 		try { mcAutoMaintainTick(); } catch (e) {}
+		/* v2.2.7 需求③④⑤：租金锁纠正 / 认识探测 / Sam 钩子补装（各自 self 兜底，见下方 helper） */
+		mbCEOnPassageInitTicks(title);
 		if (title !== "Scene Viewer passages") { return; }
 		var V = getV();
 		if (!V) { return; }
@@ -13173,8 +13611,7 @@ function mbCEOnPassageInit(title) {
 		if (V.replayScene && V.mbCE_replayOnce) { V.sceneViewSwitch = "MB_CE_END"; }
 	} catch (e) { /* passage 收尾钩子失败必须静默，避免阻断原版段落流转 */ }
 }
-function hookPassageInit() {
-	try {
+function hookPassageInit() {	try {
 		if (typeof document === "undefined" || !document || typeof $ === "undefined" || !$) { return; }
 		$(document).off(":passageinit.mbce").on(":passageinit.mbce", function (ev, passage) {
 			try {
@@ -13494,7 +13931,8 @@ function hookUnfreezePlayerStats() {
 				var act = el("button", "mce-btn mce-gold", it.name);
 				act.type = "button";
 				act.addEventListener("click", function () {
-					setStatus(applyRolePlotAction(it.action), MCE_CLS.ok);
+					var ar = applyRolePlotActionResult(it.action);
+					setStatus(ar.message, ar.ok ? MCE_CLS.ok : MCE_CLS.err);
 					if (it.action === "kylarSeen") {
 						var cv = getDotPath("kylarSeen");
 						curBadge.textContent = "当前: " + (Array.isArray(cv) ? cv.length + " 项标记" : "未设置");
@@ -13782,8 +14220,19 @@ function hookUnfreezePlayerStats() {
 		var allKeys = Object.keys(r.defs);
 		var vanillaKeys = allKeys.filter(function (k) { return isVanillaSceneKey(k); });
 		var modKeys = allKeys.filter(function (k) { return !isVanillaSceneKey(k); });
+		/* v2.2.8：只有角色剧情、没有原版场景的角色（格威岚）单独成组，
+		   其 MOD 场景不重复列在「全部 MOD 场景」里，否则 5 档阶段按钮无处可点 */
+		var rolesSeen = {};
+		vanillaKeys.forEach(function (k) { rolesSeen[sceneRoleOf(k)] = 1; });
+		var extraRoles = Object.keys(EXTRA_ROLE_PLOTS).filter(function (role) { return !rolesSeen[role]; });
+		var extraKeys = {};
+		extraRoles.forEach(function (role) { modKeys.forEach(function (k) { if (sceneRoleOf(k) === role) { extraKeys[k] = 1; } }); });
+		var plainModKeys = modKeys.filter(function (k) { return !extraKeys[k]; });
 		renderSceneRegion(pane, "原版剧情（游戏本体注册，" + vanillaKeys.length + " 场景）", vanillaKeys, r.defs, true);
-		renderSceneRegion(pane, "MOD 剧情（第三方模组注册，" + modKeys.length + " 场景）", modKeys, r.defs, false);
+		renderSceneRegion(pane, "MOD 剧情（第三方模组注册，" + plainModKeys.length + " 场景）", plainModKeys, r.defs, false);
+		extraRoles.forEach(function (role) {
+			renderRoleGroup(pane, role, modKeys.filter(function (k) { return sceneRoleOf(k) === role; }), r.defs);
+		});
 		/* 分区渲染：原版按角色分组（sceneRoleOf），MOD 单组 */
 		/* v2.0.0.002：renderSceneRegion 已拆到 07h-render3.js（C3 全库单文件 ≤400 行）。 */
 		/* 剧情进度控制块（任务三）：渲染 EXTRA_ROLE_PLOTS 条目，行内应用不重建整组 */
@@ -13871,6 +14320,36 @@ function hookUnfreezePlayerStats() {
 				pane2.appendChild(mWrap);
 			}
 		});
+	}
+	/* v2.2.8：只有角色剧情进度、没有原版场景的 MOD 角色（格威岚）也要有独立分组，
+	   否则 EXTRA_ROLE_PLOTS 只挂在原版角色组内 → 阶段按钮在面板上无处可点。
+	   与 renderSceneRegion 的 byRole 分支同构（默认收起 + 懒渲染 + 展开状态持久化）。 */
+	function renderRoleGroup(pane2, role, keys, defs) {
+		var g = el("div", "mce-grp");
+		g.setAttribute("data-tcat", role);
+		var gh = el("div", "mce-grp-t mce-collapse-head");
+		gh.title = "点击展开/收起该分组场景（懒渲染：展开时才构建场景控件）";
+		var open0 = sceneStored(role) === 0;
+		var label = function (opened) { return (opened ? "▾" : "▸") + role + "（" + (keys.length ? keys.length + " 场景" : "剧情进度") + "）"; };
+		gh.textContent = label(open0);
+		g.appendChild(gh);
+		var gb = el("div", "mce-grp-body");
+		gb.setAttribute("data-collapsed", open0 ? "0" : "1");
+		var build = function () {
+			if (keys.length) { renderSceneCluster(gb, keys, defs); }
+			var plots = getRolePlots(role);
+			if (plots) { gb.appendChild(renderRolePlots(plots)); }
+		};
+		if (open0) { build(); }
+		gh.addEventListener("click", function () {
+			var nowOpen = gb.getAttribute("data-collapsed") === "0";
+			gb.setAttribute("data-collapsed", nowOpen ? "1" : "0");
+			gh.textContent = label(!nowOpen);
+			if (!nowOpen && !gb.querySelector(".mce-stage")) { build(); }
+			sceneSet(role, nowOpen ? 1 : 0);
+		});
+		g.appendChild(gb);
+		pane2.appendChild(g);
 	}
 	/* 职责：言灵页（07i）核心 —— 存档状态读写 / window.isCrossdressing 钩子装卸 / 三项存量净化 / 开关与 1s 守卫定时器。渲染见 07i-yanling-page.js，一键动作见 07i-yanling-actions.js。 */
 	/* ============ 言灵页（v2.0.0.006）：NPC 无视着装性别 / 异装残留净化 / 负面名声清零 ============
@@ -14284,7 +14763,12 @@ function hookUnfreezePlayerStats() {
 		} catch (e) { return { ok: false, msg: "加固异常：" + mbCEYanlingErr(e) }; }
 	}
 
-	/* 精液量：与原版 CheatExtend 同序（先补满 amount，再抬 volume） */
+	/* 精液量（原版语义实证，0.5.12.13）：
+	   · $semen_volume 是**容量**、$semen_amount 是**当前量**，且 amount ≤ volume ≤ $semen_max（L165034 / L165043 / L290801-290802）；
+	   · 「满」判据 = amount >= volume（L104935 Feeling Full 成就同时要求 volume >= 2000）；
+	   · 每日 clamp 以 $semen_max 为容量上限（L290801），写超过它次日会被压回。
+	   旧实现写 amount=旧volume、volume=旧volume+1000 → amount 恒小于 volume（永远不满），且容量次日被 clamp 压回。
+	   现实现：容量抬到 $semen_max（原版上限档，默认 3000），当前量同步写满。 */
 	function mbCEYanlingSemen() {
 		try {
 			var V = getV();
@@ -14292,11 +14776,13 @@ function hookUnfreezePlayerStats() {
 			var vol = (typeof V.semen_volume === "number") ? V.semen_volume : null;
 			var amt = (typeof V.semen_amount === "number") ? V.semen_amount : null;
 			if (vol === null || amt === null) { return { ok: false, msg: "本存档无 $semen_volume / $semen_amount 键（不是男性生理档）" }; }
-			var before = { volume: vol, amount: amt };
-			V.semen_amount = vol;
-			V.semen_volume = vol + 1000;
+			var max = (typeof V.semen_max === "number" && V.semen_max > 0) ? V.semen_max : null;
+			if (max === null) { return { ok: false, msg: "本存档无 $semen_max（容量上限），无法确定可写容量" }; }
+			var before = { volume: vol, amount: amt, max: max };
+			V.semen_volume = max;
+			V.semen_amount = max;
 			mbCEYanlingTrace("semen", before, { volume: V.semen_volume, amount: V.semen_amount });
-			return { ok: true, msg: "精液量已补满（volume " + before.volume + " → " + V.semen_volume + "，amount → " + V.semen_amount + "）" };
+			return { ok: true, msg: "精液已补满（容量 " + before.volume + " → " + max + "，当前 " + before.amount + " → " + max + "；上限 $semen_max = " + max + "）" };
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
@@ -14406,17 +14892,23 @@ function hookUnfreezePlayerStats() {
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
-	/* 奶量：先抬上限再写当前值（原版 290800 每日钳制到 [24, milk_max]） */
+	/* 奶量（原版语义实证，0.5.12.13）：
+	   · $milk_volume 是**容量**（下限 24，上限 $milk_max，L290800 clamp）、$milk_amount 是**当前量**（L165065 clamp 到 volume）；
+	   · $milk_max 只有 3000 / 6000 两档合法值（初始化 3000 L182102；事件改 6000/3000 L337731/337740/337750/337761）；
+	   · 「满」判据 = milk_amount >= milk_volume（L104935）。
+	   旧实现写 milk_max=10000（非原版档位）+ 只写 volume 不写 amount → 档位判定失配且永远「不满」。 */
 	function mbCEYanlingMilk() {
 		try {
 			var V = getV();
 			if (!V) { return { ok: false, msg: "存档变量不可用" }; }
 			if (typeof V.milk_max !== "number" || typeof V.milk_volume !== "number") { return { ok: false, msg: "本存档无 $milk_volume / $milk_max 键" }; }
-			var before = { volume: V.milk_volume, max: V.milk_max };
-			V.milk_max = 10000;
-			V.milk_volume = 5000;
-			mbCEYanlingTrace("milk", before, { volume: V.milk_volume, max: V.milk_max });
-			return { ok: true, msg: "奶量 5000 / 上限 10000（原 " + before.volume + " / " + before.max + "）" };
+			var before = { volume: V.milk_volume, max: V.milk_max, amount: V.milk_amount };
+			var max = 6000;  /* 原版最高合法档；非法档（如旧版写过的 10000）一并归一 */
+			V.milk_max = max;
+			V.milk_volume = max;
+			if (typeof V.milk_amount === "number") { V.milk_amount = max; }
+			mbCEYanlingTrace("milk", before, { volume: V.milk_volume, max: V.milk_max, amount: V.milk_amount });
+			return { ok: true, msg: "奶量已补满（容量 " + before.volume + " → " + max + "，上限 " + before.max + " → " + max + "，当前量 " + String(before.amount) + " → " + String(V.milk_amount) + "）" };
 		} catch (e) { return { ok: false, msg: "写入异常：" + mbCEYanlingErr(e) }; }
 	}
 
@@ -15302,7 +15794,7 @@ function hookUnfreezePlayerStats() {
 		return (hit && hit.slot === slot) ? hit.item : null;
 	}
 
-	function mbCEYanlingLeafInject(slot, name, variable, preferred) {
+	function mbCEYanlingLeafInject(slot, name, variableIgnore, preferred) {
 		var s = mbCEYanlingSetupObj();
 		if (!s || !s.clothes || !Array.isArray(s.clothes[slot])) { return null; }
 		var hit = mbCEYanlingClothFind(name);
@@ -15313,7 +15805,13 @@ function hookUnfreezePlayerStats() {
 		if (!item) { return null; }
 		item.name = name;
 		item.name_cap = name.charAt(0).toUpperCase() + name.slice(1);
-		item.variable = variable;
+		/* v2.2.8 立绘修复（原版 HTML 实证）：
+		   genlayer_clothing_breasts(99546) / clothing_main(99323) 的图路径 = img/clothes/<slot>/<setup.variable>/<图>.png，
+		   DoL 官方没有 leafshirt/leafskirt 目录（全 game 目录 *leaf* 命中 0），自带 variable 必然 404 → 只剩文字穿在身上。
+		   故 variable 保留模板的 plant（upper 有 0.png/3.png、lower 有 frayed/full/tattered/torn.png），立绘立刻可见；
+		   modder 打成唯一标记，保证 clothesIndex(66895) 的 variable+modder 双键匹配不与植物装原件撞车。 */
+		item.variable = String((tpl && tpl.variable) || item.variable || "plant");
+		item.modder = "MapleBirchCE";
 		item.index = s.clothes[slot].length;
 		item.mbCE_leafSynth = 1;
 		s.clothes[slot].push(item);
@@ -15334,6 +15832,7 @@ function hookUnfreezePlayerStats() {
 		mbCEYanlingLeafEnsure();
 		return mbCEYanlingClothFind(name);
 	}
+
 
 	/* 某槽的原版裸装实例（setup.clothes[slot][0]，clothingArrays 即用它初始化） */
 	function mbCEYanlingNakedItem(slot) {
@@ -15387,6 +15886,9 @@ function hookUnfreezePlayerStats() {
 			if (!up || !lo) { return { ok: false, msg: "服装表缺少可用的植物系模板（plant top / plant skirt），无法合成 " + MB_CE_LEAF_UP + " / " + MB_CE_LEAF_LO + "；请确认游戏版本与 setup.clothes 已初始化" }; }
 			var w = mbCEYanlingWardrobePick(V);
 			if (!w) { return { ok: false, msg: "衣柜对象不可用（$wardrobe 未初始化）" }; }
+			/* v2.2.8：原衣与枝叶副本统一写主衣柜 V.wardrobe —— 玩家开多衣柜时 selectWardrobe 返回的是当前地点的
+			   专属衣柜，写进去在主衣柜面板看不到，正是「变装了但衣柜里什么都没有」的成因之一 */
+			if (V.wardrobe && typeof V.wardrobe === "object") { w = V.wardrobe; }
 			var backup = {}, stored = [], beforeNames = {};
 			var i, slot, cur, nm, save, put, arr;
 			/* 1) 先记录 + 入柜（含即将被替换的 upper / lower 原衣） */
@@ -15445,12 +15947,15 @@ function hookUnfreezePlayerStats() {
 					if (c2) { c2.mbCE_leafCopy = 1; cLoArr.push(c2); copied.push(MB_CE_LEAF_LO); }
 				}
 			}
+			/* 3.5) 立刻校正 index（setup 若在本会话之前重建过，查到的既有项 index 可能已是旧值 → 立绘读越界不画） */
+			mbCEYanlingLeafFixRefs(V, { up: up.item, lo: lo.item });
 			/* 5) 记录（回退唯一依据）+ 留痕 */
 			st.leaf = { slots: backup, stored: stored, copied: copied, ts: Date.now() };
 			mbCEYanlingTrace("leaf_suit", { worn: beforeNames }, { worn: { upper: MB_CE_LEAF_UP, lower: MB_CE_LEAF_LO }, stored: stored.length, copied: copied.length });
 			var msg = "已换上枝叶装（" + up.slot + " → " + MB_CE_LEAF_UP + "，" + lo.slot + " → " + MB_CE_LEAF_LO + "）";
-			msg += "；原衣 " + stored.length + " 件已进衣柜";
-			msg += copied.length ? "；枝叶本体也已放入衣柜（以后可直接从衣柜再穿）" : "";
+			msg += "；原衣 " + stored.length + " 件已进主衣柜";
+			msg += copied.length ? "；枝叶本体也已放入主衣柜（以后可直接从衣柜再穿）" : "；主衣柜里已有同名枝叶副本，未重复放入";
+			msg += "。立绘在当前画面不会立刻重绘：走动一段、或刷新页面后即可看到枝叶装";
 			return { ok: true, msg: msg };
 		} catch (e) { return { ok: false, msg: "枝叶变装异常：" + mbCEYanlingErr(e) }; }
 	}
@@ -15497,8 +16002,113 @@ function hookUnfreezePlayerStats() {
 			}
 			delete st.leaf;
 			mbCEYanlingTrace("leaf_revert", { restored: restored, pulled: pulled }, { leaf: null });
-			return { ok: true, msg: "已还原原服装（" + (restored.length ? restored.join(" / ") : "无") + "）；衣柜回收原衣 " + pulled + " 件（枝叶副本保留，可继续从衣柜穿）" };
+			var rmsg = "已还原原服装（" + (restored.length ? restored.join(" / ") : "无") + "）；衣柜回收原衣 " + pulled + " 件（枝叶副本保留，可继续从衣柜穿）";
+			if (!restored.length) { rmsg += "。你变装前 4 个躯干槽本来就没穿衣服（记录里全是空），所以视觉上不会有变化——这不是没生效"; }
+			rmsg += "。立绘在当前画面不会立刻重绘：走动一段、或刷新页面后即可看到";
+			return { ok: true, msg: rmsg };
 		} catch (e) { return { ok: false, msg: "枝叶还原异常：" + mbCEYanlingErr(e) }; }
+	}
+	/* 职责：言灵页（07i）枝叶变装续篇 —— 变装项在 setup.clothes 整表重建后的自愈：index 校正 / 模板缺失降级。 */
+
+	/* ============ v2.2.8 持久化修复（实机：变装后只有文字写着枝叶、人物立绘不显示；刷新后更糟） ============
+	   原版 <<clothing_data>>（变量静态段）注释实证 "it is run in variables-static every time game is loaded"：
+	   每次加载都会 setup.clothes = {} 整表重建 → 本页注入的合成项消失，而存档里 V.worn[slot].index 仍是旧下标。
+	   绘制链 genlayer_clothing_main(99323) 读 setup.clothes[slot][index] 得到 undefined → setupObj.variable 处
+	   TypeError → 整层立绘不画（玩家看到的「文本有、人没有」）。修法：进段时重注入并把所有引用项的 index 校正。 */
+	/* 某槽里 leaf 项的真实下标：优先按注入实例身份，其次按 name+modder 双键 */
+	function mbCEYanlingLeafSameLeaf(it, item) {
+		if (!it || !item) { return false; }
+		return it.name === item.name && it.modder === "MapleBirchCE";
+	}
+	function mbCEYanlingLeafFindIndex(slot, item, made) {
+		var s = mbCEYanlingSetupObj();
+		if (!s || !Array.isArray(s.clothes[slot])) { return -1; }
+		var i, it;
+		for (i = 0; i < s.clothes[slot].length; i++) {
+			it = s.clothes[slot][i];
+			if (made && (made.up === it || made.lo === it)) { return i; }
+			if (mbCEYanlingLeafSameLeaf(it, item)) { return i; }
+		}
+		return -1;
+	}
+	/* 对齐单个 leaf 项（index + modder）；返回是否改动 */
+	function mbCEYanlingLeafFixOne(slot, item, made) {
+		if (!item || typeof item !== "object") { return false; }
+		if (item.name !== MB_CE_LEAF_UP && item.name !== MB_CE_LEAF_LO) { return false; }
+		var idx = mbCEYanlingLeafFindIndex(slot, item, made);
+		if (idx < 0) { return false; }
+		var changed = false;
+		if (item.index !== idx) { item.index = idx; changed = true; }
+		if (item.modder !== "MapleBirchCE") { item.modder = "MapleBirchCE"; changed = true; }
+		return changed;
+	}
+	/* 全量对齐：worn（参与立绘）+ carried + 主衣柜 + 多衣柜 */
+	function mbCEYanlingLeafLists(V) {
+		var lists = [];
+		if (V.worn) { lists.push(V.worn); }
+		if (V.carried) { lists.push(V.carried); }
+		if (V.wardrobe) { lists.push(V.wardrobe); }
+		var keys = (V.wardrobes && typeof V.wardrobes === "object") ? Object.keys(V.wardrobes) : [];
+		var k;
+		for (k = 0; k < keys.length; k++) {
+			if (V.wardrobes[keys[k]]) { lists.push(V.wardrobes[keys[k]]); }
+		}
+		return lists;
+	}
+	/* 一个容器：worn/carried 每槽是单项，衣柜每槽是数组 */
+	function mbCEYanlingLeafFixList(L, made) {
+		var n = 0, k, j, slot, arr;
+		for (k = 0; k < MB_CE_LEAF_SLOTS.length; k++) {
+			slot = MB_CE_LEAF_SLOTS[k];
+			arr = L[slot];
+			if (Array.isArray(arr)) {
+				for (j = 0; j < arr.length; j++) { if (mbCEYanlingLeafFixOne(slot, arr[j], made)) { n++; } }
+				continue;
+			}
+			if (arr && mbCEYanlingLeafFixOne(slot, arr, made)) { n++; }
+		}
+		return n;
+	}
+	function mbCEYanlingLeafFixRefs(V, made) {
+		var lists = mbCEYanlingLeafLists(V), n = 0, i;
+		for (i = 0; i < lists.length; i++) { n += mbCEYanlingLeafFixList(lists[i], made); }
+		return n;
+	}
+	/* 模板缺失时降级：worn 里的枝叶项退回裸装（衣柜副本不参与绘制，保留） */
+	function mbCEYanlingLeafFallback(V) {
+		var n = 0, i, slot, it, nk;
+		for (i = 0; i < MB_CE_LEAF_SLOTS.length; i++) {
+			slot = MB_CE_LEAF_SLOTS[i];
+			it = V.worn ? V.worn[slot] : null;
+			if (!it || (it.name !== MB_CE_LEAF_UP && it.name !== MB_CE_LEAF_LO)) { continue; }
+			nk = mbCEYanlingNakedItem(slot);
+			if (nk) { V.worn[slot] = nk; n++; }
+		}
+		return n;
+	}
+	function mbCEYanlingLeafRepair() {
+		try {
+			var V = getV();
+			if (!V || !V.worn) { return { ok: false, msg: "存档变量不可用" }; }
+			var made = mbCEYanlingLeafEnsure();
+			if (!made) {
+				var fb = mbCEYanlingLeafFallback(V);
+				return { ok: false, msg: "服装表缺少植物系模板（plant top / plant skirt），无法合成枝叶装；已把 " + fb + " 处残留枝叶装退回裸装，避免立绘读取越界下标报错" };
+			}
+			var n = mbCEYanlingLeafFixRefs(V, made);
+			return { ok: true, msg: "枝叶装已就绪" + (n ? "（校正 " + n + " 处引用）" : "") };
+		} catch (e) { return { ok: false, msg: "枝叶装校正异常：" + mbCEYanlingErr(e) }; }
+	}
+	/* 进段钩子：只在真的用过枝叶变装时才跑（不为没碰过本功能的存档往 setup 里加东西） */
+	function mbCEYanlingLeafRepairTick() {
+		try {
+			var V = getV();
+			if (!V || !V.worn) { return; }
+			var st = V.mbCE_yanling;
+			var wearing = (V.worn.upper && V.worn.upper.name === MB_CE_LEAF_UP) || (V.worn.lower && V.worn.lower.name === MB_CE_LEAF_LO);
+			if (!wearing && !(st && st.leaf)) { return; }
+			mbCEYanlingLeafRepair();
+		} catch (e) { void e; }
 	}
 /* 职责：言灵页「原帖 52 条」补丁数据表 —— 分组 / 键路径 / 写入类型 / 玩家说明。
    只放数据，不含执行逻辑；执行与回退见 07i-yanling-quick.js。
@@ -16050,9 +16660,9 @@ function renderYanlingQuick(parent) {
 	/* ⑤ 精神与体液（v2.0.2 从「身体与衣物」拆出：这两项不碰衣物，混在一起让玩家以为都是衣服相关） */
 	function mbCEYanlingSecMind(g, ctx) {
 		void ctx;
-		var s5 = mceNewSec(g, 5, "精神与体液", "精液补满：$semen_volume / $semen_amount（183097-183101 默认 90，同序写：先 amount 补到当前 volume，再把 volume +1000）。精神恢复：$control 拉满 1000（59989 的原版初值 0，不是上限）、$hallucinogen 归零（182681）。");
+		var s5 = mceNewSec(g, 5, "精神与体液", "精液补满：$semen_volume 是容量、$semen_amount 是当前量（183097-183101 默认 90），写入时容量抬到 $semen_max、当前量同步写满（原版满判据 amount >= volume，104935）。精神恢复：$control 拉满 1000（59989 的原版初值 0，不是上限）、$hallucinogen 归零（182681）。");
 		var s5g = mceBtnGrid(s5);
-		mbCEYanlingRenderBtn(s5g, "精液补满", MCE_CLS.gold, mbCEYanlingSemen, "$semen_amount 补到当前 volume，并把 volume +1000（与原版 CheatExtend 同序）");
+		mbCEYanlingRenderBtn(s5g, "精液补满", MCE_CLS.gold, mbCEYanlingSemen, "容量（$semen_volume）抬到 $semen_max、当前量（$semen_amount）同步写满——原版满判据是 amount >= volume（L104935），旧写法只到「半满」");
 		mbCEYanlingRenderBtn(s5g, "精神恢复（控制拉满 + 幻觉清零）", MCE_CLS.gold, mbCEYanlingMind, "$control=1000、$hallucinogen=0");
 	}
 
@@ -16062,7 +16672,7 @@ function renderYanlingQuick(parent) {
 		var s6 = mceNewSec(g, 6, "数值快补", "补 CE 快速面板没有入口的原版数值：施虐 / 受虐（$sadism / $masochism，钳制 0-1000，290866）、奶量（$milk_volume / $milk_max，每日钳到 [24, milk_max]，290800）、成就限制（$feats.locked 原版是布尔 true=锁定）、罗宾存款（$robinmoney）、艾弗里约会（$averydate is 1 且 21 点前，308105）、校长办公室密码（$headpasswordknown）、种子（window.unlockAllSeeds，76431）、农田（$farm.clearing=0 见 305874 / $fertiliser.current ++ 见 105354）。");
 		var s6g = mceBtnGrid(s6);
 		mbCEYanlingRenderBtn(s6g, "施虐 / 受虐拉满（1000）", MCE_CLS.gold, mbCEYanlingSadism, "$sadism / $masochism = 1000");
-		mbCEYanlingRenderBtn(s6g, "奶量 5000 / 上限 10000", MCE_CLS.gold, mbCEYanlingMilk, "先抬 milk_max 再写 milk_volume，避免被每日钳制卡回");
+		mbCEYanlingRenderBtn(s6g, "奶量补满（上限 6000）", MCE_CLS.gold, mbCEYanlingMilk, "milk_max 归一到原版合法档 6000（3000/6000 两档），milk_volume 与 milk_amount 一起写满，避开每日 clamp 与「不满」假象");
 		mbCEYanlingRenderBtn(s6g, "解除成就限制", MCE_CLS.gold, mbCEYanlingFeats, "$feats.locked = false（原版以 isnot true 判已解锁）");
 		mbCEYanlingRenderBtn(s6g, "罗宾存款清零", MCE_CLS.gold, mbCEYanlingRobinMoney, "$robinmoney = 0");
 		mbCEYanlingRenderBtn(s6g, "今晚艾弗里来约", MCE_CLS.gold, mbCEYanlingAveryDate, "$averydate = 1（21 点前到宅邸触发）");
@@ -18000,12 +18610,12 @@ function renderNpcUndergroundSec(pane) {
 	function mbCEVanillaEconRentDebt(raw) {
 		var V = getV();
 		if (!V) { return { ok: false, message: "存档变量不可用" }; }
-		var n = mbCEVanillaEconNum(raw, 0, 99999999);
-		if (n === null) { return { ok: false, message: "欠租金额需为 0–99999999 的整数" }; }
+		var n = mbCEVanillaEconPoundsToPence(raw);
+		if (n === null) { return { ok: false, message: "欠租金额需为 £0 – £999,999.99（可带两位小数）" }; }
 		var before = { kind: "rent-debt", debt: Number(V.baileyRefusedToPayTotal) || 0 };
 		V.baileyRefusedToPayTotal = n;
-		mbCEVanillaTrace("rent-debt", before, "baileyRefusedToPayTotal", "欠租金额直写", "vcore-econ");
-		return { ok: true, message: "欠租已设为 £" + n };
+		mbCEVanillaTrace("rent-debt", before, "baileyRefusedToPayTotal", "欠租金额直写（英镑输入转便士）", "vcore-econ");
+		return { ok: true, message: "欠租已设为 " + mbCEVanillaEconFmt(n) };
 	}
 	function mbCEVanillaEconClearDebt() { return mbCEVanillaEconRentDebt(0); }
 
@@ -18196,6 +18806,94 @@ function renderNpcUndergroundSec(pane) {
 		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "纹上样式（" + mbCEVanillaEconTattooStyleZh(key) + "）", "vcore-econ");
 		return { ok: true, message: "已在「" + mbCEVanillaEconBodyZh(part) + "」纹上「" + mbCEVanillaEconTattooStyleZh(key) + "」（等价原版刺青店操作，可回退）" };
 	}
+/* 职责：房租金额的「便士 ↔ 英镑」换算 · 每周租金直写 · 租金锁定（07m 房租组的补充分段）。
+   原版事实（DoL 0.5.12.13 源码实证，勿凭印象改口径）：
+   - 金额一律按便士存：printmoney 注释 "amount in pennies"（HTML L346818），formatMoney 显示时 Math.floor(amount / 100)（L68492–L68502）。
+   - 租金档位表 [10000,30000,50000,70000,100000,150000,200000]（<<rentpay>> L589275）= £100 / £300 / £500 / £700 / £1000 / £1500 / £2000。
+   - <<rentmod>>（L589266–L589271）在初始化与每次交租时重算：rentmoney *= settings.rentCostModifier（滑块 ≥1、默认 1），robinpaid === 1 时再 ×2。
+   - 因此「锁定」= 记住目标便士值，在每次 passageinit 检查 rentmoney 是否被重算改写，改了就写回；
+     若玩家开着倍率或替 Robin 付，结算瞬间仍会乘一次，返回文案里显式警告。
+   留痕走 07l 的 vcore 通道，回退由 07m-vanilla-econ-undo.js 的 rent-money / rent-lock 分支处理。 */
+
+	function mbCEVanillaEconFmt(pennies) {
+		var n = Number(pennies);
+		if (!isFinite(n)) { n = 0; }
+		var neg = n < 0;
+		n = Math.abs(n);
+		var intPart = Math.floor(n / 100);
+		var s = String(intPart).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		var dec = Math.floor(n % 100);
+		var body = "£" + s + (dec ? "." + ("0" + dec).slice(-2) : "");
+		return (neg ? "-" : "") + body;
+	}
+	/* 输入按英镑收（允许两位小数），结果转便士；空串 / 非数字 / 负数 / 超上限一律判 null */
+	function mbCEVanillaEconPoundsToPence(raw) {
+		if (raw === "" || raw === null || raw === undefined) { return null; }
+		var n = Number(raw);
+		if (!isFinite(n) || n < 0) { return null; }
+		var p = Math.round(n * 100);
+		if (!isFinite(p) || p > 99999999) { return null; }
+		return p;
+	}
+	function mbCEVanillaEconRentMoney(raw) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var pence = mbCEVanillaEconPoundsToPence(raw);
+		if (pence === null) { return { ok: false, message: "每周租金需为 £0 – £999,999.99 的金额（可带两位小数）" }; }
+		var before = { kind: "rent-money", rentmoney: V.rentmoney === undefined ? undefined : Number(V.rentmoney) };
+		V.rentmoney = pence;
+		if (V.mbCE_rentLock && typeof V.mbCE_rentLock === "object") { V.mbCE_rentLock.money = pence; }
+		mbCEVanillaTrace("rent-money", before, "rentmoney", "每周租金直写（英镑输入转便士）", "vcore-econ");
+		return { ok: true, message: "每周租金已设为 " + mbCEVanillaEconFmt(pence) };
+	}
+	function mbCEVanillaEconRentLockRaw() {
+		var V = getV();
+		var lock = V && V.mbCE_rentLock;
+		if (!lock || typeof lock !== "object") { return null; }
+		var m = Number(lock.money);
+		if (!isFinite(m) || m < 0) { return null; }
+		return { money: m };
+	}
+	/* 锁定警告：原版重算会乘倍率，锁值在结算瞬间可能对不上，必须提前告诉玩家 */
+	function mbCEVanillaEconRentLockWarn(V) {
+		var warn = "";
+		try {
+			var mod = V && V.settings ? Number(V.settings.rentCostModifier) : 1;
+			if (isFinite(mod) && mod !== 1) { warn += "；当前租金倍率 " + mod + "，结算时会按倍率重算一次"; }
+		} catch (eM) { /* 设置缺失时按默认 1 处理 */ }
+		if (V && V.robinpaid === 1) { warn += "；你正替 Robin 付租（×2），锁值在交租时会翻倍，建议先解除代付"; }
+		return warn;
+	}
+	function mbCEVanillaEconRentLockOn() {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var cur = Number(V.rentmoney);
+		if (!isFinite(cur) || cur < 0) { return { ok: false, message: "当前没有可锁定的周租金额（先写入每周租金）" }; }
+		var before = {
+			kind: "rent-lock",
+			lock: mbCEVanillaEconClone(V.mbCE_rentLock),
+			rentmoney: cur
+		};
+		V.mbCE_rentLock = { money: Math.round(cur), at: Date.now() };
+		mbCEVanillaTrace("rent-lock", before, "mbCE_rentLock", "锁定每周租金（每次进入段落检查并写回）", "vcore-econ");
+		return { ok: true, message: "已锁定每周租金 " + mbCEVanillaEconFmt(cur) + mbCEVanillaEconRentLockWarn(V) };
+	}
+	function mbCEVanillaEconRentLockOff() {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		if (!V.mbCE_rentLock) { return { ok: false, message: "当前没有锁定" }; }
+		var before = { kind: "rent-lock", lock: mbCEVanillaEconClone(V.mbCE_rentLock), rentmoney: Number(V.rentmoney) || 0 };
+		delete V.mbCE_rentLock;
+		mbCEVanillaTrace("rent-lock", before, "mbCE_rentLock", "解除每周租金锁定", "vcore-econ");
+		return { ok: true, message: "已解除每周租金锁定（原版重算将恢复正常）" };
+	}
+	/* passageinit 每段检查：只纠正被重算改写的值，锁值本身不动；任何异常静默，不得阻断段落流转 */
+	function mbCEVanillaEconRentLockTick() {
+		var V = getV();
+		var lock = mbCEVanillaEconRentLockRaw();
+		if (!V || !lock) { return; }
+		if (Number(V.rentmoney) !== lock.money) { V.rentmoney = lock.money; }
+	}
 /* 职责：07m 五项直写的回退处理器（vcore-econ 留痕落地；拆分原因为结构门禁 S1 单段 400 行）。
    由 mbCEVanillaExtUndo 在未知 kind 处委派；未知 kind 返回 null。 */
 
@@ -18210,7 +18908,26 @@ function renderNpcUndergroundSec(pane) {
 		"rent-debt": function (V, b, key) {
 			V.baileyRefusedToPayTotal = Number(b.debt) || 0;
 			delete V.mbCE_wrote[key];
-			return { ok: true, message: "已还原欠租为 £" + (Number(b.debt) || 0) };
+			return { ok: true, message: "已还原欠租为 " + mbCEVanillaEconFmt(Number(b.debt) || 0) };
+		},
+		"rent-money": function (V, b, key) {
+			if (b.rentmoney === undefined || b.rentmoney === null) {
+				try { delete V.rentmoney; } catch (e4) {}
+			} else {
+				V.rentmoney = Number(b.rentmoney) || 0;
+			}
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原每周租金为 " + (b.rentmoney === undefined || b.rentmoney === null ? "未设置" : mbCEVanillaEconFmt(b.rentmoney)) };
+		},
+		"rent-lock": function (V, b, key) {
+			if (!b.lock || typeof b.lock !== "object") {
+				try { delete V.mbCE_rentLock; } catch (e5) {}
+			} else {
+				V.mbCE_rentLock = mbCEVanillaEconClone(b.lock);
+			}
+			if (b.rentmoney !== undefined && b.rentmoney !== null) { V.rentmoney = Number(b.rentmoney) || 0; }
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: (b.lock && typeof b.lock === "object") ? "已还原租金锁（锁定 " + mbCEVanillaEconFmt(b.lock.money) + "）" : "已还原为未锁定状态" };
 		},
 		"school": function (V, b, key) {
 			if (V.daily && V.daily.school && b.attended) { V.daily.school.attended = mbCEVanillaEconClone(b.attended); }
@@ -18370,10 +19087,12 @@ function renderNpcUndergroundSec(pane) {
 				body.appendChild(el("div", MCE_CLS.hint, "该存档还没进入租房线，暂无房租数据。"));
 				return;
 			}
+			var lock = mbCEVanillaEconRentLockRaw();
 			mbCEVanillaEconUiKv(body, [
 				["距下次催租", st.rent.renttime + " 天"],
-				["欠租", "£" + st.rent.debt],
-				["每周租金", "£" + st.rent.rentmoney + (st.rent.babyRent ? "（婴儿 £" + st.rent.babyRent + "）" : "")]
+				["欠租", mbCEVanillaEconFmt(st.rent.debt)],
+				["每周租金", mbCEVanillaEconFmt(st.rent.rentmoney) + (st.rent.babyRent ? "（婴儿 " + mbCEVanillaEconFmt(st.rent.babyRent) + "）" : "")],
+				["租金锁定", lock ? "已锁定 " + mbCEVanillaEconFmt(lock.money) : "未锁定"]
 			]);
 			var daysInp = mbCEVanillaEconUiNumRow(body, "租期天数", "0 = 今天已交，7 天内不催租；数值越小越早被催", st.rent.renttime);
 			var g1 = mceBtnGrid(body);
@@ -18383,17 +19102,31 @@ function renderNpcUndergroundSec(pane) {
 			mbCEVanillaEconUiBtn(g1, "设为今天已交", "等价租期 0：今天收过租，接下来 7 天不计欠", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRentDays(0), redraw);
 			});
-			var debtInp = mbCEVanillaEconUiNumRow(body, "欠租金额（£）", "只改实际欠款，统计页历史累计不动", st.rent.debt);
+			var debtInp = mbCEVanillaEconUiNumRow(body, "欠租金额（£）", "只改实际欠款，统计页历史累计不动", st.rent.debt / 100);
 			var g2 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g2, "写入欠租", "把欠租写成上方数值", function () {
+			mbCEVanillaEconUiBtn(g2, "写入欠租", "把欠租写成上方数值（£ 输入，内部存便士）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRentDebt(debtInp.value), redraw);
 			});
 			mbCEVanillaEconUiBtn(g2, "清空欠租", "欠款归 0，Bailey 不再追这笔钱", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconClearDebt(), redraw);
 			});
-			body.appendChild(mceFoldHint("原版只在「倒计时跌破 0 且正好是 7 的倍数」那一刻按当周周租累计欠租；"
-				+ "写 0 等于今天已经交过，写大数值是把催租往后拖。欠租金额直写只改实际欠款，统计页的历史累计保持真实。"));
-			mbCEVanillaEconUiUndoGrid(body, redraw, [["rent-days", "回退租期"], ["rent-debt", "回退欠租"]]);
+			var rentInp = mbCEVanillaEconUiNumRow(body, "每周租金（£）", "按英镑输入（可带两位小数），内部按便士存 rentmoney", st.rent.rentmoney / 100);
+			var g3 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g3, "写入每周租金", "覆盖原版周租；原版在初始化与每次交租时都会按倍率重算，建议配合锁定", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconRentMoney(rentInp.value), redraw);
+			});
+			if (lock) {
+				mbCEVanillaEconUiBtn(g3, "解除租金锁定", "恢复正常重算（下次初始化 / 交租按档位与倍率重算）", function () {
+					mbCEVanillaEconUiRun(mbCEVanillaEconRentLockOff(), redraw);
+				});
+			} else {
+				mbCEVanillaEconUiBtn(g3, "锁定当前金额", "每次进入段落检查一次，被重算改写就写回锁值", function () {
+					mbCEVanillaEconUiRun(mbCEVanillaEconRentLockOn(), redraw);
+				});
+			}
+			body.appendChild(mceFoldHint("原版金额一律按便士存：£1 = 100 便士，档位表 £100 / £300 / £500 / £700 / £1000 / £1500 / £2000。"
+				+ "锁定只纠正被重算改写的值；若开着租金倍率或替 Robin 代付，交租瞬间仍会乘一次，写入与锁定时都会有提示。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["rent-days", "回退租期"], ["rent-debt", "回退欠租"], ["rent-money", "回退周租"], ["rent-lock", "回退租金锁"]]);
 		};
 		redraw();
 	}
@@ -19509,6 +20242,801 @@ function mbCERenderAveryKeep(sec) {
 	};
 	redraw();
 }
+/* 职责：需求⑥「格威岚消失期直接完成」A 档 —— 只跳过等待计时，保留原版来信→读信→和解整条剧情。
+   原版事实（DoL 0.5.12.13 HTML 行号实证）：
+   - 生气期写入：<<gwylanRequestEnd "skip">> 之后 npcset Gwylan state "scorned" + $daily.gwylan.preventProgress
+     + $gwylan.timer.scorned = 今天 +9 天（L402967–L402970）；酒吧再次离开再 +3 天（L385338）。
+   - 自动恢复：每日维护 L78390–L78395 —— state==="scorned" && timer.scorned 到期 && request.event !== "yearning"
+     时 set $yearningLetter 1 并删 timer.scorned。
+   - 来信链：safehouseEvents 在 $yearningLetter is 1 时给窗鸟链接（L344612–L344615）→ Gwylan Yearning Letter
+     读信 Next 置 2 并 unset yearningLetterExit（L385467）。
+   - 和解入口：Forest Shop Locked 在 $yearningLetter is 2 && state is "scorned" && !isGwylanAbsent() 时
+     给「Enter → Gwylan Yearning Start」（L406823–L406830）。
+   - isGwylanAbsent() 只看 timer.nobody 与 state（L169329–L169334）。
+   因此 A 档 = 删 timer.scorned / timer.nobody + 把 yearningLetter 直接置 1；state 保持 "scorned" 不动。
+   不碰 request.event：若玩家正卡在来信事件里，原版自身会走完，这里只负责把「还要等」变成「现在就能来信」。 */
+
+	var MCE_GWYLAN_WAIT_KEY = "gwylan-wait";
+	/* 原版计时用 SugarCube DateTime.timeStamp（毫秒）；测试/非引擎环境退回 Date.now()，口径一致 */
+	function mbCEGwylanNow() {
+		try {
+			if (typeof Time !== "undefined" && Time && Time.date && isFinite(Number(Time.date.timeStamp))) {
+				return Number(Time.date.timeStamp);
+			}
+		} catch (eT) { /* 引擎时间不可用 → 走系统时间 */ }
+		return Date.now();
+	}
+	function mbCEGwylanRemainDays(ts) {
+		var n = Number(ts);
+		if (!isFinite(n) || n <= 0) { return 0; }
+		return Math.max(0, Math.ceil((n - mbCEGwylanNow()) / 86400000));
+	}
+	/* 状态快照：状态 / 生气剩余天 / 离店剩余天 / 来信标志（1 = 待来信，2 = 已读过） */
+	function mbCEGwylanHas(gw, state) {
+		return (gw && typeof gw === "object") || state !== "";
+	}
+	function mbCEGwylanAwaiting(state, sc, nb) {
+		return sc > 0 || nb > 0 || state === "scorned";
+	}
+	function mbCEGwylanWaitState() {
+		var V = getV();
+		var out = { has: false, state: "", scornedDays: 0, nobodyDays: 0, letter: 0, awaiting: false };
+		if (!V) { return out; }
+		var st = getNpcState("Gwylan");
+		out.state = st && st.found ? st.state : "";
+		var gw = V.gwylan;
+		out.has = mbCEGwylanHas(gw, out.state);
+		var t = gw && gw.timer;
+		if (t && typeof t === "object") {
+			out.scornedDays = mbCEGwylanRemainDays(t.scorned);
+			out.nobodyDays = mbCEGwylanRemainDays(t.nobody);
+		}
+		out.letter = Number(V.yearningLetter) || 0;
+		out.awaiting = mbCEGwylanAwaiting(out.state, out.scornedDays, out.nobodyDays);
+		return out;
+	}
+	/* 可跳条件判定（拆出来压复杂度）：返回拒绝文案，空串表示可跳 */
+	function mbCEGwylanSkipBlock(st) {
+		if (!st.has) { return "当前没有格威岚消失期可跳过（她不在生气 / 离店状态）"; }
+		if (st.letter >= 2) { return "来信已经读过（yearningLetter = 2），请直接去森林商店触发和解"; }
+		if (st.scornedDays > 0 || st.nobodyDays > 0) { return ""; }
+		if (st.state === "scorned" && st.letter === 0) { return ""; }
+		return "当前没有格威岚消失期可跳过（她不在生气 / 离店状态）";
+	}
+	function mbCEGwylanTraceBefore(V, gw, st) {
+		return {
+			kind: MCE_GWYLAN_WAIT_KEY,
+			scorned: gw.timer.scorned === undefined ? undefined : Number(gw.timer.scorned),
+			nobody: gw.timer.nobody === undefined ? undefined : Number(gw.timer.nobody),
+			letter: V.yearningLetter === undefined ? undefined : Number(V.yearningLetter),
+			state: st.state
+		};
+	}
+	function mbCEGwylanSkipWait() {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var st = mbCEGwylanWaitState();
+		var block = mbCEGwylanSkipBlock(st);
+		if (block) { return { ok: false, message: block }; }
+		var gw = V.gwylan;
+		if (!gw || typeof gw !== "object") { gw = {}; V.gwylan = gw; }
+		if (!gw.timer || typeof gw.timer !== "object") { gw.timer = {}; }
+		var before = mbCEGwylanTraceBefore(V, gw, st);
+		try { delete gw.timer.scorned; } catch (eS) { gw.timer.scorned = undefined; }
+		try { delete gw.timer.nobody; } catch (eN) { gw.timer.nobody = undefined; }
+		V.yearningLetter = 1;
+		mbCEVanillaTrace(MCE_GWYLAN_WAIT_KEY, before, "gwylan.timer / yearningLetter", "跳过格威岚消失期（保留原版来信与和解）", "vcore-econ");
+		return { ok: true, message: "已跳过格威岚消失期：生气/离店计时清零，来信标志置 1；回家后等窗边鸟来信，读信后到森林商店和解即可" };
+	}
+	/* 单字段还原：原值缺失则删除（与 07m 的删除语义一致） */
+	function mbCEGwylanRestoreField(obj, k, v) {
+		if (v === undefined || v === null) {
+			try { delete obj[k]; } catch (eR0) { obj[k] = undefined; }
+		} else {
+			obj[k] = Number(v);
+		}
+	}
+	function mbCEGwylanUndoKind(V, b, key) {
+		var gw = V.gwylan;
+		if (!gw || typeof gw !== "object") { gw = {}; V.gwylan = gw; }
+		if (!gw.timer || typeof gw.timer !== "object") { gw.timer = {}; }
+		mbCEGwylanRestoreField(gw.timer, "scorned", b.scorned);
+		mbCEGwylanRestoreField(gw.timer, "nobody", b.nobody);
+		if (b.letter === undefined || b.letter === null) {
+			try { delete V.yearningLetter; } catch (eR3) {}
+		} else {
+			V.yearningLetter = Number(b.letter) || 0;
+		}
+		delete V.mbCE_wrote[key];
+		return { ok: true, message: "已还原格威岚消失期（生气计时 / 离店计时 / 来信标志）" };
+	}
+	/* 回退注册进统一 kind 表（与 07p 食物 / 07q 艾弗里同一做法，不改 07m / 07n 一行） */
+	var MCE_GWYLAN_UNDO_REG = /** @type {Object<string, any>} */ (MB_CE_ECON_UNDO);
+	if (MCE_GWYLAN_UNDO_REG) { MCE_GWYLAN_UNDO_REG[MCE_GWYLAN_WAIT_KEY] = mbCEGwylanUndoKind; }
+
+	/* 阶段页区块：只在该角色是 Gwylan 时渲染（由 07c 的 mbCEStageExtras 统一调用） */
+	function mbCEGwylanRender(pane, name) {
+		if (!pane || String(name) !== "Gwylan") { return; }
+		var body = mceNewGroup(pane, "格威岚 · 消失期", "生气期 / 离店计时 · 跳过等待但保留原版来信与和解");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var st = mbCEGwylanWaitState();
+			var stateTxt = st.state === "scorned" ? "生气中（scorned）" : (st.state ? stateCN(st.state) : "未注册");
+			var letterTxt = st.letter === 1 ? "待来信（1）" : (st.letter === 2 ? "已读信（2）" : "未触发（" + st.letter + "）");
+			mbCEVanillaEconUiKv(body, [
+				["关系状态", stateTxt],
+				["生气剩余", st.scornedDays > 0 ? st.scornedDays + " 天" : "无计时"],
+				["离店剩余", st.nobodyDays > 0 ? st.nobodyDays + " 天" : "无计时"],
+				["来信标志", letterTxt]
+			]);
+			var g = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g, "跳过消失期", "删掉生气 / 离店计时并把来信标志置 1；之后按原版走窗鸟来信→读信→森林商店和解", function () {
+				mbCEVanillaEconUiRun(mbCEGwylanSkipWait(), redraw);
+			});
+			body.appendChild(mceFoldHint("原版生气期 9 天、酒吧再离开追加 3 天；来信链路为：回家看到窗边鸟 → 读信（标志变 2）"
+				+ " → 森林商店门口出现「Enter」→ 和解后 state 才恢复 active。这里只清计时，不替你跳过这一段剧情。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [[MCE_GWYLAN_WAIT_KEY, "回退消失期"]]);
+		};
+		redraw();
+	}
+/* 职责：需求③「让 Sam 滚蛋、不要来找我」—— 只拦公园清晨的 Sam 遭遇，不动 Sam 主线与 NPC 状态。
+   原版事实（DoL 0.5.12.13）：
+   - 公园事件表 L531051：<<elseif isInPark("sam") and $Sam_Park_Intro isnot 1 and $exposed lte 0>>；
+   - isInPark 的 sam 分支（L66411–L66415）只看 C.npc.Sam.init === 1、Time.hour 在 6:00–6:55、无雨，
+     不读任何 state —— 原版本身没有「让 Sam 别来」的开关，只能在判定入口拦截。
+   - window.isInPark 在 L66420 挂到 window，CE 注入早于它定义时安装会拿不到，故 passageinit 里补装（幂等）。
+   开关存 $mbCE_samAway（存档内，跨读档保留）；拦的是「sam 是否在公园」这一个布尔，其余 NPC 原样透传。 */
+
+	var MCE_SAM_AWAY_KEY = "sam-away";
+	function mbCESamAway() {
+		var V = getV();
+		return !!(V && V.mbCE_samAway === true);
+	}
+	function mbCESamAwaySet(on) {
+		var V = getV();
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var before = { kind: MCE_SAM_AWAY_KEY, value: V.mbCE_samAway === true };
+		if (on) { V.mbCE_samAway = true; } else { delete V.mbCE_samAway; }
+		mbCEVanillaTrace(MCE_SAM_AWAY_KEY, before, "mbCE_samAway", "公园 Sam 遭遇开关", "vcore-econ");
+		mbCESamEnsureHook();
+		return { ok: true, message: on ? "已开启：公园清晨不再出现 Sam（其余角色不受影响）" : "已关闭：Sam 的公园遭遇恢复原版" };
+	}
+	/* 包装 window.isInPark（幂等）：只在开关开启且询问 "sam" 时返回 false，其它参数完全透传 */
+	function mbCESamEnsureHook() {
+		if (typeof window === "undefined" || !window) { return; }
+		if (window.__mbCESamHooked) { return; }
+		var orig = window.isInPark;
+		if (typeof orig !== "function") { return; }
+		window.__mbCESamHooked = true;
+		window.isInPark = function (name) {
+			try {
+				if (mbCESamAway() && String(name).toLowerCase() === "sam") { return false; }
+			} catch (eC) { /* 开关读取失败按原版放行 */ }
+			return orig.apply(window, arguments);
+		};
+	}
+	var MCE_SAM_UNDO_REG = /** @type {Object<string, any>} */ (MB_CE_ECON_UNDO);
+	if (MCE_SAM_UNDO_REG) {
+		MCE_SAM_UNDO_REG[MCE_SAM_AWAY_KEY] = function (V, b, key) {
+			if (b.value === true) { V.mbCE_samAway = true; } else { try { delete V.mbCE_samAway; } catch (eS) {} }
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原 Sam 公园开关为 " + (b.value === true ? "开启" : "关闭") };
+		};
+	}
+	/* 阶段页区块：只在 Sam 卡片里出现 */
+	function mbCESamRender(pane, name) {
+		if (!pane || String(name) !== "Sam") { return; }
+		var body = mceNewGroup(pane, "Sam · 公园遭遇", "让他别在清晨的公园里冒出来（不改变 Sam 线与 NPC 状态）");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var on = mbCESamAway();
+			mbCEVanillaEconUiKv(body, [
+				["公园遭遇", on ? "已驱离（不出现）" : "原版（可能清晨出现）"],
+				["拦截方式", "isInPark(\"sam\") 返回 false"]
+			]);
+			var g = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g, on ? "关闭驱离" : "让他滚蛋", on ? "恢复原版：清晨 6:00–6:55 晴天仍会在公园遇到 Sam" : "开启后公园清晨不再触发 Sam 的喂鸭子初见 / 日常遭遇", function () {
+				mbCEVanillaEconUiRun(mbCESamAwaySet(!on), redraw);
+			});
+			body.appendChild(mceFoldHint("原版公园事件只判断 isInPark(\"sam\")（看 init、6:00–6:55、是否下雨），没有「别再出现」的分支，"
+				+ "所以在判定入口拦截。只影响公园这一处；Sam 的咖啡馆线与其它剧情不受影响。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [[MCE_SAM_AWAY_KEY, "回退开关"]]);
+		};
+		redraw();
+	}
+/* 职责：需求④「角色阶段页加认识开关 + 显示原版相认场景」。
+   原版事实（DoL 0.5.12.13）：
+   - <<initnpc "名字">>（HTML L299222–L299249）只在 $NPCName[_i].init is 0 时执行，一次性写入
+     init=1、trust/love/dom/lust/trauma/rage/purity/corruption=0、state="active"、chastity、name_known=1，
+     再 generatePronouns / initNNPCClothes / initNNPCstrapon，并有多角色特化分支（部分会重置 seen 标志）。
+     所以「标记为认识」不能裸写 init=1，必须调原版 initnpc 完成全套初始化，再把面板数值写回。
+   - 已取证的相认入口：Robin 公园冬季周末白天（L531026）；Sam 公园清晨 6:00–6:55 晴天（L531051）；
+     Gwylan 森林猎手遭遇（init 为 0 的初见，L71700）。其余角色不硬编码，靠运行时探测记录。
+   - 运行时探测：passageinit 比对 V.NPCName[].init，0→1 且从未记录过时把当前段落名写进 $mbCE_firstMeet。
+     首次运行只建基线（避免把已认识的角色误记成"刚相认"）。 */
+
+	var MCE_KNOW_SCENES = {
+		"Robin": "公园 · 冬季周末白天（热巧克力摊）",
+		"Sam": "公园 · 清晨 6:00-6:55 且不下雨（喂鸭子）",
+		"Gwylan": "森林 · 猎手遭遇（尚未认识时的初见）"
+	};
+	function mbCEKnowFirstMeet(V, nm) {
+		try {
+			if (V && V.mbCE_firstMeet && Object.prototype.hasOwnProperty.call(V.mbCE_firstMeet, nm)) {
+				return String(V.mbCE_firstMeet[nm] || "");
+			}
+		} catch (eF) { /* 记录损坏按未记录处理 */ }
+		return "";
+	}
+	function mbCEKnowState(name) {
+		var V = getV();
+		var nm = String(name || "");
+		var npc = findNpcEx(nm);
+		var st = getNpcState(nm);
+		return {
+			has: !!npc,
+			init: npc && Number(npc.init) === 1 ? 1 : 0,
+			state: st && st.found ? st.state : "",
+			known: !!(npc && Number(npc.init) === 1),
+			firstMeet: mbCEKnowFirstMeet(V, nm),
+			staticScene: MCE_KNOW_SCENES[nm] || ""
+		};
+	}
+	/* 单个 NPC 的 0→1 差分（拆出来压复杂度；first 只记第一次命中） */
+	function mbCEKnowTickOne(n, snap, first, t) {
+		if (!n || !n.nam) { return; }
+		var nm = String(n.nam);
+		var initFlag = Number(n.init) === 1 ? 1 : 0;
+		var prev = snap[nm];
+		if (prev === undefined) { snap[nm] = initFlag; return; }
+		if (prev === 0 && initFlag === 1 && !Object.prototype.hasOwnProperty.call(first, nm)) { first[nm] = t; }
+		snap[nm] = initFlag;
+	}
+	/* 认识探测（passageinit 调用）：只写差分，不建多余结构 */
+	function mbCEKnowProbe(title) {
+		var V = getV();
+		if (!V || !Array.isArray(V.NPCName)) { return; }
+		var snap = V.mbCE_npcInitSnap;
+		if (!snap || typeof snap !== "object") { snap = {}; V.mbCE_npcInitSnap = snap; }
+		var first = V.mbCE_firstMeet;
+		if (!first || typeof first !== "object") { first = {}; V.mbCE_firstMeet = first; }
+		var t = String(title || "");
+		for (var i = 0; i < V.NPCName.length; i++) { mbCEKnowTickOne(V.NPCName[i], snap, first, t); }
+	}
+	function mbCEKnowSnapshot(npc, nm) {
+		var keys = [], vals = {};
+		statDefsFor(nm).forEach(function (def) {
+			keys.push(def.key);
+			vals[def.key] = statValue(npc, nm, def);
+		});
+		return { keys: keys, vals: vals };
+	}
+	function mbCEKnowRestoreVals(npc, keys, vals) {
+		keys.forEach(function (k) {
+			try { npc[k] = vals[k]; } catch (eB) { /* 单键写回失败不影响其余数值 */ }
+		});
+	}
+	function mbCEKnowTraceBefore(nm, npc, vals) {
+		return {
+			kind: "know-npc",
+			name: nm,
+			init: 0,
+			state: npc.state === undefined ? undefined : String(npc.state),
+			nameKnown: npc.name_known === undefined ? undefined : Number(npc.name_known),
+			stats: mbCEVanillaEconClone(vals)
+		};
+	}
+	function mbCEKnowSet(name) {
+		var V = getV();
+		var nm = String(name || "");
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		var npc = findNpcEx(nm);
+		if (!npc) { return { ok: false, message: "「" + nm + "」不在运行时名单（V.NPCName / V.per_npc），无法初始化" }; }
+		if (Number(npc.init) === 1) { return { ok: false, message: "「" + nm + "」已经是认识状态" }; }
+		if (typeof window === "undefined" || typeof window.wikifier !== "function") {
+			return { ok: false, message: "宿主 wikifier 不可用，无法执行原版 initnpc 初始化" };
+		}
+		/* 先快照面板可见数值：initnpc 会把 7 项数值清零，初始化后原样写回 */
+		var snap = mbCEKnowSnapshot(npc, nm);
+		var before = mbCEKnowTraceBefore(nm, npc, snap.vals);
+		try {
+			window.wikifier('<<initnpc "' + nm.replace(/"/g, "") + '">>');
+		} catch (eW) {
+			return { ok: false, message: "调用原版 initnpc 失败：" + String(eW) };
+		}
+		var after = findNpcEx(nm) || npc;
+		if (Number(after.init) !== 1) {
+			return { ok: false, message: "原版 initnpc 没有把 init 置 1（角色名可能不在 $NPCNameList），未写入任何数值" };
+		}
+		mbCEKnowRestoreVals(after, snap.keys, snap.vals);
+		mbCEVanillaTrace("know-npc", before, "NPC init / 面板数值", "标记为认识（原版 initnpc 初始化后写回数值）", "vcore-econ");
+		return { ok: true, message: "已把「" + nm + "」标记为认识（原版初始化完成，面板数值已保留）" };
+	}
+	function mbCEKnowUndoKind(V, b, key) {
+		var npc = findNpcEx(String(b.name || ""));
+		if (!npc) { return { ok: false, message: "该角色已不在运行时名单，无法回退认识状态" }; }
+		npc.init = 0;
+		if (b.state !== undefined) { npc.state = b.state; }
+		if (b.nameKnown !== undefined) { npc.name_known = b.nameKnown; }
+		if (b.stats && typeof b.stats === "object") {
+			Object.keys(b.stats).forEach(function (k) {
+				try { npc[k] = b.stats[k]; } catch (eK) { /* 单键失败继续 */ }
+			});
+		}
+		delete V.mbCE_wrote[key];
+		return { ok: true, message: "已把「" + String(b.name || "") + "」还原为未认识（数值 / state / name_known 已恢复；装备与贞操等一次性生成不回退）" };
+	}
+	var MCE_KNOW_UNDO_REG = /** @type {Object<string, any>} */ (MB_CE_ECON_UNDO);
+	if (MCE_KNOW_UNDO_REG) { MCE_KNOW_UNDO_REG["know-npc"] = mbCEKnowUndoKind; }
+
+	/* 阶段页区块：每个角色都显示认识状态与原版相认入口 */
+	function mbCEKnowRender(pane, name) {
+		if (!pane) { return; }
+		var body = mceNewGroup(pane, "认识状态", "原版相认场景 · 标记为认识（走 initnpc 全套初始化）");
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var st = mbCEKnowState(name);
+			var initTxt = st.known ? "已认识（init = 1）" : (st.has ? "未认识（init = 0）" : "无运行时对象");
+			var firstTxt = st.firstMeet ? "「" + st.firstMeet + "」" : "暂无（仅记录本模组注入后的相认）";
+			mbCEVanillaEconUiKv(body, [
+				["认识状态", initTxt],
+				["相认场景", st.staticScene || "未登记（遇到后会自动记录当时段落）"],
+				["首次记录", firstTxt]
+			]);
+			var g = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g, "标记为认识", "调原版 initnpc 完成 init / 数值 / 贞操 / 衣装 / 代词初始化，再把当前面板数值写回", function () {
+				mbCEVanillaEconUiRun(mbCEKnowSet(name), redraw);
+			});
+			body.appendChild(mceFoldHint("原版 initnpc 只对 init = 0 的角色执行一次，会清空七项数值并生成衣装与代词；"
+				+ "这里初始化后立刻把七项数值写回，剧情标志（如 seen 列表）仍按原版初始化结果走。"
+				+ "相认场景优先显示已取证的原版入口；运行时命中 0→1 的段落会自动追加到「首次记录」。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["know-npc", "回退认识"]]);
+		};
+		redraw();
+	}
+	/* 阶段页扩展聚合：07c 只在数据卡之后调这一个入口，后续新增块不必再改 07c */
+	function mbCEStageExtras(pane, name) {
+		if (typeof mbCEKnowRender === "function") { mbCEKnowRender(pane, name); }
+		if (typeof mbCEGwylanRender === "function") { mbCEGwylanRender(pane, name); }
+		if (typeof mbCESamRender === "function") { mbCESamRender(pane, name); }
+	}
+	/* 异常不得阻断阶段页主卡与内层标签（try 收在这里，避免给 07c 的 renderStagePane 增加复杂度） */
+	function mbCEStageExtrasSafe(pane, name) {
+		try { mbCEStageExtras(pane, name); } catch (eX) { /* 扩展块失败静默 */ }
+	}
+/* 职责：格威岚阶段线（v2.2.8）
+   原版事实（Degrees of Lewdity 0.5.12.13）：
+   - 5 档阶段全部内联在 `Gwylan Talk Shop`（passage 内 if/elseif 链，从 100% 往 10% 判），
+     没有独立 passage 名，只能「写值 + 进店」触发；每档命中后 `$gwylan.stage` 升到对应档。
+   - 判定同时看 `_gwylanLovePercent` 与 `$gwylan.stage`（lte 上一档），所以低档回放必须
+     让好感落回该档区间；高档则要补足。
+   - `_gwylanLovePercent = ceil(C.npc.Gwylan.love / (totalSets*2) * 100)`，
+     `love = 已解锁森林特装数 + $gwylanTalked 中森林特装数`（`$gwylan.wary>1` 且 state active/scorned 时再减 2*wary）。
+     love 由 `statusCheck("Gwylan")` 每次重算 → 直接写 `C.npc.Gwylan.love` 无效，只能改 `$gwylanTalked`。
+   - 本模块按「模拟写值」语义实现：临时增/删 `$gwylanTalked` 与 `$gwylan.stage`，播完（离开 Talk Shop）全部还原，
+     不污染真实进度。 */
+var GWYLAN_STAGE_ROWS = [
+	{ stage: 1, pct: 10, cn: "阶段 1 · 修旧架子（好感 ≥10%）" },
+	{ stage: 2, pct: 25, cn: "阶段 2 · 整理衣架（好感 ≥25%）" },
+	{ stage: 3, pct: 50, cn: "阶段 3 · 书架后探头（好感 ≥50%）" },
+	{ stage: 4, pct: 75, cn: "阶段 4 · 修藤蔓（好感 ≥75%）" },
+	{ stage: 5, pct: 100, cn: "阶段 5 · 背后拥抱（100% + 已见 yearning）" }
+];
+function mbCEGwylanStageRows() { return GWYLAN_STAGE_ROWS.slice(); }
+function mbCEGwylanSetupObj() {
+	var s = null;
+	try { if (typeof setup !== "undefined" && setup) { s = setup; } } catch (e) {}
+	if (!s) { try { s = (typeof getSetup === "function") ? getSetup() : null; } catch (e2) { s = null; } }
+	return s;
+}
+/* 森林商店特装套装名（setup.specialClothesSets 中 shop 含 forest） */
+function mbCEGwylanForestSets() {
+	var S = mbCEGwylanSetupObj();
+	var all = (S && S.specialClothesSets) ? S.specialClothesSets : null;
+	if (!all) { return []; }
+	return Object.keys(all).filter(function (k) {
+		var st = all[k];
+		return st && Array.isArray(st.shop) && st.shop.indexOf("forest") !== -1;
+	});
+}
+function mbCEGwylanUnlockedCount(sets, list) {
+	var unlocked = 0;
+	list.forEach(function (c) {
+		if (c && Number(c.unlocked) >= 2 && sets.indexOf(String(c.name)) !== -1) { unlocked++; }
+	});
+	return unlocked;
+}
+function mbCEGwylanTalkedCount(sets, list) {
+	var talked = 0;
+	list.forEach(function (k) { if (sets.indexOf(String(k)) !== -1) { talked++; } });
+	return talked;
+}
+/* wary>1 且处于 active/scorned → 原版 love 扣 2*wary（见 07u 头注释公式） */
+function mbCEGwylanWaryOf(V) {
+	var wary = (V.gwylan && Number(V.gwylan.wary)) ? Number(V.gwylan.wary) : 0;
+	var npc = V.characters && V.characters.npc ? V.characters.npc.Gwylan : null;
+	var state = npc ? String(npc.state || "") : "";
+	if (wary > 1 && (state === "active" || state === "scorned")) { return { wary: wary, penalty: wary * 2 }; }
+	return { wary: wary, penalty: 0 };
+}
+function mbCEGwylanLoveInfo() {
+	var V = getV();
+	var sets = mbCEGwylanForestSets();
+	var total = sets.length;
+	var out = { total: total, love: 0, pct: 0, unlocked: 0, talked: 0, wary: 0 };
+	if (!V || !total) { return out; }
+	var unlocked = mbCEGwylanUnlockedCount(sets, Array.isArray(V.specialClothes) ? V.specialClothes : []);
+	var talked = mbCEGwylanTalkedCount(sets, Array.isArray(V.gwylanTalked) ? V.gwylanTalked : []);
+	var w = mbCEGwylanWaryOf(V);
+	var love = unlocked + talked - w.penalty;
+	out.unlocked = unlocked; out.talked = talked; out.wary = w.wary;
+	out.love = love;
+	out.pct = Math.ceil(love / (total * 2) * 100);
+	return out;
+}
+/* 目标档的 love 区间：[ceil(本档阈值/100*总分), floor((下一档阈值-1)/100*总分)]
+   总分 = total*2；不依赖「写 C.npc.Gwylan.love」，只调 $gwylanTalked。 */
+function mbCEGwylanStageLoveRange(n) {
+	var total = mbCEGwylanForestSets().length;
+	var row = null, nextPct = 101;
+	for (var i = 0; i < GWYLAN_STAGE_ROWS.length; i++) {
+		if (GWYLAN_STAGE_ROWS[i].stage === n) { row = GWYLAN_STAGE_ROWS[i]; nextPct = (i + 1 < GWYLAN_STAGE_ROWS.length) ? GWYLAN_STAGE_ROWS[i + 1].pct : 101; }
+	}
+	if (!row || !total) { return null; }
+	var denom = total * 2;
+	return {
+		min: Math.ceil(row.pct / 100 * denom),
+		max: Math.floor((nextPct - 1) / 100 * denom),
+		total: total
+	};
+}
+/* 前置校验：阶段号 / wary / yearning / 森林特装 / 区间。返回 {ok, sets, range} 或拒绝原因 */
+/** @returns {{ ok: true, sets: string[], range: { min: number, max: number, total: number } } | { ok: false, message: string }} */
+function mbCEGwylanStageGuard(n, V) {
+	function rowFound(n2) { return GWYLAN_STAGE_ROWS.filter(function (r) { return r.stage === n2; })[0]; }
+	var row = rowFound(n);
+	if (!row) { return { ok: false, message: "未知阶段：" + n }; }
+	var wary = Number(V.gwylan.wary) || 0;
+	if (wary > 1) {
+		return { ok: false, message: "格威岚当前对你保持警惕（$gwylan.wary=" + wary + "）：进店会走警戒对白，阶段剧情不会正常播放。请先完成和解（降至 0～1）再来。" };
+	}
+	var seen = Array.isArray(V.gwylanSeen) ? V.gwylanSeen : [];
+	if (n === 5 && seen.indexOf("yearning") === -1) {
+		return { ok: false, message: "阶段 5 需先看过「渴望」场景（$gwylanSeen 含 yearning）；缺失时拒绝，不伪造标记以免污染真实进度。" };
+	}
+	var sets = mbCEGwylanForestSets();
+	if (!sets.length) { return { ok: false, message: "未读取到森林特装数据（setup.specialClothesSets 不可用），无法计算好感。" }; }
+	var range = mbCEGwylanStageLoveRange(n);
+	if (!range) { return { ok: false, message: "阶段区间计算失败。" }; }
+	return { ok: true, sets: sets, range: range };
+}
+/* 把 $gwylanTalked 临时补到区间内 / 移出区间外（返回增删清单；不可行时拒绝） */
+/** @returns {{ ok: true, added: string[], removed: string[] } | { ok: false, message: string }} */
+function mbCEGwylanStageFill(V, sets, range, n) {
+	var talk = Array.isArray(V.gwylanTalked) ? V.gwylanTalked : (V.gwylanTalked = []);
+	var info = mbCEGwylanLoveInfo();
+	var added = [], removed = [];
+	if (info.love < range.min) {
+		var pool = sets.filter(function (k) { return talk.indexOf(k) === -1; });
+		var need = range.min - info.love;
+		for (var i = 0; i < pool.length && added.length < need; i++) { added.push(pool[i]); }
+		if (added.length < need) {
+			return { ok: false, message: "森林特装可用项不足（需补 " + need + " 项，仅 " + added.length + " 项），无法把好感拉到该阶段阈值。" };
+		}
+		added.forEach(function (k) { talk.push(k); });
+		return { ok: true, added: added, removed: removed };
+	}
+	if (info.love > range.max) {
+		/* 只移除「仅靠 talked 计数」的项：已解锁项即使移出 talked 仍计入 love */
+		var drop = info.love - range.max;
+		var cand = talk.filter(function (k) {
+			return sets.indexOf(String(k)) !== -1 && !(V.specialClothes || []).some(function (c) { return c && String(c.name) === String(k) && Number(c.unlocked) >= 2; });
+		});
+		for (var j = 0; j < cand.length && removed.length < drop; j++) { removed.push(cand[j]); }
+		if (removed.length < drop) {
+			return { ok: false, message: "你当前好感 P" + info.pct + "% 已越过阶段 " + n + "（原版按当前好感从高到低判定，低档无法回放）；已解锁特装本身计入好感，无法临时降低。" };
+		}
+		removed.forEach(function (k) { var idx = talk.indexOf(k); if (idx !== -1) { talk.splice(idx, 1); } });
+	}
+	return { ok: true, added: added, removed: removed };
+}
+/** @returns {{ ok: true, message: string, info: any, added: string[], removed: string[] } | { ok: false, message: string }} */
+function mbCEGwylanStagePrepare(n) {
+	var V = getV();
+	if (!V) { return { ok: false, message: "存档不可用" }; }
+	/* 重复准备（如先 Prepare 再 Play）：先还原上一次的临时写值，避免 added 记录被覆盖后漏还原 */
+	if (V.mbCE_gwylanStageRestore) { mbCEGwylanStageRestoreTick("__prepare__"); }
+	if (!V.gwylan || typeof V.gwylan !== "object") { V.gwylan = {}; }
+	/** @type {any} */
+	var g = mbCEGwylanStageGuard(n, V);
+	if (!g.ok) { return { ok: false, message: String(g.message || "") }; }
+	/** @type {any} */
+	var fill = mbCEGwylanStageFill(V, g.sets, g.range, n);
+	if (!fill.ok) { return { ok: false, message: String(fill.message || "") }; }
+	var hadStage = Object.prototype.hasOwnProperty.call(V.gwylan, "stage");
+	var oldStage = V.gwylan.stage;
+	V.gwylan.stage = n - 1;
+	V.mbCE_gwylanStageRestore = { hadStage: hadStage, stage: oldStage, added: fill.added, removed: fill.removed, at: Date.now() };
+	var after = mbCEGwylanLoveInfo();
+	return {
+		ok: true,
+		message: "已准备阶段 " + n + "（stage " + (hadStage ? oldStage : "未设置") + " → " + (n - 1) + "，补 " + fill.added.length + " 项 / 暂移 " + fill.removed.length + " 项，好感 P" + after.pct + "%）；离开商店后自动还原",
+		info: after, added: fill.added, removed: fill.removed
+	};
+}
+/** @returns {{ ok: boolean, message: string, info?: any }} */
+function mbCEGwylanStagePlay(n) {
+	var pr = mbCEGwylanStagePrepare(n);
+	if (!pr.ok) { return pr; }
+	var ep = getEnginePlayFn();
+	if (!ep) { return { ok: false, message: "引擎不可用，无法进入 Gwylan Talk Shop" }; }
+	try {
+		ep.play.call(ep.e, "Gwylan Talk Shop", true);
+		return { ok: true, message: pr.message, info: pr.info };
+	} catch (e) {
+		return { ok: false, message: "进入商店失败：" + mbCEErr(e) };
+	}
+}
+/* 还原临时写值（talked 增删 + stage 回写/删除 + 清标记） */
+function mbCEGwylanStageRestoreApply(V) {
+	var R = V.mbCE_gwylanStageRestore;
+	var talk = Array.isArray(V.gwylanTalked) ? V.gwylanTalked : (V.gwylanTalked = []);
+	(R.added || []).forEach(function (k) { var i = talk.indexOf(k); if (i !== -1) { talk.splice(i, 1); } });
+	(R.removed || []).forEach(function (k) { if (talk.indexOf(k) === -1) { talk.push(k); } });
+	if (!V.gwylan || typeof V.gwylan !== "object") { V.gwylan = {}; }
+	if (R.hadStage) { V.gwylan.stage = R.stage; } else { delete V.gwylan.stage; }
+	delete V.mbCE_gwylanStageRestore;
+}
+/* 离开 Talk Shop 即还原（进入任意其它段落触发；仍在 Talk Shop 时不还原） */
+function mbCEGwylanStageRestoreTick(title) {
+	try {
+		var V = getV();
+		if (!V || !V.mbCE_gwylanStageRestore) { return false; }
+		if (String(title || "") === "Gwylan Talk Shop") { return false; }
+		mbCEGwylanStageRestoreApply(V);
+		return true;
+	} catch (e) { return false; }
+}
+/* 07v-avery-injury — 艾弗里「保持受伤」三档 + 休养
+ *
+ * 原版事实（DoL 0.5.12.13 单文件 HTML 实证，全部回原文取证）：
+ *   · $avery_mansion.injury 全库 1 处读取（每日结算 `if $avery_mansion.injury is true → set $avery_injury to true`）、
+ *     **0 处写入**（`to true/false`、`= true/false`、`isnot` 全部 0 命中）——它是 0.5.7 重构后的遗留键，该分支恒不触发。
+ *   · 真正的伤由两个键表达：`injury_timer`（每日结算 -1，0 停）+ `injury_stage`（同处按 timer 重算：
+ *     >50 sling / 16~49 cast / 1~15 healing / <=0 healed；version 4→5 迁移把 fresh/fresh_done → sling）。
+ *   · `<<avery_injury_check>>`（widget 定义实证）：`_avery_injured = stage in [sling, cast, healing]`；
+ *     受伤期渲染 NPC 时 `NPCList[i].righthand = "idle"`（右手不可用于互动）。
+ *   · `$avery_injury`（布尔）是日程总闸，14 处判定：办公室工作 / 工作邀请 / 学校接送 / 庄园 away 归家 / 派对 /
+ *     晚餐 / 约会 / 红毯宴会 / 温泉 / 学校 drop-off / 街头初见，全部要求 `!$avery_injury`。
+ *     全库只有 `Mansion Return Broken` 的两个链接会 `set $avery_injury to false`（无任何置 true 的写入）。
+ *
+ * 本段做三件事：
+ *   ① 三档外观（吊带 90 / 石膏 40 / 快好 10）：写 `injury_timer` + `injury_stage`，并按档位对齐原版分档；
+ *   ② 休养：写 `avery_injury = true`（原版门控语义，工作/接送/赴宴/约会/温泉全停）；
+ *   ③ 冻结：每次进段落回写 timer 与 stage（每日结算的 -1 与重算会被拉回），解除时按开启前快照还原。
+ *
+ * 明确不做：
+ *   · 无 $avery_mansion 的存档不补壳（补壳会让 hasMansion 判据成立 → 白送庄园与免租），外观档直接拒绝，只给「仅休养」；
+ *   · 不动 NPC 数值 / 恋爱关系 / 庄园建造进度；
+ *   · 不改 $avery_mansion.injury（死键，写了也没人读）。
+ */
+"use strict";
+
+var MCE_AVERY_INJURY_KEY = "avery-injury";
+var MCE_AVERY_INJURY_MODES = /** @type {Object<string, any>} */ ({
+	sling: { key: "sling", timer: 90, stage: "sling", zh: "吊带（90 天）" },
+	cast: { key: "cast", timer: 40, stage: "cast", zh: "石膏（40 天）" },
+	healing: { key: "healing", timer: 10, stage: "healing", zh: "快好（10 天）" }
+});
+
+/* 档位表（UI 顺序） */
+function mbCEAveryInjuryModes() {
+	return ["sling", "cast", "healing"].map(function (k) { return MCE_AVERY_INJURY_MODES[k]; });
+}
+/* 庄园对象（不存在返回 null；**不补壳**） */
+function mbCEAveryInjuryMansion(V) {
+	return (V.avery_mansion && typeof V.avery_mansion === "object") ? V.avery_mansion : null;
+}
+/* 是否已在街头/办公室见过 Avery（UI 提示用：未认识时开休养会挡掉初见） */
+function mbCEAveryInjuryKnown(V) {
+	try {
+		if (V.averySeen && typeof V.averySeen.includes === "function" && V.averySeen.length > 0) { return true; }
+	} catch (e) { /* averySeen 非数组时忽略 */ }
+	return V.averyseen === 1 || !!V.averydate || !!V.avery_party;
+}
+/* 开启前快照（只取本项会动的三个值） */
+function mbCEAveryInjurySnapshot(V) {
+	var m = mbCEAveryInjuryMansion(V);
+	return {
+		kind: MCE_AVERY_INJURY_KEY,
+		hasMansion: !!m,
+		hasTimer: !!(m && "injury_timer" in m),
+		timer: m ? m.injury_timer : undefined,
+		hasStage: !!(m && "injury_stage" in m),
+		stage: m ? m.injury_stage : undefined,
+		hasInj: ("avery_injury" in V),
+		inj: V.avery_injury
+	};
+}
+/* 已有保持标记时沿用最初快照，避免切档把「已被改过的值」当原值 */
+function mbCEAveryInjuryPrev(V) {
+	var h = V.mbCE_averyInjuryHold;
+	if (h && h.prev) { return h.prev; }
+	return mbCEAveryInjurySnapshot(V);
+}
+/* 状态（只读）：三个字段各自小函数取值，避免 state 本身堆三目超复杂度基线 */
+function mbCEAveryInjuryTimerOf(m) {
+	if (!m || typeof m.injury_timer !== "number") { return null; }
+	return m.injury_timer;
+}
+function mbCEAveryInjuryStageOf(m) {
+	if (!m || !m.injury_stage) { return ""; }
+	return String(m.injury_stage);
+}
+function mbCEAveryInjuryHoldView(h) {
+	if (!h || typeof h !== "object") { return null; }
+	return { mode: String(h.mode || ""), timer: h.timer, stage: String(h.stage || "") };
+}
+function mbCEAveryInjuryState() {
+	var V = getV();
+	if (!V) { return { ok: false, known: false, mansion: false, timer: null, stage: "", injury: false, hold: null }; }
+	var m = mbCEAveryInjuryMansion(V);
+	return {
+		ok: true,
+		known: mbCEAveryInjuryKnown(V),
+		mansion: !!m,
+		timer: mbCEAveryInjuryTimerOf(m),
+		stage: mbCEAveryInjuryStageOf(m),
+		injury: V.avery_injury === true,
+		hold: mbCEAveryInjuryHoldView(V.mbCE_averyInjuryHold)
+	};
+}
+/* 写外观 + 休养 */
+function mbCEAveryInjuryApply(V, timer, stage) {
+	var m = mbCEAveryInjuryMansion(V);
+	if (m) {
+		m.injury_timer = timer;
+		m.injury_stage = stage;
+	}
+	V.avery_injury = true;
+}
+/* 开启/切档：三档外观 + 休养 */
+function mbCEAveryInjuryHold(mode) {
+	var V = getV();
+	if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+	var cfg = MCE_AVERY_INJURY_MODES[mode];
+	if (!cfg) { return { ok: false, message: "未知的受伤档位（可选 sling / cast / healing）" }; }
+	if (!mbCEAveryInjuryMansion(V)) {
+		return { ok: false, message: "该存档没有艾弗里庄园数据 —— 伤势外观依赖 $avery_mansion.injury_stage，无法呈现。可先用「仅休养」停日程，或进庄园线后再开。" };
+	}
+	var prev = mbCEAveryInjuryPrev(V);
+	mbCEVanillaTrace(MCE_AVERY_INJURY_KEY, { kind: MCE_AVERY_INJURY_KEY, prev: prev },
+		"avery_mansion.injury_timer / injury_stage / avery_injury", "保持艾弗里受伤状态（" + cfg.zh + "）", "vcore");
+	mbCEAveryInjuryApply(V, cfg.timer, cfg.stage);
+	V.mbCE_averyInjuryHold = { mode: cfg.key, timer: cfg.timer, stage: cfg.stage, stopSchedule: true, prev: prev, at: Date.now() };
+	return {
+		ok: true,
+		id: MCE_AVERY_INJURY_KEY,
+		message: "已保持「" + cfg.zh + "」：伤势外观按原版档位呈现，Avery 进入休养（不工作 / 不接送 / 不赴宴 / 不约会 / 不温泉）。"
+			+ "每进一段会自动回写，伤不会自愈；解除后按开启前还原。"
+	};
+}
+/* 仅休养：不写外观，只关日程（无庄园存档也能用） */
+function mbCEAveryInjurySettleOnly() {
+	var V = getV();
+	if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+	var prev = mbCEAveryInjuryPrev(V);
+	mbCEVanillaTrace(MCE_AVERY_INJURY_KEY, { kind: MCE_AVERY_INJURY_KEY, prev: prev },
+		"avery_injury（仅休养）", "艾弗里休养（无伤势外观）", "vcore");
+	V.avery_injury = true;
+	V.mbCE_averyInjuryHold = { mode: "settle", timer: null, stage: null, stopSchedule: true, prev: prev, at: Date.now() };
+	return {
+		ok: true,
+		id: MCE_AVERY_INJURY_KEY,
+		message: "已开「仅休养」：Avery 不工作 / 不接送 / 不赴宴 / 不约会 / 不温泉。"
+			+ "该存档没有庄园数据，因此没有石膏/吊带外观；每进一段自动维持，解除后还原。"
+	};
+}
+/* 冻结：每日结算 -1 与 stage 重算后回写（挂 passage init）——写回拆出以控复杂度 */
+function mbCEAveryInjuryFreeze(m, h) {
+	if (!m) { return; }
+	if (m.injury_timer !== h.timer) { m.injury_timer = h.timer; }
+	if (h.stage && m.injury_stage !== h.stage) { m.injury_stage = h.stage; }
+}
+function mbCEAveryInjuryHoldTick() {
+	var V = getV();
+	if (!V) { return; }
+	var h = V.mbCE_averyInjuryHold;
+	if (!h || typeof h !== "object") { return; }
+	if (h.stopSchedule && V.avery_injury !== true) { V.avery_injury = true; }
+	if (h.timer === null || h.timer === undefined) { return; }
+	mbCEAveryInjuryFreeze(mbCEAveryInjuryMansion(V), h);
+}
+/* 还原辅助：快照里有就写回，没有就删键（保持「原本未定义」） */
+function mbCEAveryInjuryRestore(V, prev) {
+	var m = mbCEAveryInjuryMansion(V);
+	if (m) {
+		if (prev.hasTimer) { m.injury_timer = prev.timer; } else { delete m.injury_timer; }
+		if (prev.hasStage) { m.injury_stage = prev.stage; } else { delete m.injury_stage; }
+	}
+	if (prev.hasInj) { V.avery_injury = prev.inj; } else { delete V.avery_injury; }
+}
+/* 解除并还原 */
+function mbCEAveryInjuryOff() {
+	var V = getV();
+	if (!V) { return { ok: false, message: "存档变量不可用（游戏尚未就绪）" }; }
+	var h = V.mbCE_averyInjuryHold;
+	if (!h || typeof h !== "object") { return { ok: false, message: "当前没有保持中的受伤状态" }; }
+	mbCEAveryInjuryRestore(V, h.prev || {});
+	delete V.mbCE_averyInjuryHold;
+	if (V.mbCE_wrote) { delete V.mbCE_wrote["vcore:" + MCE_AVERY_INJURY_KEY]; }
+	return { ok: true, message: "已解除：injury_timer / injury_stage / avery_injury 已还原到开启前（原本未定义的键已删除）。" };
+}
+/* 统一回退表处理器（08c vcore → 07l ExtUndo → 07n KindUndo → 07m EconUndo） */
+function mbCEAveryInjuryUndoKind(V, b, key) {
+	if (!V || !b || b.kind !== MCE_AVERY_INJURY_KEY) { return null; }
+	mbCEAveryInjuryRestore(V, b.prev || {});
+	delete V.mbCE_averyInjuryHold;
+	if (V.mbCE_wrote) { delete V.mbCE_wrote[key]; }
+	return { ok: true, message: "已还原艾弗里伤势（injury_timer / injury_stage / avery_injury）" };
+}
+var MCE_AVERY_INJURY_UNDO_REG = /** @type {Object<string, any>} */ (MB_CE_ECON_UNDO);
+if (MCE_AVERY_INJURY_UNDO_REG) { MCE_AVERY_INJURY_UNDO_REG[MCE_AVERY_INJURY_KEY] = mbCEAveryInjuryUndoKind; }
+
+/* ============ 面板区块 ============ */
+var MCE_AVERY_STAGE_ZH = { sling: "吊带", cast: "石膏", healing: "快好", healed: "已痊愈", fresh: "刚受伤" };
+
+function mbCEAveryInjuryKv(st) {
+	var kv = el("div", "mce-statrow");
+	var modeZh = st.hold ? (MCE_AVERY_INJURY_MODES[st.hold.mode] ? MCE_AVERY_INJURY_MODES[st.hold.mode].zh : "仅休养") : "未开启";
+	[["庄园数据", st.mansion ? "在" : "缺（无外观档）"],
+		["当前伤势", (MCE_AVERY_STAGE_ZH[st.stage] || st.stage || "无") + (st.timer === null ? "" : "（剩 " + st.timer + " 天）")],
+		["休养", st.injury ? "开（工作/接送/赴宴/约会停）" : "关"],
+		["保持中", modeZh]].forEach(function (p, i) {
+		if (i) { kv.appendChild(el("span", "mce-kv-sep", "｜")); }
+		kv.appendChild(el("span", MCE_CLS.rowLbl, p[0]));
+		kv.appendChild(el("span", "mce-value", p[1]));
+	});
+	return kv;
+}
+function mbCEAveryInjuryButtons(g, redraw) {
+	mbCEAveryInjuryModes().forEach(function (m) {
+		var tip = "写 injury_timer=" + m.timer + " + injury_stage=" + m.stage + " + avery_injury=true；"
+			+ "原版每日按 timer 分档（>50 吊带 / 16~49 石膏 / 1~15 快好），本项每进一段回写，伤不会自愈";
+		mbCEVanillaEconUiBtn(g, "保持" + m.zh, tip, function () {
+			var res = mbCEAveryInjuryHold(m.key);
+			setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+			if (res.ok) { redraw(); }
+		});
+	});
+	mbCEVanillaEconUiBtn(g, "仅休养（不显示伤）", "只把 avery_injury 置 true：停工作 / 接送 / 赴宴 / 约会 / 温泉；不写伤势外观", function () {
+		var res = mbCEAveryInjurySettleOnly();
+		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+		if (res.ok) { redraw(); }
+	});
+	mbCEVanillaEconUiBtn(g, "解除（还原开启前）", "按开启前快照还原 injury_timer / injury_stage / avery_injury；原本未定义的键删除", function () {
+		var res = mbCEAveryInjuryOff();
+		setStatus(res.message, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+		if (res.ok) { redraw(); }
+	});
+}
+function mbCERenderAveryInjury(sec) {
+	var body = mceNewGroup(sec, "艾弗里 · 保持受伤（三档 + 休养）", "伤势外观按原版档位；休养 = 不工作 / 不接送 / 不赴宴 / 不约会");
+	var redraw = function () {
+		while (body.firstChild) { body.removeChild(body.firstChild); }
+		var st = mbCEAveryInjuryState();
+		body.appendChild(mbCEAveryInjuryKv(st));
+		var g = mceBtnGrid(body);
+		mbCEAveryInjuryButtons(g, redraw);
+		body.appendChild(mceFoldHint("原版判定：$avery_mansion.injury 是 0.5.7 遗留死键（全库 0 写入），"
+			+ "真正的伤只看 injury_timer + injury_stage；$avery_injury 是日程总闸（办公室工作 / 接送 / 派对 / 晚餐 / 约会 / 红毯 / 温泉 / 街头初见）。\n"
+			+ "外观三档依赖庄园的 injury_stage（<<avery_injury_check>>），所以没有庄园数据的存档只能「仅休养」。\n"
+			+ "注意：还没在街头遇过 Avery（$averyseen 不是 1）时开休养，会连初见一起挡掉——先认识再开。\n"
+			+ "冻结方式：每次进段落回写 timer/stage，每日结算的 -1 会被拉回；解除后按开启前原值还原。"));
+		if (!st.known) { body.appendChild(el("div", "mce-warn", "该存档尚未记录与 Avery 的初见（averySeen 为空 / averyseen 不是 1）：开休养会挡掉街头初见，建议先认识。")); }
+	};
+	redraw();
+}
 /* 职责：NPC 特质获取 + 誓言修复 + 时间推进（Now / Advance / Jump） */
 	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
 	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
@@ -19691,14 +21219,14 @@ function mbCERenderAveryKeep(sec) {
 			mcRenderAutoMaintSec, mcRenderWorldCorruptSec
 		].forEach(function (f) { f(gBatch); });
 
-		var gGuard = mceNewGroup(pane, "防护", "⑧ 数值固定 · ⑨ 潜伏者", true);
-		[mbCERenderLock, mbCERenderLurker].forEach(function (f) { f(gGuard); });
+		var gGuard = mceNewGroup(pane, "防护", "⑧ 数值固定 · ⑨ 潜伏者 · 贝利扣押拦截", true);
+		[mbCERenderLock, mbCERenderLurker, mbCERenderBailey].forEach(function (f) { f(gGuard); });
 
 		/* 原版扩展：档案/收藏/头衔 07l · 经济/学业/农田/消耗品/纹身 07m · 鹰塔 07n · 礼顿把柄 07o · 食物/鱼获 07p · 艾弗里 07q，均走独立 vcore 留痕可逐条回退 */
 		var gExt = mceNewGroup(pane, "原版扩展", "⑩~⑬ 档案 · 经济 · 鹰塔 · 礼顿 · 食物 · 艾弗里", true);
 		[
 			mbCERenderVanillaExt, mbCERenderVanillaEcon, mbCERenderVanillaBird, mbCERenderVanillaLeighton,
-			mbCERenderVanillaFood, mbCERenderAveryKeep
+			mbCERenderVanillaFood, mbCERenderAveryKeep, mbCERenderAveryInjury
 		].forEach(function (f) { f(gExt); });
 
 		var gAudit = mceNewGroup(pane, "态度与回退", "原版态度 · 统一回退中心", true);
@@ -20851,7 +22379,10 @@ function mbCEUndoOne(key) {
 		"lurker:farm_stage": "农场阶段",
 		"lurker:stat_lurkers_captured": "累计捕获潜伏者"
 	};
-	/* 庄园维护写入的变量名 → 中文（03b mcMaintain* 的写入面） */
+	/* 庄园维护写入的变量名 → 中文（03b mcMaintain* 的写入面）
+	   2026-11-26 补齐：农场家畜敬重（HTML 305720-305723 Steeds/Pigs/Cattle/Dogs' Respect，-30..30）、
+	   雷米侵蚀度（HTML 305735 Remy's Encroachment）、艾弗里庄园十间房与离开天数（03b L226-229）——
+	   这些原先都落裸点号路径（回退中心显示 farm.beasts.horses / avery_mansion.pool）。 */
 	var MB_CE_UNDO_MAINT = {
 		temple_quarters: "神殿宿舍清洁",
 		temple_garden: "神殿花园打理",
@@ -20862,14 +22393,76 @@ function mbCEUndoOne(key) {
 		salve: "药膏补给",
 		"bird.materials.wood": "鹰塔木材补给",
 		"eden.children": "伊甸孩子",
-		farm: "农场投喂"
+		farm: "农场投喂",
+		"farm.beasts.horses": "农场马群敬重",
+		"farm.beasts.pigs": "农场猪群敬重",
+		"farm.beasts.cattle": "农场牛群敬重",
+		"farm.beasts.dogs": "农场狗群敬重",
+		"farm.aggro": "雷米侵蚀度",
+		"avery_mansion.pool": "艾弗里庄园泳池脏度",
+		"avery_mansion.kitchen": "艾弗里庄园厨房脏度",
+		"avery_mansion.lounge": "艾弗里庄园起居室脏度",
+		"avery_mansion.display": "艾弗里庄园陈列室脏度",
+		"avery_mansion.bedroom": "艾弗里庄园卧室脏度",
+		"avery_mansion.bathroom": "艾弗里庄园浴室脏度",
+		"avery_mansion.dining": "艾弗里庄园餐厅脏度",
+		"avery_mansion.garden": "艾弗里庄园花园脏度",
+		"avery_mansion.study": "艾弗里庄园书房脏度",
+		"avery_mansion.garage": "艾弗里庄园车库脏度",
+		"avery_mansion.days_absent": "艾弗里庄园离开天数"
 	};
-	/* 言灵改写 op → 中文（07i-yanling-core 的 mbCEYanlingTrace 三处） */
+	/* 言灵改写 op → 中文（07i-yanling-core 的 mbCEYanlingTrace 全集，v2.2.8 实机：曾只映射 3 条，
+	   其余条目在回退中心显示裸键 avery_office / toggle_noCross，玩家看不懂） */
 	var MB_CE_UNDO_YANLING = {
 		purge_cross: "异装与校规记录清除",
 		purge_trait: "特质清除",
-		purge_fame: "名声清除"
+		purge_fame: "名声清除",
+		max_fame: "名声上限提升",
+		uncap_pregnancy_fame: "怀孕名声上限解除",
+		dry_clothes: "一键烘干衣物",
+		repair_clothes: "一键修补衣物",
+		semen: "清除体液",
+		mind: "精神状态恢复",
+		sadomasochism: "施虐受虐值",
+		seeds: "清除体内种子",
+		robin_money: "罗宾欠款",
+		avery_date: "艾弗里约会进度",
+		avery_office: "艾弗里办公室剧情",
+		head_password: "项圈密码",
+		collar_lock: "项圈锁定",
+		collar_break: "项圈破坏",
+		feats_locked: "解锁成就",
+		farm: "农场地块整备",
+		milk: "泌乳清空",
+		weather: "天气改写",
+		gwylan_banish: "格威岚驱逐",
+		gwylan_recall: "格威岚召回",
+		gwylan_talk: "格威岚对话",
+		gwylan_desire: "格威岚欲望",
+		gwylan_request_done: "格威岚请求完成",
+		gwylan_petbed: "格威岚宠物床",
+		gwylan_sea: "格威岚海边",
+		gwylan_sex: "格威岚亲密",
+		gwylan_stage: "格威岚阶段",
+		kylar_state: "凯拉状态",
+		whitney_state: "惠特尼状态",
+		prison_protection: "监狱保护",
+		cheat_on: "言灵总开关",
+		hopeless_endings: "绝望结局跳过",
+		clear_curiosity: "好奇心清除",
+		hypno_cd: "催眠冷却",
+		hypno_daily: "催眠当日次数",
+		arcade_count: "街机次数",
+		leaf_suit: "枝叶变装",
+		leaf_revert: "枝叶还原",
+		toggle_noCross: "异装判定开关"
 	};
+	/* 言灵条目解析：词表 → toggle_* 动态开关 → 中文兜底（绝不返回裸英文键） */
+	function mbCEUndoYanlingName(rest) {
+		if (MB_CE_UNDO_YANLING[rest]) { return MB_CE_UNDO_YANLING[rest]; }
+		if (rest.indexOf("toggle_") === 0) { return "言灵开关 · " + rest.slice(7); }
+		return "言灵改写 · " + rest;
+	}
 	/* 经济 / 学业 / 农田 / 消耗品 / 纹身留痕 id → 中文（07m-vanilla-econ-data.js 的 vcore-econ 留痕） */
 	var MB_CE_UNDO_ECON = {
 		"rent-days": "租期倒计时",
@@ -20889,10 +22482,55 @@ function mbCEUndoOne(key) {
 		}
 		return "";
 	}
-	/* vcore-econ 专用：只在 ns/type 命中时改名，其余原样放过（拆出来是为了不给 mbCEUndoItemName 加分支/复杂度） */
+	/* vcore 专用：只在 ns/type 命中时改名，其余原样放过（拆出来是为了不给 mbCEUndoItemName 加分支/复杂度） */
 	function mbCEUndoEconFixName(name, ns, rest, rec) {
 		if (ns !== "vcore" || !rec || rec.type !== "vcore-econ") { return name; }
-		return mbCEUndoEconName(rest);
+		/* v2.2.8：未命中 econ 词表时保留上层已解析的名字（原先返回空串会把 vcore 分支的结果清掉） */
+		return mbCEUndoEconName(rest) || name;
+	}
+	/* 原版档案类留痕 id → 中文（07l-vanilla-ext / 07q 艾弗里庄园 / 07v 保持受伤 的 type 默认 "vcore"）
+	   know-npc / gwylan-wait / sam-away 是 2026-11-26 补齐：分别来自 07t 认识角色、07r 格威岚消失期、07s Sam 公园驱逐，
+	   三条实参原先都落「原版档案 · 键名」。 */
+	var MB_CE_UNDO_VCORE = {
+		crime: "犯罪记录全清",
+		antique: "古董收藏与成就",
+		title: "头衔（雷米疤面）",
+		"avery-keep": "艾弗里庄园保留",
+		"avery-injury": "艾弗里保持受伤",
+		"rent-money": "每周租金金额",
+		"rent-lock": "每周租金锁定",
+		"rent-days": "租期倒计时",
+		"rent-debt": "欠租金额",
+		"school": "今日出勤与旷课计数",
+		"condoms": "避孕套数量",
+		"tattoo-all": "全部纹身清除",
+		"know-npc": "标记角色为认识",
+		"gwylan-wait": "格威岚消失期等待",
+		"sam-away": "Sam 公园驱逐"
+	};
+	/* vcore 前缀型条目：food-<食材键>（07p 库存直写）/ antique-<特殊件键>（07l-special 单件收集） */
+	function mbCEUndoVcorePrefixName(rest) {
+		if (rest.indexOf("food-") === 0) {
+			var fk = rest.slice(5);
+			try { return "食物 · " + (typeof mbCEFoodZh === "function" ? mbCEFoodZh(fk) : fk); } catch (eF) { return "食物库存 · " + fk; }
+		}
+		if (rest.indexOf("antique-") === 0) {
+			var ak = rest.slice(8);
+			var al = (typeof MCE_VANILLA_SPECIAL_ANTIQUES === "object" && MCE_VANILLA_SPECIAL_ANTIQUES) ? MCE_VANILLA_SPECIAL_ANTIQUES[ak] : "";
+			return "古董 · " + (al || ak);
+		}
+		return "";
+	}
+	/* vcore 条目解析：档案词表 → 前缀条目 → 经济/农田/纹身词表 → 中文兜底（绝不返回裸英文键） */
+	function mbCEUndoVcoreName(rest, rec) {
+		if (MB_CE_UNDO_VCORE[rest]) { return MB_CE_UNDO_VCORE[rest]; }
+		var pref = mbCEUndoVcorePrefixName(rest);
+		if (pref) { return pref; }
+		var econ = mbCEUndoEconName(rest);
+		if (econ) { return econ; }
+		if (MB_CE_UNDO_BIRD && MB_CE_UNDO_BIRD[rest]) { return MB_CE_UNDO_BIRD[rest]; }
+		if (MB_CE_UNDO_LEIGHTON && MB_CE_UNDO_LEIGHTON[rest]) { return MB_CE_UNDO_LEIGHTON[rest]; }
+		return "原版档案 · " + rest;
 	}
 	/* 鹰塔留痕 id → 中文（07n-vanilla-bird.js 的 vcore-bird 留痕；同样只在命中时改名） */
 	var MB_CE_UNDO_BIRD = {
@@ -20942,6 +22580,24 @@ function mbCEUndoOne(key) {
 		}
 		return "";
 	}
+	/* 全局批次 / 孩子留痕的 op 名（都不是适配器 entry，靠这张小表兜住；
+	   2026-11-26 实机：回退中心原先显示 unlockClothes / eden.children.12.location 这类英文）
+	   孩子留痕 key 形如 cheat:fertility-expansion:fert_child_loc_<id>（04a-15:213 / 04a-15b:102/127） */
+	var MB_CE_UNDO_CHEAT_OP = {
+		unlockClothes: "解锁全部服装",
+		unlockRecipes: "解锁全部食谱",
+		fert_child_loc: "孩子居住地",
+		fert_child_adult: "孩子强制成年",
+		fert_child_skills: "孩子养育属性",
+		fert_child_innate: "孩子先天属性",
+		fert_child_aff: "孩子好感"
+	};
+	function mbCEUndoCheatOpName(itemKey) {
+		if (MB_CE_UNDO_CHEAT_OP[itemKey]) { return MB_CE_UNDO_CHEAT_OP[itemKey]; }
+		var m = /^(fert_child_[a-z]+)_([0-9]+)$/.exec(itemKey);
+		if (m && MB_CE_UNDO_CHEAT_OP[m[1]]) { return MB_CE_UNDO_CHEAT_OP[m[1]] + " · #" + m[2]; }
+		return "";
+	}
 	/* cheat:<modId>:<op|路径> */
 	function mbCEUndoCheatName(rest, rec) {
 		var i = rest.indexOf(":"), modId = (i < 0 ? rest : rest.slice(0, i)), itemKey = (i < 0 ? "" : rest.slice(i + 1));
@@ -20950,6 +22606,7 @@ function mbCEUndoOne(key) {
 		var recPath = (rec && typeof rec.path === "string") ? rec.path : "";
 		var name = mbCEUndoAdapterItemName((typeof CHEAT_ADAPTERS === "object" && CHEAT_ADAPTERS) ? (CHEAT_ADAPTERS[modId] || {}).entry : null, itemKey, op, recPath);
 		if (!name && modId === "player-self") { name = mbCEUndoZh(MB_CE_UNDO_PLAYER, itemKey) || mbCEUndoZh(MB_CE_UNDO_PLAYER, (op ? op + ":" : "") + itemKey); }
+		if (!name) { name = mbCEUndoCheatOpName(itemKey); }
 		if (!name) {
 			try { if (typeof zhKey === "function") { name = zhKey(recPath || itemKey); } } catch (e) { name = ""; }
 		}
@@ -21000,8 +22657,9 @@ function mbCEUndoOne(key) {
 		try {
 			if (ns === "cheat") { name = mbCEUndoCheatName(rest, rec); }
 			else if (ns === "place") { name = mbCEUndoPlaceName(rest); }
-			else if (ns === "maint") { name = mbCEUndoZh(MB_CE_UNDO_MAINT, rest); }
-			else if (ns === "yanling") { name = mbCEUndoZh(MB_CE_UNDO_YANLING, rest); }
+			else if (ns === "maint") { name = mbCEUndoZh(MB_CE_UNDO_MAINT, rest) || (rest ? "庄园维护 · " + rest : "庄园维护"); }
+			else if (ns === "vcore") { name = mbCEUndoVcoreName(rest, rec); }
+			else if (ns === "yanling") { name = mbCEUndoYanlingName(rest); }
 			else if (ns === "world") { name = mbCEUndoWorldName(rest, rec); }
 			/* P4（v2.0.7）：lock:<path> 用锁定页同一套中文名（快速面板标签 → zhKey → 原 path 三级回落） */
 			else if (ns === "lock") {
@@ -21438,7 +23096,56 @@ function mbCEUndoOne(key) {
 			a.vanillaAveryUndo = function (id) { return mbCEAveryUndo(String(id || MCE_AVERY_KEEP_KEY)); };
 			a.vanillaAveryUndoKind = mbCEAveryUndoKind;
 			a.renderAveryKeep = mbCERenderAveryKeep;
+			/* v2.2.8 艾弗里保持受伤（07v-avery-injury.js）：三档外观 + 休养 + 每段冻结，解除/回退按首快照还原 */
+			a.averyInjuryModes = mbCEAveryInjuryModes;
+			a.averyInjuryState = mbCEAveryInjuryState;
+			a.averyInjuryHold = mbCEAveryInjuryHold;
+			a.averyInjurySettleOnly = mbCEAveryInjurySettleOnly;
+			a.averyInjuryOff = mbCEAveryInjuryOff;
+			a.averyInjuryHoldTick = mbCEAveryInjuryHoldTick;
+			a.averyInjuryUndoKind = mbCEAveryInjuryUndoKind;
+			a.renderAveryInjury = mbCERenderAveryInjury;
+			/* v2.2.7 需求③④⑤⑥：房租金额换算/锁定 · 格威岚消失期 · Sam 公园开关 · 认识角色（回退统一走 vanillaEconUndo） */
+			a.vanillaEconFmt = mbCEVanillaEconFmt;
+			a.vanillaEconRentMoney = mbCEVanillaEconRentMoney;
+			a.vanillaEconRentLock = mbCEVanillaEconRentLockOn;
+			a.vanillaEconRentUnlock = mbCEVanillaEconRentLockOff;
+			a.vanillaEconRentLockState = mbCEVanillaEconRentLockRaw;
+			a.vanillaEconRentLockTick = mbCEVanillaEconRentLockTick;
+			a.gwylanWaitState = mbCEGwylanWaitState;
+			a.gwylanSkipWait = mbCEGwylanSkipWait;
+			a.samAway = mbCESamAway;
+			a.samAwaySet = mbCESamAwaySet;
+			a.samEnsureHook = mbCESamEnsureHook;
+			a.knowState = mbCEKnowState;
+			a.knowSet = mbCEKnowSet;
+			a.knowProbe = mbCEKnowProbe;
+			a.stageExtras = mbCEStageExtras;
+			/* v2.2.8 初见补录 + 格威岚阶段线（07e-scenes / 07e-scenes2 / 07u-gwylan-stage） */
+			a.introScenes = mbCEIntroScenes;
+			a.gwylanSideScenes = mbCEGwylanSideScenes;
+			a.sceneStartFixes = function () { var o = {}; Object.keys(SCENE_START_FIXES).forEach(function (k) { o[k] = SCENE_START_FIXES[k]; }); return o; };
+			a.applySceneStartFixes = applySceneStartFixes;
+			a.sceneRoleOf = sceneRoleOf;
+			a.isVanillaSceneKey = isVanillaSceneKey;
+			a.vanillaSceneKeyCount = vanillaSceneKeyCount;
+			a.gwylanStageRows = mbCEGwylanStageRows;
+			a.gwylanLoveInfo = mbCEGwylanLoveInfo;
+			a.gwylanStagePrepare = mbCEGwylanStagePrepare;
+			a.gwylanStagePlay = mbCEGwylanStagePlay;
+			a.gwylanStageRestoreTick = mbCEGwylanStageRestoreTick;
 			if (typeof mbCEUndoItemName === "function") { a.mbCEUndoItemName = mbCEUndoItemName; }
+			/* v2.2.8 四项实机修复的测试/诊断入口 */
+			a.traitVarLabel = traitVarLabel;
+			a.renderTraitValueInline = renderTraitValueInline;
+			/* v2.2.7 贝利扣押拦截（07f-bailey.js）：原版清单恒空 → twee 走 rentdue 分支，不改 apply/restore */
+			a.baileyKeepState = baileyKeepState;
+			a.baileyKeepSet = baileyKeepSet;
+			a.baileyKeepSync = mbCEBaileySync;
+			a.baileyKeepRender = mbCERenderBailey;
+			a.yanlingLeafRepair = mbCEYanlingLeafRepair;
+			a.yanlingLeafRepairTick = mbCEYanlingLeafRepairTick;
+			a.farmWorkGuard = mbCEFarmWorkGuard;
 			/* v2.2.1 面板装饰层：外观三开关 / 宿主 token 快照协议 / 自动维护状态读取（测试与诊断入口） */
 			a.mbCEUiOptToggle = mbCEUiOptToggle;
 			a.mbCEApplyUiOpts = mbCEApplyUiOpts;

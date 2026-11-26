@@ -101,7 +101,10 @@
 		"WhitneySchoolBullySwimwear","WhitneyShoppingCentreClothes","WhitneyShoppingCentreCosmetics",
 		"WhitneyShoppingCentreHairDressers"
 	];
-	function isVanillaSceneKey(key) { return VANILLA_SCENE_KEYS.indexOf(key) !== -1; }
+	/* v2.2.8 初见补录键：本体 $scenes 未收录，但确属原版开头剧情 → 归「原版剧情」区（名单长度不变） */
+	var VANILLA_INTRO_KEYS = ["SamIntro", "DorenIntro", "SydneyIntro", "WrenIntro", "WhitneyIntro", "AlexIntro", "KylarIntro"];
+	function isVanillaSceneKey(key) { return VANILLA_SCENE_KEYS.indexOf(key) !== -1 || VANILLA_INTRO_KEYS.indexOf(key) !== -1; }
+	function vanillaSceneKeyCount() { return VANILLA_SCENE_KEYS.length; }
 	/* 场景键 → 角色分组（精确/前缀规则按顺序匹配，Nightmare 专项须在通用 Nightmare 之前） */
 	function sceneRoleOf(key) {
 		var k = String(key || "");
@@ -110,6 +113,11 @@
 			{ test: /^NightmareEden/, role: "伊甸 Eden" },
 			{ test: /^NightmareHarper/, role: "哈珀 Harper" },
 			{ test: /^NightmareOffice/, role: "艾弗里 Avery" },
+			{ test: /^Sam/, role: "山姆 Sam" },
+			{ test: /^Doren/, role: "多伦 Doren" },
+			{ test: /^Sydney/, role: "悉尼 Sydney" },
+			{ test: /^Wren/, role: "雷恩 Wren" },
+			{ test: /^Gwylan/, role: "格威岚 Gwylan" },
 			{ test: /^Robin|^RentFirstRobin/, role: "罗宾 Robin" },
 			{ test: /^Whitney|^HalloweenWhitney/, role: "惠特尼 Whitney" },
 			{ test: /^Kylar|^HalloweenKylar/, role: "凯拉尔 Kylar" },
@@ -160,6 +168,18 @@
 				{ key: "kylar_seen", name: "已看剧情标记补全", type: "action", action: "kylarSeen", note: "补全凯拉尔线 8 个已看标记：悉尼写作(sydneyWriting)·悉尼线 / 表白(saidLove)·主线 / 突击队(commando)·绑架线 / 冬季喷泉(fountainWinter)·冬季 / 喷泉初遇(fountainIntro)·初遇 / 聊天初遇(chatIntro)·初遇 / 食堂(canteen)·校园 / 地下室(basement)·绑架" },
 				{ key: "kylar_watch", name: "一键进入「被凯拉尔监视」", type: "action", action: "kylarWatch", note: "写 $kylarwatched=1 + $kylarwatchedtimer=2（本体街上事件池首设值）。之后在街上走动即触发「Something is watching you.」整条链，直到计时耗尽或换地点；是状态注射，不是重放" }
 			]
+		},
+		/* v2.2.8 格威岚阶段线：原版 5 档阶段全部内联在 Gwylan Talk Shop（进店按好感阈值自动播放并 stage++），
+		   没有独立 passage 名 → 只能「补足好感 + 写 stage=该阶段-1 + 进店」；播放会真实推进进度（与「一键完成」同类语义）。 */
+		"格威岚 Gwylan": {
+			intro: "5 档好感阶段（$gwylan.stage 0→5）+ 13 条支线直达（支线在下方场景区，点「直达触发」）",
+			items: [
+				{ key: "gwylan_stage_1", name: "阶段 1 · 修旧架子（≥10%）", type: "action", action: "gwylanStage1", note: "好感阈值 10%。会把 $gwylan.stage 写为 0 并补足好感，然后进入 Gwylan Talk Shop 播该段，播完 stage 升到 1" },
+				{ key: "gwylan_stage_2", name: "阶段 2 · 整理衣架（≥25%）", type: "action", action: "gwylanStage2", note: "好感阈值 25%。同上，播完 stage 升到 2" },
+				{ key: "gwylan_stage_3", name: "阶段 3 · 书架后探头（≥50%）", type: "action", action: "gwylanStage3", note: "好感阈值 50%。同上，播完 stage 升到 3" },
+				{ key: "gwylan_stage_4", name: "阶段 4 · 修藤蔓（≥75%）", type: "action", action: "gwylanStage4", note: "好感阈值 75%。同上，播完 stage 升到 4" },
+				{ key: "gwylan_stage_5", name: "阶段 5 · 背后拥抱（100% + 已见 yearning）", type: "action", action: "gwylanStage5", note: "阈值 100%，且需 $gwylanSeen 含 yearning；缺失时拒绝（不伪造标记，避免污染真实进度）" }
+			]
 		}
 	};
 	function getRolePlots(role) { return EXTRA_ROLE_PLOTS[role] || null; }
@@ -197,5 +217,11 @@
 			return "已补全凯拉尔剧情标记（" + V.kylarSeen.length + " 项）";
 		}
 		return "未知动作";
+	}
+	/* v2.2.8：动作结果统一为 {ok, message}，让拒绝（如阶段 5 缺前置）能显示红字而不是一律绿色 */
+	function applyRolePlotActionResult(action) {
+		var m = /^gwylanStage([1-5])$/.exec(String(action || ""));
+		if (m) { return mbCEGwylanStagePlay(parseInt(m[1], 10)); }
+		return { ok: true, message: applyRolePlotAction(action) };
 	}
 

@@ -54,7 +54,6 @@ $verifyPaths = @(
 $excludePrefixes = @(
   "tools/_modcache",
   "tools/_archive_releases",
-  "tools/_legacy",
   "tools/selfcheck",
   "tools/game-pages",
   "tools/_srctypes",

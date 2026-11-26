@@ -12,7 +12,26 @@
 		"rent-debt": function (V, b, key) {
 			V.baileyRefusedToPayTotal = Number(b.debt) || 0;
 			delete V.mbCE_wrote[key];
-			return { ok: true, message: "已还原欠租为 £" + (Number(b.debt) || 0) };
+			return { ok: true, message: "已还原欠租为 " + mbCEVanillaEconFmt(Number(b.debt) || 0) };
+		},
+		"rent-money": function (V, b, key) {
+			if (b.rentmoney === undefined || b.rentmoney === null) {
+				try { delete V.rentmoney; } catch (e4) {}
+			} else {
+				V.rentmoney = Number(b.rentmoney) || 0;
+			}
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原每周租金为 " + (b.rentmoney === undefined || b.rentmoney === null ? "未设置" : mbCEVanillaEconFmt(b.rentmoney)) };
+		},
+		"rent-lock": function (V, b, key) {
+			if (!b.lock || typeof b.lock !== "object") {
+				try { delete V.mbCE_rentLock; } catch (e5) {}
+			} else {
+				V.mbCE_rentLock = mbCEVanillaEconClone(b.lock);
+			}
+			if (b.rentmoney !== undefined && b.rentmoney !== null) { V.rentmoney = Number(b.rentmoney) || 0; }
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: (b.lock && typeof b.lock === "object") ? "已还原租金锁（锁定 " + mbCEVanillaEconFmt(b.lock.money) + "）" : "已还原为未锁定状态" };
 		},
 		"school": function (V, b, key) {
 			if (V.daily && V.daily.school && b.attended) { V.daily.school.attended = mbCEVanillaEconClone(b.attended); }

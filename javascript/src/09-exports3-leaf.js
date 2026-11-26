@@ -58,7 +58,56 @@
 			a.vanillaAveryUndo = function (id) { return mbCEAveryUndo(String(id || MCE_AVERY_KEEP_KEY)); };
 			a.vanillaAveryUndoKind = mbCEAveryUndoKind;
 			a.renderAveryKeep = mbCERenderAveryKeep;
+			/* v2.2.8 艾弗里保持受伤（07v-avery-injury.js）：三档外观 + 休养 + 每段冻结，解除/回退按首快照还原 */
+			a.averyInjuryModes = mbCEAveryInjuryModes;
+			a.averyInjuryState = mbCEAveryInjuryState;
+			a.averyInjuryHold = mbCEAveryInjuryHold;
+			a.averyInjurySettleOnly = mbCEAveryInjurySettleOnly;
+			a.averyInjuryOff = mbCEAveryInjuryOff;
+			a.averyInjuryHoldTick = mbCEAveryInjuryHoldTick;
+			a.averyInjuryUndoKind = mbCEAveryInjuryUndoKind;
+			a.renderAveryInjury = mbCERenderAveryInjury;
+			/* v2.2.7 需求③④⑤⑥：房租金额换算/锁定 · 格威岚消失期 · Sam 公园开关 · 认识角色（回退统一走 vanillaEconUndo） */
+			a.vanillaEconFmt = mbCEVanillaEconFmt;
+			a.vanillaEconRentMoney = mbCEVanillaEconRentMoney;
+			a.vanillaEconRentLock = mbCEVanillaEconRentLockOn;
+			a.vanillaEconRentUnlock = mbCEVanillaEconRentLockOff;
+			a.vanillaEconRentLockState = mbCEVanillaEconRentLockRaw;
+			a.vanillaEconRentLockTick = mbCEVanillaEconRentLockTick;
+			a.gwylanWaitState = mbCEGwylanWaitState;
+			a.gwylanSkipWait = mbCEGwylanSkipWait;
+			a.samAway = mbCESamAway;
+			a.samAwaySet = mbCESamAwaySet;
+			a.samEnsureHook = mbCESamEnsureHook;
+			a.knowState = mbCEKnowState;
+			a.knowSet = mbCEKnowSet;
+			a.knowProbe = mbCEKnowProbe;
+			a.stageExtras = mbCEStageExtras;
+			/* v2.2.8 初见补录 + 格威岚阶段线（07e-scenes / 07e-scenes2 / 07u-gwylan-stage） */
+			a.introScenes = mbCEIntroScenes;
+			a.gwylanSideScenes = mbCEGwylanSideScenes;
+			a.sceneStartFixes = function () { var o = {}; Object.keys(SCENE_START_FIXES).forEach(function (k) { o[k] = SCENE_START_FIXES[k]; }); return o; };
+			a.applySceneStartFixes = applySceneStartFixes;
+			a.sceneRoleOf = sceneRoleOf;
+			a.isVanillaSceneKey = isVanillaSceneKey;
+			a.vanillaSceneKeyCount = vanillaSceneKeyCount;
+			a.gwylanStageRows = mbCEGwylanStageRows;
+			a.gwylanLoveInfo = mbCEGwylanLoveInfo;
+			a.gwylanStagePrepare = mbCEGwylanStagePrepare;
+			a.gwylanStagePlay = mbCEGwylanStagePlay;
+			a.gwylanStageRestoreTick = mbCEGwylanStageRestoreTick;
 			if (typeof mbCEUndoItemName === "function") { a.mbCEUndoItemName = mbCEUndoItemName; }
+			/* v2.2.8 四项实机修复的测试/诊断入口 */
+			a.traitVarLabel = traitVarLabel;
+			a.renderTraitValueInline = renderTraitValueInline;
+			/* v2.2.7 贝利扣押拦截（07f-bailey.js）：原版清单恒空 → twee 走 rentdue 分支，不改 apply/restore */
+			a.baileyKeepState = baileyKeepState;
+			a.baileyKeepSet = baileyKeepSet;
+			a.baileyKeepSync = mbCEBaileySync;
+			a.baileyKeepRender = mbCERenderBailey;
+			a.yanlingLeafRepair = mbCEYanlingLeafRepair;
+			a.yanlingLeafRepairTick = mbCEYanlingLeafRepairTick;
+			a.farmWorkGuard = mbCEFarmWorkGuard;
 			/* v2.2.1 面板装饰层：外观三开关 / 宿主 token 快照协议 / 自动维护状态读取（测试与诊断入口） */
 			a.mbCEUiOptToggle = mbCEUiOptToggle;
 			a.mbCEApplyUiOpts = mbCEApplyUiOpts;

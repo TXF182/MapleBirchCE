@@ -135,7 +135,7 @@ if (fixtureText) {
   assert(Object.prototype.hasOwnProperty.call(defs, "placeHolder") === false, "placeHolder（name 为空的注释样本）已被丢弃");
   /* 111 = 本体真实场景 110（注册表 111 键减 placeHolder）+ EXTRA_SCENES 1 条
      （KylarStalkingReversal，v2.0.20 B 批手工补的凯拉尔跟踪反转线，不在本体注册表里） */
-  assert(Object.keys(defs).length === 111, "本体 110 + EXTRA 1 = 111 条（实测 " + Object.keys(defs).length + "）");
+  assert(Object.keys(defs).length === 131, "本体 110 + EXTRA 21（v2.2.8 初见 7 + 格威岚支线 13 + KylarStalkingReversal）= 131 条（实测 " + Object.keys(defs).length + "）");
   assert(typeof defs.KylarStalkingReversal === "object" && defs.KylarStalkingReversal.startPassage === "Kylar Stalking Reversal Hide Confront", "EXTRA_SCENES 凯拉尔跟踪反转线仍在（startPassage 未被本次过滤误伤）");
   assert(typeof defs.Tutorial === "object" && defs.Tutorial.startPassage === "SV Tutorial", "对照：Tutorial 正常保留（startPassage=SV Tutorial）");
 } else {

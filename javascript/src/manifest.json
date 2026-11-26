@@ -228,12 +228,21 @@
       "note": "v2.1.10 悉尼/西里斯/艾弗里/格威岚五组 + 悉尼三组子入口（自 07d-places.js / 07d-places4.js 迁出，S1 拆段；unshift 保证 sydney_defile 排在 sydney_temple 之前）"
     },
     {
+      "file": "07e-scenes-intro.js",
+      "layer": "ui"
+    },
+    {
       "file": "07e-scenes.js",
       "layer": "ui"
     },
     {
       "file": "07e-scenes2.js",
       "layer": "ui"
+    },
+    {
+      "file": "07f-bailey.js",
+      "layer": "ui",
+      "note": "v2.2.7 贝利扣押拦截：欠租不再搬衣物家具（原版 0.5.12.13 Bailey Confiscation System）"
     },
     {
       "file": "07f-lock.js",
@@ -316,6 +325,10 @@
       "layer": "ui"
     },
     {
+      "file": "07i-yanling-leaf-repair.js",
+      "layer": "ui"
+    },
+    {
       "file": "07i-yanling-quick-data.js",
       "layer": "ui",
       "note": "v2.1.17 原帖 52 条补丁数据表（4 选项卡 / 分组 / 键路径 / 写入类型），执行器在下一段"
@@ -367,6 +380,11 @@
       "note": "经济/学业/农田/消耗品/纹身五项直写通道 + vcore-econ 留痕（全局页 ⑪ 数据层，结构门禁拆段）"
     },
     {
+      "file": "07m-vanilla-econ-money.js",
+      "layer": "ui",
+      "note": "v2.2.7 房租金额换算与锁定：便士↔英镑格式化 / 每周租金直写 / 租金锁定（passageinit 纠正）+ rent-money & rent-lock 回退"
+    },
+    {
       "file": "07m-vanilla-econ-undo.js",
       "layer": "ui",
       "note": "vcore-econ 回退处理器（kind 映射表，由 mbCEVanillaExtUndo 委派；结构门禁拆段）"
@@ -395,6 +413,31 @@
       "file": "07q-avery-mansion-keep.js",
       "layer": "ui",
       "note": "v2.2.0 艾弗里线放逐后保留房子：avery_fate fallen/kicked → saved + NPC dismissed → active + 清解雇场景标志（vcore 留痕，回退挂 MB_CE_ECON_UNDO.avery-keep）"
+    },
+    {
+      "file": "07r-gwylan-return.js",
+      "layer": "ui",
+      "note": "v2.2.7 格威岚消失期 A 档：清 timer.scorned/nobody + yearningLetter=1（保留原版来信→读信→和解），阶段页区块 + gwylan-wait 回退"
+    },
+    {
+      "file": "07s-sam-away.js",
+      "layer": "ui",
+      "note": "v2.2.7 Sam 公园驱逐：wrap window.isInPark，开关存 $mbCE_samAway，阶段页区块 + sam-away 回退"
+    },
+    {
+      "file": "07t-know-npc.js",
+      "layer": "ui",
+      "note": "v2.2.7 认识角色：调原版 initnpc 初始化后写回面板数值 + 相认场景静态表/运行时探测 + 阶段页扩展聚合 mbCEStageExtras + know-npc 回退"
+    },
+    {
+      "file": "07u-gwylan-stage.js",
+      "layer": "ui",
+      "note": "v2.2.8 格威岚阶段线：5 档好感阶段模拟写值（临时增删 $gwylanTalked + stage）→ 进 Gwylan Talk Shop 播段 → 离开自动还原"
+    },
+    {
+      "file": "07v-avery-injury.js",
+      "layer": "ui",
+      "note": "v2.2.8 艾弗里保持受伤：三档外观（吊带/石膏/快好）写 injury_timer+injury_stage，$avery_injury=true 停日程；每进一段回写冻结，解除按开启前快照还原（avery-injury 回退）"
     },
     {
       "file": "08-npc-traits.js",

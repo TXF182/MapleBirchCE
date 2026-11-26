@@ -22,6 +22,20 @@ function hookPassageOverride() {
    机制：固定触发跳转前设 mbCE_replayPending；首次进入该段落（pending=true）→ 消费标记、保留
    sceneViewSwitch（case 正常播放）；剧情结束链回（pending=false 且处于我们的重放）→ 清
    sceneViewSwitch 为无效值 → switch 走 default → 原版给出 Back 链接返回原位，不再重播。 */
+/* v2.2.7 进段补充钩子：五件事各自 self 兜底（异常一律静默，不阻断段落流转） */
+function mbCEOnPassageInitTicks(title) {
+	try { mbCEVanillaEconRentLockTick(); } catch (e1) {}
+	try { mbCEKnowProbe(title); } catch (e2) {}
+	try { mbCESamEnsureHook(); } catch (e3) {}
+	try { mbCEGwylanStageRestoreTick(title); } catch (e4) {}
+	try { mbCEAveryInjuryHoldTick(); } catch (e5) {}
+	/* v2.2.8：①枝叶装引用自愈（原版 <<clothing_data>> 每次加载重建 setup.clothes，注入项与 index 会失效 → 立绘整层不画）
+	   ②农场动物字段守卫（<<farm_gen>> 无条件读 $farm_work[..].monster_roll，缺失即 Farm Work 红屏） */
+	try { mbCEYanlingLeafRepairTick(); } catch (e6) {}
+	try { mbCEFarmWorkGuard(); } catch (e7) {}
+	/* v2.2.7 贝利扣押拦截：原版脚本可能晚于 CE 注入，逐回合幂等补装（开关关时只保存原引用、不覆盖） */
+	try { mbCEBaileySync(); } catch (e8) {}
+}
 function mbCEOnPassageInit(title) {
 	try {
 		/* v1.3.5：格威岚场景临时变量全局兜底——每次进入任意段落都先确保
@@ -37,6 +51,8 @@ function mbCEOnPassageInit(title) {
 		/* v1.9.x 庄园自动维护每日调度：任意段落进入时检查游戏日变化，
 		   执行已开启的自动维护项（AutoClean 模式，见 03-global.js mcAutoMaintainTick） */
 		try { mcAutoMaintainTick(); } catch (e) {}
+		/* v2.2.7 需求③④⑤：租金锁纠正 / 认识探测 / Sam 钩子补装（各自 self 兜底，见下方 helper） */
+		mbCEOnPassageInitTicks(title);
 		if (title !== "Scene Viewer passages") { return; }
 		var V = getV();
 		if (!V) { return; }
@@ -44,8 +60,7 @@ function mbCEOnPassageInit(title) {
 		if (V.replayScene && V.mbCE_replayOnce) { V.sceneViewSwitch = "MB_CE_END"; }
 	} catch (e) { /* passage 收尾钩子失败必须静默，避免阻断原版段落流转 */ }
 }
-function hookPassageInit() {
-	try {
+function hookPassageInit() {	try {
 		if (typeof document === "undefined" || !document || typeof $ === "undefined" || !$) { return; }
 		$(document).off(":passageinit.mbce").on(":passageinit.mbce", function (ev, passage) {
 			try {

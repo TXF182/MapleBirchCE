@@ -81,12 +81,19 @@ assert(V.worn.under_lower.integrity === 250, "clothingData 给出上限 250 → 
 
 /* ================= 3. 精液量 ================= */
 section("3 yanlingSemen");
-delete V.semen_volume; delete V.semen_amount;
+delete V.semen_volume; delete V.semen_amount; delete V.semen_max;
 const sem0 = api.yanlingSemen();
 assert(sem0.ok === false && /不是男性生理档/.test(sem0.msg), "两个键都缺 → 明确说不是男性档（" + sem0.msg + "）");
+/* 容量上限键缺失 → 拒绝（原版 clamp 以 semen_max 为容量上限，L290801） */
 V.semen_volume = 90; V.semen_amount = 20;
+const semNoMax = api.yanlingSemen();
+assert(semNoMax.ok === false && /semen_max/.test(semNoMax.msg), "缺 $semen_max → 拒绝（" + semNoMax.msg + "）");
+/* 原版语义：semen_volume=容量 / semen_amount=当前量，满 = amount >= volume（L165043 / L104935） */
+V.semen_max = 3000; V.semen_volume = 90; V.semen_amount = 20;
 const sem1 = api.yanlingSemen();
-assert(sem1.ok === true && V.semen_amount === 90 && V.semen_volume === 1090, "先补 amount 再抬 volume（90 / 1090）");
+assert(sem1.ok === true && V.semen_volume === 3000 && V.semen_amount === 3000, "容量抬到 semen_max、当前量写满（3000 / 3000，不再是 90 / 1090）");
+assert(V.semen_amount >= V.semen_volume, "写后满足原版「满」判据 amount >= volume");
+assert(V.semen_volume <= V.semen_max, "容量不越 semen_max（次日 clamp 不压回）");
 
 /* ================= 4. 精神 / 施虐 ================= */
 section("4 yanlingMind / yanlingSadism");
@@ -136,9 +143,14 @@ const farm2 = api.yanlingFarm();
 assert(V.farm.clearing === 0 && V.fertiliser.current === 12, "清场归 0、堆肥 +5（7 → 12）");
 delete V.milk_max;
 assert(/无 \$milk_volume/.test(api.yanlingMilk().msg), "缺奶量键 → 拒绝");
-V.milk_max = 100; V.milk_volume = 30;
+V.milk_max = 100; V.milk_volume = 30; V.milk_amount = 0;
 const milk = api.yanlingMilk();
-assert(milk.ok === true && V.milk_max === 10000 && V.milk_volume === 5000, "奶量 5000 / 上限 10000");
+assert(milk.ok === true && V.milk_max === 6000 && V.milk_volume === 6000 && V.milk_amount === 6000, "上限归一到原版合法档 6000，容量与当前量均写满（不再是 10000 / 5000）");
+assert(V.milk_volume <= V.milk_max && V.milk_amount >= V.milk_volume, "满足原版 clamp 与「满」判据（L290800 / L104935）");
+V.milk_max = 3000; V.milk_volume = 30;
+delete V.milk_amount;
+const milk2 = api.yanlingMilk();
+assert(milk2.ok === true && V.milk_max === 6000 && V.milk_amount === undefined, "无 $milk_amount 时不硬建（合规模块缺键不造垃圾）");
 
 /* ================= 7. 天气 ================= */
 section("7 yanlingWeather");

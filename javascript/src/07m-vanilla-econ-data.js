@@ -201,12 +201,12 @@
 	function mbCEVanillaEconRentDebt(raw) {
 		var V = getV();
 		if (!V) { return { ok: false, message: "存档变量不可用" }; }
-		var n = mbCEVanillaEconNum(raw, 0, 99999999);
-		if (n === null) { return { ok: false, message: "欠租金额需为 0–99999999 的整数" }; }
+		var n = mbCEVanillaEconPoundsToPence(raw);
+		if (n === null) { return { ok: false, message: "欠租金额需为 £0 – £999,999.99（可带两位小数）" }; }
 		var before = { kind: "rent-debt", debt: Number(V.baileyRefusedToPayTotal) || 0 };
 		V.baileyRefusedToPayTotal = n;
-		mbCEVanillaTrace("rent-debt", before, "baileyRefusedToPayTotal", "欠租金额直写", "vcore-econ");
-		return { ok: true, message: "欠租已设为 £" + n };
+		mbCEVanillaTrace("rent-debt", before, "baileyRefusedToPayTotal", "欠租金额直写（英镑输入转便士）", "vcore-econ");
+		return { ok: true, message: "欠租已设为 " + mbCEVanillaEconFmt(n) };
 	}
 	function mbCEVanillaEconClearDebt() { return mbCEVanillaEconRentDebt(0); }
 

@@ -111,10 +111,12 @@
 				body.appendChild(el("div", MCE_CLS.hint, "该存档还没进入租房线，暂无房租数据。"));
 				return;
 			}
+			var lock = mbCEVanillaEconRentLockRaw();
 			mbCEVanillaEconUiKv(body, [
 				["距下次催租", st.rent.renttime + " 天"],
-				["欠租", "£" + st.rent.debt],
-				["每周租金", "£" + st.rent.rentmoney + (st.rent.babyRent ? "（婴儿 £" + st.rent.babyRent + "）" : "")]
+				["欠租", mbCEVanillaEconFmt(st.rent.debt)],
+				["每周租金", mbCEVanillaEconFmt(st.rent.rentmoney) + (st.rent.babyRent ? "（婴儿 " + mbCEVanillaEconFmt(st.rent.babyRent) + "）" : "")],
+				["租金锁定", lock ? "已锁定 " + mbCEVanillaEconFmt(lock.money) : "未锁定"]
 			]);
 			var daysInp = mbCEVanillaEconUiNumRow(body, "租期天数", "0 = 今天已交，7 天内不催租；数值越小越早被催", st.rent.renttime);
 			var g1 = mceBtnGrid(body);
@@ -124,17 +126,31 @@
 			mbCEVanillaEconUiBtn(g1, "设为今天已交", "等价租期 0：今天收过租，接下来 7 天不计欠", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRentDays(0), redraw);
 			});
-			var debtInp = mbCEVanillaEconUiNumRow(body, "欠租金额（£）", "只改实际欠款，统计页历史累计不动", st.rent.debt);
+			var debtInp = mbCEVanillaEconUiNumRow(body, "欠租金额（£）", "只改实际欠款，统计页历史累计不动", st.rent.debt / 100);
 			var g2 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g2, "写入欠租", "把欠租写成上方数值", function () {
+			mbCEVanillaEconUiBtn(g2, "写入欠租", "把欠租写成上方数值（£ 输入，内部存便士）", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconRentDebt(debtInp.value), redraw);
 			});
 			mbCEVanillaEconUiBtn(g2, "清空欠租", "欠款归 0，Bailey 不再追这笔钱", function () {
 				mbCEVanillaEconUiRun(mbCEVanillaEconClearDebt(), redraw);
 			});
-			body.appendChild(mceFoldHint("原版只在「倒计时跌破 0 且正好是 7 的倍数」那一刻按当周周租累计欠租；"
-				+ "写 0 等于今天已经交过，写大数值是把催租往后拖。欠租金额直写只改实际欠款，统计页的历史累计保持真实。"));
-			mbCEVanillaEconUiUndoGrid(body, redraw, [["rent-days", "回退租期"], ["rent-debt", "回退欠租"]]);
+			var rentInp = mbCEVanillaEconUiNumRow(body, "每周租金（£）", "按英镑输入（可带两位小数），内部按便士存 rentmoney", st.rent.rentmoney / 100);
+			var g3 = mceBtnGrid(body);
+			mbCEVanillaEconUiBtn(g3, "写入每周租金", "覆盖原版周租；原版在初始化与每次交租时都会按倍率重算，建议配合锁定", function () {
+				mbCEVanillaEconUiRun(mbCEVanillaEconRentMoney(rentInp.value), redraw);
+			});
+			if (lock) {
+				mbCEVanillaEconUiBtn(g3, "解除租金锁定", "恢复正常重算（下次初始化 / 交租按档位与倍率重算）", function () {
+					mbCEVanillaEconUiRun(mbCEVanillaEconRentLockOff(), redraw);
+				});
+			} else {
+				mbCEVanillaEconUiBtn(g3, "锁定当前金额", "每次进入段落检查一次，被重算改写就写回锁值", function () {
+					mbCEVanillaEconUiRun(mbCEVanillaEconRentLockOn(), redraw);
+				});
+			}
+			body.appendChild(mceFoldHint("原版金额一律按便士存：£1 = 100 便士，档位表 £100 / £300 / £500 / £700 / £1000 / £1500 / £2000。"
+				+ "锁定只纠正被重算改写的值；若开着租金倍率或替 Robin 代付，交租瞬间仍会乘一次，写入与锁定时都会有提示。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [["rent-days", "回退租期"], ["rent-debt", "回退欠租"], ["rent-money", "回退周租"], ["rent-lock", "回退租金锁"]]);
 		};
 		redraw();
 	}

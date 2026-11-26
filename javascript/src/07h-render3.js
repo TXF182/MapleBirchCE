@@ -62,3 +62,33 @@
 			}
 		});
 	}
+	/* v2.2.8：只有角色剧情进度、没有原版场景的 MOD 角色（格威岚）也要有独立分组，
+	   否则 EXTRA_ROLE_PLOTS 只挂在原版角色组内 → 阶段按钮在面板上无处可点。
+	   与 renderSceneRegion 的 byRole 分支同构（默认收起 + 懒渲染 + 展开状态持久化）。 */
+	function renderRoleGroup(pane2, role, keys, defs) {
+		var g = el("div", "mce-grp");
+		g.setAttribute("data-tcat", role);
+		var gh = el("div", "mce-grp-t mce-collapse-head");
+		gh.title = "点击展开/收起该分组场景（懒渲染：展开时才构建场景控件）";
+		var open0 = sceneStored(role) === 0;
+		var label = function (opened) { return (opened ? "▾" : "▸") + role + "（" + (keys.length ? keys.length + " 场景" : "剧情进度") + "）"; };
+		gh.textContent = label(open0);
+		g.appendChild(gh);
+		var gb = el("div", "mce-grp-body");
+		gb.setAttribute("data-collapsed", open0 ? "0" : "1");
+		var build = function () {
+			if (keys.length) { renderSceneCluster(gb, keys, defs); }
+			var plots = getRolePlots(role);
+			if (plots) { gb.appendChild(renderRolePlots(plots)); }
+		};
+		if (open0) { build(); }
+		gh.addEventListener("click", function () {
+			var nowOpen = gb.getAttribute("data-collapsed") === "0";
+			gb.setAttribute("data-collapsed", nowOpen ? "1" : "0");
+			gh.textContent = label(!nowOpen);
+			if (!nowOpen && !gb.querySelector(".mce-stage")) { build(); }
+			sceneSet(role, nowOpen ? 1 : 0);
+		});
+		g.appendChild(gb);
+		pane2.appendChild(g);
+	}

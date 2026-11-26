@@ -102,7 +102,7 @@
 		return (hit && hit.slot === slot) ? hit.item : null;
 	}
 
-	function mbCEYanlingLeafInject(slot, name, variable, preferred) {
+	function mbCEYanlingLeafInject(slot, name, variableIgnore, preferred) {
 		var s = mbCEYanlingSetupObj();
 		if (!s || !s.clothes || !Array.isArray(s.clothes[slot])) { return null; }
 		var hit = mbCEYanlingClothFind(name);
@@ -113,7 +113,13 @@
 		if (!item) { return null; }
 		item.name = name;
 		item.name_cap = name.charAt(0).toUpperCase() + name.slice(1);
-		item.variable = variable;
+		/* v2.2.8 立绘修复（原版 HTML 实证）：
+		   genlayer_clothing_breasts(99546) / clothing_main(99323) 的图路径 = img/clothes/<slot>/<setup.variable>/<图>.png，
+		   DoL 官方没有 leafshirt/leafskirt 目录（全 game 目录 *leaf* 命中 0），自带 variable 必然 404 → 只剩文字穿在身上。
+		   故 variable 保留模板的 plant（upper 有 0.png/3.png、lower 有 frayed/full/tattered/torn.png），立绘立刻可见；
+		   modder 打成唯一标记，保证 clothesIndex(66895) 的 variable+modder 双键匹配不与植物装原件撞车。 */
+		item.variable = String((tpl && tpl.variable) || item.variable || "plant");
+		item.modder = "MapleBirchCE";
 		item.index = s.clothes[slot].length;
 		item.mbCE_leafSynth = 1;
 		s.clothes[slot].push(item);
@@ -134,6 +140,7 @@
 		mbCEYanlingLeafEnsure();
 		return mbCEYanlingClothFind(name);
 	}
+
 
 	/* 某槽的原版裸装实例（setup.clothes[slot][0]，clothingArrays 即用它初始化） */
 	function mbCEYanlingNakedItem(slot) {
@@ -187,6 +194,9 @@
 			if (!up || !lo) { return { ok: false, msg: "服装表缺少可用的植物系模板（plant top / plant skirt），无法合成 " + MB_CE_LEAF_UP + " / " + MB_CE_LEAF_LO + "；请确认游戏版本与 setup.clothes 已初始化" }; }
 			var w = mbCEYanlingWardrobePick(V);
 			if (!w) { return { ok: false, msg: "衣柜对象不可用（$wardrobe 未初始化）" }; }
+			/* v2.2.8：原衣与枝叶副本统一写主衣柜 V.wardrobe —— 玩家开多衣柜时 selectWardrobe 返回的是当前地点的
+			   专属衣柜，写进去在主衣柜面板看不到，正是「变装了但衣柜里什么都没有」的成因之一 */
+			if (V.wardrobe && typeof V.wardrobe === "object") { w = V.wardrobe; }
 			var backup = {}, stored = [], beforeNames = {};
 			var i, slot, cur, nm, save, put, arr;
 			/* 1) 先记录 + 入柜（含即将被替换的 upper / lower 原衣） */
@@ -245,12 +255,15 @@
 					if (c2) { c2.mbCE_leafCopy = 1; cLoArr.push(c2); copied.push(MB_CE_LEAF_LO); }
 				}
 			}
+			/* 3.5) 立刻校正 index（setup 若在本会话之前重建过，查到的既有项 index 可能已是旧值 → 立绘读越界不画） */
+			mbCEYanlingLeafFixRefs(V, { up: up.item, lo: lo.item });
 			/* 5) 记录（回退唯一依据）+ 留痕 */
 			st.leaf = { slots: backup, stored: stored, copied: copied, ts: Date.now() };
 			mbCEYanlingTrace("leaf_suit", { worn: beforeNames }, { worn: { upper: MB_CE_LEAF_UP, lower: MB_CE_LEAF_LO }, stored: stored.length, copied: copied.length });
 			var msg = "已换上枝叶装（" + up.slot + " → " + MB_CE_LEAF_UP + "，" + lo.slot + " → " + MB_CE_LEAF_LO + "）";
-			msg += "；原衣 " + stored.length + " 件已进衣柜";
-			msg += copied.length ? "；枝叶本体也已放入衣柜（以后可直接从衣柜再穿）" : "";
+			msg += "；原衣 " + stored.length + " 件已进主衣柜";
+			msg += copied.length ? "；枝叶本体也已放入主衣柜（以后可直接从衣柜再穿）" : "；主衣柜里已有同名枝叶副本，未重复放入";
+			msg += "。立绘在当前画面不会立刻重绘：走动一段、或刷新页面后即可看到枝叶装";
 			return { ok: true, msg: msg };
 		} catch (e) { return { ok: false, msg: "枝叶变装异常：" + mbCEYanlingErr(e) }; }
 	}
@@ -297,6 +310,9 @@
 			}
 			delete st.leaf;
 			mbCEYanlingTrace("leaf_revert", { restored: restored, pulled: pulled }, { leaf: null });
-			return { ok: true, msg: "已还原原服装（" + (restored.length ? restored.join(" / ") : "无") + "）；衣柜回收原衣 " + pulled + " 件（枝叶副本保留，可继续从衣柜穿）" };
+			var rmsg = "已还原原服装（" + (restored.length ? restored.join(" / ") : "无") + "）；衣柜回收原衣 " + pulled + " 件（枝叶副本保留，可继续从衣柜穿）";
+			if (!restored.length) { rmsg += "。你变装前 4 个躯干槽本来就没穿衣服（记录里全是空），所以视觉上不会有变化——这不是没生效"; }
+			rmsg += "。立绘在当前画面不会立刻重绘：走动一段、或刷新页面后即可看到";
+			return { ok: true, msg: rmsg };
 		} catch (e) { return { ok: false, msg: "枝叶还原异常：" + mbCEYanlingErr(e) }; }
 	}

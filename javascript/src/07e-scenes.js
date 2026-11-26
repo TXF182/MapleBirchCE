@@ -229,19 +229,25 @@
 	/* 合并 EXTRA_SCENES 到 defs；本体/MOD 已注册的同名键让位，不覆盖。
 	   仅在本体注册表非空时合并：本体注册表为空/损坏时保留空态，让剧情页照旧显式报「未读取到场景注册表」，
 	   不用 1 条自有场景把错误掩盖成「看起来正常」。 */
-	function mergeExtraScenes(defs) {
-		if (!defs || typeof defs !== "object") { return defs; }
-		if (Object.keys(defs).length === 0) { return defs; }
-		Object.keys(EXTRA_SCENES).forEach(function (k) {
+	function mergeOneSceneTable(defs, table) {
+		if (!table || typeof table !== "object") { return; }
+		Object.keys(table).forEach(function (k) {
 			if (defs[k]) { return; }
-			var s = EXTRA_SCENES[k];
+			var s = table[k];
 			defs[k] = {
 				name: s.name, startPassage: s.startPassage, passages: s.passages.slice(),
 				manualVariableChanges: s.manualVariableChanges,
 				unlockedExpr: s.unlockedExpr, lockedExpr: s.lockedExpr
 			};
 		});
-		return defs;
+	}
+	function mergeExtraScenes(defs) {
+		if (!defs || typeof defs !== "object") { return defs; }
+		if (Object.keys(defs).length === 0) { return defs; }
+		mergeOneSceneTable(defs, EXTRA_SCENES);
+		/* v2.2.8：初见 7 条 + 格威岚支线 13 条已拆到 07e-scenes-intro.js（单段行数预算） */
+		mergeOneSceneTable(defs, (typeof EXTRA_SCENES_EXTRA !== "undefined" ? EXTRA_SCENES_EXTRA : null));
+		return applySceneStartFixes(defs);
 	}
 	var scenesDefsCache = null; /* { ref, size, passRef, passLen, parsed, recovered } */
 	function getScenesDefs() {

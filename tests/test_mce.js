@@ -424,7 +424,7 @@ let lap0 = api.listAllPassages();
 assert(lap0.length === 1 && lap0[0].name === "Scene Viewer", "listAllPassages 经 Story.lookupWith 枚举段落, 实际 " + lap0.length);
 // 9.1) 实时解析 widget 文本（live 模式），9 个场景
 let sDefs = api.getScenesDefs();
-assert(sDefs.live === true && Object.keys(sDefs.defs).length === 10, "场景注册表从 Story 文本实时解析 10 条（fixture 9 + EXTRA 1）, 实际 " + Object.keys(sDefs.defs).length);
+assert(sDefs.live === true && Object.keys(sDefs.defs).length === 30, "场景注册表从 Story 文本实时解析 30 条（fixture 9 + EXTRA 21）, 实际 " + Object.keys(sDefs.defs).length);
 // 9.2) Tutorial：未达成 → 一键完成（push "Tutorial"）→ 复检达成
 let stTut = api.sceneStatus(sDefs.defs["Tutorial"]);
 assert(stTut.state === "fail", "Tutorial 初始未达成(红)");
@@ -453,7 +453,7 @@ let robinLine = cluster.lines.find(l => /RobinCrossdressing/i.test(l.prefix));
 assert(robinLine && robinLine.items.length === 3 && robinLine.items.map(i => i.num).join() === "1,2,3", "罗宾变装线 3 阶段(1,2,3)");
 let alexLine = cluster.lines.find(l => /AlexFarmWorkStage/i.test(l.prefix));
 assert(alexLine && alexLine.items.length === 3 && alexLine.items.map(i => i.num).join() === "3,4,5", "亚历克斯农场线 3 阶段(3,4,5)");
-assert(cluster.singles.length === 4, "独立场景 4 个(Tutorial/TempleSydneyPure/Corrupt/KylarStalkingReversal), 实际 " + cluster.singles.length);
+assert(cluster.singles.length === 24, "独立场景 24 个(fixture 4 + v2.2.8 EXTRA 20), 实际 " + cluster.singles.length);
 // 9.6) V.scenes 缓存回退（无 Story 时读存档缓存值）
 delete global.Story;
 V.scenes = { FakeScene: { name: "假场景", startPassage: "S", passages: ["S"], unlocked: true, lockedMessage: "Locked" } };
@@ -464,7 +464,7 @@ delete V.scenes;
 const SCENE_TEXT_ESCAPED = SCENE_TEXT.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT_ESCAPED }].filter(fn) };
 let sDefs3 = api.getScenesDefs();
-assert(sDefs3.live === true && Object.keys(sDefs3.defs).length === 10, "转义形态 widget 文本反转义后可解析 10 条（含 EXTRA）, 实际 " + Object.keys(sDefs3.defs).length);
+assert(sDefs3.live === true && Object.keys(sDefs3.defs).length === 30, "转义形态 widget 文本反转义后可解析 30 条（含 EXTRA 21）, 实际 " + Object.keys(sDefs3.defs).length);
 let stTut3 = api.sceneStatus(sDefs3.defs["Tutorial"]);
 assert(stTut3.state === "fail", "转义形态下 unlocked 表达式求值正常（Tutorial 未达成）");
 delete global.Story;
@@ -617,8 +617,10 @@ assert(pinR.ok && pinR.message.indexOf("触发地点") !== -1 && Array.isArray(V
 assert(pinR.message.indexOf("前置未完成") !== -1, "锚定提示列出未完成前置, 实际 " + pinR.message);
 // 11.2b) 队列顺序：再锚定 2 条，按追加顺序排列
 /* v2.0.20：EXTRA_SCENES 的自有场景会进入独立场景列表首位，本条用例需要「原版带地点元数据的独立场景」，
-   显式排除自有场景，避免索引随注册表扩容漂移 */
-let singles11 = api.listSceneLines(api.getScenesDefs().defs).singles.filter(function (x) { return x.key !== "KylarStalkingReversal"; });
+   显式排除自有场景，避免索引随注册表扩容漂移。
+   v2.2.8：EXTRA 扩容到 21 条（初见 7 + 格威岚支线 13 + KylarStalkingReversal），改为按 key 精确取
+   TempleSydneyCorrupt（fixture 中唯一带 location 元数据的独立场景），不再依赖列表下标。 */
+let singles11 = [api.listSceneLines(api.getScenesDefs().defs).singles.find(function (x) { return x.key === "TempleSydneyCorrupt"; })].filter(Boolean);
 let pinB1 = api.pinScene(singles11[0]);
 let sec11 = robinLine2.items[2]; /* RobinCrossdressing3（表内 home 元数据）——singles 仅 1 个带元数据场景 */
 let pinB2 = api.pinScene(sec11);
@@ -4335,7 +4337,7 @@ delete V.scenes;
 delete V.scenePassages;
 var gd52a = api.getScenesDefs();
 var gd52b = api.getScenesDefs();
-assert(gd52a.live === true && Object.keys(gd52a.defs).length === 10, "52.4 同 Story 解析 live=true 10 条（含 EXTRA）, 实际 " + Object.keys(gd52a.defs).length);
+assert(gd52a.live === true && Object.keys(gd52a.defs).length === 30, "52.4 同 Story 解析 live=true 30 条（含 EXTRA 21）, 实际 " + Object.keys(gd52a.defs).length);
 assert(JSON.stringify(Object.keys(gd52a.defs).sort()) === JSON.stringify(Object.keys(gd52b.defs).sort()), "52.4 同 Story 引用两次调用键集一致（缓存命中）");
 V.scenes = { MCE注入52: { name: "注入测试", startPassage: "P52", passages: ["P52"], unlocked: "$scenePassages.includes(\"X52\")" } };
 var gd52c = api.getScenesDefs();
@@ -4343,7 +4345,7 @@ assert(!!gd52c.defs["MCE注入52"] && gd52c.defs["MCE注入52"].unlockedExpr.ind
 delete V.scenes;
 global.Story = { lookupWith: (fn) => [{ name: "Scene Viewer", text: SCENE_TEXT_ESCAPED }].filter(fn) };
 var gd52d = api.getScenesDefs();
-assert(gd52d.live === true && Object.keys(gd52d.defs).length === 10, "52.4 Story 对象引用变化强制失效重解析（转义形态仍 10 条）, 实际 " + Object.keys(gd52d.defs).length);
+assert(gd52d.live === true && Object.keys(gd52d.defs).length === 30, "52.4 Story 对象引用变化强制失效重解析（转义形态仍 30 条）, 实际 " + Object.keys(gd52d.defs).length);
 delete global.Story;
 var gd52e = api.getScenesDefs();
 assert(gd52e.live === false, "52.4 无 Story 时 live=false（不误用旧缓存）");
@@ -4355,7 +4357,7 @@ var gd52f = api.getScenesDefs();
 assert(gd52f.live === false, "52.4b 空 passages 首查 live=false");
 global.Story.passages = [{ name: "scenes", text: SCENE_TEXT }];
 var gd52g = api.getScenesDefs();
-assert(gd52g.live === true && Object.keys(gd52g.defs).length === 10, "52.4b passages 数组替换后失效重解析（10 条）, 实际 " + Object.keys(gd52g.defs).length);
+assert(gd52g.live === true && Object.keys(gd52g.defs).length === 30, "52.4b passages 数组替换后失效重解析（30 条）, 实际 " + Object.keys(gd52g.defs).length);
 delete global.Story;
 /* 52.5 evalSceneExpr 编译缓存：判定函数每次调用实时读 V（无陈旧状态） */
 delete V.scenePassages;
@@ -5156,9 +5158,9 @@ try {
   assert(V.worn.under_upper.name === "naked" && V.worn.under_upper.integrity === undefined, "56.5 穿着的 naked 槽跳过不写");
 
   // 56.6 精液补满（amount=原 volume，volume+=1000）
-  V.semen_volume = 90; V.semen_amount = 20;
+  V.semen_max = 3000; V.semen_volume = 90; V.semen_amount = 20;
   const sm56 = y56.yanlingSemen();
-  assert(sm56.ok === true && V.semen_amount === 90 && V.semen_volume === 1090, "56.6 精液补满：amount 补到原 volume，volume +1000");
+  assert(sm56.ok === true && V.semen_amount === 3000 && V.semen_volume === 3000, "56.6 精液补满：容量与当前量都写到 semen_max（3000/3000，原版满判据 amount>=volume）");
 
   // 56.7 精神恢复
   V.control = 0; V.hallucinogen = 40;
@@ -5186,9 +5188,9 @@ try {
   assert(V.farm.clearing === 0 && V.fertiliser.current === 7, "56.12 农田清场 + 堆肥 +5");
 
   // 56.13 奶量：先抬上限再写当前值
-  V.milk_volume = 30; V.milk_max = 3000;
+  V.milk_volume = 30; V.milk_max = 3000; V.milk_amount = 0;
   y56.yanlingMilk();
-  assert(V.milk_max === 10000 && V.milk_volume === 5000, "56.13 奶量 5000 且上限先抬到 10000（不被每日钳制卡回）");
+  assert(V.milk_max === 6000 && V.milk_volume === 6000 && V.milk_amount === 6000, "56.13 奶量档位归一到 6000，容量与当前量写满（原版 3000/6000 两档）");
 
   // 56.14~56.15 天气走 setWeather，拒绝旧式 rain
   const w156 = y56.yanlingWeather("thunderstorm");
@@ -6692,13 +6694,15 @@ try {
      否则 clothesIndex(slot, item) 按 variable 匹配会落空（原版大量代码读 setup.clothes[slot][idx].xxx）。 */
   const injUp66 = global.window.setup.clothes.upper.filter(x => x && x.name === "leaf shirt");
   const injLo66 = global.window.setup.clothes.lower.filter(x => x && x.name === "leaf skirt");
-  assert(injUp66.length === 1 && injUp66[0].variable === "leafshirt" && injUp66[0].index === 2
-    && injUp66[0].integrity_max === 10 && injUp66[0].type[0] === "plant" && injUp66[0].mbCE_leafSynth === 1,
-    "66.2b 枝叶上衣由 plant top 模板注入玩家服装表（variable=leafshirt / index=2 / 字段继承 / synth 标记）, 实际 "
-    + JSON.stringify(injUp66.map(x => ({ v: x.variable, i: x.index }))));
-  assert(injLo66.length === 1 && injLo66[0].variable === "leafskirt" && injLo66[0].index === 2,
-    "66.2c 枝叶下衣由 plant skirt 模板注入（variable=leafskirt / index=2）, 实际 "
-    + JSON.stringify(injLo66.map(x => ({ v: x.variable, i: x.index }))));
+  assert(injUp66.length === 1 && injUp66[0].variable === "plant" && injUp66[0].index === 2
+    && injUp66[0].integrity_max === 10 && injUp66[0].type[0] === "plant" && injUp66[0].mbCE_leafSynth === 1
+    && injUp66[0].modder === "MapleBirchCE",
+    "66.2b 枝叶上衣由 plant top 模板注入（variable=plant 复用立绘资源 / modder 唯一标记 / index=2 / 字段继承 / synth 标记）, 实际 "
+    + JSON.stringify(injUp66.map(x => ({ v: x.variable, m: x.modder, i: x.index }))));
+  assert(injLo66.length === 1 && injLo66[0].variable === "plant" && injLo66[0].index === 2
+    && injLo66[0].modder === "MapleBirchCE",
+    "66.2c 枝叶下衣由 plant skirt 模板注入（variable=plant / modder / index=2）, 实际 "
+    + JSON.stringify(injLo66.map(x => ({ v: x.variable, m: x.modder, i: x.index }))));
   assert(V.worn.over_upper.name === "naked" && V.worn.over_lower.name === "naked",
     "66.3 外套层一并置 naked（只换内层时外套会遮住枝叶，玩家会再报「没效果」）");
   assert(V.worn.under_upper.name === "bra" && V.worn.under_lower.name === "panties",

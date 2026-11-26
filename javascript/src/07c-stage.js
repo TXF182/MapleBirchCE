@@ -80,6 +80,9 @@
 		card.appendChild(actions);
 		pane.appendChild(card);
 
+		/* v2.2.7 阶段页扩展块：认识状态（所有角色）/ 格威岚消失期 / Sam 公园遭遇（按角色名自渲染） */
+		mbCEStageExtrasSafe(pane, curName);
+
 		/* 内层标签（第二层） */
 		var inner = el("div", "mce-inner");
 		var bRom = el("button", curInnerTab === "romance" ? "mce-active" : "", "恋爱阶段");
