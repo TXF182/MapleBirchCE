@@ -9,7 +9,7 @@
 			var a = s.mbStageCE;
 			a.yanlingLeafSuit = mbCEYanlingLeafSuit;
 			a.yanlingLeafRevert = mbCEYanlingLeafRevert;
-			/* v2.1.14 经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-data.js） */
+			/* v2.1.14 经济 · 学业 · 农田 · 消耗品（07m-vanilla-econ-data.js） */
 			a.vanillaEconStats = mbCEVanillaEconStats;
 			a.vanillaEconRentDays = mbCEVanillaEconRentDays;
 			a.vanillaEconRentDebt = mbCEVanillaEconRentDebt;
@@ -21,11 +21,8 @@
 			a.vanillaEconRipenAll = mbCEVanillaEconRipenAll;
 			a.vanillaEconCondoms = mbCEVanillaEconCondoms;
 			a.vanillaEconCondomsAdd = mbCEVanillaEconCondomsAdd;
-			a.vanillaEconTattooClear = mbCEVanillaEconTattooClear;
-			a.vanillaEconTattooMark = mbCEVanillaEconTattooMark;
-			/* v2.2.0 纹身样式直写（原版刺青店设计表 clone + pen 通道） */
-			a.vanillaEconTattooSet = mbCEVanillaEconTattooSet;
-			a.vanillaEconTattooClearAll = mbCEVanillaEconTattooClearAll;
+			/* v2.2.9 身体涂鸦导出（拆到 mbCEExportBodywriting，控制本函数 ≤120 行） */
+			mbCEExportBodywriting(a);
 			/* 回退按 id 走统一分发：先查 vcore 留痕再按 kind 还原（测试与诊断直接调这一个入口） */
 			a.vanillaEconUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
 			a.renderVanillaEcon = mbCERenderVanillaEcon;
@@ -115,4 +112,19 @@
 			a.mbCEDropHostTokens = mbCEDropHostTokens;
 			a.mcAutoState = mcAutoState;
 		} catch (e) { void e; }
+	}
+
+	/* v2.2.9 身体涂鸦导出：菜单 9 组 / 特殊分组 / 十六字真言 / 写入 / 清除 / 图像开关；
+	   旧名 TattooClear / TattooClearAll 保留兼容（现在清「涂鸦 + 纹身」）。 */
+	function mbCEExportBodywriting(a) {
+		a.vanillaEconBwMenu = mbCEVanillaEconBwMenu;
+		a.vanillaEconBwSpecial = mbCEVanillaEconBwSpecial;
+		a.vanillaEconBwSpecialOrder = function () { return MCE_ECON_BW_SPECIAL_ORDER.slice(); };
+		a.vanillaEconBwSpecialKey = function () { return MCE_ECON_BW_TRUTH_KEY; };
+		a.vanillaEconBwWrite = mbCEVanillaEconBwWrite;
+		a.vanillaEconBwClear = mbCEVanillaEconBwClear;
+		a.vanillaEconBwClearAll = mbCEVanillaEconBwClearAll;
+		a.vanillaEconBwImages = mbCEVanillaEconBwImages;
+		a.vanillaEconTattooClear = mbCEVanillaEconBwClear;
+		a.vanillaEconTattooClearAll = mbCEVanillaEconBwClearAll;
 	}

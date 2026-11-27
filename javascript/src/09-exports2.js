@@ -344,6 +344,7 @@
 				mbCEHideTick: mbCEHideTick,
 				mbCEHideForce: mbCEHideForce,
 				mbCEHideNoPenalty: mbCEHideNoPenalty,
+				mbCEHideLookLock: mbCEHideLookLock, mbCEHideLookOn: mbCEHideLookOn, MB_CE_HIDE_LOOK_PATHS: MB_CE_HIDE_LOOK_PATHS, mbCEHideHiddenCount: mbCEHideHiddenCount,
 				MB_CE_HIDE_WINGS_SPECIES: MB_CE_HIDE_WINGS_SPECIES,
 				mbCEIslandV: mbCEIslandV,
 				mbCEPlaceWriteRaw: mbCEPlaceWriteRaw,

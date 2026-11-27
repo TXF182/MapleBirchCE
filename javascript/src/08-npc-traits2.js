@@ -26,7 +26,7 @@
 		var gGuard = mceNewGroup(pane, "防护", "⑧ 数值固定 · ⑨ 潜伏者 · 贝利扣押拦截 · 纯净模式", true);
 		[mbCERenderLock, mbCERenderLurker, mbCERenderBailey, mbCEPureRender].forEach(function (f) { f(gGuard); });
 
-		/* 原版扩展：档案/收藏/头衔 07l · 经济/学业/农田/消耗品/纹身 07m · 鹰塔 07n · 礼顿把柄 07o · 食物/鱼获 07p · 艾弗里 07q，均走独立 vcore 留痕可逐条回退 */
+		/* 原版扩展：档案/收藏/头衔 07l · 经济/学业/农田/消耗品/身体涂鸦 07m · 鹰塔 07n · 礼顿把柄 07o · 食物/鱼获 07p · 艾弗里 07q，均走独立 vcore 留痕可逐条回退 */
 		var gExt = mceNewGroup(pane, "原版扩展", "⑩~⑬ 档案 · 经济 · 鹰塔 · 礼顿 · 食物 · 艾弗里", true);
 		[
 			mbCERenderVanillaExt, mbCERenderVanillaEcon, mbCERenderVanillaBird, mbCERenderVanillaLeighton,

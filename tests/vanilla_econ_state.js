@@ -45,7 +45,14 @@ const setupObj = {
     skull: { index: 75, writing: "skull", type: "object", arrow: 0, special: "none", gender: "m", lewd: 0, degree: 0 },
     flame: { index: 76, writing: "flame", type: "object", arrow: 0, special: "none", gender: "m", lewd: 0, degree: 0 },
     cross: { index: 77, writing: "cross", type: "object", arrow: 0, special: "none", gender: "n", lewd: 0, degree: 0 },
-    paw_print: { index: 78, writing: "paw print", type: "object", arrow: 0, special: "bestiality", gender: "n", lewd: 0, degree: 0 }
+    paw_print: { index: 78, writing: "paw print", type: "object", arrow: 0, special: "bestiality", gender: "n", lewd: 0, degree: 0 },
+    /* v2.2.9 涂鸦：原版菜单部分样本 + 非菜单特殊样本（真实全量 206 条由宿主提供，CE 只内嵌菜单键表） */
+    slut: { index: 90, writing: "Slut", writ_cn: "骚货", type: "text", arrow: 0, special: "none", gender: "n", lewd: 1, degree: 0 },
+    submissive: { index: 120, writing: "Submissive", writ_cn: "顺从", type: "text", arrow: 0, special: "none", gender: "n", lewd: 0, degree: 0 },
+    stupid_little_fucking_sextease_bitch_fucker: { index: 178, writing: "Stupid little fucking sextease bitch fucker", writ_cn: "操他妈的只会色诱的白痴脑瘫小婊子", type: "text", arrow: 0, special: "Sydney", gender: "n", lewd: 1, degree: 0 },
+    book_criminal_heart: { index: 160, writing: "Book Criminal <3", writ_cn: "书犯 <3", type: "text", arrow: 0, special: "Sydney", gender: "n", lewd: 0, degree: 0 },
+    cattle_brand: { index: 100, writing: "cattle brand", writ_cn: "牲口烙印", type: "object", arrow: 0, special: "cattle", gender: "n", lewd: 0, degree: 0 },
+    bitch: { index: 20, writing: "Bitch", writ_cn: "婊子", type: "text", arrow: 0, special: "none", gender: "n", lewd: 1, degree: 0 }
   }
 };
 global.setup = setupObj;
@@ -60,7 +67,7 @@ const jsPath = path.join(__dirname, "..", "javascript", "maplebirchce.js");
 eval(fs.readFileSync(jsPath, "utf8") + "\n//# sourceURL=" + jsPath.replace(/\\/g, "/"));
 const api = setup.mbStageCE;
 assert(typeof api.vanillaEconStats === "function" && typeof api.vanillaEconRipen === "function", "经济/农田直写 API 已导出");
-assert(typeof api.vanillaEconTattooSet === "function", "纹身样式直写 API 已导出");
+assert(typeof api.vanillaEconBwWrite === "function" && typeof api.vanillaEconBwSpecial === "function", "涂鸦直写与分组 API 已导出");
 
 /* ================= 1. 房租与欠租 ================= */
 section("1 房租与欠租");
@@ -155,8 +162,8 @@ assert(r.ok === false && V.condoms === 30, "负数 → 拒绝");
 u = api.vanillaEconUndo("condoms");
 assert(u.ok === true && V.condoms === 2, "回退还原 2 个");
 
-/* ================= 5. 玩家纹身 ================= */
-section("5 玩家纹身");
+/* ================= 5. 玩家皮肤清除（原版 bodywriting_clear 语义） ================= */
+section("5 玩家皮肤清除");
 V.skin = {
   "left_cheek": { type: "text", pen: "tattoo", writing: "★" },
   "chest": { type: "text", pen: "pen", writing: "hi" },
@@ -164,52 +171,72 @@ V.skin = {
   "face": { show: 1 }
 };
 st = api.vanillaEconStats();
-assert(st.tattoo.has === true && st.tattoo.count === 2 && st.tattoo.parts.length === 2, "读取纹身 2 处（左脸颊 / 肚子）");
+assert(st.tattoo.has === true && st.tattoo.count === 2 && st.tattoo.parts.length === 2, "只读统计仍能读出 2 处纹身（左脸颊 / 肚子）");
 assert(st.tattoo.parts[0].zh === "左脸颊", "部位显示中文，不暴露裸键");
 
 r = api.vanillaEconTattooClear("left_cheek");
 assert(r.ok === true && JSON.stringify(V.skin["left_cheek"]) === "{}", "清除单部位 = 原版 bodywriting_clear 的整块重置");
-u = api.vanillaEconUndo("tattoo-left_cheek");
-assert(u.ok === true && V.skin["left_cheek"].pen === "tattoo", "回退还原该部位纹身");
+u = api.vanillaEconUndo("bodywriting-left_cheek");
+assert(u.ok === true && V.skin["left_cheek"].pen === "tattoo", "回退还原该部位原内容");
 
-r = api.vanillaEconTattooMark("chest");
-assert(r.ok === true && V.skin.chest.pen === "tattoo", "把已有涂写的部位标记为纹身");
-r = api.vanillaEconTattooMark("face");
-assert(r.ok === false, "无 writing / 无 type 的部位 → 拒绝标记（原版不会凭空长纹身）");
+r = api.vanillaEconBwClear("chest");
+assert(r.ok === true && JSON.stringify(V.skin.chest) === "{}", "涂鸦（pen）同样可清除，不再限定纹身");
+r = api.vanillaEconBwClear("face");
+assert(r.ok === false, "没有 pen 的部位 → 拒绝清除");
 
-r = api.vanillaEconTattooClearAll();
-assert(r.ok === true && r.cleared === 3 && !V.skin["tummy"].pen && !V.skin.chest.pen, "一键清除全部纹身（含刚标记的胸口）");
-assert(V.skin.face.show === 1, "无纹身部位不动");
-u = api.vanillaEconUndo("tattoo-all");
-assert(u.ok === true && V.skin["tummy"].pen === "tattoo" && V.skin["left_cheek"].pen === "tattoo" && V.skin.face.show === 1, "回退整块还原皮肤对象");
+r = api.vanillaEconBwClearAll();
+assert(r.ok === true && r.cleared === 2 && !V.skin["tummy"].pen, "一键清除全部涂鸦与纹身（2 处）");
+assert(V.skin.face.show === 1, "无涂写部位不动");
+u = api.vanillaEconUndo("bodywriting-all");
+assert(u.ok === true && V.skin["tummy"].pen === "tattoo" && V.skin["left_cheek"].pen === "tattoo", "回退整块还原皮肤对象");
 
-/* ================= 5b. 纹身样式直写（v2.2.0：等价原版 Tattoo Get 的 clone+pen 通道） ================= */
-section("5b 纹身样式直写");
-V.skin = { "forehead": {}, "left_cheek": { type: "text", pen: "tattoo", writing: "★" } };
+/* ================= 5b 身体涂鸦（原版分类菜单 + 特殊涂鸦） ================= */
+section("5b 身体涂鸦");
+const bwMenu = api.vanillaEconBwMenu();
+assert(Array.isArray(bwMenu) && bwMenu.length === 9, "涂鸦菜单 9 个分类（通用/淫乱/卖淫/暴露/异种/受虐/顺从/怀孕/恋爱对象）");
+assert(bwMenu.reduce(function (n, g) { return n + g.items.length; }, 0) === 118, "菜单条目共 118 条（原版 _bodyWritingOptions 静态全量）");
+assert(bwMenu[0].zh === "通用" && bwMenu[8].zh === "恋爱对象", "分类中文名按原版菜单顺序");
+assert(bwMenu.filter(function (g) { return g.zh === "顺从"; }).length === 1, "补上截图缺失的「顺从」组（原版 submissive≥1200 才出现）");
+assert(bwMenu[1].items.some(function (it) { return it.key === "slut" && it.zh === "骚货"; }), "分类条目显示中文（汉化 writ_cn）且 value 为原版键");
+
+const spGroups = api.vanillaEconBwSpecial();
+const spNames = spGroups.map(function (g) { return g.grp; });
+assert(spGroups.length === 5, "特殊涂鸦按来源/角色分子组（镜像 5 组：悉尼 / 牧场 / 兽交 / 纹样 / 杂项）");
+assert(api.vanillaEconBwSpecialOrder().length === 14, "特殊分组顺序表覆盖 14 类来源（含 rape / criminal / pregnancy 等）");
+assert(spNames.indexOf("Sydney") >= 0 && spNames.indexOf("cattle") >= 0 && spNames.indexOf("bestiality") >= 0, "悉尼 / 雷米牧场 / 兽交 三组存在");
+const sydGroup = spGroups.filter(function (g) { return g.grp === "Sydney"; })[0];
+assert(!!sydGroup && sydGroup.items.some(function (it) { return it.key === "book_criminal_heart"; }), "悉尼特殊组收录非菜单条目");
+assert(!!sydGroup && !sydGroup.items.some(function (it) { return it.key === api.vanillaEconBwSpecialKey(); }), "十六字真言从悉尼组剔除（单独按钮）");
+assert(api.vanillaEconBwSpecialKey() === "stupid_little_fucking_sextease_bitch_fucker", "十六字真言键固定为原版 Sydney 专属条目");
+const patGroup = spGroups.filter(function (g) { return g.grp === "pattern"; })[0];
+const miscGroup = spGroups.filter(function (g) { return g.grp === "misc"; })[0];
+assert(!!patGroup && patGroup.items.some(function (it) { return it.key === "unicorn"; }), "图形类涂鸦归入纹样符号组");
+assert(!!miscGroup && miscGroup.items.some(function (it) { return it.key === "bitch"; }), "无来源文本涂鸦归入杂项组");
+
+V.skin = { "forehead": {}, "chest": { type: "text", pen: "pen", writing: "hi" } };
 V.mbCE_wrote = {};
-r = api.vanillaEconTattooSet("forehead", "heart");
-assert(r.ok === true && V.skin.forehead.pen === "tattoo" && V.skin.forehead.type === "object" && V.skin.forehead.writing === "heart", "样式写入 = clone 原版设计对象 + pen 置纹身");
-assert(V.mbCE_wrote["vcore:tattoo-forehead"].before.kind === "tattoo" && V.mbCE_wrote["vcore:tattoo-forehead"].before.had === true, "留痕 kind 纹身且记录部位原已存在");
-assert(JSON.stringify(V.mbCE_wrote["vcore:tattoo-forehead"].before.value) === "{}", "留痕 before 是写入前的空部位对象");
-u = api.vanillaEconUndo("tattoo-forehead");
+r = api.vanillaEconBwWrite("forehead", "slut");
+assert(r.ok === true && V.skin.forehead.pen === "pen" && V.skin.forehead.writing === "Slut", "写入涂鸦 = clone 原版条目 + pen 置 pen（原版 add_bodywriting 同语义）");
+assert(V.skin.forehead.writ_cn === "骚货", "clone 保留汉化字段 writ_cn（面板显示中文）");
+assert(V.mbCE_wrote["vcore:bodywriting-forehead"].before.kind === "bodywriting" && V.mbCE_wrote["vcore:bodywriting-forehead"].before.had === true, "留痕 kind=bodywriting 且记录原部位已存在");
+u = api.vanillaEconUndo("bodywriting-forehead");
 assert(u.ok === true && JSON.stringify(V.skin.forehead) === "{}", "回退还原为空部位");
-r = api.vanillaEconTattooSet("left_cheek", "star");
-assert(r.ok === true && V.skin.left_cheek.writing === "star" && V.skin.left_cheek.pen === "tattoo", "覆盖已有纹身部位（原版 add_bodywriting 同语义）");
-u = api.vanillaEconUndo("tattoo-left_cheek");
-assert(u.ok === true && V.skin.left_cheek.writing === "★", "回退还原原纹身");
-r = api.vanillaEconTattooSet("breasts", "paw_print");
-assert(r.ok === true && V.skin.breasts.special === "bestiality", "原档没有的部位 → 创建（paw_print 带 special 字段随设计对象写入）");
-u = api.vanillaEconUndo("tattoo-breasts");
+r = api.vanillaEconBwWrite("forehead", api.vanillaEconBwSpecialKey());
+assert(r.ok === true && V.skin.forehead.writing === "Stupid little fucking sextease bitch fucker" && V.skin.forehead.writ_cn === "操他妈的只会色诱的白痴脑瘫小婊子", "十六字真言写入当前部位（中文译名同步）");
+r = api.vanillaEconBwWrite("forehead", "nope_key");
+assert(r.ok === false, "不在宿主 setup.bodywriting 的键 → 拒绝");
+const bwHost = setupObj.bodywriting; delete setupObj.bodywriting;
+r = api.vanillaEconBwWrite("forehead", "slut");
+setupObj.bodywriting = bwHost;
+assert(r.ok === false, "宿主缺 bodywriting 数据 → 拒绝（不凭空造对象）");
+r = api.vanillaEconBwWrite("breasts", "slut");
+assert(r.ok === true && V.skin.breasts.pen === "pen", "原档没有的部位 → 创建");
+u = api.vanillaEconUndo("bodywriting-breasts");
 assert(u.ok === true && !("breasts" in V.skin), "回退删除原本不存在的部位");
-r = api.vanillaEconTattooSet("forehead", "nope_key");
-assert(r.ok === false, "不在原版设计表里的样式 key → 拒绝");
-const bw5 = setupObj.bodywriting; delete setupObj.bodywriting;
-r = api.vanillaEconTattooSet("forehead", "heart");
-setupObj.bodywriting = bw5;
-assert(r.ok === false, "宿主 setup 缺 bodywriting 数据 → 拒绝（不凭空造设计对象）");
-delete V.skin;
-r = api.vanillaEconTattooSet("forehead", "heart");
-assert(r.ok === false, "无 skin → 拒绝");
+r = api.vanillaEconBwClear("chest");
+assert(r.ok === true && JSON.stringify(V.skin.chest) === "{}", "清除该部位（bodywriting_clear 语义）");
+u = api.vanillaEconUndo("bodywriting-chest");
+assert(u.ok === true && V.skin.chest.writing === "hi", "回退还原清除前内容");
 
 /* ================= 6. 宿主缺失拒绝 ================= */
 section("6 宿主缺失拒绝");
@@ -227,53 +254,59 @@ assert(r.ok === true && V.condoms === 5, "避孕套键缺失时允许创建（�
 
 /* ================= 7. 面板渲染（玩家实际路径：全局页 ⑪） ================= */
 section("7 面板渲染");
-V.skin = { "left_cheek": { type: "text", pen: "tattoo", writing: "★" }, "face": { show: 1 } };
+V.skin = { "forehead": {}, "face": { show: 1 } };
 V.plots = { garden: [{ plant: "wheat", stage: 2, days: 3 }], farm: [{ plant: "carrot", stage: 1, days: 0 }] };
 V.condoms = 3;
 V.renttime = 2; V.baileyRefusedToPayTotal = 700; V.rentmoney = 300;
 V.daily = { school: { attended: { science: 1, maths: 0, english: 0, history: 0, swimming: 0, housekeeping: 0 } } };
 V.schoolLessonsMissed = { science: 0, maths: 1, english: 0, history: 0, swimming: 0, housekeeping: 0 };
+V.options = { bodywritingImages: 1 };
 const pane = document.createElement("div");
 pane.setAttribute("data-pane", "global");
 document.body.appendChild(pane);
-api.renderVanillaEcon(pane);
-const selects = pane.querySelectorAll("select");
-assert(selects.length === 4, "四个下拉：科目 / 地块 / 部位 / 样式（共 " + selects.length + " 个）");
-const opts = Array.prototype.slice.call(selects[0].querySelectorAll("option"));
-assert(opts.length === 6, "科目下拉 6 项");
-assert(opts[0].textContent === "科学" && opts[5].textContent === "家政", "科目显示中文名，不是裸键名");
-const farmOpts = Array.prototype.slice.call(selects[1].querySelectorAll("option"));
-assert(farmOpts[0].textContent === "孤儿院花园" && farmOpts[1].textContent === "亚历克斯农场", "地块显示中文名");
-const tattooOpts = Array.prototype.slice.call(selects[2].querySelectorAll("option"));
-assert(tattooOpts.some(function (o) { return o.textContent === "左脸颊"; }), "部位下拉含中文部位名");
-const styleSel = selects[3];
-const styleGroups = Array.prototype.slice.call(styleSel.querySelectorAll("optgroup"));
-assert(styleGroups.length === 4, "样式下拉按原版刺青店四组分类（可爱/帅气/神圣/异端）");
-const styleOpts = Array.prototype.slice.call(styleSel.querySelectorAll("option"));
-assert(styleOpts.length === 9, "样式下拉 9 个图案设计（共 " + styleOpts.length + " 个）");
-assert(styleOpts.some(function (o) { return o.textContent === "独角兽" && o.value === "unicorn"; }), "样式显示中文名且 value 为原版设计键");
-const txt = pane.textContent;
-assert(txt.indexOf("$") === -1, "面板文案不出现任何裸变量名（$ 开头）");
-assert(txt.indexOf("经济 · 学业 · 农田 · 消耗品 · 纹身") !== -1, "区块标题存在（全局页 ⑪）");
-assert(txt.indexOf("汇总：2 个地点 · 共 2 块 · 已种 2 · 可收获 0") !== -1, "农田有跨地块汇总行");
-assert(txt.indexOf("科学 已出勤 · 旷课 0") !== -1, "学校逐科状态行（出勤 / 旷课分开显示）");
-assert(selects[2].value === "left_cheek", "部位下拉默认定位到已有纹身部位");
-/* 点一次「今日六科全出勤」：按钮文案定位，验证 UI → 数据层 → 存档这条真实链路 */
-const btns = Array.prototype.slice.call(pane.querySelectorAll("button"));
-const allBtn = btns.filter(function (b) { return b.textContent === "今日六科全出勤"; })[0];
-assert(!!allBtn, "找到「今日六科全出勤」按钮");
-if (allBtn) {
-  allBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-  assert(V.daily.school.attended.maths === 1 && V.daily.school.attended.housekeeping === 1, "点击按钮把六科写出勤（UI 到存档链路打通）");
-  assert(!!V.mbCE_wrote["vcore:school"], "点击后落了 vcore 留痕");
+function paneBtns() { return Array.prototype.slice.call(pane.querySelectorAll("button")); }
+function paneOpts() { return Array.prototype.slice.call(pane.querySelectorAll("option")); }
+function clickBtn(text) {
+  const b = paneBtns().filter(function (x) { return x.textContent === text; })[0];
+  if (b) { b.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); }
+  return !!b;
 }
-/* 纹身样式链路：部位默认 left_cheek、样式默认第一组第一项，点「纹上该样式」应把设计对象写进该部位 */
-const setBtn = btns.filter(function (b) { return b.textContent === "纹上该样式"; })[0];
-assert(!!setBtn, "找到「纹上该样式」按钮");
-if (setBtn) {
-  setBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-  assert(V.skin["left_cheek"].pen === "tattoo" && V.skin["left_cheek"].type === "object", "点击「纹上该样式」把所选设计写进所选部位（UI 到存档链路打通）");
-  assert(!!V.mbCE_wrote["vcore:tattoo-left_cheek"], "样式写入后落 vcore 留痕");
+api.renderVanillaEcon(pane);
+assert(pane.textContent.indexOf("经济 · 学业 · 农田 · 消耗品 · 身体涂鸦") !== -1, "区块标题改为身体涂鸦");
+assert(pane.textContent.indexOf("$") === -1, "面板文案不出现任何裸变量名（$ 开头）");
+assert(pane.textContent.indexOf("纹上该样式") === -1, "旧纹身样式按钮已移除");
+const catNames = ["通用", "淫乱", "卖淫", "暴露", "异种", "受虐", "顺从", "怀孕", "恋爱对象"];
+assert(paneBtns().filter(function (b) { return catNames.indexOf(b.textContent) >= 0; }).length === 9, "九个分类按钮（原版截图 8 个 + 顺从）");
+assert(clickBtn("特殊涂鸦"), "特殊涂鸦入口按钮存在");
+assert(paneBtns().some(function (b) { return b.textContent === "悉尼十六字真言"; }), "十六字真言单独按钮存在");
+const imgChk = pane.querySelector('input[type="checkbox"]');
+assert(!!imgChk && imgChk.parentNode.textContent.indexOf("启用身体涂鸦图像") >= 0, "启用身体涂鸦图像勾选存在");
+assert(paneOpts().filter(function (o) { return o.textContent === "科学"; }).length === 1, "科目下拉仍为中文");
+assert(paneOpts().filter(function (o) { return o.textContent === "孤儿院花园"; }).length === 1, "地块下拉仍为中文");
+assert(paneOpts().some(function (o) { return o.textContent === "额头" && o.value === "forehead"; }), "部位下拉显示中文");
+
+/* 点「淫乱」→ 下拉出现「骚货」→ 点「写入涂鸦」→ 存档写入（UI 到存档真实链路） */
+assert(clickBtn("淫乱"), "点击「淫乱」分类");
+assert(paneOpts().some(function (o) { return o.textContent === "骚货" && o.value === "slut"; }), "分类下拉出现「骚货」");
+assert(clickBtn("写入涂鸦"), "找到「写入涂鸦」按钮");
+assert(V.skin.forehead.pen === "pen" && V.skin.forehead.writing === "Slut", "点击后把所选涂鸦写进所选部位");
+assert(!!V.mbCE_wrote["vcore:bodywriting-forehead"], "涂鸦写入后落 vcore 留痕");
+
+/* 特殊涂鸦：子组按钮 + 组内条目 */
+assert(clickBtn("特殊涂鸦"), "再次点击「特殊涂鸦」展开子组");
+assert(paneBtns().some(function (b) { return b.textContent === "悉尼"; }), "特殊涂鸦出现「悉尼」子组按钮");
+assert(clickBtn("悉尼"), "点击「悉尼」子组");
+assert(paneOpts().some(function (o) { return o.textContent === "书犯 <3"; }), "悉尼子组下拉出现「书犯 <3」");
+
+/* 十六字真言独立按钮：直接写当前部位 */
+assert(clickBtn("悉尼十六字真言"), "点击「悉尼十六字真言」");
+assert(V.skin.forehead.writing === "Stupid little fucking sextease bitch fucker", "十六字真言写入当前部位");
+
+/* 图像开关 */
+if (imgChk) {
+  imgChk.checked = false;
+  imgChk.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert(V.options.bodywritingImages === 0, "取消勾选写入 bodywritingImages=0");
 }
 
 console.log("\n" + (failures ? "FAILED: " + failures + " / " + (passes + failures) : "ALL PASS: " + passes));

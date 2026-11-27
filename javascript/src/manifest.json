@@ -377,7 +377,12 @@
     {
       "file": "07m-vanilla-econ-data.js",
       "layer": "ui",
-      "note": "经济/学业/农田/消耗品/纹身五项直写通道 + vcore-econ 留痕（全局页 ⑪ 数据层，结构门禁拆段）"
+      "note": "经济/学业/农田/消耗品四项直写通道 + vcore-econ 留痕（全局页 ⑪ 数据层，结构门禁拆段）"
+    },
+    {
+      "file": "07m-vanilla-econ-bw-data.js",
+      "layer": "ui",
+      "note": "v2.2.9 身体涂鸦数据层：原版 206 条 / 菜单 9 组 118 条 / 特殊 88 条分组 / 悉尼十六字真言 / bodywriting 回退（替代原纹身样式自选）"
     },
     {
       "file": "07m-vanilla-econ-money.js",
@@ -388,6 +393,11 @@
       "file": "07m-vanilla-econ-undo.js",
       "layer": "ui",
       "note": "vcore-econ 回退处理器（kind 映射表，由 mbCEVanillaExtUndo 委派；结构门禁拆段）"
+    },
+    {
+      "file": "07m-vanilla-econ-bw-view.js",
+      "layer": "ui",
+      "note": "v2.2.9 身体涂鸦视图：原版 9 分类按钮 + 条目/部位下拉 + 确认 + 图像开关 + 特殊涂鸦子分组 + 悉尼十六字真言"
     },
     {
       "file": "07m-vanilla-econ-view.js",

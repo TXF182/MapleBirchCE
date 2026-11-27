@@ -1,4 +1,5 @@
-/* 职责：原版「房租/欠租 · 学校出勤 · 农场地块 · 避孕套 · 玩家纹身」五项直写通道（全局页 ⑪ 数据层）。
+/* 职责：原版「房租/欠租 · 学校出勤 · 农场地块 · 避孕套」四项直写通道（全局页 ⑪ 数据层）；
+   身体涂鸦（206 条 + 9 类菜单 + 特殊分组 + 悉尼十六字真言）见 07m-vanilla-econ-bw-data.js。
    写入全部走 07l 的 vcore 留痕（mbCEVanillaTrace 保留首次 before），回退由本段 mbCEVanillaEconUndo
    按 kind 还原；统一回退中心按 type==="vcore" 分发到 mbCEVanillaExtUndo，后者在未知 kind 处委派到本段
    （这样不必把 07l 主段撑过结构门禁 S1 的 400 行）。视图在同名 -view 段。
@@ -15,11 +16,7 @@
      空格（stage 0）与未知作物（setup.foodstuff 无键）绝不能写 stage 5——tendingDay 会读
      setup.foodstuff[undefined] 直接抛 TypeError。
    - 套：V.condoms 是顶层计数键（侧栏 Total condoms: $condoms），侧栏仅在 condomLevel>=1 时显示，数值本身随时可写。
-   - 纹：纹身不是 V.tattoos，而是 V.skin[<部位>].pen === "tattoo"；原版清除 widget bodywriting_clear 的语义就是
-     `<<set $skin[_args[0]] to {}>>`（整部位重置）。原版「加纹身」走 Tattoo Get：`clone(setup.bodywriting[$tattoo_choice])`
-     经 add_bodywriting widget 写进 $skin[<部位>] 并把 pen 置 "tattoo"（DoL 0.5.12.13 单文件 HTML 实证：
-     Tattoo Get @52151101 / Widgets Bodywriting @25956903）。v2.2.0 起本段样式直写 = 同一个 clone+pen 语义，
-     设计表运行时取 setup.bodywriting（宿主缺失即拒绝，不凭空造对象）；清除 / 标记两种旧动作保留。 */
+   - 皮：部位中文名按 $skin 的键映射（bodywriting 写入与旧留痕回退共用）。 */
 
 	var MCE_ECON_SUBJECTS = [
 		{ key: "science", zh: "科学" },
@@ -42,30 +39,7 @@
 		thigh: "大腿", left_bottom: "左臀", right_bottom: "右臀",
 		left_shoulder: "左肩", right_shoulder: "右肩", feet: "脚", foot: "脚"
 	};
-	/* v2.2.0 纹身样式：原版刺青店 9 图案（DoL 0.5.12.13 实证 Tattoo Choice @52148483；设计对象
-	   {index, writing, type, arrow, special, gender, lewd, degree}，写入走 clone 不读 index）。
-	   原版对全部部位通用同一样式表（渲染层 bodywriting.types 不按部位区分），故按刺青店分组呈现、不做部位过滤。 */
-	var MCE_ECON_TATTOO_STYLES = [
-		{ grp: "可爱（Girly）", items: [
-			{ key: "unicorn", zh: "独角兽" }, { key: "heart", zh: "爱心" }, { key: "flower", zh: "花朵" },
-			{ key: "butterfly", zh: "蝴蝶" }, { key: "star", zh: "星星" }
-		] },
-		{ grp: "帅气（Boyish）", items: [
-			{ key: "skull", zh: "骷髅" }, { key: "flame", zh: "火焰" }
-		] },
-		{ grp: "神圣（Holy）", items: [ { key: "cross", zh: "十字架" } ] },
-		{ grp: "异端（Deviant）", items: [ { key: "paw_print", zh: "爪印" } ] }
-	];
-	/* 原版 setup.bodyparts 12 部位（@19937570）；样式区部位下拉 = 12 部位 ∪ 存档已有皮肤键 */
-	var MCE_ECON_TATTOO_PARTS = ["forehead", "left_cheek", "right_cheek", "left_shoulder", "right_shoulder",
-		"breasts", "back", "left_bottom", "right_bottom", "pubic", "left_thigh", "right_thigh"];
-	function mbCEVanillaEconTattooStyleZh(key) {
-		var hit = null;
-		MCE_ECON_TATTOO_STYLES.forEach(function (g) {
-			g.items.forEach(function (it) { if (it.key === key) { hit = it.zh; } });
-		});
-		return hit;
-	}
+	/* 原版 setup.bodyparts 12 部位（@19937570）：身体涂鸦/纹身共用；涂鸦面板按存档实际 $skin 键枚举 */
 
 	function mbCEVanillaEconSubjectZh(key) {
 		var hit = null;
@@ -333,67 +307,7 @@
 		return { ok: true, message: "避孕套 " + cur + " → " + target + " 个" };
 	}
 
-	/* ---------- 纹身 ---------- */
-	function mbCEVanillaEconTattooClear(part) {
-		var V = getV();
-		var skin = V && V.skin;
-		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
-		var obj = skin[part];
-		if (!obj || typeof obj !== "object") { return { ok: false, message: "该部位没有皮肤数据" }; }
-		if (obj.pen !== "tattoo") { return { ok: false, message: "该部位没有纹身（只有 pen 为纹身的部位才可清除）" }; }
-		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj) };
-		skin[part] = {};
-		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "清除该部位纹身", "vcore-econ");
-		return { ok: true, message: "已清除「" + mbCEVanillaEconBodyZh(part) + "」的纹身（整部位重置，等价原版 bodywriting_clear）" };
-	}
-	function mbCEVanillaEconTattooMark(part) {
-		var V = getV();
-		var skin = V && V.skin;
-		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
-		var obj = skin[part];
-		if (!obj || typeof obj !== "object") { return { ok: false, message: "该部位没有皮肤数据" }; }
-		if (obj.pen === "tattoo") { return { ok: false, message: "该部位已经是纹身" }; }
-		if (!obj.type || !(obj.writing || obj.type === "image")) {
-			return { ok: false, message: "该部位没有可转成纹身的图案或文字（原版纹身必须有刺青设计数据，凭空造不出来）" };
-		}
-		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj) };
-		obj.pen = "tattoo";
-		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "标记为纹身", "vcore-econ");
-		return { ok: true, message: "「" + mbCEVanillaEconBodyZh(part) + "」已标记为纹身" };
-	}
-	function mbCEVanillaEconTattooClearAll() {
-		var V = getV();
-		var skin = V && V.skin;
-		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
-		var keys = Object.keys(skin).filter(function (k) {
-			return skin[k] && typeof skin[k] === "object" && skin[k].pen === "tattoo";
-		});
-		if (!keys.length) { return { ok: false, message: "当前没有任何纹身" }; }
-		var before = { kind: "tattoo-all", skin: mbCEVanillaEconClone(skin) };
-		keys.forEach(function (k) { skin[k] = {}; });
-		mbCEVanillaTrace("tattoo-all", before, "skin", "一键清除全部纹身", "vcore-econ");
-		return { ok: true, message: "已清除 " + keys.length + " 处纹身", cleared: keys.length };
-	}
-	/* v2.2.0 样式直写：等价原版 Tattoo Get 的 add_bodywriting(part, key, "tattoo")——clone(setup.bodywriting[key]) + pen="tattoo"；
-	   设计对象运行时取宿主，结构漂移跟随原版；留痕 id 复用 "tattoo-"+part，回退按 kind "tattoo"（had=false 删除原档不存在的部位）。 */
-	function mbCEVanillaEconTattooDesign(key) {
-		try {
-			var s = getSetup();
-			var d = s && s.bodywriting ? s.bodywriting[key] : null;
-			return (d && typeof d === "object") ? mbCEVanillaEconClone(d) : null;
-		} catch (eT) { return null; }
-	}
-	function mbCEVanillaEconTattooSet(part, key) {
-		var V = getV();
-		var skin = V && V.skin;
-		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
-		if (!mbCEVanillaEconTattooStyleZh(key)) { return { ok: false, message: "不在原版刺青店设计表里的样式（拒绝写入）" }; }
-		var design = mbCEVanillaEconTattooDesign(key);
-		if (!design) { return { ok: false, message: "原版设计数据不在（宿主缺失该设计），拒绝凭空造对象" }; }
-		var obj = skin[part];
-		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj), had: !!(obj && typeof obj === "object") };
-		design.pen = "tattoo";
-		skin[part] = design;
-		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "纹上样式（" + mbCEVanillaEconTattooStyleZh(key) + "）", "vcore-econ");
-		return { ok: true, message: "已在「" + mbCEVanillaEconBodyZh(part) + "」纹上「" + mbCEVanillaEconTattooStyleZh(key) + "」（等价原版刺青店操作，可回退）" };
-	}
+	/* ---------- 身体涂鸦 ----------
+	   原 v2.2.0 的 9 款纹身样式自选已移除（用户口径：纹身游戏里本来就能直接纹，CE 不再重复提供）。
+	   涂鸦的写入 / 清除 / 图像开关全部在 07m-vanilla-econ-bw-data.js；本段只保留部位中文名与只读统计。 */
+

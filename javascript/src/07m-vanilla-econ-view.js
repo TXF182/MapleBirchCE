@@ -1,4 +1,5 @@
-/* 职责：全局页 ⑪「经济 · 学业 · 农田 · 消耗品 · 纹身」区块渲染（07m-vanilla-econ-data.js 的视图层）。
+/* 职责：全局页 ⑪「经济 · 学业 · 农田 · 消耗品 · 身体涂鸦」区块渲染（07m-vanilla-econ-data.js 的视图层；
+   涂鸦视图拆到 07m-vanilla-econ-bw-view.js）。
    设计约束（用户明确要求）：界面全中文、不出现裸键名；枚举项（科目 / 地块 / 身体部位）一律用下拉选择，
    数值项用输入框 + 「写入」按钮。所有写入留痕，区块内每个可回退动作都带「回退」按钮。
    排版口径：分组标题短、状态行成对（标签 + 数值）、按钮动词开头、长说明收进折叠提示；
@@ -258,59 +259,11 @@
 		redraw();
 	}
 
-	/* ---------- ⑪-5 玩家纹身 ---------- */
-	function mbCEVanillaEconSecTattoo(sec) {
-		var body = mbCEVanillaEconUiBody(sec, "纹身", "清除 · 标记已有图案");
-		var redraw = function () {
-			mbCEVanillaEconUiClear(body);
-			var V = getV();
-			var st = mbCEVanillaEconStats();
-			if (!st.tattoo.has) {
-				body.appendChild(el("div", MCE_CLS.hint, "该存档还没有皮肤数据，进游戏刷新一次再回来。"));
-				return;
-			}
-			var names = st.tattoo.parts.map(function (p) { return p.zh; }).join("、");
-			mbCEVanillaEconUiKv(body, [["纹身处数", st.tattoo.count + " 处"], ["部位", st.tattoo.count ? names : "无"]]);
-			/* v2.2.0 部位下拉 = 原版 12 部位 ∪ 存档已有皮肤键（合并去重，全部中文名） */
-			var merged = MCE_ECON_TATTOO_PARTS.slice();
-			Object.keys(V.skin).forEach(function (k) {
-				if (merged.indexOf(k) < 0 && V.skin[k] && typeof V.skin[k] === "object") { merged.push(k); }
-			});
-			var pairs = merged.map(function (k) { return [k, mbCEVanillaEconBodyZh(k)]; });
-			var sel = mbCEVanillaEconUiSelect(body, "部位", pairs, "原版 12 个纹身部位 + 该存档已有的皮肤部位，显示为中文名");
-			/* 默认定位到已有纹身的第一个部位，省得玩家自己找 */
-			if (st.tattoo.parts.length) { sel.value = String(st.tattoo.parts[0].key); }
-			/* v2.2.0 样式下拉：原版刺青店 9 个图案设计按四组呈现（可爱 / 帅气 / 神圣 / 异端） */
-			var styleSel = mbCEVanillaEconUiSelectGrouped(body, "样式",
-				MCE_ECON_TATTOO_STYLES.map(function (g) {
-					return { grp: g.grp, items: g.items.map(function (it) { return [it.key, it.zh]; }) };
-				}),
-				"原版刺青店全部图案设计，按四组分类；原版渲染不按部位区分，所有样式对全部部位通用");
-			var g1 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g1, "纹上该样式", "把所选样式 clone 成原版设计对象写到所选部位（判为纹身）；覆盖该部位已有图案，可回退", function () {
-				mbCEVanillaEconUiRun(mbCEVanillaEconTattooSet(sel.value, styleSel.value), redraw);
-			});
-			mbCEVanillaEconUiBtn(g1, "清除该部位", "整部位重置（等价原版「擦除涂写」）", function () {
-				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClear(sel.value), redraw);
-			});
-			mbCEVanillaEconUiBtn(g1, "标记为纹身", "把该部位已有图案改判为纹身（无图案时拒绝）", function () {
-				mbCEVanillaEconUiRun(mbCEVanillaEconTattooMark(sel.value), redraw);
-			});
-			mbCEVanillaEconUiBtn(g1, "一键清除全部", "所有带纹身的部位一次重置（其他部位不动）", function () {
-				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClearAll(), redraw);
-			});
-			body.appendChild(mceFoldHint("「纹上该样式」走原版刺青店同一通道（clone 设计对象 + 判为纹身），不需要先有刺青数据；"
-				+ "原版对全部部位通用同一样式表（渲染层不按部位区分），这里按刺青店四组原样列出。清除、改判仍是两条真实可行的路。"));
-			var undos = [["tattoo-all", "回退全部纹身"]];
-			merged.forEach(function (k) { undos.push(["tattoo-" + k, "回退 " + mbCEVanillaEconBodyZh(k)]); });
-			mbCEVanillaEconUiUndoGrid(body, redraw, undos);
-		};
-		redraw();
-	}
+	/* ---------- ⑪-5 身体涂鸦：视图在 07m-vanilla-econ-bw-view.js（原版 9 分类 + 特殊涂鸦 + 十六字真言） ---------- */
 
 	function mbCERenderVanillaEcon(pane) {
-		var sec = mceNewSec(pane, 11, "经济 · 学业 · 农田 · 消耗品 · 纹身",
-			"五项直接写原版存档字段，改完立即生效；每组自带回退，也可在「统一回退中心」逐条撤销。");
+		var sec = mceNewSec(pane, 11, "经济 · 学业 · 农田 · 消耗品 · 身体涂鸦",
+			"房租 / 出勤 / 农田 / 避孕套四项直写原版字段；身体涂鸦走原版 9 类菜单 + 特殊分组 + 悉尼十六字真言，逐条可回退。");
 		var V = getV();
 		if (!V) {
 			sec.appendChild(el("div", MCE_CLS.hint, "游戏尚未就绪，暂不可写。"));
@@ -320,5 +273,5 @@
 		mbCEVanillaEconSecSchool(sec);
 		mbCEVanillaEconSecFarm(sec);
 		mbCEVanillaEconSecItem(sec);
-		mbCEVanillaEconSecTattoo(sec);
+		mbCEVanillaEconSecBodywriting(sec);
 	}

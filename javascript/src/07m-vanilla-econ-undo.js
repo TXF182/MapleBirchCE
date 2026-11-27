@@ -70,6 +70,33 @@
 			V.skin = mbCEVanillaEconClone(b.skin);
 			delete V.mbCE_wrote[key];
 			return { ok: true, message: "已还原全部皮肤数据" };
+		},
+		/* v2.2.9 涂鸦留痕（单部位 / 全部 / 图像开关）；旧 tattoo / tattoo-all 保留兼容老存档 */
+		"bodywriting": function (V, b, key) {
+			if (!V.skin || typeof V.skin !== "object") { return { ok: false, message: "皮肤数据已不在，无法回退" }; }
+			if (b.had === false) {
+				try { delete V.skin[b.part]; } catch (eBw0) { void eBw0; }
+				delete V.mbCE_wrote[key];
+				return { ok: true, message: "已移除「" + mbCEVanillaEconBodyZh(b.part) + "」的涂写（该部位原档不存在）" };
+			}
+			V.skin[b.part] = mbCEVanillaEconClone(b.value);
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原「" + mbCEVanillaEconBodyZh(b.part) + "」的皮肤数据" };
+		},
+		"bodywriting-all": function (V, b, key) {
+			V.skin = mbCEVanillaEconClone(b.skin);
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原全部皮肤数据（涂鸦 / 纹身）" };
+		},
+		"bodywriting-images": function (V, b, key) {
+			if (!V.options || typeof V.options !== "object") { V.options = {}; }
+			if (b.value === undefined || b.value === null) {
+				try { delete V.options.bodywritingImages; } catch (eBw1) { void eBw1; }
+			} else {
+				V.options.bodywritingImages = b.value;
+			}
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原身体涂鸦图像开关为 " + ((b.value === undefined || b.value === null) ? "未设置" : b.value) };
 		}
 	};
 	function mbCEVanillaEconUndo(id, b, key) {

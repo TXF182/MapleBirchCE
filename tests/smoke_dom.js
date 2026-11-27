@@ -2585,6 +2585,21 @@ setTimeout(function () {
     if (fcClose20) { fcClose20.click(); }
     assert(V.mbCE_hide.force === false, "20.10 再点关闭 → force=false（1s 定时器已清）");
 
+    /* 20.10a~20.10d 锁魅力/诱惑（v2.2.9） */
+    V.attractiveness = 1200; V.allure = 1600;
+    delete V.mbCE_lock;
+    const lkOpen20 = btnByTxt20(paneOf20("stage"), "开启锁魅力/诱惑");
+    if (lkOpen20) { lkOpen20.click(); }
+    assert(api.mbCELockHas("attractiveness") === true && api.mbCELockHas("allure") === true, "20.10a 点「开启锁魅力/诱惑」→ 两项进入锁定");
+    assert(paneOf20("stage").textContent.indexOf("已锁（点此解锁）") !== -1, "20.10b 按钮文案翻转为已锁");
+    V.attractiveness = 1050; V.allure = 1400;
+    api.mbCELockTick();
+    assert(V.attractiveness === 1200 && V.allure === 1600, "20.10c tick 写回被隐藏扣掉的值");
+    const lkClose20 = btnByTxt20(paneOf20("stage"), "已锁（点此解锁）");
+    if (lkClose20) { lkClose20.click(); }
+    assert(api.mbCELockHas("attractiveness") === false && api.mbCELockHas("allure") === false, "20.10d 再点解锁 → 两项解除");
+    delete V.attractiveness; delete V.allure;
+
     /* 20.11~20.34 地点阶段页「小岛」+「地下妓院」 */
     const tabPl20 = document.querySelector('.mce-tabs button[data-tab="places"]');
     if (tabPl20) { tabPl20.click(); }

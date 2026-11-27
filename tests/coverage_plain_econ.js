@@ -122,18 +122,64 @@ try {
   r = api.vanillaEconCondomsAdd(10);
   assert(r.ok === true && V.condoms === 999, "999 + 10 → 钳制在 999 不越界");
 
-  /* ================= 6. 纹身三态（非纹身 / 已是纹身 / 无纹身） ================= */
-  section("6 纹身三态");
+  /* ================= 6. 涂写清除与涂鸦拒绝侧（v2.2.9 纹身样式移除后的口径） ================= */
+  section("6 涂写 / 涂鸦边界");
   V.skin = { face: { show: 1 }, left_cheek: { type: "text", pen: "tattoo", writing: "★" } };
   V.mbCE_wrote = {};
-  r = api.vanillaEconTattooClear("face");
-  assert(r.ok === false && /没有纹身/.test(r.message), "非纹身部位 → 清除拒绝");
-  assert(V.skin.face.show === 1, "非纹身部位不动");
-  r = api.vanillaEconTattooMark("left_cheek");
-  assert(r.ok === false && /已经是纹身/.test(r.message), "已是纹身 → 标记拒绝");
+  r = api.vanillaEconBwClear("face");
+  assert(r.ok === false && /没有涂鸦或纹身/.test(r.message), "无 pen 部位 → 清除拒绝");
+  assert(V.skin.face.show === 1, "无 pen 部位不动");
+  r = api.vanillaEconTattooClear("left_cheek");
+  assert(r.ok === true && JSON.stringify(V.skin.left_cheek) === "{}", "旧名 TattooClear 现在清涂写（兼容旧调用）");
   delete V.skin.left_cheek;
-  r = api.vanillaEconTattooClearAll();
-  assert(r.ok === false && /没有任何纹身/.test(r.message), "当前无纹身 → 一键清除拒绝");
+  r = api.vanillaEconBwClearAll();
+  assert(r.ok === false && /没有任何涂鸦或纹身/.test(r.message), "当前无涂写 → 一键清除拒绝");
+
+  setupObj.bodywriting.slut = { index: 90, writing: "Slut", writ_cn: "骚货", type: "text", special: "none" };
+  delete V.skin;
+  V.mbCE_wrote = {};
+  r = api.vanillaEconBwWrite("forehead", "slut");
+  assert(r.ok === false && /皮肤数据/.test(r.message), "无 skin → 写入拒绝");
+  V.skin = { forehead: {} };
+  r = api.vanillaEconBwWrite("", "slut");
+  assert(r.ok === false, "空部位 → 写入拒绝");
+  r = api.vanillaEconBwWrite("forehead", "unknown_bw_key");
+  assert(r.ok === false, "未知涂鸦键 → 拒绝");
+  const bwKeep = setupObj.bodywriting; delete setupObj.bodywriting;
+  r = api.vanillaEconBwWrite("forehead", "slut");
+  assert(r.ok === false && /数据不在/.test(r.message), "宿主缺 bodywriting → 写入拒绝");
+  r = api.vanillaEconBwSpecial();
+  assert(Array.isArray(r) && r.length === 0, "宿主缺 bodywriting → 特殊分组为空");
+  setupObj.bodywriting = bwKeep;
+
+  delete V.options;
+  r = api.vanillaEconBwImages(1);
+  assert(r.ok === true && V.options.bodywritingImages === 1, "options 缺失 → 创建并写入 1");
+  r = api.vanillaEconBwImages(0);
+  assert(r.ok === true && V.options.bodywritingImages === 0, "关闭图像开关写 0");
+
+  r = api.vanillaEconBwClear("forehead");
+  assert(r.ok === false && /没有涂鸦或纹身/.test(r.message), "空对象部位（无 pen）→ 清除拒绝");
+  delete V.skin;
+  r = api.vanillaEconBwClear("forehead");
+  assert(r.ok === false, "无 skin → 清除拒绝");
+  r = api.vanillaEconBwClearAll();
+  assert(r.ok === false, "无 skin → 全部清除拒绝");
+
+  /* 面板空状态与状态文案：空 skin / 纹身 / 无 writing 的图形 */
+  V.skin = {};
+  const paneA = document.createElement("div");
+  api.renderVanillaEcon(paneA);
+  assert(paneA.textContent.indexOf("没有皮肤数据") === -1 && paneA.textContent.indexOf("身体涂鸦") !== -1, "空 skin → 涂鸦区块仍渲染（部位回退额头）");
+  V.skin = { forehead: { pen: "tattoo", writing: "★" }, chest: { pen: "pen", type: "object" } };
+  const paneB = document.createElement("div");
+  api.renderVanillaEcon(paneB);
+  assert(paneB.textContent.indexOf("纹身：★") !== -1, "当前部位为纹身 → 状态行标纹身");
+  assert(paneB.textContent.indexOf("纹身：★") !== -1, "纹身状态文案不混涂鸦");
+  delete V.skin;
+  const paneC = document.createElement("div");
+  api.renderVanillaEcon(paneC);
+  assert(paneC.textContent.indexOf("没有皮肤数据") !== -1, "无 skin → 涂鸦区块给出提示");
 
   console.log("\n" + (failures ? "FAILED: " + failures + " / " + (passes + failures) : "ALL PASS: " + passes));
   process.exit(failures ? 1 : 0);

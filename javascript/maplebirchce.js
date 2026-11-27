@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.2.8";
+	var MCE_VERSION = "2.2.9";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -17147,11 +17147,13 @@ function renderYanlingQuick(parent) {
  *   3) $transformationParts 为 { 物种: { 部件: "default"|"hidden"|"disabled" } }；
  *      大量原版场景用 `isnot "hidden"` 决定 NPC 是否看见/反应（Traits / Avery / History Lesson / Temple / Mirror）。
  *
- * 因此本页做三件事（全部只写原版字段，不 patch 段落）：
+ * 因此本页做四件事（全部只写原版字段，不 patch 段落）：
  *   · 隐藏内在（traits.*：尖牙/锐眼/追逐/炫耀/终身伴侣）
  *   · 隐藏翅膀（bird / angel / fallenAngel / demon 的 wings，独立开关）
  *   · 隐藏无惩罚：① 锁 $trauma = 0（复用 07f-lock 的 1s 写回，压掉 +15）
  *                 ② 强制保持隐藏：1s 校验，被原版打回 "default" 立即写回 "hidden"
+ *   · 锁魅力/诱惑（v2.2.9）：原版 calculateallure 按隐藏部件数量扣 attractiveness/allure，
+ *     锁创伤压不住；用 07f 锁定每秒写回开锁时的值
  * ============================================================ */
 
 var MB_CE_HIDE_WINGS_SPECIES = ["bird", "angel", "fallenAngel", "demon"];
@@ -17270,6 +17272,73 @@ function mbCEHideNoPenalty(on) {
 		return (r2 && r2.ok) ? { ok: true, message: "隐藏无惩罚已关闭：已解除创伤锁定" } : (r2 || { ok: false, message: "解绑失败" });
 	} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 }
+/* 隐藏时锁魅力/诱惑（v2.2.9）：原版 calculateallure 会按隐藏部件数量扣 attractiveness/allure
+   （DOLL html 167989-167996：天使/恶魔每件 -100~-150、鸟 -60、狐 -183）。
+   07f 锁定每秒写回，可把掉下去的值压回开锁时的值。锁定会冻结换装/时间带来的变化，属作弊预期。 */
+var MB_CE_HIDE_LOOK_PATHS = ["attractiveness", "allure"];
+
+function mbCEHideLookRead() {
+	var V = getV();
+	if (!V || typeof V !== "object") { return { ok: false, message: "存档变量不可用" }; }
+	var a = V.attractiveness, l = V.allure;
+	if (typeof a !== "number" || !isFinite(a)) { return { ok: false, message: "存档里还没有魅力值：先在游戏内打开一次镜子/属性页刷新，再回来开锁" }; }
+	if (typeof l !== "number" || !isFinite(l)) { return { ok: false, message: "存档里还没有诱惑值：先在游戏内打开一次镜子/属性页刷新，再回来开锁" }; }
+	return { ok: true, attractiveness: a, allure: l };
+}
+
+/* 当前隐藏部件数：用于提醒「已隐藏时开锁会锁到降低后的值」 */
+function mbCEHideHiddenCount() {
+	var V = getV();
+	var parts = V && V.transformationParts;
+	if (!parts || typeof parts !== "object") { return 0; }
+	var n = 0;
+	Object.keys(parts).forEach(function (k) {
+		var c = parts[k];
+		if (!c || typeof c !== "object") { return; }
+		Object.keys(c).forEach(function (p) { if (c[p] === "hidden") { n++; } });
+	});
+	return n;
+}
+
+function mbCEHideLookOn() {
+	/* 以锁定表为准：回退中心单独取消锁定时，按钮状态能跟着变 */
+	return mbCELockHas("attractiveness") && mbCELockHas("allure");
+}
+
+function mbCEHideLookOffApply() {
+	var removed = 0;
+	MB_CE_HIDE_LOOK_PATHS.forEach(function (p) {
+		if (mbCELockHas(p)) { var r = mbCELockRemove(p); if (r && r.ok) { removed++; } }
+	});
+	return { ok: true, message: removed ? "已解锁魅力/诱惑（" + removed + " 项，回退中心仍保留锁定前原值）" : "魅力/诱惑本来就没锁" };
+}
+
+function mbCEHideLookOnApply() {
+	var cur = mbCEHideLookRead();
+	if (!cur || !cur.ok) { return cur || { ok: false, message: "存档变量不可用" }; }
+	var okN = 0;
+	MB_CE_HIDE_LOOK_PATHS.forEach(function (p) {
+		var r = mbCELockSet(p, cur[p], true);
+		if (r && r.ok) { okN++; }
+	});
+	if (okN !== MB_CE_HIDE_LOOK_PATHS.length) { return { ok: false, message: "锁定失败（" + okN + "/" + MB_CE_HIDE_LOOK_PATHS.length + "）" }; }
+	var hid = mbCEHideHiddenCount();
+	return {
+		ok: true,
+		message: "已锁魅力 " + cur.attractiveness + " / 诱惑 " + cur.allure + "（隐藏后每秒写回）" +
+			(hid ? "；当前仍有 " + hid + " 个部件隐藏，锁到的是已降低的值——建议先取消隐藏再开锁" : "")
+	};
+}
+
+function mbCEHideLookLock(on) {
+	try {
+		if (typeof mbCELockSet !== "function" || typeof mbCELockRemove !== "function" || typeof mbCELockHas !== "function") {
+			return { ok: false, message: "锁定模块未加载（07f-lock.js）" };
+		}
+		return on ? mbCEHideLookOnApply() : mbCEHideLookOffApply();
+	} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
+}
+
 /* 强制保持隐藏开关 */
 function mbCEHideForce(on) {
 	try {
@@ -17354,6 +17423,18 @@ function renderTransformHideSec(pane) {
 	npBtn.addEventListener("click", function () { var r = mbCEHideNoPenalty(!npOn); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); renderStagePane(); });
 	npRow.appendChild(npBtn);
 	sec.appendChild(npRow);
+
+	/* 锁魅力/诱惑：原版按隐藏部件数量扣魅力/诱惑，锁创伤压不住这一项 */
+	var lkRow = el("div", MCE_CLS.row);
+	lkRow.appendChild(el("span", MCE_CLS.rowLbl, "锁魅力/诱惑（隐藏不掉）"));
+	var lkOn = mbCEHideLookOn();
+	var lkBtn = el("button", MCE_CLS.btn + (lkOn ? " mce-gold" : ""), lkOn ? "已锁（点此解锁）" : "开启锁魅力/诱惑");
+	lkBtn.type = "button";
+	lkBtn.title = "原版按隐藏部件数量扣魅力/诱惑；开启后每秒写回开启时的值。建议先取消隐藏再开锁。";
+	lkBtn.addEventListener("click", function () { var r = mbCEHideLookLock(!mbCEHideLookOn()); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); renderStagePane(); });
+	lkRow.appendChild(lkBtn);
+	sec.appendChild(lkRow);
+	sec.appendChild(el("div", MCE_CLS.hint, "锁魅力/诱惑会把当前值固定住，换装/时间带来的变化也会被冻结；要恢复就让按钮解锁，或到回退中心取消锁定并还原原值。"));
 
 	var fcRow = el("div", MCE_CLS.row);
 	fcRow.appendChild(el("span", MCE_CLS.rowLbl, "强制保持隐藏（防原版打回）"));
@@ -18433,7 +18514,8 @@ function renderNpcUndergroundSec(pane) {
 		};
 		redrawTitle();
 	}
-/* 职责：原版「房租/欠租 · 学校出勤 · 农场地块 · 避孕套 · 玩家纹身」五项直写通道（全局页 ⑪ 数据层）。
+/* 职责：原版「房租/欠租 · 学校出勤 · 农场地块 · 避孕套」四项直写通道（全局页 ⑪ 数据层）；
+   身体涂鸦（206 条 + 9 类菜单 + 特殊分组 + 悉尼十六字真言）见 07m-vanilla-econ-bw-data.js。
    写入全部走 07l 的 vcore 留痕（mbCEVanillaTrace 保留首次 before），回退由本段 mbCEVanillaEconUndo
    按 kind 还原；统一回退中心按 type==="vcore" 分发到 mbCEVanillaExtUndo，后者在未知 kind 处委派到本段
    （这样不必把 07l 主段撑过结构门禁 S1 的 400 行）。视图在同名 -view 段。
@@ -18450,11 +18532,7 @@ function renderNpcUndergroundSec(pane) {
      空格（stage 0）与未知作物（setup.foodstuff 无键）绝不能写 stage 5——tendingDay 会读
      setup.foodstuff[undefined] 直接抛 TypeError。
    - 套：V.condoms 是顶层计数键（侧栏 Total condoms: $condoms），侧栏仅在 condomLevel>=1 时显示，数值本身随时可写。
-   - 纹：纹身不是 V.tattoos，而是 V.skin[<部位>].pen === "tattoo"；原版清除 widget bodywriting_clear 的语义就是
-     `<<set $skin[_args[0]] to {}>>`（整部位重置）。原版「加纹身」走 Tattoo Get：`clone(setup.bodywriting[$tattoo_choice])`
-     经 add_bodywriting widget 写进 $skin[<部位>] 并把 pen 置 "tattoo"（DoL 0.5.12.13 单文件 HTML 实证：
-     Tattoo Get @52151101 / Widgets Bodywriting @25956903）。v2.2.0 起本段样式直写 = 同一个 clone+pen 语义，
-     设计表运行时取 setup.bodywriting（宿主缺失即拒绝，不凭空造对象）；清除 / 标记两种旧动作保留。 */
+   - 皮：部位中文名按 $skin 的键映射（bodywriting 写入与旧留痕回退共用）。 */
 
 	var MCE_ECON_SUBJECTS = [
 		{ key: "science", zh: "科学" },
@@ -18477,30 +18555,7 @@ function renderNpcUndergroundSec(pane) {
 		thigh: "大腿", left_bottom: "左臀", right_bottom: "右臀",
 		left_shoulder: "左肩", right_shoulder: "右肩", feet: "脚", foot: "脚"
 	};
-	/* v2.2.0 纹身样式：原版刺青店 9 图案（DoL 0.5.12.13 实证 Tattoo Choice @52148483；设计对象
-	   {index, writing, type, arrow, special, gender, lewd, degree}，写入走 clone 不读 index）。
-	   原版对全部部位通用同一样式表（渲染层 bodywriting.types 不按部位区分），故按刺青店分组呈现、不做部位过滤。 */
-	var MCE_ECON_TATTOO_STYLES = [
-		{ grp: "可爱（Girly）", items: [
-			{ key: "unicorn", zh: "独角兽" }, { key: "heart", zh: "爱心" }, { key: "flower", zh: "花朵" },
-			{ key: "butterfly", zh: "蝴蝶" }, { key: "star", zh: "星星" }
-		] },
-		{ grp: "帅气（Boyish）", items: [
-			{ key: "skull", zh: "骷髅" }, { key: "flame", zh: "火焰" }
-		] },
-		{ grp: "神圣（Holy）", items: [ { key: "cross", zh: "十字架" } ] },
-		{ grp: "异端（Deviant）", items: [ { key: "paw_print", zh: "爪印" } ] }
-	];
-	/* 原版 setup.bodyparts 12 部位（@19937570）；样式区部位下拉 = 12 部位 ∪ 存档已有皮肤键 */
-	var MCE_ECON_TATTOO_PARTS = ["forehead", "left_cheek", "right_cheek", "left_shoulder", "right_shoulder",
-		"breasts", "back", "left_bottom", "right_bottom", "pubic", "left_thigh", "right_thigh"];
-	function mbCEVanillaEconTattooStyleZh(key) {
-		var hit = null;
-		MCE_ECON_TATTOO_STYLES.forEach(function (g) {
-			g.items.forEach(function (it) { if (it.key === key) { hit = it.zh; } });
-		});
-		return hit;
-	}
+	/* 原版 setup.bodyparts 12 部位（@19937570）：身体涂鸦/纹身共用；涂鸦面板按存档实际 $skin 键枚举 */
 
 	function mbCEVanillaEconSubjectZh(key) {
 		var hit = null;
@@ -18768,69 +18823,181 @@ function renderNpcUndergroundSec(pane) {
 		return { ok: true, message: "避孕套 " + cur + " → " + target + " 个" };
 	}
 
-	/* ---------- 纹身 ---------- */
-	function mbCEVanillaEconTattooClear(part) {
+	/* ---------- 身体涂鸦 ----------
+	   原 v2.2.0 的 9 款纹身样式自选已移除（用户口径：纹身游戏里本来就能直接纹，CE 不再重复提供）。
+	   涂鸦的写入 / 清除 / 图像开关全部在 07m-vanilla-econ-bw-data.js；本段只保留部位中文名与只读统计。 */
+
+/* 职责：原版「身体涂鸦 bodywriting」直写通道（全局页 ⑪ 数据层，替代原纹身样式自选区）。
+   事实依据（DoL 0.5.12.13 单文件 HTML 实证，不抄二手结论）：
+   - setup.bodywriting 全量 206 条（@284979 起）；每条 {index, writing, type, special, lewd, sprites}，
+     汉化包在运行时给每条注入 writ_cn（i18n 替换 `writing: "X",` → `writing: "X",writ_cn: "…",`）。
+   - 原版镜子菜单 _bodyWritingOptions（@296546）静态全量 9 组 118 条（General 15 / Promiscuity 16 /
+     Prostitution 10 / Exhibitionism 6 / Deviancy 5 / Masochism 4 / Submission 11 / Pregnancy 5 /
+     Love Interests 46）；菜单按玩家属性条件解锁，这里按全量列出。
+   - 原版写入通道 add_bodywriting（@287369）：`clone(setup.bodywriting[key])` 写进 $skin[part]，
+     pen 由调用方置 "pen"（涂鸦）/ "tattoo"（纹身）；本段固定 "pen"。
+   - 非菜单 88 条（NPC/剧情专属）：Sydney 17（含十六字真言）、bestiality 9、criminal 7、rape 9、
+     impreg 8、cattle 6、combat 5、islander 3、pregnancy 3、violence 3、esoteric/holy 各 1、none 16。
+   - 十六字真言 stupid_little_fucking_sextease_bitch_fucker（special Sydney，汉化「操他妈的只会色诱的白痴脑瘫小婊子」）
+     单独一键入口，仍归属涂鸦区块。
+   回退：kind=bodywriting（单部位，had=false 时删除）/ bodywriting-all（整份皮肤）/
+   bodywriting-images（图像开关）；旧 tattoo / tattoo-all 留痕仍由 undo 段兼容。 */
+
+	var MCE_ECON_BW_MENU = [
+		{ grp: "General", zh: "通用", keys: [
+			"cute_boy", "cute_girl", "orphan", "handsome", "pretty", "stud",
+			"beauty", "beautiful", "daddy_issues", "mummy_issues", "trashy", "worthless",
+			"oh_no", "dumb_bitch", "hot"
+		] },
+		{ grp: "Promiscuity", zh: "淫乱", keys: [
+			"slut", "promiscuous", "wanton", "dtf", "insatiable_slut", "free_sex",
+			"town_bicycle", "size_queen", "sex_addict", "make_me_cum", "fuck_me", "cocksucker",
+			"cum_dump", "public_slut", "buttslut", "anal_whore"
+		] },
+		{ grp: "Prostitution", zh: "卖淫", keys: [
+			"its_not_rape_if_you_pay_me", "five_pound_whore", "ten_pound_a_pop", "slut_for_hire", "twenty_five_pound_per_fuck", "one_hundred_pound",
+			"body_for_sale", "stupid_whore", "whore", "prostitute"
+		] },
+		{ grp: "Exhibitionism", zh: "暴露", keys: [
+			"pervert", "attention_whore", "flaunter", "object", "strip_me", "ask_to_see_me_naked"
+		] },
+		{ grp: "Deviancy", zh: "异种", keys: [
+			"doggy_slut", "animal", "beast_fucker", "breedable", "deviant"
+		] },
+		{ grp: "Masochism", zh: "受虐", keys: [
+			"hit_me", "hurt_me", "treat_me_bad", "make_me_squeal"
+		] },
+		{ grp: "Submission", zh: "顺从", keys: [
+			"submissive", "pet", "public_pet", "free_use", "use_me", "slave",
+			"enslave_me", "cum_rag", "fuckdoll", "fucktoy", "walking_dildo"
+		] },
+		{ grp: "Pregnancy", zh: "怀孕", keys: [
+			"brood_mother", "inseminate_me", "impregnate_me", "pregnancy_slut", "breeding_ground"
+		] },
+		{ grp: "Love Interests", zh: "恋爱对象", keys: [
+			"robins_protector", "robin_and_i", "the_orphan_lover", "robins_boyfriend", "robins_girlfriend", "whitneys_pet",
+			"property_of_whitney", "whitneys_toy", "whitneys_boyslut", "whitneys_slut", "kylars_obsession", "love_kylar_forever",
+			"reserved_for_kylar", "just_kylar", "edens_companion", "hunter_and_prey", "its_lonely_in_the_woods", "something_is_hunting_you",
+			"averys_trophy", "endearing", "uptown_boy", "uptown_girl", "averys_monopoly", "alexs_partner",
+			"sunrise_to_sunset", "hay_baler", "cowboy", "cowgirl", "sydneys_savior", "bound_to_sydney",
+			"sydney_makes_me_smile", "purest_love", "lusty_sinners", "black_wolfs_bitch", "all_for_my_alpha", "leader_of_the_pack",
+			"runs_with_wolves", "great_hawks_spouse", "soaring_with_love", "terrors_mate", "free_bird", "witchs_ward",
+			"witchs_familiar", "gwylans_treasure", "gwylans_apprentice", "forever_yearning"
+		] }
+	];
+	/* 特殊涂鸦分组显示名（按原版 special 标签 = 写入来源；none 再按 type 拆纹样 / 杂项） */
+	var MCE_ECON_BW_SPECIAL_ZH = {
+		Sydney: "悉尼", cattle: "雷米牧场", bestiality: "兽交", criminal: "犯罪", rape: "强暴",
+		impreg: "受孕", pregnancy: "怀孕", violence: "暴力", combat: "战斗", islander: "海岛",
+		esoteric: "秘教", holy: "神圣", pattern: "纹样符号", misc: "杂项"
+	};
+	var MCE_ECON_BW_SPECIAL_ORDER = ["Sydney", "cattle", "bestiality", "rape", "criminal", "impreg",
+		"pregnancy", "violence", "combat", "islander", "esoteric", "holy", "pattern", "misc"];
+	var MCE_ECON_BW_TRUTH_KEY = "stupid_little_fucking_sextease_bitch_fucker";
+
+	function mbCEVanillaEconBwHost() {
+		try {
+			var s = getSetup();
+			return (s && s.bodywriting && typeof s.bodywriting === "object") ? s.bodywriting : null;
+		} catch (eBw) { return null; }
+	}
+	function mbCEVanillaEconBwZhOf(key, design) {
+		return (design && (design.writ_cn || design.writing)) || key;
+	}
+	function mbCEVanillaEconBwMenuSet() {
+		var set = {};
+		MCE_ECON_BW_MENU.forEach(function (g) { g.keys.forEach(function (k) { set[k] = 1; }); });
+		return set;
+	}
+	/* 菜单分类（9 组）：宿主有该键时补中文，宿主缺键仍列出（写入时由 BwWrite 拒绝） */
+	function mbCEVanillaEconBwMenu() {
+		var host = mbCEVanillaEconBwHost();
+		return MCE_ECON_BW_MENU.map(function (g) {
+			return {
+				grp: g.grp,
+				zh: g.zh,
+				items: g.keys.map(function (k) {
+					var d = host ? host[k] : null;
+					return { key: k, zh: mbCEVanillaEconBwZhOf(k, d), type: d ? d.type : "text" };
+				})
+			};
+		});
+	}
+	/* 特殊涂鸦：宿主全量 - 菜单 118 - 十六字真言，按 special 归组（none 按 type 拆 pattern / misc） */
+	function mbCEVanillaEconBwSpecial() {
+		var host = mbCEVanillaEconBwHost();
+		if (!host) { return []; }
+		var menuSet = mbCEVanillaEconBwMenuSet();
+		var buckets = {};
+		Object.keys(host).forEach(function (k) {
+			if (menuSet[k] || k === MCE_ECON_BW_TRUTH_KEY) { return; }
+			var d = host[k] || {};
+			var sp = d.special || "none";
+			if (sp === "none") { sp = d.type === "object" ? "pattern" : "misc"; }
+			if (!buckets[sp]) { buckets[sp] = []; }
+			buckets[sp].push({ key: k, zh: mbCEVanillaEconBwZhOf(k, d), type: d.type });
+		});
+		return MCE_ECON_BW_SPECIAL_ORDER.filter(function (sp) {
+			return buckets[sp] && buckets[sp].length;
+		}).map(function (sp) {
+			return { grp: sp, zh: MCE_ECON_BW_SPECIAL_ZH[sp] || sp, items: buckets[sp] };
+		});
+	}
+
+	/* 写入：等价原版 add_bodywriting 的 clone + pen 通道（pen 固定 "pen" = 涂鸦） */
+	function mbCEVanillaEconBwWrite(part, key) {
+		var V = getV();
+		var skin = V && V.skin;
+		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据，进游戏刷新一次再回来" }; }
+		if (!part) { return { ok: false, message: "先选一个部位" }; }
+		var host = mbCEVanillaEconBwHost();
+		if (!host) { return { ok: false, message: "原版涂鸦数据不在（原版数据缺失），拒绝凭空造对象" }; }
+		var d = host[key];
+		if (!d || typeof d !== "object") { return { ok: false, message: "这个涂鸦不在原版数据表里（拒绝写入未知键）" }; }
+		var design = mbCEVanillaEconClone(d);
+		if (!design) { return { ok: false, message: "涂鸦数据无法复制（结构异常）" }; }
+		var obj = skin[part];
+		var before = { kind: "bodywriting", part: part, value: mbCEVanillaEconClone(obj), had: !!(obj && typeof obj === "object") };
+		design.pen = "pen";
+		skin[part] = design;
+		mbCEVanillaTrace("bodywriting-" + part, before, "skin." + part, "写入涂鸦（" + mbCEVanillaEconBwZhOf(key, d) + "）", "vcore-econ");
+		return { ok: true, message: "已在「" + mbCEVanillaEconBodyZh(part) + "」写上「" + mbCEVanillaEconBwZhOf(key, d) + "」（原版涂鸦写入通道，可回退）" };
+	}
+	/* 清除：原版 bodywriting_clear 语义 = skin[part] 整块重置；涂鸦与纹身都清 */
+	function mbCEVanillaEconBwClear(part) {
 		var V = getV();
 		var skin = V && V.skin;
 		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
 		var obj = skin[part];
 		if (!obj || typeof obj !== "object") { return { ok: false, message: "该部位没有皮肤数据" }; }
-		if (obj.pen !== "tattoo") { return { ok: false, message: "该部位没有纹身（只有 pen 为纹身的部位才可清除）" }; }
-		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj) };
+		if (!obj.pen) { return { ok: false, message: "该部位没有涂鸦或纹身" }; }
+		var before = { kind: "bodywriting", part: part, value: mbCEVanillaEconClone(obj), had: true };
 		skin[part] = {};
-		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "清除该部位纹身", "vcore-econ");
-		return { ok: true, message: "已清除「" + mbCEVanillaEconBodyZh(part) + "」的纹身（整部位重置，等价原版 bodywriting_clear）" };
+		mbCEVanillaTrace("bodywriting-" + part, before, "skin." + part, "清除该部位涂写", "vcore-econ");
+		return { ok: true, message: "已清除「" + mbCEVanillaEconBodyZh(part) + "」上的涂写（整部位重置，等价原版擦除涂写）" };
 	}
-	function mbCEVanillaEconTattooMark(part) {
-		var V = getV();
-		var skin = V && V.skin;
-		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
-		var obj = skin[part];
-		if (!obj || typeof obj !== "object") { return { ok: false, message: "该部位没有皮肤数据" }; }
-		if (obj.pen === "tattoo") { return { ok: false, message: "该部位已经是纹身" }; }
-		if (!obj.type || !(obj.writing || obj.type === "image")) {
-			return { ok: false, message: "该部位没有可转成纹身的图案或文字（原版纹身必须有刺青设计数据，凭空造不出来）" };
-		}
-		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj) };
-		obj.pen = "tattoo";
-		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "标记为纹身", "vcore-econ");
-		return { ok: true, message: "「" + mbCEVanillaEconBodyZh(part) + "」已标记为纹身" };
-	}
-	function mbCEVanillaEconTattooClearAll() {
+	function mbCEVanillaEconBwClearAll() {
 		var V = getV();
 		var skin = V && V.skin;
 		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
 		var keys = Object.keys(skin).filter(function (k) {
-			return skin[k] && typeof skin[k] === "object" && skin[k].pen === "tattoo";
+			return skin[k] && typeof skin[k] === "object" && skin[k].pen;
 		});
-		if (!keys.length) { return { ok: false, message: "当前没有任何纹身" }; }
-		var before = { kind: "tattoo-all", skin: mbCEVanillaEconClone(skin) };
+		if (!keys.length) { return { ok: false, message: "当前没有任何涂鸦或纹身" }; }
+		var before = { kind: "bodywriting-all", skin: mbCEVanillaEconClone(skin) };
 		keys.forEach(function (k) { skin[k] = {}; });
-		mbCEVanillaTrace("tattoo-all", before, "skin", "一键清除全部纹身", "vcore-econ");
-		return { ok: true, message: "已清除 " + keys.length + " 处纹身", cleared: keys.length };
+		mbCEVanillaTrace("bodywriting-all", before, "skin", "一键清除全部涂写", "vcore-econ");
+		return { ok: true, message: "已清除 " + keys.length + " 处涂鸦 / 纹身", cleared: keys.length };
 	}
-	/* v2.2.0 样式直写：等价原版 Tattoo Get 的 add_bodywriting(part, key, "tattoo")——clone(setup.bodywriting[key]) + pen="tattoo"；
-	   设计对象运行时取宿主，结构漂移跟随原版；留痕 id 复用 "tattoo-"+part，回退按 kind "tattoo"（had=false 删除原档不存在的部位）。 */
-	function mbCEVanillaEconTattooDesign(key) {
-		try {
-			var s = getSetup();
-			var d = s && s.bodywriting ? s.bodywriting[key] : null;
-			return (d && typeof d === "object") ? mbCEVanillaEconClone(d) : null;
-		} catch (eT) { return null; }
-	}
-	function mbCEVanillaEconTattooSet(part, key) {
+	/* 图像开关：原版设置项 $options.bodywritingImages 直写（勾上才画涂鸦图像） */
+	function mbCEVanillaEconBwImages(on) {
 		var V = getV();
-		var skin = V && V.skin;
-		if (!skin || typeof skin !== "object") { return { ok: false, message: "该存档没有皮肤数据" }; }
-		if (!mbCEVanillaEconTattooStyleZh(key)) { return { ok: false, message: "不在原版刺青店设计表里的样式（拒绝写入）" }; }
-		var design = mbCEVanillaEconTattooDesign(key);
-		if (!design) { return { ok: false, message: "原版设计数据不在（宿主缺失该设计），拒绝凭空造对象" }; }
-		var obj = skin[part];
-		var before = { kind: "tattoo", part: part, value: mbCEVanillaEconClone(obj), had: !!(obj && typeof obj === "object") };
-		design.pen = "tattoo";
-		skin[part] = design;
-		mbCEVanillaTrace("tattoo-" + part, before, "skin." + part, "纹上样式（" + mbCEVanillaEconTattooStyleZh(key) + "）", "vcore-econ");
-		return { ok: true, message: "已在「" + mbCEVanillaEconBodyZh(part) + "」纹上「" + mbCEVanillaEconTattooStyleZh(key) + "」（等价原版刺青店操作，可回退）" };
+		if (!V) { return { ok: false, message: "存档变量不可用" }; }
+		if (!V.options || typeof V.options !== "object") { V.options = {}; }
+		var before = { kind: "bodywriting-images", value: V.options.bodywritingImages };
+		V.options.bodywritingImages = on ? 1 : 0;
+		mbCEVanillaTrace("bodywriting-images", before, "options.bodywritingImages", "身体涂鸦图像开关", "vcore-econ");
+		return { ok: true, message: "已" + (on ? "启用" : "关闭") + "身体涂鸦图像显示" };
 	}
 /* 职责：房租金额的「便士 ↔ 英镑」换算 · 每周租金直写 · 租金锁定（07m 房租组的补充分段）。
    原版事实（DoL 0.5.12.13 源码实证，勿凭印象改口径）：
@@ -18992,6 +19159,33 @@ function renderNpcUndergroundSec(pane) {
 			V.skin = mbCEVanillaEconClone(b.skin);
 			delete V.mbCE_wrote[key];
 			return { ok: true, message: "已还原全部皮肤数据" };
+		},
+		/* v2.2.9 涂鸦留痕（单部位 / 全部 / 图像开关）；旧 tattoo / tattoo-all 保留兼容老存档 */
+		"bodywriting": function (V, b, key) {
+			if (!V.skin || typeof V.skin !== "object") { return { ok: false, message: "皮肤数据已不在，无法回退" }; }
+			if (b.had === false) {
+				try { delete V.skin[b.part]; } catch (eBw0) { void eBw0; }
+				delete V.mbCE_wrote[key];
+				return { ok: true, message: "已移除「" + mbCEVanillaEconBodyZh(b.part) + "」的涂写（该部位原档不存在）" };
+			}
+			V.skin[b.part] = mbCEVanillaEconClone(b.value);
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原「" + mbCEVanillaEconBodyZh(b.part) + "」的皮肤数据" };
+		},
+		"bodywriting-all": function (V, b, key) {
+			V.skin = mbCEVanillaEconClone(b.skin);
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原全部皮肤数据（涂鸦 / 纹身）" };
+		},
+		"bodywriting-images": function (V, b, key) {
+			if (!V.options || typeof V.options !== "object") { V.options = {}; }
+			if (b.value === undefined || b.value === null) {
+				try { delete V.options.bodywritingImages; } catch (eBw1) { void eBw1; }
+			} else {
+				V.options.bodywritingImages = b.value;
+			}
+			delete V.mbCE_wrote[key];
+			return { ok: true, message: "已还原身体涂鸦图像开关为 " + ((b.value === undefined || b.value === null) ? "未设置" : b.value) };
 		}
 	};
 	function mbCEVanillaEconUndo(id, b, key) {
@@ -19000,7 +19194,145 @@ function renderNpcUndergroundSec(pane) {
 		var fn = MB_CE_ECON_UNDO[String(b.kind || "")];
 		return typeof fn === "function" ? fn(V, b, key) : null;
 	}
-/* 职责：全局页 ⑪「经济 · 学业 · 农田 · 消耗品 · 纹身」区块渲染（07m-vanilla-econ-data.js 的视图层）。
+/* 职责：全局页 ⑪-5「身体涂鸦」区块（原版镜子菜单样式：9 分类按钮 + 条目/部位下拉 + 确认 + 图像开关；
+   另加「特殊涂鸦」子分组入口与「悉尼十六字真言」独立按钮）。数据层见 07m-vanilla-econ-bw-data.js。
+   排版复用 07m-vanilla-econ-view.js 的 Ui* 助手（同一套 token，不另起风格）。
+   拆段原因：结构门禁 S1 单段 400 行；本段只放涂鸦视图，主渲染段保持原样。 */
+
+	function mbCEVanillaEconBwPartList(skin) {
+		var parts = Object.keys(skin).filter(function (k) { return skin[k] && typeof skin[k] === "object"; });
+		return parts.length ? parts : ["forehead"];
+	}
+	function mbCEVanillaEconBwStatusText(obj) {
+		if (!obj || typeof obj !== "object" || !obj.pen) { return "空"; }
+		return (obj.pen === "tattoo" ? "纹身：" : "涂鸦：") + (obj.writ_cn || obj.writing || "图案");
+	}
+	function mbCEVanillaEconBwItems(ui) {
+		var list;
+		if (ui.special) {
+			list = mbCEVanillaEconBwSpecial();
+			var hit = list.filter(function (g) { return g.grp === ui.sp; })[0];
+			if (!hit && list.length) { ui.sp = list[0].grp; hit = list[0]; }
+			return hit ? hit.items : [];
+		}
+		list = mbCEVanillaEconBwMenu();
+		var g = list.filter(function (x) { return x.grp === ui.cat; })[0];
+		return g ? g.items : [];
+	}
+	function mbCEVanillaEconBwCatGrid(body, ui, redraw) {
+		var g = mceBtnGrid(body);
+		mbCEVanillaEconBwMenu().forEach(function (x) {
+			mbCEVanillaEconUiBtn(g, x.zh, "原版菜单分类：" + x.zh + "（" + x.items.length + " 条）", function () {
+				ui.cat = x.grp;
+				ui.special = false;
+				redraw();
+			});
+		});
+	}
+	function mbCEVanillaEconBwSpecialEntry(body, ui, redraw) {
+		var g = mceBtnGrid(body);
+		mbCEVanillaEconUiBtn(g, "特殊涂鸦", "镜子菜单未收录的 NPC / 剧情专属涂鸦，按写入来源分组", function () {
+			ui.special = true;
+			redraw();
+		});
+		mbCEVanillaEconUiBtn(g, "悉尼十六字真言", "直接写当前部位：操他妈的只会色诱的白痴脑瘫小婊子（原版悉尼专属）", function () {
+			mbCEVanillaEconUiRun(mbCEVanillaEconBwWrite(ui.part, MCE_ECON_BW_TRUTH_KEY), redraw);
+		});
+		if (!ui.special) { return; }
+		var groups = mbCEVanillaEconBwSpecial();
+		if (!groups.length) {
+			body.appendChild(el("div", MCE_CLS.hint, "原版涂鸦数据缺失或为空，暂无可用的特殊涂鸦。"));
+			return;
+		}
+		var sg = mceBtnGrid(body);
+		groups.forEach(function (x) {
+			mbCEVanillaEconUiBtn(sg, x.zh, x.zh + " 组（" + x.items.length + " 条）", function () {
+				ui.sp = x.grp;
+				redraw();
+			});
+		});
+	}
+	function mbCEVanillaEconBwWriteRow(body, ui, redraw, items, parts) {
+		if (!items.length) { return; }
+		var sel = mbCEVanillaEconUiSelect(body, "涂鸦",
+			items.map(function (it) { return [it.key, it.zh]; }),
+			"原版条目；装了汉化包时显示中文名，否则显示原文");
+		var partSel = mbCEVanillaEconUiSelect(body, "部位",
+			parts.map(function (k) { return [k, mbCEVanillaEconBodyZh(k)]; }),
+			"原版可见部位（含该存档已有的皮肤键）");
+		partSel.value = ui.part;
+		partSel.addEventListener("change", function () { ui.part = partSel.value; redraw(); });
+		var g = mceBtnGrid(body);
+		mbCEVanillaEconUiBtn(g, "写入涂鸦", "把所选条目复制成原版对象写到所选部位（判为涂鸦，可回退）", function () {
+			if (!sel.value) { setStatus("该分组没有可写条目", MCE_CLS.err); return; }
+			mbCEVanillaEconUiRun(mbCEVanillaEconBwWrite(ui.part, sel.value), redraw);
+		});
+	}
+	function mbCEVanillaEconBwClearRow(body, ui, redraw, V) {
+		var g = mceBtnGrid(body);
+		mbCEVanillaEconUiBtn(g, "清除该部位", "整部位重置（等价原版 bodywriting_clear，涂鸦与纹身都清）", function () {
+			mbCEVanillaEconUiRun(mbCEVanillaEconBwClear(ui.part), redraw);
+		});
+		mbCEVanillaEconUiBtn(g, "清除全部涂写", "所有已写涂鸦 / 纹身的部位一次重置（其他皮肤字段不动）", function () {
+			mbCEVanillaEconUiRun(mbCEVanillaEconBwClearAll(), redraw);
+		});
+		var row = el("div", MCE_CLS.row);
+		var lbl = el("label", MCE_CLS.rowLbl, "");
+		lbl.title = "原版设置项：勾上才会画涂鸦图像";
+		var chk = el("input");
+		chk.type = "checkbox";
+		chk.checked = !!(V.options && V.options.bodywritingImages);
+		chk.addEventListener("change", function () {
+			mbCEVanillaEconUiRun(mbCEVanillaEconBwImages(chk.checked), redraw);
+		});
+		lbl.appendChild(chk);
+		lbl.appendChild(document.createTextNode(" 启用身体涂鸦图像"));
+		row.appendChild(lbl);
+		body.appendChild(row);
+	}
+
+	function mbCEVanillaEconSecBodywriting(sec) {
+		var body = mbCEVanillaEconUiBody(sec, "身体涂鸦", "9 类原版菜单 · 特殊涂鸦 · 悉尼十六字真言");
+		var ui = { cat: "General", special: false, sp: "Sydney", part: "forehead" };
+		var redraw = function () {
+			mbCEVanillaEconUiClear(body);
+			var V = getV();
+			var skin = V && V.skin;
+			if (!skin || typeof skin !== "object") {
+				body.appendChild(el("div", MCE_CLS.hint, "该存档没有皮肤数据，进游戏刷新一次再回来。"));
+				return;
+			}
+			var parts = mbCEVanillaEconBwPartList(skin);
+			if (parts.indexOf(ui.part) < 0) { ui.part = parts[0]; }
+			var groups = mbCEVanillaEconBwSpecial();
+			var catZh = mbCEVanillaEconBwMenu().filter(function (x) { return x.grp === ui.cat; })[0];
+			var spZh = groups.filter(function (x) { return x.grp === ui.sp; })[0];
+			mbCEVanillaEconUiKv(body, [
+				["当前部位", mbCEVanillaEconBodyZh(ui.part)],
+				["当前内容", mbCEVanillaEconBwStatusText(skin[ui.part])],
+				["当前分类", ui.special ? "特殊涂鸦 · " + (spZh ? spZh.zh : "无") : (catZh ? catZh.zh : ui.cat)]
+			]);
+			mbCEVanillaEconBwCatGrid(body, ui, redraw);
+			mbCEVanillaEconBwSpecialEntry(body, ui, redraw);
+			var items = mbCEVanillaEconBwItems(ui);
+			if (!items.length) {
+				body.appendChild(el("div", MCE_CLS.hint, ui.special ? "该特殊分组暂无可写涂鸦。" : "该分类暂无可写涂鸦（宿主未提供这些键）。"));
+			}
+			mbCEVanillaEconBwWriteRow(body, ui, redraw, items, parts);
+			mbCEVanillaEconBwClearRow(body, ui, redraw, V);
+			body.appendChild(mceFoldHint("原版 206 条涂鸦里，镜子菜单只开放 118 条（按属性 / 好感条件解锁，这里按全量列出）；"
+				+ "其余 88 条是 NPC / 剧情专属，统一收进「特殊涂鸦」按来源分组。十六字真言单独按钮，直接写当前部位。"
+				+ "所有写入走原版涂鸦通道（笔迹判为涂鸦），与纹身互不覆盖，逐条可回退。"));
+			mbCEVanillaEconUiUndoGrid(body, redraw, [
+				["bodywriting-" + ui.part, "回退 " + mbCEVanillaEconBodyZh(ui.part)],
+				["bodywriting-all", "回退全部涂写"],
+				["bodywriting-images", "回退图像开关"]
+			]);
+		};
+		redraw();
+	}
+/* 职责：全局页 ⑪「经济 · 学业 · 农田 · 消耗品 · 身体涂鸦」区块渲染（07m-vanilla-econ-data.js 的视图层；
+   涂鸦视图拆到 07m-vanilla-econ-bw-view.js）。
    设计约束（用户明确要求）：界面全中文、不出现裸键名；枚举项（科目 / 地块 / 身体部位）一律用下拉选择，
    数值项用输入框 + 「写入」按钮。所有写入留痕，区块内每个可回退动作都带「回退」按钮。
    排版口径：分组标题短、状态行成对（标签 + 数值）、按钮动词开头、长说明收进折叠提示；
@@ -19260,59 +19592,11 @@ function renderNpcUndergroundSec(pane) {
 		redraw();
 	}
 
-	/* ---------- ⑪-5 玩家纹身 ---------- */
-	function mbCEVanillaEconSecTattoo(sec) {
-		var body = mbCEVanillaEconUiBody(sec, "纹身", "清除 · 标记已有图案");
-		var redraw = function () {
-			mbCEVanillaEconUiClear(body);
-			var V = getV();
-			var st = mbCEVanillaEconStats();
-			if (!st.tattoo.has) {
-				body.appendChild(el("div", MCE_CLS.hint, "该存档还没有皮肤数据，进游戏刷新一次再回来。"));
-				return;
-			}
-			var names = st.tattoo.parts.map(function (p) { return p.zh; }).join("、");
-			mbCEVanillaEconUiKv(body, [["纹身处数", st.tattoo.count + " 处"], ["部位", st.tattoo.count ? names : "无"]]);
-			/* v2.2.0 部位下拉 = 原版 12 部位 ∪ 存档已有皮肤键（合并去重，全部中文名） */
-			var merged = MCE_ECON_TATTOO_PARTS.slice();
-			Object.keys(V.skin).forEach(function (k) {
-				if (merged.indexOf(k) < 0 && V.skin[k] && typeof V.skin[k] === "object") { merged.push(k); }
-			});
-			var pairs = merged.map(function (k) { return [k, mbCEVanillaEconBodyZh(k)]; });
-			var sel = mbCEVanillaEconUiSelect(body, "部位", pairs, "原版 12 个纹身部位 + 该存档已有的皮肤部位，显示为中文名");
-			/* 默认定位到已有纹身的第一个部位，省得玩家自己找 */
-			if (st.tattoo.parts.length) { sel.value = String(st.tattoo.parts[0].key); }
-			/* v2.2.0 样式下拉：原版刺青店 9 个图案设计按四组呈现（可爱 / 帅气 / 神圣 / 异端） */
-			var styleSel = mbCEVanillaEconUiSelectGrouped(body, "样式",
-				MCE_ECON_TATTOO_STYLES.map(function (g) {
-					return { grp: g.grp, items: g.items.map(function (it) { return [it.key, it.zh]; }) };
-				}),
-				"原版刺青店全部图案设计，按四组分类；原版渲染不按部位区分，所有样式对全部部位通用");
-			var g1 = mceBtnGrid(body);
-			mbCEVanillaEconUiBtn(g1, "纹上该样式", "把所选样式 clone 成原版设计对象写到所选部位（判为纹身）；覆盖该部位已有图案，可回退", function () {
-				mbCEVanillaEconUiRun(mbCEVanillaEconTattooSet(sel.value, styleSel.value), redraw);
-			});
-			mbCEVanillaEconUiBtn(g1, "清除该部位", "整部位重置（等价原版「擦除涂写」）", function () {
-				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClear(sel.value), redraw);
-			});
-			mbCEVanillaEconUiBtn(g1, "标记为纹身", "把该部位已有图案改判为纹身（无图案时拒绝）", function () {
-				mbCEVanillaEconUiRun(mbCEVanillaEconTattooMark(sel.value), redraw);
-			});
-			mbCEVanillaEconUiBtn(g1, "一键清除全部", "所有带纹身的部位一次重置（其他部位不动）", function () {
-				mbCEVanillaEconUiRun(mbCEVanillaEconTattooClearAll(), redraw);
-			});
-			body.appendChild(mceFoldHint("「纹上该样式」走原版刺青店同一通道（clone 设计对象 + 判为纹身），不需要先有刺青数据；"
-				+ "原版对全部部位通用同一样式表（渲染层不按部位区分），这里按刺青店四组原样列出。清除、改判仍是两条真实可行的路。"));
-			var undos = [["tattoo-all", "回退全部纹身"]];
-			merged.forEach(function (k) { undos.push(["tattoo-" + k, "回退 " + mbCEVanillaEconBodyZh(k)]); });
-			mbCEVanillaEconUiUndoGrid(body, redraw, undos);
-		};
-		redraw();
-	}
+	/* ---------- ⑪-5 身体涂鸦：视图在 07m-vanilla-econ-bw-view.js（原版 9 分类 + 特殊涂鸦 + 十六字真言） ---------- */
 
 	function mbCERenderVanillaEcon(pane) {
-		var sec = mceNewSec(pane, 11, "经济 · 学业 · 农田 · 消耗品 · 纹身",
-			"五项直接写原版存档字段，改完立即生效；每组自带回退，也可在「统一回退中心」逐条撤销。");
+		var sec = mceNewSec(pane, 11, "经济 · 学业 · 农田 · 消耗品 · 身体涂鸦",
+			"房租 / 出勤 / 农田 / 避孕套四项直写原版字段；身体涂鸦走原版 9 类菜单 + 特殊分组 + 悉尼十六字真言，逐条可回退。");
 		var V = getV();
 		if (!V) {
 			sec.appendChild(el("div", MCE_CLS.hint, "游戏尚未就绪，暂不可写。"));
@@ -19322,7 +19606,7 @@ function renderNpcUndergroundSec(pane) {
 		mbCEVanillaEconSecSchool(sec);
 		mbCEVanillaEconSecFarm(sec);
 		mbCEVanillaEconSecItem(sec);
-		mbCEVanillaEconSecTattoo(sec);
+		mbCEVanillaEconSecBodywriting(sec);
 	}
 /* 职责：全局页 ⑫「鹰塔工地（大鹰塔）」——原版 $bird 清洁度与八种材料直写，vcore-bird 留痕可回退。
    原版取证（DoL 0.5.12.13 单文件 HTML，game\Degrees of Lewdity.html，可复跑 Grep）：
@@ -21545,7 +21829,7 @@ function renderCalendar() {
 		var gGuard = mceNewGroup(pane, "防护", "⑧ 数值固定 · ⑨ 潜伏者 · 贝利扣押拦截 · 纯净模式", true);
 		[mbCERenderLock, mbCERenderLurker, mbCERenderBailey, mbCEPureRender].forEach(function (f) { f(gGuard); });
 
-		/* 原版扩展：档案/收藏/头衔 07l · 经济/学业/农田/消耗品/纹身 07m · 鹰塔 07n · 礼顿把柄 07o · 食物/鱼获 07p · 艾弗里 07q，均走独立 vcore 留痕可逐条回退 */
+		/* 原版扩展：档案/收藏/头衔 07l · 经济/学业/农田/消耗品/身体涂鸦 07m · 鹰塔 07n · 礼顿把柄 07o · 食物/鱼获 07p · 艾弗里 07q，均走独立 vcore 留痕可逐条回退 */
 		var gExt = mceNewGroup(pane, "原版扩展", "⑩~⑬ 档案 · 经济 · 鹰塔 · 礼顿 · 食物 · 艾弗里", true);
 		[
 			mbCERenderVanillaExt, mbCERenderVanillaEcon, mbCERenderVanillaBird, mbCERenderVanillaLeighton,
@@ -22296,7 +22580,7 @@ function mbCEUndoOne(key) {
 		yanling: "言灵改写（页内撤销）",
 		part: "外观隐藏（转化部件）",
 		vcore: "原版档案 · 收藏 · 头衔",
-		"vcore-econ": "原版经济 · 学业 · 农田 · 消耗品 · 纹身",
+		"vcore-econ": "原版经济 · 学业 · 农田 · 消耗品 · 身体涂鸦",
 		"vcore-bird": "原版鹰塔（大鹰塔）",
 		"vcore-leighton": "原版礼顿把柄（学校）",
 		lock: "数值锁定写回"
@@ -23370,7 +23654,7 @@ function mbCEUndoOne(key) {
 			var a = s.mbStageCE;
 			a.yanlingLeafSuit = mbCEYanlingLeafSuit;
 			a.yanlingLeafRevert = mbCEYanlingLeafRevert;
-			/* v2.1.14 经济 · 学业 · 农田 · 消耗品 · 纹身（07m-vanilla-econ-data.js） */
+			/* v2.1.14 经济 · 学业 · 农田 · 消耗品（07m-vanilla-econ-data.js） */
 			a.vanillaEconStats = mbCEVanillaEconStats;
 			a.vanillaEconRentDays = mbCEVanillaEconRentDays;
 			a.vanillaEconRentDebt = mbCEVanillaEconRentDebt;
@@ -23382,11 +23666,8 @@ function mbCEUndoOne(key) {
 			a.vanillaEconRipenAll = mbCEVanillaEconRipenAll;
 			a.vanillaEconCondoms = mbCEVanillaEconCondoms;
 			a.vanillaEconCondomsAdd = mbCEVanillaEconCondomsAdd;
-			a.vanillaEconTattooClear = mbCEVanillaEconTattooClear;
-			a.vanillaEconTattooMark = mbCEVanillaEconTattooMark;
-			/* v2.2.0 纹身样式直写（原版刺青店设计表 clone + pen 通道） */
-			a.vanillaEconTattooSet = mbCEVanillaEconTattooSet;
-			a.vanillaEconTattooClearAll = mbCEVanillaEconTattooClearAll;
+			/* v2.2.9 身体涂鸦导出（拆到 mbCEExportBodywriting，控制本函数 ≤120 行） */
+			mbCEExportBodywriting(a);
 			/* 回退按 id 走统一分发：先查 vcore 留痕再按 kind 还原（测试与诊断直接调这一个入口） */
 			a.vanillaEconUndo = function (id) { return mbCEVanillaExtUndo(String(id)); };
 			a.renderVanillaEcon = mbCERenderVanillaEcon;
@@ -23476,6 +23757,21 @@ function mbCEUndoOne(key) {
 			a.mbCEDropHostTokens = mbCEDropHostTokens;
 			a.mcAutoState = mcAutoState;
 		} catch (e) { void e; }
+	}
+
+	/* v2.2.9 身体涂鸦导出：菜单 9 组 / 特殊分组 / 十六字真言 / 写入 / 清除 / 图像开关；
+	   旧名 TattooClear / TattooClearAll 保留兼容（现在清「涂鸦 + 纹身」）。 */
+	function mbCEExportBodywriting(a) {
+		a.vanillaEconBwMenu = mbCEVanillaEconBwMenu;
+		a.vanillaEconBwSpecial = mbCEVanillaEconBwSpecial;
+		a.vanillaEconBwSpecialOrder = function () { return MCE_ECON_BW_SPECIAL_ORDER.slice(); };
+		a.vanillaEconBwSpecialKey = function () { return MCE_ECON_BW_TRUTH_KEY; };
+		a.vanillaEconBwWrite = mbCEVanillaEconBwWrite;
+		a.vanillaEconBwClear = mbCEVanillaEconBwClear;
+		a.vanillaEconBwClearAll = mbCEVanillaEconBwClearAll;
+		a.vanillaEconBwImages = mbCEVanillaEconBwImages;
+		a.vanillaEconTattooClear = mbCEVanillaEconBwClear;
+		a.vanillaEconTattooClearAll = mbCEVanillaEconBwClearAll;
 	}
 /* 职责：v2.0.9 原版档案 / 收藏 / 头衔（vcore 六键）导出。
    09-exports2.js 的 mountApi() 会把主导出表挂到 setup.mbStageCE；此处在 mountApi 之后补齐 vcore 键
@@ -23888,6 +24184,7 @@ function mbCEExportYanlingPosts() {
 				mbCEHideTick: mbCEHideTick,
 				mbCEHideForce: mbCEHideForce,
 				mbCEHideNoPenalty: mbCEHideNoPenalty,
+				mbCEHideLookLock: mbCEHideLookLock, mbCEHideLookOn: mbCEHideLookOn, MB_CE_HIDE_LOOK_PATHS: MB_CE_HIDE_LOOK_PATHS, mbCEHideHiddenCount: mbCEHideHiddenCount,
 				MB_CE_HIDE_WINGS_SPECIES: MB_CE_HIDE_WINGS_SPECIES,
 				mbCEIslandV: mbCEIslandV,
 				mbCEPlaceWriteRaw: mbCEPlaceWriteRaw,

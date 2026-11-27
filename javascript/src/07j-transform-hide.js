@@ -15,11 +15,13 @@
  *   3) $transformationParts 为 { 物种: { 部件: "default"|"hidden"|"disabled" } }；
  *      大量原版场景用 `isnot "hidden"` 决定 NPC 是否看见/反应（Traits / Avery / History Lesson / Temple / Mirror）。
  *
- * 因此本页做三件事（全部只写原版字段，不 patch 段落）：
+ * 因此本页做四件事（全部只写原版字段，不 patch 段落）：
  *   · 隐藏内在（traits.*：尖牙/锐眼/追逐/炫耀/终身伴侣）
  *   · 隐藏翅膀（bird / angel / fallenAngel / demon 的 wings，独立开关）
  *   · 隐藏无惩罚：① 锁 $trauma = 0（复用 07f-lock 的 1s 写回，压掉 +15）
  *                 ② 强制保持隐藏：1s 校验，被原版打回 "default" 立即写回 "hidden"
+ *   · 锁魅力/诱惑（v2.2.9）：原版 calculateallure 按隐藏部件数量扣 attractiveness/allure，
+ *     锁创伤压不住；用 07f 锁定每秒写回开锁时的值
  * ============================================================ */
 
 var MB_CE_HIDE_WINGS_SPECIES = ["bird", "angel", "fallenAngel", "demon"];
@@ -138,6 +140,73 @@ function mbCEHideNoPenalty(on) {
 		return (r2 && r2.ok) ? { ok: true, message: "隐藏无惩罚已关闭：已解除创伤锁定" } : (r2 || { ok: false, message: "解绑失败" });
 	} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
 }
+/* 隐藏时锁魅力/诱惑（v2.2.9）：原版 calculateallure 会按隐藏部件数量扣 attractiveness/allure
+   （DOLL html 167989-167996：天使/恶魔每件 -100~-150、鸟 -60、狐 -183）。
+   07f 锁定每秒写回，可把掉下去的值压回开锁时的值。锁定会冻结换装/时间带来的变化，属作弊预期。 */
+var MB_CE_HIDE_LOOK_PATHS = ["attractiveness", "allure"];
+
+function mbCEHideLookRead() {
+	var V = getV();
+	if (!V || typeof V !== "object") { return { ok: false, message: "存档变量不可用" }; }
+	var a = V.attractiveness, l = V.allure;
+	if (typeof a !== "number" || !isFinite(a)) { return { ok: false, message: "存档里还没有魅力值：先在游戏内打开一次镜子/属性页刷新，再回来开锁" }; }
+	if (typeof l !== "number" || !isFinite(l)) { return { ok: false, message: "存档里还没有诱惑值：先在游戏内打开一次镜子/属性页刷新，再回来开锁" }; }
+	return { ok: true, attractiveness: a, allure: l };
+}
+
+/* 当前隐藏部件数：用于提醒「已隐藏时开锁会锁到降低后的值」 */
+function mbCEHideHiddenCount() {
+	var V = getV();
+	var parts = V && V.transformationParts;
+	if (!parts || typeof parts !== "object") { return 0; }
+	var n = 0;
+	Object.keys(parts).forEach(function (k) {
+		var c = parts[k];
+		if (!c || typeof c !== "object") { return; }
+		Object.keys(c).forEach(function (p) { if (c[p] === "hidden") { n++; } });
+	});
+	return n;
+}
+
+function mbCEHideLookOn() {
+	/* 以锁定表为准：回退中心单独取消锁定时，按钮状态能跟着变 */
+	return mbCELockHas("attractiveness") && mbCELockHas("allure");
+}
+
+function mbCEHideLookOffApply() {
+	var removed = 0;
+	MB_CE_HIDE_LOOK_PATHS.forEach(function (p) {
+		if (mbCELockHas(p)) { var r = mbCELockRemove(p); if (r && r.ok) { removed++; } }
+	});
+	return { ok: true, message: removed ? "已解锁魅力/诱惑（" + removed + " 项，回退中心仍保留锁定前原值）" : "魅力/诱惑本来就没锁" };
+}
+
+function mbCEHideLookOnApply() {
+	var cur = mbCEHideLookRead();
+	if (!cur || !cur.ok) { return cur || { ok: false, message: "存档变量不可用" }; }
+	var okN = 0;
+	MB_CE_HIDE_LOOK_PATHS.forEach(function (p) {
+		var r = mbCELockSet(p, cur[p], true);
+		if (r && r.ok) { okN++; }
+	});
+	if (okN !== MB_CE_HIDE_LOOK_PATHS.length) { return { ok: false, message: "锁定失败（" + okN + "/" + MB_CE_HIDE_LOOK_PATHS.length + "）" }; }
+	var hid = mbCEHideHiddenCount();
+	return {
+		ok: true,
+		message: "已锁魅力 " + cur.attractiveness + " / 诱惑 " + cur.allure + "（隐藏后每秒写回）" +
+			(hid ? "；当前仍有 " + hid + " 个部件隐藏，锁到的是已降低的值——建议先取消隐藏再开锁" : "")
+	};
+}
+
+function mbCEHideLookLock(on) {
+	try {
+		if (typeof mbCELockSet !== "function" || typeof mbCELockRemove !== "function" || typeof mbCELockHas !== "function") {
+			return { ok: false, message: "锁定模块未加载（07f-lock.js）" };
+		}
+		return on ? mbCEHideLookOnApply() : mbCEHideLookOffApply();
+	} catch (e) { return { ok: false, message: "操作异常：" + mbCEErr(e) }; }
+}
+
 /* 强制保持隐藏开关 */
 function mbCEHideForce(on) {
 	try {
@@ -222,6 +291,18 @@ function renderTransformHideSec(pane) {
 	npBtn.addEventListener("click", function () { var r = mbCEHideNoPenalty(!npOn); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); renderStagePane(); });
 	npRow.appendChild(npBtn);
 	sec.appendChild(npRow);
+
+	/* 锁魅力/诱惑：原版按隐藏部件数量扣魅力/诱惑，锁创伤压不住这一项 */
+	var lkRow = el("div", MCE_CLS.row);
+	lkRow.appendChild(el("span", MCE_CLS.rowLbl, "锁魅力/诱惑（隐藏不掉）"));
+	var lkOn = mbCEHideLookOn();
+	var lkBtn = el("button", MCE_CLS.btn + (lkOn ? " mce-gold" : ""), lkOn ? "已锁（点此解锁）" : "开启锁魅力/诱惑");
+	lkBtn.type = "button";
+	lkBtn.title = "原版按隐藏部件数量扣魅力/诱惑；开启后每秒写回开启时的值。建议先取消隐藏再开锁。";
+	lkBtn.addEventListener("click", function () { var r = mbCEHideLookLock(!mbCEHideLookOn()); setStatus(r.message, r.ok ? MCE_CLS.ok : MCE_CLS.err); renderStagePane(); });
+	lkRow.appendChild(lkBtn);
+	sec.appendChild(lkRow);
+	sec.appendChild(el("div", MCE_CLS.hint, "锁魅力/诱惑会把当前值固定住，换装/时间带来的变化也会被冻结；要恢复就让按钮解锁，或到回退中心取消锁定并还原原值。"));
 
 	var fcRow = el("div", MCE_CLS.row);
 	fcRow.appendChild(el("span", MCE_CLS.rowLbl, "强制保持隐藏（防原版打回）"));

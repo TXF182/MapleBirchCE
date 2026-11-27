@@ -5909,6 +5909,29 @@ try {
     "60.42 确认时宿主已消失 → 计入失败项（" + allFail60.message + "）");
   api60.mbCEUiSave({ diffPreview: "0" });
 
+  // 60.43~60.49 隐藏时锁魅力/诱惑（v2.2.9）
+  const lkBak60 = { a: V60.attractiveness, l: V60.allure, lock: V60.mbCE_lock };
+  V60.attractiveness = 1200; V60.allure = 1600;
+  delete V60.mbCE_lock;
+  assert(api60.mbCEHideLookOn() === false, "60.43 初始未锁魅力/诱惑");
+  const lkOn60 = api60.mbCEHideLookLock(true);
+  const lkRecA60 = (V60.mbCE_lock || []).filter(function (x) { return x.path === "attractiveness"; })[0];
+  const lkRecL60 = (V60.mbCE_lock || []).filter(function (x) { return x.path === "allure"; })[0];
+  assert(lkOn60.ok === true && !!lkRecA60 && !!lkRecL60, "60.44 开锁后两条锁定存在");
+  assert(lkRecA60.target === 1200 && lkRecL60.target === 1600, "60.45 锁定目标=开启时的魅力/诱惑值");
+  assert(lkOn60.message.indexOf("已锁魅力 1200") !== -1, "60.46 文案回显锁定值");
+  V60.attractiveness = 1050; V60.allure = 1400;
+  api60.mbCELockTick();
+  assert(V60.attractiveness === 1200 && V60.allure === 1600, "60.47 tick 把被隐藏扣掉的值写回");
+  const lkOff60 = api60.mbCEHideLookLock(false);
+  assert(lkOff60.ok === true && !api60.mbCELockHas("attractiveness") && !api60.mbCELockHas("allure"), "60.48 解锁后两条锁定移除");
+  delete V60.attractiveness; delete V60.allure;
+  const lkNo60 = api60.mbCEHideLookLock(true);
+  assert(lkNo60.ok === false && lkNo60.message.indexOf("魅力值") !== -1, "60.49 缺魅力/诱惑值时拒绝并给引导");
+  if (lkBak60.a === undefined) { delete V60.attractiveness; } else { V60.attractiveness = lkBak60.a; }
+  if (lkBak60.l === undefined) { delete V60.allure; } else { V60.allure = lkBak60.l; }
+  if (lkBak60.lock === undefined) { delete V60.mbCE_lock; } else { V60.mbCE_lock = lkBak60.lock; }
+
   // 收尾（force 必须关，否则 1s 定时器挂住进程）
   try { api60.mbCEHideForce(false); api60.mbCEHideTick(); } catch (eC60) {}
   if (bk60.tp === undefined) { delete V60.transformationParts; } else { V60.transformationParts = bk60.tp; }
