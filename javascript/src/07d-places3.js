@@ -111,13 +111,13 @@ function mbCEIsUnplayableEntry(nm, text) {
 (function () {
 	var groups = [
 		{ id: "wraith", name: "象牙怨灵 · Ivory Wraith", match: mbCEIsWraithPassage, exclude: mbCEIsUnplayableEntry, main: "Wraith Test Start",
-		  note: "象牙怨灵：谓词实测命中 78 段，已剔除 13 段（战斗/中继，首宏为 $molestationstart、$struggle_start 等战前状态，硬跳会崩），保留 65 段（血月猎杀 / 项链 Schism / 附身 / 梦魇四套状态机）。主场景沿用原版自带的召唤入口（$passageData 测试直跳表的「Summon the Wraith」载入段，自设 home、自带 generateWraith 与退出链接）；直达前补 $wraith 八字段、月相 evening，并把日期推到当月最后一天 21:00（与主场景同口径）。象牙怨灵不拆子入口：四套状态机依赖 $wraith.state 三态与月相，直跳会崩，故只留主入口。" },
+		  note: "象牙怨灵（猎杀 / 项链 Schism / 附身 / 梦魇）：65 段。主场景「Summon the Wraith」，直达前补 $wraith 八字段、月相 evening、推到当月最后一天 21:00；依赖 $wraith.state。" },
 		{ id: "halloween", name: "万圣节 · Halloween", match: mbCEIsHalloweenPassage, exclude: mbCEIsUnplayableEntry, main: "Lake Halloween Party",
-		  note: "万圣节：谓词实测命中 105 段，已剔除 7 段（战斗/中继），保留 98 段（湖畔篝火派对 / 凯拉尔 / 惠特尼 / 伊甸 / 罗宾服装）。主场景是湖畔派对（段落自带 outside/location，只依赖 $phase 与 $cool）；直达前 $phase 补 0（湖岸篝火档，湖畔默认 1 会落到草丛分支）、$cool 补 240（原版 gte 240 是「欢呼」最高档，0 会读到「没人理你」），日期推进到 10 月 28 日让原版置 V.halloween。子入口覆盖各条角色线，见下方「更多入口」。" },
+		  note: "万圣节：98 段。主场景湖畔派对只依赖 $phase / $cool：直达补 $phase 0、$cool 240，推到 10 月 28 日置旗标。" },
 		{ id: "valentines", name: "情人节 · Valentines", match: mbCEIsValentinesPassage, exclude: mbCEIsUnplayableEntry, main: "Avery Valentines",
-		  note: "情人节：谓词实测命中 116 段，已剔除 4 段（战斗/中继），保留 112 段（艾弗里晚宴 / Alex / 伊甸 / Robin / Whitney / Kylar 送礼 / 格威兰）。主场景是艾弗里情人节晚宴；直达前推进到 2 月 10 日（原版窗口 6~14），并补 $avery_valentines 十七字段与 $foodstuff.valentines_chocolate（该段直接读 .amount，缺对象会 TypeError）。子入口覆盖送礼与约会各线，见下方「更多入口」。" },
+		  note: "情人节：112 段。主场景艾弗里晚宴，直达前推到 2 月 10 日（窗口 6~14），补 $avery_valentines 与 $foodstuff.valentines_chocolate（缺则 TypeError）。" },
 		{ id: "christmas", name: "圣诞节 · Christmas", match: mbCEIsChristmasPassage, exclude: mbCEIsUnplayableEntry, main: "Christmas Mirror",
-		  note: "圣诞节：谓词实测命中 35 段，已剔除 2 段（战斗/中继），保留 33 段（镜中人 12 段 / 孤儿院 / 伊甸晚餐 / Kylar / 罗宾礼物）。主场景是圣诞夜的「镜中人」（段落自带 outside/location，守卫 $wraith.seen gte 3 或 $wraithPrison）；直达前推进到 12 月 22 日（原版窗口 18~25）并把 $wraith.seen 抬到 3、$wraithPrison 补 false。子入口覆盖各条角色线，见下方「更多入口」。" }
+		  note: "圣诞节：33 段。主场景圣诞夜「镜中人」，直达前推到 12 月 22 日（窗口 18~25），抬 $wraith.seen 到 3、$wraithPrison 补 false。" }
 	];
 	for (var i = groups.length - 1; i >= 0; i--) { PLACE_GROUPS.unshift(groups[i]); }
 })();
@@ -137,7 +137,7 @@ function mbCEIsUnplayableEntry(nm, text) {
 	var g = { id: "forest_shop", name: "森林商店 · Gwylan Shop（纯商店）", kind: "place",
 		match: function (n) { return n === "Forest Shop" || n.indexOf("Forest Shop ") === 0; },
 		exclude: mbCEIsUnplayableEntry, main: "Forest Shop",
-		note: "森林商店本体：纯服装店界面（$location=forest_shop，段落自带 location 与 $shopName 初始化），不触发格威岚仪式 / 接生 / 追踪 / 送人回店任何剧情。想走正门那条（会触发格威岚登场事件）请展开「更多入口」点 Forest Shop Entrance。" };
+		note: "森林商店本体：纯服装店界面（$location=forest_shop），不触发格威岚仪式 / 接生 / 追踪 / 送人回店。想走正门（触发格威岚登场）展开「更多入口」点 Forest Shop Entrance。" };
 	var idx = -1;
 	for (var j = 0; j < PLACE_GROUPS.length; j++) { if (PLACE_GROUPS[j].id === "gwylan_garden") { idx = j; break; } }
 	if (idx >= 0) { PLACE_GROUPS.splice(idx, 0, g); } else { PLACE_GROUPS.push(g); }
@@ -158,7 +158,7 @@ function mbCEIsUnplayableEntry(nm, text) {
 	var g = { id: "whitney_home", name: "惠特尼 · 家",
 		match: function (n) { return n.indexOf("Whitney Home") === 0; },
 		exclude: mbCEIsUnplayableEntry, main: "Whitney Home Knock",
-		note: "惠特尼的住处（芭芭拉街公寓）：清晨早餐/淋浴、初次进入三幕（Intro 1/2/3）、沙发闲聊（吉他/手机/头发/玩具）、帮派上门（窗户/零食/帽子/游戏）、翻查家具（门/箱子/窗帘/橱柜）、昼夜敲门各分支。Whitney Home 前缀实测 261 段，剔除 3 段战斗/性爱中继，组内 258 段；其中 12 段列入下方「更多入口」可安全直达，其余依赖事件上下文（NPC 未落地或须从事件内进入），不单列按钮。" };
+		note: "惠特尼的芭芭拉街公寓：早餐/淋浴、初次进入三幕、沙发闲聊、帮派上门、翻查家具、昼夜敲门。Whitney Home 前缀 261 段，剔除 3 段战斗/性爱中继，组内 258 段；12 段列入「更多入口」，其余依赖事件上下文不单列。" };
 	PLACE_GROUPS.push(g);
 })();
 

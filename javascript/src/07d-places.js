@@ -11,7 +11,7 @@
 		   顺序由那边 unshift 保证 sydney_defile / sydney_canteen 排在 sydney_temple 之前。
 		   艾弗里庄园与格威岚花园仍留在本处：两组前缀（"Mansion " / gwylan、Forest Shop）与前序组存在先占先得依赖，
 		   挪到最前会抢走 forest_shop 的段落（v2.0.22 拆出的森林商店组）。 */
-	{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀实测 866 段，剔除 46 段战斗/性爱中继（Dungeon Fight/Flogger Sex、Chase Fight、Housework *Sex·Rape、Return *Fight·Rape·Sex、Party Jordan End *、Passout Pair * 等，首宏为 $fightstart/$sexstart/$molestationstart），留 820 段。开局不再由 CE 建壳解锁（v2.1.10 修「开局解锁艾弗里庄园」），只有真进过庄园的存档才可见。" },
+	{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里庄园（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀 866 段，剔除 46 段战斗/性爱中继，留 820 段；只有真进过庄园的存档才可见。" },
 	{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" },
 		/* v1.7.0：多伦公寓（Doren's flat，$location="flats"）+ 麋鹿街大院（Elk Compound，原版 73 段）。
 		   多伦公寓实证：Doren Entrance（入口，"You climb to Doren's flat"）、Doren Talk/Cry、Doren Shower 系列均在公寓内；
@@ -19,7 +19,7 @@
 		   麋鹿街大院实证：Elk Compound 为入口（"You are in the compound on Elk Street"），Interior/Underground/Central/
 		   Wraith/Possessed/Station 等 70+ 子场景；Docks Compound 为码头大院，不收。 */
 	{ id: "doren_flat", name: "多伦 · 公寓与阁楼", match: function (n) { return n === "Doren Entrance" || n === "Doren Talk" || n === "Doren Cry" || n.indexOf("Doren Shower") === 0 || n.indexOf("Doren Loft") === 0; }, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
-	{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) { return n.indexOf("Elk Compound") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Elk Compound", note: "麋鹿街大院：Elk Compound 前缀段实测 70 段（中央区/地下/水晶/车站/附身线）。其中怨灵相关只有 4 段（Wraith Give / Resist / Fight / Fight Finish），怨灵主线其余 64 段不带此前缀、不归本组。widget 定义段（Elk Compound Widgets）与战斗起始段（首宏 $fightstart / $molestationstart，共 9 段）不入组。" },
+	{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) { return n.indexOf("Elk Compound") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/水晶/车站/附身线）。Elk Compound 前缀 70 段，含 4 段怨灵战段（怨灵主线其余 64 段不带该前缀，不归本组）；widget 定义段与 9 段战斗起始段不入组。" },
 		/* v1.9.13 场景直达补充 6 组（段落前缀均经本体 0.5.12.13 实证） */
 		{ id: "asylum", name: "精神病院 · Asylum", match: function (n) {
 			return n === "Asylum" || n.indexOf("Asylum ") === 0;
@@ -36,7 +36,7 @@
 		{ id: "wolf_territory", name: "森林深处 · 狼群领地", match: function (n) {
 			return n.indexOf("Wolf ") === 0 || n.indexOf("Forest Wolf") === 0;
 		}, exclude: mbCEIsUnplayableEntry, main: "Wolf Cave",
-		  note: "森林深处的狼群领地（狼穴 hub / 猎人 / 腐肉 / 河流 / 巡逻各线）。主场景取 Wolf Cave（狼穴入口，自带出口）；原主场景 Wolf Pack 的首个控制宏是 if($molestationstart is 1)，属战斗遭遇中继段，硬跳进去条件为假、正文空白、链接全灭（v2.0.15 未给本组挂 exclude，该缺陷一直在线，v2.0.16 修正）。" },
+		  note: "狼群领地（狼穴 hub / 猎人 / 腐肉 / 河流 / 巡逻各线）。主场景取 Wolf Cave 狼穴入口（自带出口）；原 Wolf Pack 是战斗遭遇中继段，硬跳条件为假、正文空白、链接全灭。" },
 		{ id: "hospital", name: "医院 · Hospital", match: function (n) {
 			return n.indexOf("Hospital ") === 0;
 		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" },
@@ -58,7 +58,7 @@
 			return n === "The Farm" || n === "Farm" || n.indexOf("The Farm ") === 0
 				|| n.indexOf("Farm ") === 0 || n.indexOf("Farmland ") === 0;
 		}, exclude: mbCEIsUnplayableEntry, main: "Farm Cottage",
-		  note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）。主场景取 Farm Cottage（农场小屋，自带出口）；原主场景 The Farm 的首个控制宏是 if($molestationstart is 1)，属战斗遭遇中继段，硬跳会白屏（v2.0.15 未给本组挂 exclude，该缺陷一直在线，v2.0.16 修正）。" },
+		  note: "雷米农场本体与事件（艾利克斯线 / 农作物 / 农场商店 / 暴露事件）。主场景取 Farm Cottage 农场小屋（自带出口）；原 The Farm 是战斗遭遇中继段，硬跳会白屏。" },
 		/* v2.0.7 R3（玩家「有的地点都没了」「那小岛的作弊呢」）：原版 0.5.12.13 有 Island 海岛线
 		   （setup.majorAreas 含 "Island"，setup.addlocation("island").parent("sea")，Widgets Text Island → "the nearby island"，
 		   teleportCheater 有 case "Island" → island_end），但 CE 的 17 组地点直达里一直没有 → 玩家进不去。
@@ -78,7 +78,7 @@
 		{ id: "conveniencestore", name: "遇欲便利店 · Conveniencestore（Dol-Optimization）", match: function (n) {
 			return n === "Conveniencestore" || n.indexOf("Conveniencestore ") === 0;
 		}, main: "Conveniencestore",
-		  note: "玩家口语「便利店」= Dol-Optimization 1.1.2.1 的「遇欲便利店」（入口经 TweeReplacer 注入原版 Domus Street，段名 Conveniencestore）。店主 NPC「遇欲」（Needmeet）：先「询问有什么」，再「询问他手中的本子」把 love 置 1；好感键 $needmeet_romance（≥50 信赖、≥80 解锁恋爱线，作弊在 Mod作弊页「最佳化」组）。夜间（Time.dayState is night）只有玻璃反光与「离开」，白天才有柜台/货架/烟柜三区；未装该模组时本组显示「未匹配到主场景段落」。" }
+		  note: "Dol-Optimization「遇欲便利店」（注入 Domus Street）。接触店主：先问「有什么」再问「手中的本子」置好感（$needmeet_romance ≥50 信赖 / ≥80 恋爱）；夜间只有玻璃反光。" }
 	];
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();

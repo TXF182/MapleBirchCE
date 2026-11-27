@@ -1,4 +1,4 @@
-/* 职责：面板 API 与页签注册表 —— render / open / close / toggle、names / panes / paneRenders 七页签、setup.mbStageCE 导出 */
+/* 职责：面板 API 与页签注册表 —— render / open / close / toggle、names / panes / paneRenders 八页签、setup.mbStageCE 导出 */
 
 	function render() {
 		if (!root) { return; }
@@ -27,7 +27,7 @@
 		/* 表驱动分发（v1.8.6 review：替代 6 分支 if 链） */
 		var paneRenders = {
 			char: renderCards, stage: renderStagePane, scenes: renderScenes,
-			places: renderPlaces, global: renderGlobal, mods: renderModCheats, yanling: renderYanling
+			places: renderPlaces, global: renderGlobal, mods: renderModCheats, yanling: renderYanling, calendar: renderCalendar
 		};
 		var doRender = paneRenders[activeTab];
 		if (doRender) { doRender(); }
@@ -274,7 +274,7 @@
 		header.appendChild(closeBtn);
 
 		var tabs = el("div", "mce-tabs");
-		var names = [["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"], ["yanling", "言灵"]];
+		var names = [["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"], ["yanling", "言灵"], ["calendar", "日历"]];
 		names.forEach(function (pair) {
 			var b = el("button", pair[0] === mbCEUiState.tab ? "mce-active" : "", pair[1]);
 			b.type = "button";
@@ -284,7 +284,7 @@
 
 		var body = el("div", "mce-body");
 		var panes = [["char", "mce-pane mce-active"], ["stage", "mce-pane"], ["scenes", "mce-pane"],
-			["places", "mce-pane"], ["global", "mce-pane"], ["mods", "mce-pane"], ["yanling", "mce-pane"]];
+			["places", "mce-pane"], ["global", "mce-pane"], ["mods", "mce-pane"], ["yanling", "mce-pane"], ["calendar", "mce-pane"]];
 		panes.forEach(function (pair) {
 			var p = el("div", pair[0] === mbCEUiState.tab ? "mce-pane mce-active" : "mce-pane");
 			p.setAttribute("data-pane", pair[0]);

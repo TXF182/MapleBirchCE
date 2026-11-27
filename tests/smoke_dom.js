@@ -687,6 +687,21 @@ const ylWx = [].slice.call(document.querySelector('[data-pane="yanling"]').query
 assert(ylWx.length === 4, "天气 4 档按钮齐备（晴 / 阴云 / 大雨大雪 / 雷暴），实际 " + ylWx.length);
 const ylBanish = [].slice.call(document.querySelector('[data-pane="yanling"]').querySelectorAll("button")).filter(function (b) { return b.textContent.indexOf("格威岚 · 放逐 9 天") !== -1; });
 assert(ylBanish.length === 1, "「格威岚 · 放逐 9 天」按钮存在（原版 scorned 线语义）");
+
+/* v2.2.8 事件日历页：真实点击开页签 + 注入原版时间戳 → 14 天列表与租金事件 */
+V.startDate = new Date(2022, 8, 4, 7).getTime(); V.timeStamp = 0; V.rentday = 3; V.renttime = 2;
+ptxt = clickTabSafe("calendar");
+assert(ptxt.indexOf("THREW") === -1 && ptxt.indexOf("未来 14 天") !== -1, "日历页渲染 14 天窗口，实际 " + ptxt.slice(0, 80));
+const calPane = document.querySelector('[data-pane="calendar"]');
+assert(calPane && calPane.querySelectorAll(".mce-row").length >= 16, "日历页行数 >= 16（锁条 + 跳条 + 14 天），实际 " + (calPane ? calPane.querySelectorAll(".mce-row").length : -1));
+assert(ptxt.indexOf("租金到期") !== -1, "日历页含「租金到期」（今天周日 / rentday=周二 → 第 2 天）");
+/* v2.2.8.1 回归：render() 的 paneRenders 表曾只有七项、缺 calendar —— 页签停在日历、内容被清空后走 render() 会取不到
+   渲染函数、日历页留空。这里清空日历 pane 再走真实 render() 通道（open() 内部同样只调它），断言表能重绘；
+   不调 open() 以免改变面板开合状态（7g 悬浮球拖动链依赖 openBefore）。 */
+calPane.innerHTML = "";
+api.refresh();
+assert(calPane.querySelectorAll(".mce-row").length >= 16,
+  "render() 重绘日历页（paneRenders 表含 calendar，activeTab=calendar），实际 " + calPane.querySelectorAll(".mce-row").length);
 const ylOnBtn = [].slice.call(ylPane.querySelectorAll("button")).filter(function (b) { return b.textContent === "开启"; });
 assert(ylOnBtn.length === 1, "言灵页「开启」按钮存在");
 if (ylOnBtn[0]) { ylOnBtn[0].click(); }

@@ -19,13 +19,20 @@
 			panes[i].classList.toggle("mce-active", panes[i].getAttribute("data-pane") === name);
 		}
 		mbCEUiSave({ tab: name }); /* v1.8.12 持久化：记录当前页签 */
-		if (name === "char") { renderCards(); }
-		if (name === "stage") { renderStagePane(); }
-		if (name === "scenes") { renderScenes(); }
-		if (name === "places") { renderPlaces(); }
-		if (name === "global") { renderGlobal(); }
-		if (name === "mods") { renderModCheats(); }
-		if (name === "yanling") { renderYanling(); } /* v2.0.0.006 言灵页（07i-yanling.js） */
+		/* 页签 → 渲染器分发表（v2.2.8 由 8 条 if 链改为查表：加页签只加一项，不再把 switchOuterTab 的
+		   圈复杂度往上顶；函数引用在调用时求值，届时所有段都已加载） */
+		var renders = {
+			char: renderCards,
+			stage: renderStagePane,
+			scenes: renderScenes,
+			places: renderPlaces,
+			global: renderGlobal,
+			mods: renderModCheats,
+			yanling: renderYanling, /* v2.0.0.006 言灵页（07i-yanling.js） */
+			calendar: renderCalendar /* v2.2.8 事件日历页（07x-calendar.js） */
+		};
+		var fn = renders[name];
+		if (typeof fn === "function") { fn(); }
 	}
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */

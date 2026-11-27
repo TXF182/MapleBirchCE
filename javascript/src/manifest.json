@@ -440,6 +440,16 @@
       "note": "v2.2.8 艾弗里保持受伤：三档外观（吊带/石膏/快好）写 injury_timer+injury_stage，$avery_injury=true 停日程；每进一段回写冻结，解除按开启前快照还原（avery-injury 回退）"
     },
     {
+      "file": "07w-pure.js",
+      "layer": "ui",
+      "note": "v2.2.8 纯净模式：V.mbCE_pure 总开关（存档内持久），开启时适配器写入/命令式动作/数值固定回写/言灵按钮与守卫一律拒绝；全局页「防护」组提供开关与「回退全部并开启」入口"
+    },
+    {
+      "file": "07x-calendar.js",
+      "layer": "ui",
+      "note": "v2.2.8 事件日历页签：未来 14 天逐日列出原版时间敏感事件（租金 $rentday/$renttime、贝利扣押 +7 赎回/+8 变卖、学校假期 4/7/8/12 月），提供原版 passTime 跳日与 07m 租金锁定入口；只读不写档"
+    },
+    {
       "file": "08-npc-traits.js",
       "layer": "ui"
     },

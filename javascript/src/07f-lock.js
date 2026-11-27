@@ -150,6 +150,8 @@ function mbCELockTrace(Vp, path, before, after) {
    安全边界：当前值不存在（undefined）时跳过——只固定「已存在」的值，
    绝不因锁定而 setPathVal 凭空创建字段（防把未触发的转化/未开的键造出来）。 */
 function mbCELockTick() {
+	/* v2.2.8 纯净模式：定时写回是「玩家不操作也在改档」的典型通道，总开关开启时整 tick 跳过（锁定项保留，关开关后自动恢复） */
+	if (typeof mbCEPureIsOn === "function" && mbCEPureIsOn()) { return; }
 	var Vp = getV();
 	var list = Vp && Vp.mbCE_lock;
 	if (!Vp || !Array.isArray(list) || !list.length) { return; }

@@ -198,7 +198,7 @@ tabBtns.forEach(function (b, i) {
   assert(b.getAttribute("tabindex") === (i === activeIdx ? "0" : "-1"), "8.7[" + i + "] roving tabindex（激活 0 其余 -1）");
 });
 const paneEls = root.querySelectorAll(".mce-pane");
-assert(paneEls.length === 7, "8.8 七个 pane");
+assert(paneEls.length === 8, "8.8 八个 pane（v2.2.8 新增日历页）");
 assert(paneEls[0].getAttribute("role") === "tabpanel", "8.9 pane role=tabpanel");
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
 let act = tabs.querySelector(".mce-active");
@@ -208,9 +208,9 @@ assert(tabs.querySelector("button[data-tab=\"global\"]").getAttribute("tabindex"
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Home", bubbles: true }));
 assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "char", "8.13 Home 回第一档 char");
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
-assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "yanling", "8.14 ← 从 char 回卷到末档 yanling");
+assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "calendar", "8.14 ← 从 char 回卷到末档 calendar（v2.2.8 日历页在最末）");
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "End", bubbles: true }));
-assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "yanling", "8.15 End 到末档");
+assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "calendar", "8.15 End 到末档");
 api.mbCEUiSave({ tab: "global" });
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Home", bubbles: true }));
 assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "char", "8.16 再次 Home（roving 持续可用）");

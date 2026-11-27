@@ -81,9 +81,9 @@ try { api.open(); assert(true, "无框架时 open() 不抛"); } catch (e) { fail
 try { api.close(); assert(true, "无框架时 close() 不抛"); } catch (e) { failures++; console.error("FAIL: 无框架时 close() 抛出 " + e.message); }
 try { api.toggle(); assert(true, "无框架时 toggle() 不抛"); } catch (e) { failures++; console.error("FAIL: 无框架时 toggle() 抛出 " + e.message); }
 
-/* 七个页签逐个切换：每个 pane 渲染都要扛住无框架 */
+/* 八个页签逐个切换：每个 pane 渲染都要扛住无框架 */
 api.open();
-["char", "stage", "scenes", "places", "global", "mods", "yanling"].forEach(function (tab) {
+["char", "stage", "scenes", "places", "global", "mods", "yanling", "calendar"].forEach(function (tab) {
   const b = [].slice.call(document.querySelectorAll(".mce-tabs button")).filter(function (x) { return x.getAttribute("data-tab") === tab; })[0];
   if (!b) { console.log("WARN: 页签 " + tab + " 不存在（面板结构变化）"); return; }
   try { b.click(); assert(true, "无框架时切页签 " + tab + " 不抛"); }

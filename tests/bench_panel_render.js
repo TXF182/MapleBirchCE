@@ -164,7 +164,7 @@ assert(tOpen <= LIMIT.open, "open() 首帧 " + tOpen + "ms <= " + LIMIT.open + "
 /* ---------- 4. 逐页签切换 ---------- */
 section("页签切换（7 个）");
 const tabBtns = Array.prototype.slice.call(document.querySelectorAll("#mce-root .mce-tabs button"));
-assert(tabBtns.length === 7, "页签数 7（实测 " + tabBtns.length + "）");
+assert(tabBtns.length === 8, "页签数 8（v2.2.8 新增日历页，实测 " + tabBtns.length + "）");
 
 const tabTimes = [];
 tabBtns.forEach(function (b) {

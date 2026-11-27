@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MapleBirchCE 架构交互 v__VERSION__</title>
+<style>
+:root{--bg:#0e1512;--panel:#15201b;--panel2:#111a16;--line:rgba(190,214,201,.14);--tx:#e9efea;--dim:#8ea498;--acc:#d8a657;--ok:#7fb69a}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+body{display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#13211b,#0e1512);flex:0 0 auto}
+.brand{display:flex;align-items:center;gap:10px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--acc);box-shadow:0 0 12px rgba(216,166,87,.7)}
+h1{font-size:16px;margin:0;letter-spacing:.4px;font-weight:600}
+.ver{font:12px/1 ui-monospace,Consolas,monospace;color:var(--acc);border:1px solid rgba(216,166,87,.4);padding:3px 7px;border-radius:4px}
+.stats{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip{font:12px/1 ui-monospace,Consolas,monospace;color:var(--dim);border:1px solid var(--line);padding:5px 8px;border-radius:4px;background:var(--panel2)}
+.chip b{color:var(--tx);font-weight:600}
+nav{display:flex;gap:4px;padding:8px 22px 0;border-bottom:1px solid var(--line);flex:0 0 auto;background:var(--bg)}
+nav button{appearance:none;border:1px solid transparent;border-bottom:none;background:transparent;color:var(--dim);font-size:13px;padding:8px 14px;border-radius:6px 6px 0 0;cursor:pointer}
+nav button:hover{color:var(--tx);background:var(--panel2)}
+nav button.on{color:var(--tx);background:var(--panel);border-color:var(--line);position:relative;top:1px}
+main{flex:1 1 auto;position:relative;min-height:0}
+.view{position:absolute;inset:0;display:none;overflow:hidden}
+.view.on{display:flex}
+#view-graph{display:none}
+#view-graph.on{display:grid;grid-template-columns:290px 1fr}
+.side{border-right:1px solid var(--line);background:var(--panel2);padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto;min-height:0}
+input[type=search],input[type=text]{width:100%;background:#0b120f;border:1px solid var(--line);color:var(--tx);border-radius:6px;padding:9px 11px;font-size:13px;outline:none}
+input:focus{border-color:rgba(216,166,87,.55)}
+.legend{display:flex;flex-direction:column;gap:6px}
+.lg{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+.sw{width:9px;height:9px;border-radius:50%}
+.info{font-size:12.5px;color:var(--dim);border-top:1px solid var(--line);padding-top:12px}
+.info h3{margin:0 0 8px;font-size:13px;color:var(--acc);word-break:break-all}
+.info dl{display:grid;grid-template-columns:76px 1fr;gap:4px 8px;margin:0}
+.info dt{color:#6f8579}
+.info dd{margin:0;color:var(--tx);word-break:break-all;font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+.canvas-wrap{position:relative;min-width:0;min-height:0}
+#graph{width:100%;height:100%;display:block;cursor:grab}
+#graph.drag{cursor:grabbing}
+.hint{position:absolute;left:14px;bottom:12px;font-size:11.5px;color:#5f7568;pointer-events:none}
+.zoom{position:absolute;right:14px;bottom:44px;display:flex;align-items:center;gap:2px;background:rgba(19,30,25,.94);border:1px solid var(--line);border-radius:8px;padding:4px}
+.zoom button{appearance:none;border:none;background:transparent;color:var(--dim);font:12px/1 ui-monospace,Consolas,monospace;padding:6px 9px;border-radius:5px;cursor:pointer}
+.zoom button:hover{color:var(--tx);background:rgba(127,182,154,.14)}
+.zoom .sep{width:1px;height:16px;background:var(--line);margin:0 3px}
+.zoom #z-val{color:var(--acc);min-width:50px;text-align:center}
+.toolbar{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.toolbar input{max-width:420px}
+.count{font:12px/1 ui-monospace,Consolas,monospace;color:var(--dim);white-space:nowrap}
+#view-tools.on,#view-skills.on,#view-matrix.on{flex-direction:column}
+#tlist,#sgrid,#mtable{flex:1 1 auto;overflow:auto;padding:16px 22px}
+.grp{margin-bottom:20px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.grp h2{margin:0;font-size:12.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--acc);padding:10px 14px;border-bottom:1px solid var(--line);background:#131e19;display:flex;justify-content:space-between}
+.grp h2 span{color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 14px;border-bottom:1px solid rgba(190,214,201,.07);font-size:12.5px;vertical-align:top}
+th{color:#7d9387;font-weight:500;font-size:11.5px;letter-spacing:.3px}
+td.mono,th.mono{font-family:ui-monospace,Consolas,monospace}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(127,182,154,.06)}
+td.dim{color:var(--dim)}
+td.size{color:#7d9387;white-space:nowrap;text-align:right;font-family:ui-monospace,Consolas,monospace}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-content:start}
+.card{border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--panel);cursor:default}
+.card h3{margin:0 0 4px;font-size:13.5px;color:var(--tx);word-break:break-all}
+.card .meta{font:11px/1 ui-monospace,Consolas,monospace;color:var(--acc);margin-bottom:8px}
+.card p{margin:0;font-size:12px;color:var(--dim);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.card.open p{-webkit-line-clamp:unset;overflow:auto;color:#c3d2c7}
+.card:hover{border-color:rgba(216,166,87,.35)}
+.mwrap{display:flex;flex-direction:column;min-height:0;flex:1 1 auto}
+#mdetail{flex:0 0 auto;max-height:0;overflow:hidden;border-top:1px solid var(--line);transition:max-height .5s ease}
+#mdetail.on{max-height:44vh;overflow:auto}
+.mrow{cursor:pointer}
+.mrow:hover td{background:rgba(216,166,87,.06)}
+.cell{text-align:center;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.total{font-weight:600;color:var(--acc);text-align:right;font-family:ui-monospace,Consolas,monospace}
+.bar{height:3px;background:rgba(216,166,87,.35);border-radius:2px;margin-top:4px}
+@media(max-width:860px){
+  #view-graph.on{grid-template-columns:1fr}
+  .side{max-height:34vh;border-right:none;border-bottom:1px solid var(--line)}
+  header{flex-wrap:wrap}
+  .stats{justify-content:flex-start}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span><h1>MapleBirchCE 架构交互</h1><span class="ver">v__VERSION__</span></div>
+  <div class="stats" id="stats"></div>
+</header>
+<nav id="tabs">
+  <button data-view="graph" class="on">知识图谱</button>
+  <button data-view="tools">工具矩阵</button>
+  <button data-view="skills">技能索引</button>
+  <button data-view="matrix">作弊矩阵</button>
+</nav>
+<main>
+  <section id="view-graph" class="view on">
+    <aside class="side">
+      <input id="gsearch" type="search" placeholder="搜索段 / 适配器 / 层…">
+      <div class="legend" id="glegend"></div>
+      <div class="info" id="ginfo">
+        <h3>图谱说明</h3>
+        <dl>
+          <dt>画布节点</dt><dd id="g-nodes">-</dd>
+          <dt>数据节点</dt><dd id="g-nodes2">-</dd>
+          <dt>画布边</dt><dd id="g-edges">-</dd>
+          <dt>数据边</dt><dd id="g-edges2">-</dd>
+          <dt>结构</dt><dd>层 → 段 → 适配器</dd>
+          <dt>数据源</dt><dd>.codegraph/arch-data.json</dd>
+        </dl>
+        <p style="margin:10px 0 0;color:#6f8579">点击节点查看详情；滚轮缩放，拖拽平移。</p>
+      </div>
+    </aside>
+    <div class="canvas-wrap">
+      <canvas id="graph"></canvas>
+      <div class="hint">滚轮缩放 · 拖拽平移 · 点击节点查看详情</div>
+      <div class="zoom" id="zoom">
+        <button id="z-out" title="缩小（-）">−</button>
+        <button id="z-val" title="当前缩放">100%</button>
+        <button id="z-in" title="放大（+）">+</button>
+        <div class="sep"></div>
+        <button id="z-fit" title="适配画布（0 / F）">适配</button>
+        <div class="sep"></div>
+        <button id="z-png" title="导出当前视图 PNG">导出 PNG</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-tools" class="view">
+    <div class="toolbar"><input id="tsearch" type="search" placeholder="搜索工具名或用途…"><span class="count" id="tcount"></span></div>
+    <div id="tlist"></div>
+  </section>
+
+  <section id="view-skills" class="view">
+    <div class="toolbar"><input id="ssearch" type="search" placeholder="搜索技能名或描述…"><span class="count" id="scount"></span></div>
+    <div id="sgrid" class="sgrid"></div>
+  </section>
+
+  <section id="view-matrix" class="view">
+    <div class="toolbar"><input id="msearch" type="search" placeholder="搜索键名 / varPath…"><span class="count" id="mcount"></span></div>
+    <div class="mwrap">
+      <div id="mtable"></div>
+      <div id="mdetail"></div>
+    </div>
+  </section>
+</main>
+<script>
+const DATA = __ARCH_DATA__;
+const META = DATA.meta;
+const LAYERS = META.layers;
+const LCOLOR = {preamble:'#8fa1ad',core:'#7fb69a',adapter:'#d8a657',write:'#c98a63',ui:'#6f93c4',export:'#a99ac9'};
+const LNAME = {preamble:'基座',core:'核心',adapter:'适配器',write:'写入',ui:'界面',export:'导出'};
+const GROUP_NAME = {build:'构建',gate:'门禁',verify:'校验',matrix:'矩阵',adapt:'适配',release:'发布',debug:'调试 / 基准',other:'其它'};
+const GROUP_ORDER = ['build','gate','verify','matrix','adapt','release','debug','other'];
+const $ = s => document.querySelector(s);
+const fmtB = n => n >= 1048576 ? (n/1048576).toFixed(2)+' MB' : n >= 1024 ? (n/1024).toFixed(1)+' KB' : n+' B';
+const fmtN = n => n.toLocaleString('en-US');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- 统计条 ---------- */
+(function(){
+  const items = [
+    ['段', META.segments], ['层', META.layers.length], ['适配器', META.adapters],
+    ['声明键', META.keys], ['探针', META.probes], ['工具', META.tools],
+    ['测试', META.tests], ['技能', META.skills], ['源码行', META.srcLines],
+    ['产物', fmtB(META.artifactBytes)],
+    ['扫描', new Date(DATA.generatedAt).toLocaleString('zh-CN', {hour12:false})]
+  ];
+  $('#stats').innerHTML = items.map(([k,v]) => '<span class="chip">'+k+' <b>'+esc(typeof v === 'number' ? fmtN(v) : v)+'</b></span>').join('');
+
+
+})();
+
+/* ---------- 视图切换 ---------- */
+$('#tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'view-'+b.dataset.view));
+  if(b.dataset.view === 'graph') resizeGraph();
+});
+
+/* ---------- 知识图谱 ---------- */
+const cv = $('#graph'), ctx = cv.getContext('2d');
+const W = 1520, H = 1120;
+let nodes = [], edges = [], view = {s:1,x:0,y:0,fitted:false};
+let sel = null, hover = null, match = null;
+
+function layout(){
+  nodes = []; edges = [];
+  const x0 = 100, x1 = W - 260;
+  const gap = (x1 - x0) / Math.max(1, LAYERS.length - 1);
+  const top = 118, bot = H - 70;
+  LAYERS.forEach((L, i) => {
+    const segs = DATA.segments.filter(s => s.layer === L);
+    const step = segs.length > 1 ? (bot - top) / (segs.length - 1) : 0;
+    const lines = segs.reduce((a, s) => a + s.lines, 0);
+    nodes.push({id:'layer:'+L, type:'layer', label:L+'（'+LNAME[L]+'）', x:x0+i*gap, y:64, r:7, color:LCOLOR[L]||'#999', data:{name:L, count:segs.length, lines}});
+    segs.forEach((s, j) => {
+      const r = Math.max(3, Math.min(6.2, Math.sqrt(s.lines) / 6));
+      nodes.push({id:'seg:'+s.file, type:'segment', label:s.file, x:x0+i*gap, y:segs.length === 1 ? (top+bot)/2 : top + j*step, r, color:LCOLOR[L]||'#999', data:s});
+    });
+  });
+  const ax = W - 150;
+  DATA.adapters.forEach((a, j) => {
+    nodes.push({id:'adapter:'+a.modId, type:'adapter', label:a.modId, x:ax, y:112 + j*((H-204)/Math.max(1, DATA.adapters.length-1)), r:9, color:'#d8a657', data:a});
+    (a.segments || []).forEach(f => edges.push({a:'seg:'+f, b:'adapter:'+a.modId, label:'声明 '+a.keyCount+' 键'}));
+  });
+}
+
+function rr(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+}
+
+/* 关系透镜：从选中节点出发，正向上游 / 反向回溯各两跳 */
+function lensSets(nid){
+  const up = new Set(), down = new Set(), seen = new Set([nid]);
+  let f = [nid];
+  for(let h = 0; h < 2; h++){
+    const nx = [];
+    edges.forEach(e => {
+      if(f.indexOf(e.a) >= 0 && !seen.has(e.b)){ seen.add(e.b); down.add(e.b); nx.push(e.b); }
+      if(f.indexOf(e.b) >= 0 && !seen.has(e.a)){ seen.add(e.a); up.add(e.a); nx.push(e.a); }
+    });
+    f = nx;
+  }
+  return {up, down};
+}
+
+function resizeGraph(){
+  const dpr = window.devicePixelRatio || 1;
+  const cw = cv.clientWidth, ch = cv.clientHeight;
+  cv.width = Math.max(1, Math.round(cw*dpr)); cv.height = Math.max(1, Math.round(ch*dpr));
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(!view.fitted && cw > 0){ view.s = Math.min(cw/W, ch/H) * 0.96; view.x = (cw - W*view.s)/2; view.y = (ch - H*view.s)/2; view.fitted = true; }
+  syncZoom();
+  draw();
+}
+
+function draw(){
+  const cw = cv.clientWidth, ch = cv.clientHeight;
+  ctx.clearRect(0,0,cw,ch);
+  ctx.save();
+  ctx.translate(view.x, view.y); ctx.scale(view.s, view.s);
+  const nsel = sel ? sel.id : null;
+  const ln = nsel ? lensSets(nsel) : null;
+  const lw = 1/view.s;
+  edges.forEach(e => {
+    const A = nodes.find(n => n.id === e.a), B = nodes.find(n => n.id === e.b);
+    if(!A || !B) return;
+    const hot = nsel && (e.a === nsel || e.b === nsel);
+    const isUp = ln && (ln.up.has(e.a) || ln.up.has(e.b));
+    const isDown = ln && (ln.down.has(e.a) || ln.down.has(e.b));
+    ctx.strokeStyle = hot ? 'rgba(216,166,87,.8)' : isUp ? 'rgba(127,182,154,.42)' : isDown ? 'rgba(201,138,99,.38)' : 'rgba(127,182,154,.13)';
+    ctx.lineWidth = hot ? lw*2.2 : (isUp || isDown) ? lw*1.3 : lw;
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+    if(hot && e.label && view.s > 0.7){
+      ctx.fillStyle = 'rgba(240,198,123,.95)';
+      ctx.font = '10px ui-monospace,Consolas,monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.label, (A.x + B.x)/2, (A.y + B.y)/2 - 8);
+    }
+  });
+  nodes.forEach(n => {
+    const isMatch = match && match.has(n.id);
+    const dim = (match && !isMatch) || (nsel && n.type !== 'layer' && n.id !== nsel && !(ln.up.has(n.id) || ln.down.has(n.id)));
+    ctx.globalAlpha = dim ? 0.18 : 1;
+    if(n.type === 'layer'){
+      const w = 120, h = 46, x = n.x - w/2, y = n.y - h/2;
+      ctx.fillStyle = 'rgba(19,30,25,.92)';
+      rr(x, y, w, h, 7); ctx.fill();
+      ctx.strokeStyle = n.color; ctx.lineWidth = 1/view.s; ctx.stroke();
+      ctx.fillStyle = n.color; ctx.fillRect(x, y + 9, 3, h - 18);
+      ctx.fillStyle = '#e9efea'; ctx.font = '600 15px -apple-system,"Microsoft YaHei",sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(LNAME[n.data.name], x + 13, n.y - 2);
+      ctx.fillStyle = '#8ea498'; ctx.font = '11px ui-monospace,Consolas,monospace';
+      ctx.fillText(n.data.count + ' 段 · ' + fmtN(n.data.lines) + ' 行', x + 13, n.y + 15);
+    } else if(n.type === 'adapter'){
+      ctx.save(); ctx.translate(n.x, n.y); ctx.rotate(Math.PI/4);
+      ctx.fillStyle = n.color; ctx.fillRect(-n.r/1.4, -n.r/1.4, n.r*1.42, n.r*1.42);
+      ctx.restore();
+      ctx.fillStyle = '#d8a657'; ctx.font = '11px ui-monospace,Consolas,monospace'; ctx.textAlign = 'left';
+      ctx.fillText(n.data.modId + ' · ' + n.data.keyCount, n.x + 14, n.y + 4);
+    } else {
+      ctx.fillStyle = n.color; ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, 7); ctx.fill();
+      ctx.globalAlpha = (dim ? 0.18 : 1) * 0.5; ctx.strokeStyle = n.color; ctx.lineWidth = 1/view.s; ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 2.4, 0, 7); ctx.stroke(); ctx.globalAlpha = dim ? 0.18 : 1;
+      if(Math.abs(view.s) > 1.15){
+        ctx.fillStyle = '#93a89c'; ctx.font = '9px ui-monospace,Consolas,monospace'; ctx.textAlign = 'left';
+        ctx.fillText(n.label, n.x + 7, n.y + 3);
+      }
+    }
+    if(n === sel || (nsel && n.id === nsel)){
+      ctx.strokeStyle = '#f0c67b'; ctx.lineWidth = lw*2; ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 5/view.s, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  });
+  ctx.restore();
+}
+
+function pick2(mx, my){
+  const wx = (mx - view.x)/view.s, wy = (my - view.y)/view.s;
+  let best = null, bestD = 12/view.s;
+  for(const n of nodes){
+    const d = Math.hypot(n.x-wx, n.y-wy);
+    if(d < Math.max(n.r + 2/view.s, bestD)){ best = n; bestD = d; }
+  }
+  return best;
+}
+
+function syncZoom(){
+  const v = document.getElementById('z-val');
+  if(v) v.textContent = Math.round(view.s*100) + '%';
+}
+
+function setZoom(f){
+  const cw = cv.clientWidth, ch = cv.clientHeight;
+  const s2 = Math.min(6, Math.max(0.25, view.s*f));
+  view.x = cw/2 - (cw/2 - view.x) * (s2/view.s);
+  view.y = ch/2 - (ch/2 - view.y) * (s2/view.s);
+  view.s = s2; syncZoom(); draw();
+}
+
+function fitView(){
+  view.fitted = false; resizeGraph(); view.fitted = true; syncZoom();
+}
+
+let down = null, moved = false;
+cv.addEventListener('pointerdown', e => { down = {x:e.clientX, y:e.clientY, vx:view.x, vy:view.y}; moved = false; cv.classList.add('drag'); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if(down){
+    const dx = e.clientX-down.x, dy = e.clientY-down.y;
+    if(Math.abs(dx)+Math.abs(dy) > 4) moved = true;
+    if(moved){ view.x = down.vx + dx; view.y = down.vy + dy; draw(); }
+    return;
+  }
+  const rect = cv.getBoundingClientRect();
+  const h = pick2(e.clientX-rect.left, e.clientY-rect.top);
+  if(h !== hover){ hover = h; cv.style.cursor = h ? 'pointer' : 'grab'; }
+});
+cv.addEventListener('pointerup', e => {
+  cv.classList.remove('drag'); down = null;
+  if(moved) return;
+  const rect = cv.getBoundingClientRect();
+  const n = pick2(e.clientX-rect.left, e.clientY-rect.top);
+  sel = n; renderInfo(n); draw();
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = cv.getBoundingClientRect();
+  const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+  const k = e.deltaY < 0 ? 1.12 : 1/1.12;
+  const s2 = Math.min(6, Math.max(0.25, view.s*k));
+  view.x = mx - (mx-view.x) * (s2/view.s);
+  view.y = my - (my-view.y) * (s2/view.s);
+  view.s = s2; syncZoom(); draw();
+}, {passive:false});
+
+document.getElementById('z-in').addEventListener('click', () => setZoom(1.15));
+document.getElementById('z-out').addEventListener('click', () => setZoom(1/1.15));
+document.getElementById('z-fit').addEventListener('click', fitView);
+document.getElementById('z-png').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = 'MapleBirchCE-架构图谱-' + (META.mceVersion || '') + '.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+});
+
+window.addEventListener('keydown', e => {
+  const tag = e.target && e.target.tagName;
+  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if(e.key === '+' || e.key === '='){ e.preventDefault(); setZoom(1.15); }
+  else if(e.key === '-' || e.key === '_'){ e.preventDefault(); setZoom(1/1.15); }
+  else if(e.key === '0' || e.key === 'f' || e.key === 'F'){ e.preventDefault(); fitView(); }
+});
+
+function renderInfo(n){
+  const box = document.getElementById('ginfo');
+  if(!n){ box.innerHTML = '<h3>图谱说明</h3><p style="margin:0;color:#6f8579">点击节点查看详情；滚轮缩放，拖拽平移。选中后高亮上游 / 下游两跳。</p>'; return; }
+  if(n.type === 'layer'){
+    const segs = DATA.segments.filter(s => s.layer === n.data.name);
+    box.innerHTML = '<h3>层 · '+esc(n.data.name)+'（'+LNAME[n.data.name]+'）</h3><dl><dt>片段</dt><dd>'+segs.length+'</dd><dt>行数</dt><dd>'+fmtN(segs.reduce((a,s)=>a+s.lines,0))+'</dd></dl>';
+    return;
+  }
+  const ls = lensSets(n.id);
+  const tail = '<dt>上游</dt><dd>'+ls.up.size+'</dd><dt>下游</dt><dd>'+ls.down.size+'</dd>';
+  if(n.type === 'segment'){
+    const a = DATA.adapters.filter(x => (x.segments||[]).includes(n.data.file));
+    box.innerHTML = '<h3>'+esc(n.data.file)+'</h3><dl><dt>所属层</dt><dd>'+esc(n.data.layer)+'</dd><dt>行数</dt><dd>'+fmtN(n.data.lines)+'</dd><dt>字节</dt><dd>'+fmtB(n.data.bytes)+'</dd><dt>声明</dt><dd>'+(a.length ? a.map(x=>esc(x.modId)).join('<br>') : '—')+'</dd>'+tail+'</dl>';
+    return;
+  }
+  const a = n.data;
+  const kinds = Object.entries(a.kinds||{}).map(([k,v])=>k+' '+v).join(' · ');
+  box.innerHTML = '<h3>'+esc(a.modId)+'</h3><dl><dt>声明键</dt><dd>'+a.keyCount+'</dd><dt>矩阵条</dt><dd>'+a.matrixKeys+'</dd><dt>探针</dt><dd>'+a.probes+'</dd>'+tail+'<dt>段文件</dt><dd>'+(a.segments||[]).map(esc).join('<br>')+'</dd><dt>类型分布</dt><dd>'+esc(kinds||'—')+'</dd></dl>';
+}
+
+document.getElementById('gsearch').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  match = q ? new Set(nodes.filter(n => (n.label+' '+(n.data&&n.data.varPath||'')).toLowerCase().includes(q)).map(n => n.id)) : null;
+  draw();
+});
+
+(function legend(){
+  document.getElementById('glegend').innerHTML = LAYERS.map(L => '<div class="lg"><span class="sw" style="background:'+(LCOLOR[L]||'#999')+'"></span>'+L+' · '+LNAME[L]+' · '+DATA.segments.filter(s=>s.layer===L).length+' 段</div>').join('')
+    + '<div class="lg"><span class="sw" style="background:#d8a657;border-radius:2px;transform:rotate(45deg)"></span>适配器 · '+DATA.adapters.length+' 项</div>'
+    + '<div class="lg" style="border-top:1px solid var(--line);margin-top:4px;padding-top:8px;color:#cfe0d4">共 '+LAYERS.length+' 层 · '+DATA.segments.length+' 段 · '+DATA.adapters.length+' 适配器</div>';
+})();
+/* ---------- 工具矩阵 ---------- */
+$('#tsearch').addEventListener('input', renderTools);
+function renderTools(){
+  const q = $('#tsearch').value.trim().toLowerCase();
+  const list = DATA.tools.filter(t => !q || (t.name+' '+t.desc+' '+t.group).toLowerCase().includes(q));
+  $('#tcount').textContent = list.length + ' / ' + DATA.tools.length + ' 项';
+  const out = [];
+  GROUP_ORDER.forEach(g => {
+    const items = list.filter(t => t.group === g);
+    if(!items.length) return;
+    out.push('<section class="grp"><h2>'+GROUP_NAME[g]+'<span>'+items.length+' 项</span></h2><table><thead><tr><th class="mono">文件</th><th>用途</th><th style="width:90px;text-align:right">体积</th></tr></thead><tbody>');
+    items.forEach(t => out.push('<tr><td class="mono">'+esc(t.name)+'</td><td class="dim">'+esc(t.desc || '（脚本内无注释）')+'</td><td class="size">'+fmtB(t.bytes)+'</td></tr>'));
+    out.push('</tbody></table></section>');
+  });
+  $('#tlist').innerHTML = out.join('') || '<p style="color:#7d9387">无匹配工具</p>';
+}
+
+/* ---------- 技能索引 ---------- */
+$('#ssearch').addEventListener('input', renderSkills);
+function renderSkills(){
+  const q = $('#ssearch').value.trim().toLowerCase();
+  const list = DATA.skills.filter(s => !q || (s.name+' '+s.dir+' '+s.description).toLowerCase().includes(q));
+  $('#scount').textContent = list.length + ' / ' + DATA.skills.length + ' 项';
+  $('#sgrid').innerHTML = list.map(s =>
+    '<article class="card" title="点击展开描述"><h3>'+esc(s.name)+'</h3><div class="meta">v'+(esc(s.version||'—'))+' · '+esc(s.mtime)+'</div><p>'+esc(s.description||'（无描述）')+'</p></article>'
+  ).join('') || '<p style="color:#7d9387">无匹配技能</p>';
+  document.querySelectorAll('#sgrid .card').forEach(c => c.addEventListener('click', () => c.classList.toggle('open')));
+}
+
+/* ---------- 作弊矩阵 ---------- */
+function sectionsOf(){
+  const set = new Set();
+  DATA.adapters.forEach(a => Object.keys(a.sections||{}).forEach(s => set.add(s)));
+  return Array.from(set);
+}
+$('#msearch').addEventListener('input', () => { renderMatrix(); if(currentRow) renderDetail(currentRow); });
+let currentRow = null;
+function renderMatrix(){
+  const q = $('#msearch').value.trim().toLowerCase();
+  const secs = sectionsOf();
+  const max = Math.max(...DATA.adapters.map(a => a.keyCount), 1);
+  $('#mcount').textContent = DATA.adapters.length + ' 适配器 / ' + META.keys + ' 键 / ' + META.probes + ' 探针';
+  const rows = DATA.adapters.map(a => {
+    const cells = secs.map(s => {
+      const v = (a.sections||{})[s] || 0;
+      const alpha = v ? Math.min(.65, .08 + .5*(v/max)) : 0;
+      return '<td class="cell" style="background:rgba(216,166,87,'+alpha.toFixed(2)+')">'+(v||'')+'</td>';
+    }).join('');
+    return '<tr class="mrow" data-mod="'+esc(a.modId)+'"><td class="mono">'+esc(a.modId)+'<div class="bar" style="width:'+Math.round(100*a.keyCount/max)+'%"></div></td>'+cells+'<td class="total">'+a.keyCount+'</td><td class="size">'+a.probes+'</td></tr>';
+  }).join('');
+  $('#mtable').innerHTML = '<table><thead><tr><th class="mono">适配器</th>'+secs.map(s=>'<th class="cell">'+esc(s)+'</th>').join('')+'<th style="text-align:right">键</th><th style="text-align:right">探针</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  document.querySelectorAll('#mtable .mrow').forEach(tr => tr.addEventListener('click', () => {
+    const a = DATA.adapters.find(x => x.modId === tr.dataset.mod);
+    currentRow = a; renderDetail(a);
+  }));
+  if(currentRow) renderDetail(currentRow);
+}
+function renderDetail(a){
+  const q = $('#msearch').value.trim().toLowerCase();
+  const items = (a.items||[]).filter(i => !q || (i.key+' '+i.varPath+' '+i.kind).toLowerCase().includes(q));
+  $('#mdetail').classList.add('on');
+  $('#mdetail').innerHTML = '<div style="padding:14px 22px 6px;display:flex;justify-content:space-between;align-items:center;gap:12px"><h3 style="margin:0;font-size:13px;color:#d8a657">'+esc(a.modId)+' · '+a.keyCount+' 键 · '+a.probes+' 探针</h3><span class="count">'+items.length+' 条匹配</span></div>'
+    + '<table><thead><tr><th class="mono">键</th><th class="mono">varPath</th><th>类型</th><th style="text-align:right">探针</th></tr></thead><tbody>'
+    + (items.map(i => '<tr><td class="mono">'+esc(i.key)+'</td><td class="mono dim">'+esc(i.varPath)+'</td><td class="dim">'+esc(i.kind||'—')+'</td><td class="size">'+(i.probes||0)+'</td></tr>').join('') || '<tr><td colspan="4" style="color:#7d9387">无匹配</td></tr>')
+    + '</tbody></table>';
+}
+
+/* ---------- 启动 ---------- */
+layout();
+window.addEventListener('resize', resizeGraph);
+requestAnimationFrame(() => {
+  resizeGraph(); renderTools(); renderSkills(); renderMatrix();
+  document.getElementById('g-nodes').textContent = fmtN(nodes.length);
+  document.getElementById('g-nodes2').textContent = fmtN(DATA.nodes.length);
+  document.getElementById('g-edges').textContent = fmtN(edges.length);
+  document.getElementById('g-edges2').textContent = fmtN(DATA.edges.length);
+});
+</script>
+</body>
+</html>

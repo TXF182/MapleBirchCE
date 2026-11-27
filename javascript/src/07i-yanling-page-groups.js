@@ -20,6 +20,9 @@
 		b.type = "button";
 		if (tip) { b.title = tip; }
 		b.addEventListener("click", function () {
+			/* v2.2.8 纯净模式：言灵按钮是手动直写，但同属「作弊写入」，开启时统一拒绝（撤销类按钮走同一入口，也会被拦，需先关开关） */
+			var pureBlocked = (typeof mbCEPureBlock === "function") ? mbCEPureBlock("言灵改写") : null;
+			if (pureBlocked) { setStatus(pureBlocked.msg, MCE_CLS.err); mbCEFlashRow(b); return; }
 			var r = fn();
 			if (r && r.msg) { setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err); }
 			mbCEFlashRow(b);

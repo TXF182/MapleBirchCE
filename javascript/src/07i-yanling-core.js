@@ -271,6 +271,8 @@
 	   全部包在 try 内 —— 回调里的任何异常都不能每秒抛一次（见 ui-tick-refresh-scope-guard）。 */
 	function mbCEYanlingTick() {
 		try {
+			/* v2.2.8 纯净模式：异装守卫每秒清理同样属于自动改档，开启时跳过（开关本身保留） */
+			if (typeof mbCEPureIsOn === "function" && mbCEPureIsOn()) { return; }
 			var st = mbCEYanlingRead();
 			if (!st || (st.noCross !== true && st.noTrait !== true)) {
 				/* 两个开关都未开启：立即停表。守卫定时器不该在没人用时空转

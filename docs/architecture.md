@@ -3,9 +3,9 @@
 > 目的：填平 `docs/` 长期缺架构文档的缺口。回答四个问题——**代码怎么拼起来的、运行期从哪一步进入、写入一笔作弊值经过哪些关卡、改一处会波及谁**。
 > 生成方式：全部结论来自仓库内源码与本轮实测（命令写在每节末尾，可复跑）。口径冲突时以源码为准，不以本文为准。
 
-## 1. 构建形态：73 段片段拼接成单文件
+## 1. 构建形态：114 段片段拼接成单文件
 
-- 源码在 `javascript/src/*.js`，共 **73 段**（`tools/manifest.json` 定序），产物是单文件 `javascript/maplebirchce.js`（v2.0.12 基线 958,218 B）。
+- 源码在 `javascript/src/*.js`，共 **114 段**（`javascript/src/manifest.json` 定序，6 层：preamble 1 / core 9 / adapter 17 / write 2 / ui 79 / export 6），产物是单文件 `javascript/maplebirchce.js`（v2.2.8：1,469,551 B）。
 - 段不是独立模块：`00-preamble.js` 只开括号/建命名空间，`09-exports.js` 收尾闭括号。**因此任何单段文件单独解析必然语法错误**——这是 ESLint 只 lint 产物、不 lint src 的原因。
 - 段序号带后缀（`03c-global-combat2` / `07a-shell2` / `09-exports2`）是历史切分产物：一段超 400 行上限时追加续号段，**不是**按职责切的。当前结构门禁实测 0 违规（`continuationAllowlist` 9 项是历史豁免名单）。
 - 构建脚本 `tools/build_js.js` 只做拼接 + 段末换行，**不做 normalize、不做语法校验**；所以 `node --check` 与 ESLint 是必经层，不能跳。
@@ -17,7 +17,7 @@
 | 层 | 段 | 职责 |
 |---|---|---|
 | 基座 | `00-preamble` / `01-core` | 版本号、`getV`/`getSetup`/`mbCEErr`、角色分类、数值读写、留痕裁剪 |
-| 业务域 | `02-romance` / `03*`-global / `04a-*` 适配器 | 恋爱-转化阶段、全局一键（维护/战斗/时间）、13 个第三方模组适配器 |
+| 业务域 | `02-romance` / `03*`-global / `04a-*` 适配器 | 恋爱-转化阶段、全局一键（维护/战斗/时间）、12 个第三方模组适配器（425 条声明键） |
 | 写入执行器 | `04b-modcheat-write` / `04c-modcheat-util` | 所有「改存档值」的唯一通道（见第 4 节） |
 | 作弊 UI | `05*` / `06*` / `07*` / `08*` | 页面行渲染、特质、场景直达、锁定、言灵、渲染分片 |
 | 导出 | `09-exports{,-vcore,-2}` | 面板 API 与页签注册表；把主导出表挂到 `setup.mbStageCE` |
@@ -30,7 +30,7 @@
    **→ 对外契约是 `setup.mbStageCE`，不是 `window.mbCE`。** 源码里 `window.mbCE` 一次都没出现过，`window` 级只有三个：`mbCELurkerPatchReport`（07f-lurker0-patch）、`__mbCEUnfreezeHooked`/`unfreezePlayerStats`（07f-pins4-hook）、`isCrossdressing`（07i-yanling-core）。
 4. 依赖前置：`boot.json` 声明 `maplebirch >= 5.4.2`；框架自身还要 7 个插件（ModLoaderGui / ModSubUiAngularJs / ConflictChecker / BeautySelectorAddon / ReplacePatcher / TweeReplacer + ModLoader）。**任一缺失则框架起不来 → CE 的依赖检查失败 → 导出不挂**，但 DOM 三件套已经建好（玩家侧表现为「球在、点了没内容」）。
 
-复跑：`grep -rn "mbStageCE" javascript/src`（6 处）；`grep -rn "window\.[A-Za-z0-9_$]+ =" javascript/src`（10 处，含注释）。
+复跑：`grep -rn "mbStageCE" javascript/src`（16 处）；`grep -rn "window\\.[A-Za-z0-9_$]+ =" javascript/src`（34 处，含注释）。
 
 ## 4. 写入链路（一笔作弊值要过 6 关）
 
@@ -81,7 +81,7 @@
 | 语法 | `node --check javascript/maplebirchce.js` | exit 0 |
 | Lint | `npx eslint javascript/maplebirchce.js` | 10 条规则 0 error（含 no-redeclare / no-undef） |
 | 纯函数单测 | `node tests/unit_core.js` | 全 PASS（01-core 中文映射/清单判定/数值读写，vm 直跑 src 片段） |
-| 结构 | `node tools/check_structure.js` | 73 段 / ≤400 行 / 续号白名单 9 项 |
+| 结构 | `node tools/check_structure.js` | 114 段 / ≤400 行 / 续号白名单 12 项 |
 | 冒烟 | `node tests/smoke_dom.js` | 全 PASS |
 | 回归 | `node tests/test_mce.js` | 全 PASS |
 | 端到端 | `node tests/functional_e2e.js` | 全 PASS |
@@ -90,9 +90,42 @@
 | 覆盖率 | `npm run coverage:gate` | lines ≥90 / branches ≥80 / functions ≥95 |
 | 打包 | `tools/pack.ps1` | verifier 4/4 + zip 正斜杠 + SHA256 |
 
+全链共 **13 步**（`pwsh tools/run_all.ps1`）：1 构建 / 2 语法 / 3 ESLint 十规则 / 4-7 功能测试（c8 缺失时作兜底）/ 8 声明一致性 / 9 原版档位形态 / 10 覆盖率 / 11 类型检查（tsc + src 侧 strict 分账）/ 12 键注册表一致 / 13 复杂度棘轮。
+
 ## 9. 已知边界（别当缺陷报）
 
-- `00-preamble.js` 是空壳，CodeGraph 索引里没有它的符号。
+- `00-preamble.js` 是空壳，图谱里不产生符号节点。
 - jsdom 不做 CSS cascade：面板样式只能断言「规则文本存在」，不能断言渲染结果；视觉层要靠实机截图。
-- 空 catch 共 206 处（精确口径 catch 447，46.1%），绝大多数是宿主探测/可选读，按「不改语义不加日志」原则保留。
+- 空 catch 共 186 处（精确口径 catch 608，30.6%），绝大多数是宿主探测/可选读，按「不改语义不加日志」原则保留。
 - moli 单会话不能驱动引擎交互阶段：面板内容、真实渲染耗时必须在玩家环境或引擎已起的环境验证。
+
+## 10. 工具索引（45 项，按职责分组）
+
+| 组 | 工具 |
+|---|---|
+| 构建 | build_js.js, check_structure.js |
+| 门禁 | run_all.ps1, pack.ps1, verify_cache.ps1, snap.ps1, install-hooks.ps1 |
+| 校验 | validate_adapters.js, check_claims.js, check_key_types.js, check_src_types.js, check_vanilla_types.js, check_lint_ratchet.js, check_coverage.js, check_framework_api.js, check_dolonline_guard.js |
+| 矩阵 | gen_adapter_matrix.js, gen_cheat_matrix.js, gen_key_registry.js, gen_direct_exit_matrix.py |
+| 适配 | check_mod_updates.js, audit_adapters.js, resolve_missing.js, adapter_pipeline.js（一条龙：解包→audit→resolve→草案→重生成→测试）, _check_keys_mod.js, _check_char_names.py, scan_mod_vars.js, modcache_state.js, new_adapter.js |
+| 发布 | push_api.js, release.js, _check_release_1912.js |
+| 调试/基准 | find_def.js, bench_places.js, bench_split.js, perf_probe.js, theme_preview.js, report_branch_gaps.js, gen_test_fixture.js, _seg_bounds.js, coverage_tests.js, run_coverage.js, run_coverage_par.js, codegraph_sync_light.py, gen_arch_data.js, gen_arch_html.js |
+
+复跑：`node tools/gen_arch_data.js` 产出数据，`node tools/gen_arch_html.js --out <路径>` 渲染可交互页；两者同源。
+
+## 11. 知识图谱（codegraph CLI 缺失后的替代）
+
+- 2026-11-21 起本机 codegraph CLI 不可用，`.codegraph/codegraph.db` 亦缺失（目录只剩 .gitignore），原 `codegraph impact / sync` 通道停摆。
+- 现由 `tools/gen_arch_data.js` 从四个权威源生成图谱：`javascript/src/manifest.json`（114 段 / 6 层）、`keys.registry.json`（425 键 / 12 适配器）、`tests/data/adapter_matrix.json`（425 条 / 969 探针）、`boot.json` + `01-core.js`（版本双源，现均为 2.2.8）。
+- 产物 `.codegraph/arch-data.json`：**555 节点 / 551 边**（层 → 段 → 适配器 → 键），并汇总 45 工具 / 28 技能 / 67 测试 / 23,620 行源码。
+- 边界：这是**声明级结构图**，不含函数级调用边；改码前影响面判断仍以 grep 与源码为准。
+
+## 12. 可交互架构页
+
+- 单文件页：`MapleBirchCE-架构交互.html`（214,726 B，v2.2.7，2026-11-26 14:52 重生成），无外部依赖，可离线打开；页头显示扫描时间。
+- 四视图与数据同源（均来自 `.codegraph/arch-data.json`）：
+  - 知识图谱：555 节点 / 551 边，按层 → 段 → 适配器 → 键展开；
+  - 工具矩阵：45 个工具，按构建 / 门禁 / 校验 / 矩阵 / 适配 / 发布 / 调试分组；
+  - 技能索引：28 个技能（`C:/Users/27352/Doubao/skills/*/SKILL.md` 的 name/description/version）；
+  - 作弊矩阵：425 条声明键 / 969 探针 / 12 适配器。
+- 重生成：`node tools/gen_arch_data.js` → `node tools/gen_arch_html.js --out <路径>`；页面生成后校验无 `__ARCH_DATA__` / `__VERSION__` 占位符残留。

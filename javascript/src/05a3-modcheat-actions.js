@@ -15,6 +15,10 @@ function mbCEAdapterList(m) {
 
 /* 单条执行路径：面板按钮、直调通道、测试都走这里，错误文案只在这一处产生。 */
 function mbCEAdapterRun(m, actionKey, args) {
+	/* v2.2.8 纯净模式：命令式动作（模组自带一键按钮）同属自动写入，入口统一拒绝。
+	   判定收进 mbCEPureGuard（单一 if），避免这里的分支把复杂度推过棘轮基线。 */
+	var pureBlocked = (typeof mbCEPureGuard === "function") ? mbCEPureGuard("命令式动作") : null;
+	if (pureBlocked) { return pureBlocked; }
 	var list = mbCEAdapterList(m);
 	for (var i = 0; i < list.length; i++) {
 		if (list[i] && list[i].key === actionKey) {

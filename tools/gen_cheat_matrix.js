@@ -47,6 +47,8 @@ const TABS = [
     "12 个第三方模组键级适配（见第三节表）、类型显示（numeric 显示 number(0/1)）、留痕+预览门控+单键回退、命令式动作（fert）"],
   ["yanling", "言灵", "07i-yanling-*",
     "言灵页 D 组（艾弗里办公室补/作弊模式）、E 组 4 页签 52 条（好友诉求等）、一键写入+撤销、作弊模式无副作用开启"],
+  ["calendar", "日历", "07x-calendar",
+    "14 天事件窗口（租金到期/扣押标签）、纯数据推演、跳日探测、租金锁定入口"],
 ];
 const SYS = [
   ["留痕通道", "01b-wrote-trim + 04b + 08c",
@@ -75,7 +77,7 @@ md.push("> 数据源：`tests/data/adapter_matrix.json`（" + matrix.adapterCoun
 md.push("> 用途：改作弊功能、加适配器、排查「某某作弊在哪」时先查本表，再按「核心分片」定位源码。");
 md.push("> 重跑：适配器声明变更后先 `node tools/gen_adapter_matrix.js`，再 `node tools/gen_cheat_matrix.js`。");
 md.push("");
-md.push("## 一、面板导航（七大页签）");
+md.push("## 一、面板导航（" + TABS.length + " 大页签）");
 md.push("");
 md.push("| 页签 id | 中文 | 核心分片 | 功能 |");
 md.push("|---|---|---|---|");

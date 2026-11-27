@@ -107,6 +107,11 @@
 		try {
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			/* v2.2.8 纯净模式：总开关在「全局 → 防护」，开启时所有适配器写入在入口拒绝（不解析路径、不改值、不留痕）。
+			   判定收进 mbCEPureGuard（恒返回非空对象或 null），返回类型保持「一定给对象」，否则可空会传染到
+			   lurker / attitude / fert 的 res.message（TS18047）。 */
+			var pureNo = (typeof mbCEPureGuard === "function") ? mbCEPureGuard("适配器写入") : null;
+			if (pureNo) { return pureNo; }
 			var r = cheatResolvePath(path);
 			if (r.ok !== true) {
 				if (r.reason === "vanilla") {
@@ -168,6 +173,9 @@
 		try {
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			/* v2.2.8 纯净模式：列表写入同走总开关（勾选项也是适配器写入）；返回类型理由同上 */
+			var pureNo2 = (typeof mbCEPureGuard === "function") ? mbCEPureGuard("适配器写入") : null;
+			if (pureNo2) { return pureNo2; }
 			var r = cheatResolvePath(path);
 			if (r.ok !== true) {
 				if (r.reason === "vanilla") {

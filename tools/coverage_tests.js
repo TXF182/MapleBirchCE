@@ -199,7 +199,13 @@ const TESTS = [
   /* v2.2.7 贝利扣押拦截（07f-bailey）：默认不动原函数、开启后清单恒空（twee 走 rentdue 分支）、
      原引用只保存一次、连续 sync 幂等、无原版函数时拒绝开启、apply/restore 全程不被替换、
      旧档已扣押记录不被清空、UI 点击可切换。 */
-  "tests/bailey_keep.js"
+  "tests/bailey_keep.js",
+  /* v2.2.8 纯净模式（07w）：总开关读写、04b/05a3 写入拒绝与关闭恢复、07f 每秒回写整 tick 跳过、
+     回退通道不被误拦（undoCheatModValue 在纯净模式下仍可执行）。 */
+  "tests/pure_mode.js",
+  /* v2.2.8 事件日历（07x）：14/7/30 天窗口、租金到期与逾期、扣押 +7/+8、假期月标注、
+     passTime 探测与跳日透传、无时间戳降级提示、renderCalendar 真实行数。 */
+  "tests/event_calendar.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

@@ -116,7 +116,7 @@
 /* 职责：核心基础层 —— 版本号 / 错误取值池 / 存档对象守卫 / 角色与属性读写（getV·writeStat·fillStats） */
 	/* ============ 基础 ============ */
 	/* 面板版本号（v1.8.3：修复面板标题版本号写死为 v1.2 的遗留问题，随版本自动更新） */
-	var MCE_VERSION = "2.2.7";
+	var MCE_VERSION = "2.2.8";
 	/* v2.1.6 类名常量表：把散在 40+ 分片的高频 "mce-xxx" 字面量收口到一处，改类名只改这里；
 	   新代码一律用 MCE_CLS.xxx，不要再手写字符串（选择器写法 ".mce-x" 带前导点，不在此表）。 */
 	var MCE_CLS = { err: "mce-err", ok: "mce-ok", hint: "mce-hint", row: "mce-row", rowLbl: "mce-row-lbl", btn: "mce-btn", gold: "mce-gold", inp: "mce-inp" };
@@ -4385,6 +4385,11 @@ function mbCEFertRenderChildren(container) {
 		try {
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			/* v2.2.8 纯净模式：总开关在「全局 → 防护」，开启时所有适配器写入在入口拒绝（不解析路径、不改值、不留痕）。
+			   判定收进 mbCEPureGuard（恒返回非空对象或 null），返回类型保持「一定给对象」，否则可空会传染到
+			   lurker / attitude / fert 的 res.message（TS18047）。 */
+			var pureNo = (typeof mbCEPureGuard === "function") ? mbCEPureGuard("适配器写入") : null;
+			if (pureNo) { return pureNo; }
 			var r = cheatResolvePath(path);
 			if (r.ok !== true) {
 				if (r.reason === "vanilla") {
@@ -4446,6 +4451,9 @@ function mbCEFertRenderChildren(container) {
 		try {
 			var V = getV();
 			if (!V) { return { ok: false, message: "存档变量不可用" }; }
+			/* v2.2.8 纯净模式：列表写入同走总开关（勾选项也是适配器写入）；返回类型理由同上 */
+			var pureNo2 = (typeof mbCEPureGuard === "function") ? mbCEPureGuard("适配器写入") : null;
+			if (pureNo2) { return pureNo2; }
 			var r = cheatResolvePath(path);
 			if (r.ok !== true) {
 				if (r.reason === "vanilla") {
@@ -5199,6 +5207,10 @@ function mbCEAdapterList(m) {
 
 /* 单条执行路径：面板按钮、直调通道、测试都走这里，错误文案只在这一处产生。 */
 function mbCEAdapterRun(m, actionKey, args) {
+	/* v2.2.8 纯净模式：命令式动作（模组自带一键按钮）同属自动写入，入口统一拒绝。
+	   判定收进 mbCEPureGuard（单一 if），避免这里的分支把复杂度推过棘轮基线。 */
+	var pureBlocked = (typeof mbCEPureGuard === "function") ? mbCEPureGuard("命令式动作") : null;
+	if (pureBlocked) { return pureBlocked; }
 	var list = mbCEAdapterList(m);
 	for (var i = 0; i < list.length; i++) {
 		if (list[i] && list[i].key === actionKey) {
@@ -7646,13 +7658,20 @@ function renderPlayerEdit() {
 			panes[i].classList.toggle("mce-active", panes[i].getAttribute("data-pane") === name);
 		}
 		mbCEUiSave({ tab: name }); /* v1.8.12 持久化：记录当前页签 */
-		if (name === "char") { renderCards(); }
-		if (name === "stage") { renderStagePane(); }
-		if (name === "scenes") { renderScenes(); }
-		if (name === "places") { renderPlaces(); }
-		if (name === "global") { renderGlobal(); }
-		if (name === "mods") { renderModCheats(); }
-		if (name === "yanling") { renderYanling(); } /* v2.0.0.006 言灵页（07i-yanling.js） */
+		/* 页签 → 渲染器分发表（v2.2.8 由 8 条 if 链改为查表：加页签只加一项，不再把 switchOuterTab 的
+		   圈复杂度往上顶；函数引用在调用时求值，届时所有段都已加载） */
+		var renders = {
+			char: renderCards,
+			stage: renderStagePane,
+			scenes: renderScenes,
+			places: renderPlaces,
+			global: renderGlobal,
+			mods: renderModCheats,
+			yanling: renderYanling, /* v2.0.0.006 言灵页（07i-yanling.js） */
+			calendar: renderCalendar /* v2.2.8 事件日历页（07x-calendar.js） */
+		};
+		var fn = renders[name];
+		if (typeof fn === "function") { fn(); }
 	}
 
 	/* ============ v1.8.12 面板状态持久化（localStorage：页签 / 特质搜索词 / 折叠状态 / 当前角色 / 内层页签） ============ */
@@ -8843,7 +8862,7 @@ function mbCEShell4Init() {
 		   顺序由那边 unshift 保证 sydney_defile / sydney_canteen 排在 sydney_temple 之前。
 		   艾弗里庄园与格威岚花园仍留在本处：两组前缀（"Mansion " / gwylan、Forest Shop）与前序组存在先占先得依赖，
 		   挪到最前会抢走 forest_shop 的段落（v2.0.22 拆出的森林商店组）。 */
-	{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里的庄园豪宅（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀实测 866 段，剔除 46 段战斗/性爱中继（Dungeon Fight/Flogger Sex、Chase Fight、Housework *Sex·Rape、Return *Fight·Rape·Sex、Party Jordan End *、Passout Pair * 等，首宏为 $fightstart/$sexstart/$molestationstart），留 820 段。开局不再由 CE 建壳解锁（v2.1.10 修「开局解锁艾弗里庄园」），只有真进过庄园的存档才可见。" },
+	{ id: "avery_mansion", name: "艾弗里 · 庄园", match: function (n) { return n.indexOf("Mansion ") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Mansion Bed", note: "艾弗里庄园（卧室/泳池/浴室/厨房/地牢/车库等套间）。Mansion 前缀 866 段，剔除 46 段战斗/性爱中继，留 820 段；只有真进过庄园的存档才可见。" },
 	{ id: "gwylan_garden", name: "格威岚 · 花园与森林商店", match: function (n) { return /gwylan/i.test(n) || n.indexOf("Pregnancy Birth Forest Shop") === 0 || n.indexOf("Forest Shop") === 0; }, main: "Gwylan Ritual Start Garden", note: "格威岚的森林商店与花园（仪式/接生/幽会/恋爱各阶段场景均在此）" },
 		/* v1.7.0：多伦公寓（Doren's flat，$location="flats"）+ 麋鹿街大院（Elk Compound，原版 73 段）。
 		   多伦公寓实证：Doren Entrance（入口，"You climb to Doren's flat"）、Doren Talk/Cry、Doren Shower 系列均在公寓内；
@@ -8851,7 +8870,7 @@ function mbCEShell4Init() {
 		   麋鹿街大院实证：Elk Compound 为入口（"You are in the compound on Elk Street"），Interior/Underground/Central/
 		   Wraith/Possessed/Station 等 70+ 子场景；Docks Compound 为码头大院，不收。 */
 	{ id: "doren_flat", name: "多伦 · 公寓与阁楼", match: function (n) { return n === "Doren Entrance" || n === "Doren Talk" || n === "Doren Cry" || n.indexOf("Doren Shower") === 0 || n.indexOf("Doren Loft") === 0; }, main: "Doren Entrance", note: "多伦的公寓（进入/闲聊/哭泣/淋浴各阶段）与孤儿院阁楼布置线（Doren Loft，用户点名一并收录）" },
-	{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) { return n.indexOf("Elk Compound") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Elk Compound", note: "麋鹿街大院：Elk Compound 前缀段实测 70 段（中央区/地下/水晶/车站/附身线）。其中怨灵相关只有 4 段（Wraith Give / Resist / Fight / Fight Finish），怨灵主线其余 64 段不带此前缀、不归本组。widget 定义段（Elk Compound Widgets）与战斗起始段（首宏 $fightstart / $molestationstart，共 9 段）不入组。" },
+	{ id: "elk_compound", name: "麋鹿街 · 大院", match: function (n) { return n.indexOf("Elk Compound") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Elk Compound", note: "麋鹿街大院（中央区/地下/水晶/车站/附身线）。Elk Compound 前缀 70 段，含 4 段怨灵战段（怨灵主线其余 64 段不带该前缀，不归本组）；widget 定义段与 9 段战斗起始段不入组。" },
 		/* v1.9.13 场景直达补充 6 组（段落前缀均经本体 0.5.12.13 实证） */
 		{ id: "asylum", name: "精神病院 · Asylum", match: function (n) {
 			return n === "Asylum" || n.indexOf("Asylum ") === 0;
@@ -8868,7 +8887,7 @@ function mbCEShell4Init() {
 		{ id: "wolf_territory", name: "森林深处 · 狼群领地", match: function (n) {
 			return n.indexOf("Wolf ") === 0 || n.indexOf("Forest Wolf") === 0;
 		}, exclude: mbCEIsUnplayableEntry, main: "Wolf Cave",
-		  note: "森林深处的狼群领地（狼穴 hub / 猎人 / 腐肉 / 河流 / 巡逻各线）。主场景取 Wolf Cave（狼穴入口，自带出口）；原主场景 Wolf Pack 的首个控制宏是 if($molestationstart is 1)，属战斗遭遇中继段，硬跳进去条件为假、正文空白、链接全灭（v2.0.15 未给本组挂 exclude，该缺陷一直在线，v2.0.16 修正）。" },
+		  note: "狼群领地（狼穴 hub / 猎人 / 腐肉 / 河流 / 巡逻各线）。主场景取 Wolf Cave 狼穴入口（自带出口）；原 Wolf Pack 是战斗遭遇中继段，硬跳条件为假、正文空白、链接全灭。" },
 		{ id: "hospital", name: "医院 · Hospital", match: function (n) {
 			return n.indexOf("Hospital ") === 0;
 		}, main: "Hospital front", note: "医院（$location=hospital；前台/门禁卡/诊室等线）" },
@@ -8890,7 +8909,7 @@ function mbCEShell4Init() {
 			return n === "The Farm" || n === "Farm" || n.indexOf("The Farm ") === 0
 				|| n.indexOf("Farm ") === 0 || n.indexOf("Farmland ") === 0;
 		}, exclude: mbCEIsUnplayableEntry, main: "Farm Cottage",
-		  note: "雷米农场本体与农场事件（艾利克斯线/农作物/农场商店/暴露事件）。主场景取 Farm Cottage（农场小屋，自带出口）；原主场景 The Farm 的首个控制宏是 if($molestationstart is 1)，属战斗遭遇中继段，硬跳会白屏（v2.0.15 未给本组挂 exclude，该缺陷一直在线，v2.0.16 修正）。" },
+		  note: "雷米农场本体与事件（艾利克斯线 / 农作物 / 农场商店 / 暴露事件）。主场景取 Farm Cottage 农场小屋（自带出口）；原 The Farm 是战斗遭遇中继段，硬跳会白屏。" },
 		/* v2.0.7 R3（玩家「有的地点都没了」「那小岛的作弊呢」）：原版 0.5.12.13 有 Island 海岛线
 		   （setup.majorAreas 含 "Island"，setup.addlocation("island").parent("sea")，Widgets Text Island → "the nearby island"，
 		   teleportCheater 有 case "Island" → island_end），但 CE 的 17 组地点直达里一直没有 → 玩家进不去。
@@ -8910,7 +8929,7 @@ function mbCEShell4Init() {
 		{ id: "conveniencestore", name: "遇欲便利店 · Conveniencestore（Dol-Optimization）", match: function (n) {
 			return n === "Conveniencestore" || n.indexOf("Conveniencestore ") === 0;
 		}, main: "Conveniencestore",
-		  note: "玩家口语「便利店」= Dol-Optimization 1.1.2.1 的「遇欲便利店」（入口经 TweeReplacer 注入原版 Domus Street，段名 Conveniencestore）。店主 NPC「遇欲」（Needmeet）：先「询问有什么」，再「询问他手中的本子」把 love 置 1；好感键 $needmeet_romance（≥50 信赖、≥80 解锁恋爱线，作弊在 Mod作弊页「最佳化」组）。夜间（Time.dayState is night）只有玻璃反光与「离开」，白天才有柜台/货架/烟柜三区；未装该模组时本组显示「未匹配到主场景段落」。" }
+		  note: "Dol-Optimization「遇欲便利店」（注入 Domus Street）。接触店主：先问「有什么」再问「手中的本子」置好感（$needmeet_romance ≥50 信赖 / ≥80 恋爱）；夜间只有玻璃反光。" }
 	];
 	function placeNameCN(name) {
 		var lower = String(name).toLowerCase();
@@ -9734,13 +9753,13 @@ function mbCEIsUnplayableEntry(nm, text) {
 (function () {
 	var groups = [
 		{ id: "wraith", name: "象牙怨灵 · Ivory Wraith", match: mbCEIsWraithPassage, exclude: mbCEIsUnplayableEntry, main: "Wraith Test Start",
-		  note: "象牙怨灵：谓词实测命中 78 段，已剔除 13 段（战斗/中继，首宏为 $molestationstart、$struggle_start 等战前状态，硬跳会崩），保留 65 段（血月猎杀 / 项链 Schism / 附身 / 梦魇四套状态机）。主场景沿用原版自带的召唤入口（$passageData 测试直跳表的「Summon the Wraith」载入段，自设 home、自带 generateWraith 与退出链接）；直达前补 $wraith 八字段、月相 evening，并把日期推到当月最后一天 21:00（与主场景同口径）。象牙怨灵不拆子入口：四套状态机依赖 $wraith.state 三态与月相，直跳会崩，故只留主入口。" },
+		  note: "象牙怨灵（猎杀 / 项链 Schism / 附身 / 梦魇）：65 段。主场景「Summon the Wraith」，直达前补 $wraith 八字段、月相 evening、推到当月最后一天 21:00；依赖 $wraith.state。" },
 		{ id: "halloween", name: "万圣节 · Halloween", match: mbCEIsHalloweenPassage, exclude: mbCEIsUnplayableEntry, main: "Lake Halloween Party",
-		  note: "万圣节：谓词实测命中 105 段，已剔除 7 段（战斗/中继），保留 98 段（湖畔篝火派对 / 凯拉尔 / 惠特尼 / 伊甸 / 罗宾服装）。主场景是湖畔派对（段落自带 outside/location，只依赖 $phase 与 $cool）；直达前 $phase 补 0（湖岸篝火档，湖畔默认 1 会落到草丛分支）、$cool 补 240（原版 gte 240 是「欢呼」最高档，0 会读到「没人理你」），日期推进到 10 月 28 日让原版置 V.halloween。子入口覆盖各条角色线，见下方「更多入口」。" },
+		  note: "万圣节：98 段。主场景湖畔派对只依赖 $phase / $cool：直达补 $phase 0、$cool 240，推到 10 月 28 日置旗标。" },
 		{ id: "valentines", name: "情人节 · Valentines", match: mbCEIsValentinesPassage, exclude: mbCEIsUnplayableEntry, main: "Avery Valentines",
-		  note: "情人节：谓词实测命中 116 段，已剔除 4 段（战斗/中继），保留 112 段（艾弗里晚宴 / Alex / 伊甸 / Robin / Whitney / Kylar 送礼 / 格威兰）。主场景是艾弗里情人节晚宴；直达前推进到 2 月 10 日（原版窗口 6~14），并补 $avery_valentines 十七字段与 $foodstuff.valentines_chocolate（该段直接读 .amount，缺对象会 TypeError）。子入口覆盖送礼与约会各线，见下方「更多入口」。" },
+		  note: "情人节：112 段。主场景艾弗里晚宴，直达前推到 2 月 10 日（窗口 6~14），补 $avery_valentines 与 $foodstuff.valentines_chocolate（缺则 TypeError）。" },
 		{ id: "christmas", name: "圣诞节 · Christmas", match: mbCEIsChristmasPassage, exclude: mbCEIsUnplayableEntry, main: "Christmas Mirror",
-		  note: "圣诞节：谓词实测命中 35 段，已剔除 2 段（战斗/中继），保留 33 段（镜中人 12 段 / 孤儿院 / 伊甸晚餐 / Kylar / 罗宾礼物）。主场景是圣诞夜的「镜中人」（段落自带 outside/location，守卫 $wraith.seen gte 3 或 $wraithPrison）；直达前推进到 12 月 22 日（原版窗口 18~25）并把 $wraith.seen 抬到 3、$wraithPrison 补 false。子入口覆盖各条角色线，见下方「更多入口」。" }
+		  note: "圣诞节：33 段。主场景圣诞夜「镜中人」，直达前推到 12 月 22 日（窗口 18~25），抬 $wraith.seen 到 3、$wraithPrison 补 false。" }
 	];
 	for (var i = groups.length - 1; i >= 0; i--) { PLACE_GROUPS.unshift(groups[i]); }
 })();
@@ -9760,7 +9779,7 @@ function mbCEIsUnplayableEntry(nm, text) {
 	var g = { id: "forest_shop", name: "森林商店 · Gwylan Shop（纯商店）", kind: "place",
 		match: function (n) { return n === "Forest Shop" || n.indexOf("Forest Shop ") === 0; },
 		exclude: mbCEIsUnplayableEntry, main: "Forest Shop",
-		note: "森林商店本体：纯服装店界面（$location=forest_shop，段落自带 location 与 $shopName 初始化），不触发格威岚仪式 / 接生 / 追踪 / 送人回店任何剧情。想走正门那条（会触发格威岚登场事件）请展开「更多入口」点 Forest Shop Entrance。" };
+		note: "森林商店本体：纯服装店界面（$location=forest_shop），不触发格威岚仪式 / 接生 / 追踪 / 送人回店。想走正门（触发格威岚登场）展开「更多入口」点 Forest Shop Entrance。" };
 	var idx = -1;
 	for (var j = 0; j < PLACE_GROUPS.length; j++) { if (PLACE_GROUPS[j].id === "gwylan_garden") { idx = j; break; } }
 	if (idx >= 0) { PLACE_GROUPS.splice(idx, 0, g); } else { PLACE_GROUPS.push(g); }
@@ -9781,7 +9800,7 @@ function mbCEIsUnplayableEntry(nm, text) {
 	var g = { id: "whitney_home", name: "惠特尼 · 家",
 		match: function (n) { return n.indexOf("Whitney Home") === 0; },
 		exclude: mbCEIsUnplayableEntry, main: "Whitney Home Knock",
-		note: "惠特尼的住处（芭芭拉街公寓）：清晨早餐/淋浴、初次进入三幕（Intro 1/2/3）、沙发闲聊（吉他/手机/头发/玩具）、帮派上门（窗户/零食/帽子/游戏）、翻查家具（门/箱子/窗帘/橱柜）、昼夜敲门各分支。Whitney Home 前缀实测 261 段，剔除 3 段战斗/性爱中继，组内 258 段；其中 12 段列入下方「更多入口」可安全直达，其余依赖事件上下文（NPC 未落地或须从事件内进入），不单列按钮。" };
+		note: "惠特尼的芭芭拉街公寓：早餐/淋浴、初次进入三幕、沙发闲聊、帮派上门、翻查家具、昼夜敲门。Whitney Home 前缀 261 段，剔除 3 段战斗/性爱中继，组内 258 段；12 段列入「更多入口」，其余依赖事件上下文不单列。" };
 	PLACE_GROUPS.push(g);
 })();
 
@@ -10387,8 +10406,8 @@ function mbCETryOnShell(nm, V2) {
    仍留在 07d-places.js 原位 —— 挪到最前会抢走 forest_shop 的段落，tests/forest_shop_direct.js 直接 FAIL（v2.1.10 实证）。 */
 	(function () {
 		var groups = [
-			{ id: "sydney_defile", name: "悉尼 · 亵渎仪式（神殿夜行）", match: function (n) { return n.indexOf("Sydney Temple Corrupt") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Sydney Temple Corrupt", note: "原版 Sydney Temple Corrupt 全链（42 段）：堕落后的悉尼夜里带你潜入神殿禁地 → 搜柜找铜钥匙 → 撬锁或破门 → 取出他的贞操带 → 祈祷室 → 结束后 Sirris 接人。段内自带四道前置（不满足会给提示，不会崩）：悉尼须为 corrupt 状态、玩家贞操带须为神殿出品（origin=temple）、temple_rank 至少 initiate、21 点后。战斗中继段（Fight / Fight Finish 首宏 $fightstart）已排除，请从上一段顺走。" },
-			{ id: "sydney_canteen", name: "悉尼 · 食堂线（身上写字）", match: function (n) { return n.indexOf("Sydney Canteen") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Sydney Canteen Bodywriting Allow", note: "原版食堂线 7 段：悉尼在食堂拿笔在你手臂/肩背写字。原版 widget bodywriting_npc_sydney 只会写 Sinner / Purest Love / Lusty Sinners / Bound to Sydney / Sydney makes me :) / stud·beauty / handsome·pretty / insatiable / cute_boy·cute_girl 这些固定短语，全文 189 条 bodywriting 里也没有「十六字箴言」这个条目 —— 那是中文玩家对这类宗教/罪人标语的俗称。本组含写字（主）/ 拒绝写字 / 鼓励 / 打岔 / 介入；战斗段 Sydney Canteen Fight 首宏 $fightstart 已排除。" },
+			{ id: "sydney_defile", name: "悉尼 · 亵渎仪式（神殿夜行）", match: function (n) { return n.indexOf("Sydney Temple Corrupt") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Sydney Temple Corrupt", note: "亵渎仪式 42 段：夜里潜入神殿 → 搜柜找铜钥匙 → 撬锁/破门 → 取贞操带 → 祈祷室 → Sirris 接人。前置：悉尼 corrupt、贞操带 origin=temple、rank ≥ initiate、21 点后，不满足给提示；战斗段已排除。" },
+			{ id: "sydney_canteen", name: "悉尼 · 食堂线（身上写字）", match: function (n) { return n.indexOf("Sydney Canteen") === 0; }, exclude: mbCEIsUnplayableEntry, main: "Sydney Canteen Bodywriting Allow", note: "食堂线 7 段：悉尼在手臂/肩背写固定短语（Sinner / Purest Love / Lusty Sinners 等）。含写字（主）/ 拒绝 / 鼓励 / 打岔 / 介入；战斗段已排除。" },
 			{ id: "sydney_temple", name: "悉尼（Sydney）· 神殿居所", match: function (n) { return n.indexOf("Temple Sydney") === 0 || n.indexOf("Sydney Temple") === 0; }, main: "Temple Sydney", note: "神殿中悉尼的房间与祭坛场景（纯/堕两线都在此）。亵渎仪式（Corrupt 全链）与食堂写字段已拆到上面两组独立直达" },
 			{ id: "sirris_places", name: "西里斯（Sirris）· 学校与成人商店", match: function (n) { return /sirris/i.test(n) || n === "Sydney Ride Home" || n === "Sydney Ride Temple"; }, main: "Adult Shop Approach Sirris", note: "西里斯常驻的科学教室与成人商店，以及开车接送的车程场景（悉尼的家长）" },
 		];
@@ -11428,6 +11447,8 @@ function mbCELockTrace(Vp, path, before, after) {
    安全边界：当前值不存在（undefined）时跳过——只固定「已存在」的值，
    绝不因锁定而 setPathVal 凭空创建字段（防把未触发的转化/未开的键造出来）。 */
 function mbCELockTick() {
+	/* v2.2.8 纯净模式：定时写回是「玩家不操作也在改档」的典型通道，总开关开启时整 tick 跳过（锁定项保留，关开关后自动恢复） */
+	if (typeof mbCEPureIsOn === "function" && mbCEPureIsOn()) { return; }
 	var Vp = getV();
 	var list = Vp && Vp.mbCE_lock;
 	if (!Vp || !Array.isArray(list) || !list.length) { return; }
@@ -14624,6 +14645,8 @@ function hookUnfreezePlayerStats() {
 	   全部包在 try 内 —— 回调里的任何异常都不能每秒抛一次（见 ui-tick-refresh-scope-guard）。 */
 	function mbCEYanlingTick() {
 		try {
+			/* v2.2.8 纯净模式：异装守卫每秒清理同样属于自动改档，开启时跳过（开关本身保留） */
+			if (typeof mbCEPureIsOn === "function" && mbCEPureIsOn()) { return; }
 			var st = mbCEYanlingRead();
 			if (!st || (st.noCross !== true && st.noTrait !== true)) {
 				/* 两个开关都未开启：立即停表。守卫定时器不该在没人用时空转
@@ -16890,6 +16913,9 @@ function renderYanlingQuick(parent) {
 		b.type = "button";
 		if (tip) { b.title = tip; }
 		b.addEventListener("click", function () {
+			/* v2.2.8 纯净模式：言灵按钮是手动直写，但同属「作弊写入」，开启时统一拒绝（撤销类按钮走同一入口，也会被拦，需先关开关） */
+			var pureBlocked = (typeof mbCEPureBlock === "function") ? mbCEPureBlock("言灵改写") : null;
+			if (pureBlocked) { setStatus(pureBlocked.msg, MCE_CLS.err); mbCEFlashRow(b); return; }
 			var r = fn();
 			if (r && r.msg) { setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err); }
 			mbCEFlashRow(b);
@@ -21037,6 +21063,303 @@ function mbCERenderAveryInjury(sec) {
 	};
 	redraw();
 }
+/* 职责：纯净模式（全局页「防护」组）—— 一键暂停 CE 的自动/批量写入通道，用于排除干扰验证原版行为。
+ *
+ * 为什么需要：回退中心只能「事后撤销」，但数值固定每秒写回、言灵守卫每秒清理、适配器批量写入
+ * 这类通道会在玩家不操作时持续改档，排障时无法判断「这个数值是原版给的还是 CE 写的」。
+ * 纯净模式 = 一个存档内持久的总开关，开启后上述通道在执行器入口直接拒绝，不写值、不留痕。
+ *
+ * 覆盖范围（v2.2.8 定稿，口径必须与 UI 文案一致）：
+ *   · 04b cheatWriteValue / cheatWriteListValue —— 适配器作弊项
+ *   · 05a3 mbCEAdapterRun —— 命令式动作（模组自带一键按钮）
+ *   · 07f mbCELockTick —— 数值固定每秒回写
+ *   · 07i mbCEYanlingTick + mbCEYanlingRenderBtn —— 异装守卫与言灵手动按钮
+ * 不覆盖：原版扩展类面板（档案 / 经济 / 鹰塔 / 食物 / 艾弗里等）的手动单次写入——那些是玩家主动点按、
+ * 逐条留痕可回退，不属于「自动改档」；需要绝对干净时不要去点它们即可。
+ * 回退通道永不被拦：undoCheatModValue / mbCEUndoOne 等走自己的实现，不经过上述入口。
+ *
+ * 持久化：V.mbCE_pure = 1/0（存档内，与 mbCE_baileyKeep 同风格），换档各自独立。
+ */
+
+function mbCEPureV() {
+	try {
+		var V = getV();
+		return (V && typeof V === "object") ? V : null;
+	} catch (e) { return null; }
+}
+
+function mbCEPureIsOn() {
+	var V = mbCEPureV();
+	if (!V) { return false; }
+	return V.mbCE_pure === 1 || V.mbCE_pure === true;
+}
+
+function mbCEPureSet(on) {
+	var V = mbCEPureV();
+	if (!V) { return { ok: false, msg: "存档变量不可用（尚未读档）" }; }
+	V.mbCE_pure = on ? 1 : 0;
+	return {
+		ok: true, on: !!on,
+		msg: on
+			? "纯净模式已开启：适配器写入 / 命令式动作 / 数值固定回写 / 言灵改写将全部拒绝"
+			: "纯净模式已关闭：写入通道恢复"
+	};
+}
+
+/* 写入通道统一门控：null = 放行；对象 = 拒绝（同时给 message 与 msg，兼容两类调用方的字段习惯） */
+function mbCEPureBlock(tag) {
+	if (!mbCEPureIsOn()) { return null; }
+	var t = "纯净模式已开启，写入已拦截（" + (tag || "面板") + "）；如需写入请到「全局 → 防护」关闭纯净模式";
+	return { ok: false, blocked: "pure", message: t, msg: t };
+}
+
+/* 组合门控（04b / 05a3 共用）：开启时恒返回非空拒绝对象，调用侧只需一个 if，避免在每个热点函数里
+   叠加「判开关 + 判函数存在 + 兜文案」多组分支把复杂度推过棘轮（mbCEAdapterRun 实测 11 就是这么做出来的）。 */
+function mbCEPureGuard(tag) {
+	if (!mbCEPureIsOn()) { return null; }
+	return mbCEPureBlock(tag) || { ok: false, blocked: "pure", message: "纯净模式已开启，写入已拦截（" + tag + "）" };
+}
+
+/* 全局页「防护」组区块：开关 + 回退并开启 + 范围说明 */
+function mbCEPureRender(sec) {
+	if (!sec) { return; }
+	var on = mbCEPureIsOn();
+	var row = el("div", MCE_CLS.row);
+	var btn = el("button", MCE_CLS.btn + (on ? " mce-gold" : ""), on ? "纯净模式：已开启（写入已暂停）" : "纯净模式：已关闭");
+	btn.type = "button";
+	btn.title = on
+		? "当前适配器写入 / 命令式动作 / 数值固定回写 / 言灵改写全部拒绝；点此关闭恢复写入"
+		: "开启后暂停上述自动与批量写入通道（不写存档、不留痕），用于排除 CE 干扰验证原版行为";
+	btn.addEventListener("click", function () {
+		var r = mbCEPureSet(!on);
+		setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err);
+		renderGlobal();
+	});
+	row.appendChild(btn);
+	sec.appendChild(row);
+
+	var row2 = el("div", MCE_CLS.row);
+	var rollBtn = el("button", MCE_CLS.btn, "回退全部 CE 写入并开启纯净模式");
+	rollBtn.type = "button";
+	rollBtn.title = "先按时间倒序回退所有可回退留痕（审计类自动跳过），再把写入通道切到暂停状态";
+	rollBtn.addEventListener("click", function () {
+		var undo = mbCEUndoAll();
+		var r = mbCEPureSet(true);
+		/* 汇总两个结果：回退是主诉求，它的统计在前；开启结果只作补充说明 */
+		setStatus(undo.msg + "；" + r.msg, (undo.ok || r.ok) ? MCE_CLS.ok : MCE_CLS.err);
+		renderGlobal();
+	});
+	row2.appendChild(rollBtn);
+	sec.appendChild(row2);
+
+	sec.appendChild(el("div", MCE_CLS.hint,
+		"覆盖：适配器作弊项 · 命令式动作 · 数值固定每秒回写 · 言灵按钮与异装守卫。" +
+		"回退中心不受影响（撤销随时可用）；原版扩展面板（档案 / 经济 / 鹰塔 / 食物等）为手动单次写入，不在此开关内。"));
+}
+/* 职责：事件日历页签 —— 未来 14 天逐日列出原版时间敏感事件，并提供「跳到该天」与原版语义的租金锁定入口。
+ *
+ * 取证（DoL 0.5.12.13 HTML，行号即源码位置，勿凭印象改口径）：
+ *   · 起点/偏移：Time.set 用 new DateTime(2022, 9, 4, 7) 作 $startDate，V.timeStamp 为相对起点的毫秒偏移（L76786–76795）
+ *   · 假期月份：holidayMonths = [4, 7, 8, 12]（L76779），Time.schoolTerm 据此判定学期/假期
+ *   · 租金：$rentday = 收租星期（1=周日…7=周六，L76696 定义；交租后 <<set $rentday to Time.weekDay>> L346510）；
+ *     $renttime <= 0 视为逾期（L308066「Bailey is looking for you」）
+ *   · 贝利扣押：赎回截止 = 扣押日 + 7、变卖 = 扣押日 + 8，均以 Time.days 相对（L308077–308078）
+ *   · 跳日：passTime(time, type) → Time.pass(毫秒)（L76623–76627），type 用 "day"
+ *
+ * 诚实边界（UI 文案必须与本段一致）：
+ *   · passTime 只推进时间，不触发每日结算（催租、考试判定都在 passage 内），所以「跳到」是快进观看，不是跳过剧情。
+ *   · 原版没有常驻节假日表（圣诞节只有服装/装饰条目），本版不造节日行；「学校假期」按月份标注，不编造具体日期。
+ *   · 游戏日按 floor(V.timeStamp / 一天) 近似（起点 07:00），仅用于扣押相对日推算，不写回任何变量。
+ *   · 「禁用」不做自由改写（会造半结算存档）：租金侧给的是 07m 已有的原版语义锁定（rent-lock）。
+ */
+
+var MCE_CAL_SPAN = 14;
+var MCE_CAL_MAXSPAN = 30;
+var MCE_CAL_HOLIDAY_MONTHS = [4, 7, 8, 12];
+var MCE_CAL_WEEK = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+var MCE_CAL_DAY_MS = 86400000;
+
+/* 当前游戏时间：优先 V.startDate + V.timeStamp（原版存的就是这两个），缺失即 null（不猜测） */
+function mbCECalNow(V) {
+	var start = Number(V && V.startDate);
+	var off = Number(V && V.timeStamp);
+	if (!isFinite(start) || !isFinite(off)) { return null; }
+	var d = new Date(start + off);
+	return isNaN(d.getTime()) ? null : d;
+}
+
+/* 近似游戏日（Time.days 的 floor 近似），用于扣押相对日；无时间戳返回 null */
+function mbCECalGameDay(V) {
+	var off = Number(V && V.timeStamp);
+	return isFinite(off) ? Math.floor(off / MCE_CAL_DAY_MS) : null;
+}
+
+/* 租金判定（拆出以控复杂度）：rentday 1=周日…7=周六；due = 距今天数（0=今天收租） */
+function mbCECalRentSetup(V, todayWd) {
+	var rentDay = Number(V.rentday);
+	var on = !!V.rentday && isFinite(rentDay) && rentDay >= 1 && rentDay <= 7;
+	return { on: on, due: on ? ((rentDay - todayWd + 7) % 7) : -1, overdue: Number(V.renttime) <= 0 };
+}
+
+/* 扣押判定（拆出以控复杂度）：day 为扣押发生时的游戏日（Time.days） */
+function mbCECalConfiscSetup(V) {
+	var conf = V.bailey_confiscation;
+	var on = !!(conf && conf.items && conf.items.length > 0 && isFinite(Number(conf.day)));
+	return { on: on, day: on ? Number(conf.day) : -1 };
+}
+
+/* 单日租金标签：只在收租日命中；首行且已逾期给不同文案 */
+function mbCECalRentTag(rent, i) {
+	if (!rent.on || i !== rent.due) { return null; }
+	return (i === 0 && rent.overdue) ? "租金已逾期" : "租金到期";
+}
+
+/* 单日扣押标签：扣押日 +7 赎回、+8 变卖（按 Time.days 相对，近似游戏日） */
+function mbCECalConfiscTags(conf, gameDay, i) {
+	var tags = [];
+	if (!conf.on || gameDay === null) { return tags; }
+	var rel = gameDay + i - conf.day;
+	if (rel === 7) { tags.push("扣押赎回截止"); }
+	if (rel === 8) { tags.push("扣押物变卖"); }
+	return tags;
+}
+
+/* 纯数据：未来 span 天逐日事件（不碰 DOM、不写 V，测试直接断言这个） */
+function mbCECalendarRows(V, span) {
+	var rows = [];
+	var now = mbCECalNow(V);
+	if (!now) { return rows; }
+	var days = Math.max(1, Math.min(MCE_CAL_MAXSPAN, Math.floor(Number(span) || MCE_CAL_SPAN)));
+	var todayWd = now.getDay() + 1; /* JS 0=周日 → 原版 1=周日 */
+	var rent = mbCECalRentSetup(V, todayWd);
+	var conf = mbCECalConfiscSetup(V);
+	var gameDay = mbCECalGameDay(V);
+	var i;
+	for (i = 0; i < days; i++) {
+		var d = new Date(now.getTime() + i * MCE_CAL_DAY_MS);
+		var tags = mbCECalConfiscTags(conf, gameDay, i);
+		var rt = mbCECalRentTag(rent, i);
+		if (rt) { tags.push(rt); }
+		if (MCE_CAL_HOLIDAY_MONTHS.indexOf(d.getMonth() + 1) >= 0) { tags.push("学校假期"); }
+		rows.push({
+			offset: i,
+			month: d.getMonth() + 1,
+			day: d.getDate(),
+			weekday: MCE_CAL_WEEK[d.getDay()],
+			tags: tags,
+			today: i === 0
+		});
+	}
+	return rows;
+}
+
+function mbCECalFmt(r) {
+	if (!r) { return "—"; }
+	return r.month + "月" + r.day + "日 " + r.weekday;
+}
+
+/* 原版 passTime 是否可达：DoL 的 twine-user-script 顶层函数，加载方式不同时可能不挂 window */
+function mbCECalJumpReady() {
+	return typeof window !== "undefined" && window && typeof window.passTime === "function";
+}
+
+function mbCECalJump(offset) {
+	var n = Math.floor(Number(offset) || 0);
+	if (n <= 0) { return { ok: false, msg: "今天不需要跳转" }; }
+	if (!mbCECalJumpReady()) { return { ok: false, msg: "原版 passTime 不可达（当前加载方式未暴露），跳转已禁用" }; }
+	try {
+		window.passTime(n, "day");
+	} catch (e) {
+		return { ok: false, msg: "跳转失败：" + (e instanceof Error ? e.message : String(e || "未知异常")) };
+	}
+	return { ok: true, msg: "已推进 " + n + " 天（原版 passTime，不触发每日结算）" };
+}
+
+function mbCECalRowEl(r) {
+	var row = el("div", MCE_CLS.row);
+	row.appendChild(el("span", "", (r.today ? "今天 · " : "") + mbCECalFmt(r)));
+	var i;
+	for (i = 0; i < r.tags.length; i++) {
+		row.appendChild(el("span", "mce-chip" + (r.tags[i].indexOf("逾期") >= 0 ? " mce-gold" : ""), r.tags[i]));
+	}
+	if (r.offset > 0) {
+		var b = el("button", MCE_CLS.btn, "跳到");
+		b.type = "button";
+		b.title = "推进 " + r.offset + " 天（原版 passTime，不触发每日结算）";
+		b.addEventListener("click", function () {
+			var res = mbCECalJump(r.offset);
+			setStatus(res.msg, res.ok ? MCE_CLS.ok : MCE_CLS.err);
+			renderCalendar();
+		});
+		row.appendChild(b);
+	}
+	return row;
+}
+
+/* 租金锁定入口（复用 07m 的原版语义锁定：记住目标便士值，每次进段落检查写回） */
+function mbCECalLockBar(V) {
+	var bar = el("div", MCE_CLS.row);
+	var ready = typeof mbCEVanillaEconRentLockRaw === "function";
+	var lock = ready ? mbCEVanillaEconRentLockRaw() : null;
+	var btn = el("button", MCE_CLS.btn + (lock ? " mce-gold" : ""), lock
+		? "租金锁定中：" + mbCEVanillaEconFmt(lock.money) + "（点此解除）"
+		: "锁定每周租金（原版语义）");
+	btn.type = "button";
+	btn.title = lock
+		? "解除后原版会在交租时按倍率重算"
+		: "记住当前每周租金并每次进段落写回；只改金额，不跳过催租流程";
+	btn.addEventListener("click", function () {
+		if (!ready) { setStatus("租金锁定依赖 07m 经济段，当前未加载", MCE_CLS.err); return; }
+		var r = lock ? mbCEVanillaEconRentLockOff() : mbCEVanillaEconRentLockOn();
+		if (r && r.ok) { setStatus(lock ? "已解除每周租金锁定" : "已锁定当前每周租金", MCE_CLS.ok); }
+		else { setStatus("操作被拒绝：没有可锁定的周租金额（先去「原版扩展 → 经济」写入）", MCE_CLS.err); }
+		renderCalendar();
+	});
+	bar.appendChild(btn);
+	if (!lock && V && !isFinite(Number(V.rentmoney))) {
+		bar.appendChild(el("span", MCE_CLS.hint, "（当前没有可锁定的周租金额，先去「原版扩展 → 经济」写入）"));
+	}
+	return bar;
+}
+
+function renderCalendar() {
+	var pane = root ? root.querySelector('[data-pane="calendar"]') : null;
+	if (!pane) { return; }
+	pane.textContent = "";
+	var V = getV();
+	var now = mbCECalNow(V);
+	if (!V || !now) {
+		pane.appendChild(el("div", MCE_CLS.hint, "读不到存档时间（V.startDate / V.timeStamp 缺失），日历不可用；进一次游戏再打开。"));
+		return;
+	}
+	var rows = mbCECalendarRows(V, MCE_CAL_SPAN);
+	pane.appendChild(el("div", MCE_CLS.hint, "今天 " + mbCECalFmt(rows[0]) + " · 未来 " + rows.length + " 天（只读原版时间字段，不改档）"));
+	pane.appendChild(mbCECalLockBar(V));
+
+	var bar = el("div", MCE_CLS.row);
+	var jumpOk = mbCECalJumpReady();
+	var b1 = el("button", MCE_CLS.btn, jumpOk ? "跳到明天" : "跳到明天（不可用）");
+	b1.type = "button";
+	if (jumpOk) {
+		b1.addEventListener("click", function () {
+			var r = mbCECalJump(1);
+			setStatus(r.msg, r.ok ? MCE_CLS.ok : MCE_CLS.err);
+			renderCalendar();
+		});
+	} else {
+		b1.disabled = true;
+		b1.title = "原版 passTime 未暴露，跳转不可用";
+	}
+	bar.appendChild(b1);
+	pane.appendChild(bar);
+
+	var i;
+	for (i = 0; i < rows.length; i++) { pane.appendChild(mbCECalRowEl(rows[i])); }
+
+	pane.appendChild(el("div", MCE_CLS.hint,
+		"事件来源：租金（$rentday/$renttime）· 贝利扣押（$bailey_confiscation，+7 赎回 / +8 变卖）· 学校假期（4/7/8/12 月）。" +
+		"原版没有固定节日表，未列节日；「跳到」只推进时间，不触发每日结算。"));
+}
 /* 职责：NPC 特质获取 + 誓言修复 + 时间推进（Now / Advance / Jump） */
 	/* ============ v1.5.0 誓言修复 + NPC 特质获取（对应游戏「特质」页 · 一般/NPC 特质分组） ============ */
 	// NPC 特质：原版 0.5.12.13 Traits widget「NPC Traits」分组逐项照抄 has 条件与文案（汉化名）
@@ -21219,8 +21542,8 @@ function mbCERenderAveryInjury(sec) {
 			mcRenderAutoMaintSec, mcRenderWorldCorruptSec
 		].forEach(function (f) { f(gBatch); });
 
-		var gGuard = mceNewGroup(pane, "防护", "⑧ 数值固定 · ⑨ 潜伏者 · 贝利扣押拦截", true);
-		[mbCERenderLock, mbCERenderLurker, mbCERenderBailey].forEach(function (f) { f(gGuard); });
+		var gGuard = mceNewGroup(pane, "防护", "⑧ 数值固定 · ⑨ 潜伏者 · 贝利扣押拦截 · 纯净模式", true);
+		[mbCERenderLock, mbCERenderLurker, mbCERenderBailey, mbCEPureRender].forEach(function (f) { f(gGuard); });
 
 		/* 原版扩展：档案/收藏/头衔 07l · 经济/学业/农田/消耗品/纹身 07m · 鹰塔 07n · 礼顿把柄 07o · 食物/鱼获 07p · 艾弗里 07q，均走独立 vcore 留痕可逐条回退 */
 		var gExt = mceNewGroup(pane, "原版扩展", "⑩~⑬ 档案 · 经济 · 鹰塔 · 礼顿 · 食物 · 艾弗里", true);
@@ -22686,7 +23009,7 @@ function mbCEUndoOne(key) {
 		if (!name) { name = rest || String(key); }
 		return name;
 	}
-/* 职责：面板 API 与页签注册表 —— render / open / close / toggle、names / panes / paneRenders 七页签、setup.mbStageCE 导出 */
+/* 职责：面板 API 与页签注册表 —— render / open / close / toggle、names / panes / paneRenders 八页签、setup.mbStageCE 导出 */
 
 	function render() {
 		if (!root) { return; }
@@ -22715,7 +23038,7 @@ function mbCEUndoOne(key) {
 		/* 表驱动分发（v1.8.6 review：替代 6 分支 if 链） */
 		var paneRenders = {
 			char: renderCards, stage: renderStagePane, scenes: renderScenes,
-			places: renderPlaces, global: renderGlobal, mods: renderModCheats, yanling: renderYanling
+			places: renderPlaces, global: renderGlobal, mods: renderModCheats, yanling: renderYanling, calendar: renderCalendar
 		};
 		var doRender = paneRenders[activeTab];
 		if (doRender) { doRender(); }
@@ -22962,7 +23285,7 @@ function mbCEUndoOne(key) {
 		header.appendChild(closeBtn);
 
 		var tabs = el("div", "mce-tabs");
-		var names = [["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"], ["yanling", "言灵"]];
+		var names = [["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"], ["yanling", "言灵"], ["calendar", "日历"]];
 		names.forEach(function (pair) {
 			var b = el("button", pair[0] === mbCEUiState.tab ? "mce-active" : "", pair[1]);
 			b.type = "button";
@@ -22972,7 +23295,7 @@ function mbCEUndoOne(key) {
 
 		var body = el("div", "mce-body");
 		var panes = [["char", "mce-pane mce-active"], ["stage", "mce-pane"], ["scenes", "mce-pane"],
-			["places", "mce-pane"], ["global", "mce-pane"], ["mods", "mce-pane"], ["yanling", "mce-pane"]];
+			["places", "mce-pane"], ["global", "mce-pane"], ["mods", "mce-pane"], ["yanling", "mce-pane"], ["calendar", "mce-pane"]];
 		panes.forEach(function (pair) {
 			var p = el("div", pair[0] === mbCEUiState.tab ? "mce-pane mce-active" : "mce-pane");
 			p.setAttribute("data-pane", pair[0]);
