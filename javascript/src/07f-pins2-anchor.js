@@ -122,13 +122,17 @@
 			if (isFarmDependentScene(P) && !farmStateReady()) {
 				return { ok: false, message: "「" + P.name + "」依赖农场系统状态（$farm 未初始化）：请先推进到艾利克斯农场线后再触发" };
 			}
-			/* v2.1.10：只有重放目标涉及庄园段落才兜底建壳（原版以对象存在判定已进入庄园，
-			   无差别建壳等于替玩家提前解锁庄园衣柜） */
+			/* v2.3.1：庄园段建完整壳；仅涉及 Avery 普通段落时只补 daily.avery，不借重放解锁庄园。 */
 			var needAvery = mbCEIsAveryPassage(entry);
+			var needAveryDaily = mbCEIsAveryAnyPassage(entry);
 			if (!needAvery && Array.isArray(P.passages)) {
-				for (var avz = 0; avz < P.passages.length && !needAvery; avz++) { needAvery = mbCEIsAveryPassage(P.passages[avz]); }
+				for (var avz = 0; avz < P.passages.length && !needAvery; avz++) {
+					needAvery = mbCEIsAveryPassage(P.passages[avz]);
+					needAveryDaily = needAveryDaily || mbCEIsAveryAnyPassage(P.passages[avz]);
+				}
 			}
 			if (needAvery) { ensureAveryMansion(); }
+			else if (needAveryDaily) { ensureAveryMansion(true); }
 			ensureFarmState();
 			/* v2.0.1：剧情触发（SV 预览链已解析为真实入口）同样兜底监狱/农场原版状态，
 			   避免新档触达 Prison* / Farm* 剧情段时深链读 $prison.* / $farm.* 抛 TypeError */

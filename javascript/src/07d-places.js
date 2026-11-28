@@ -290,9 +290,9 @@ function teleportTo(name) {
 				setStatus("Engine 不可用（Engine=" + d2 + "，window.Engine=" + d1 + "，$=" + d3 + "，SugarCube.Engine=" + d4 + "）——若非游戏页面请先进入游戏", MCE_CLS.err);
 				return;
 			}
-			/* v2.1.10：仅目标段落属于庄园线时才兜底建壳 —— 原版以「$avery_mansion 对象存在」判定
-			   已进入过庄园，任意地点直达都建壳会让新档提前解锁庄园衣柜（玩家反馈「开局解锁艾弗里庄园」）。 */
+			/* v2.3.1：庄园段建完整壳；Avery Date / Office 等普通段只补 $daily.avery，不借约会解锁庄园。 */
 			if (mbCEIsAveryPassage(name)) { ensureAveryMansion(); }
+			else if (mbCEIsAveryAnyPassage(name)) { ensureAveryMansion(true); }
 			ensureFarmState(); /* 防崩：farm_stage 已推进但 $farm 缺失时补空壳（社交页读 $farm.beasts/aggro） */
 			ensureSceneStateFor(name); /* v2.0.1：监狱/农场原版状态对象兜底（新档直达不崩） */
 			if (name === "Scene Viewer passages") {

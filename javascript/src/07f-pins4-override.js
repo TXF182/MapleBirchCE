@@ -14,8 +14,8 @@ function onPassageOverride(passageArgs) {
 		/* v1.5.1：Mansion 系段落兜底——无论以何种方式进入艾弗里庄园段落（场景直达、场景查看器重放、
 		   固定触发、第二天正常日常），只要 $daily.avery.talk 缺失，avery_daily_talk / Mansion Talk 正文
 		   都会 TypeError（reading 'chat'/'ignore'）；在固定触发判定前无条件兜底（缺失才建，不覆盖进度） */
-		if (typeof dest === "string" && mbCEIsAveryPassage(dest)) {
-			ensureAveryMansion();
+		if (typeof dest === "string" && mbCEIsAveryAnyPassage(dest)) {
+			ensureAveryMansion(!mbCEIsAveryPassage(dest));
 		}
 		if (mbCEHandleReplayOverride(dest, passageArgs, V)) { return; }
 		mbCEHandlePinTrigger(dest, passageArgs, V);
@@ -276,13 +276,17 @@ function mbCEPinCanTriggerNow(dest, P) {
 
 /* 触发前依赖兜底：庄园壳（仅剧情涉及庄园段落时）+ 农场结构 */
 function mbCEPinEnsureDeps(P) {
-	/* v2.1.10：仅在剧情涉及庄园段落时才兜底建壳 —— 原版以「$avery_mansion 对象存在」
-	   判定已进入过庄园，无差别建壳会让新档提前解锁庄园衣柜 */
+	/* v2.3.1：庄园段建完整壳；仅涉及 Avery 普通段落时只补 daily.avery，不借触发解锁庄园。 */
 	var needAvery = mbCEIsAveryPassage(P.startPassage);
+	var needAveryDaily = mbCEIsAveryAnyPassage(P.startPassage);
 	if (!needAvery && Array.isArray(P.passages)) {
-		for (var avz = 0; avz < P.passages.length && !needAvery; avz++) { needAvery = mbCEIsAveryPassage(P.passages[avz]); }
+		for (var avz = 0; avz < P.passages.length && !needAvery; avz++) {
+			needAvery = mbCEIsAveryPassage(P.passages[avz]);
+			needAveryDaily = needAveryDaily || mbCEIsAveryAnyPassage(P.passages[avz]);
+		}
 	}
 	if (needAvery) { ensureAveryMansion(); }
+	else if (needAveryDaily) { ensureAveryMansion(true); }
 	/* 防崩：农场依赖剧情需 $farm 结构存在（触发前兜底，缺失才补，不覆盖已有进度） */
 	ensureFarmState();
 }

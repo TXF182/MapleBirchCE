@@ -965,13 +965,16 @@ delete V.mbCE_queue;
 delete window.SugarCube;
 
 // 14) 修正（v1.2.1）：$avery_mansion/$avery_tower 缺失兜底（艾弗里庄园直达防崩）
-// 14.1) v2.1.10 口径：只有目标段落属庄园线（Mansion / Avery / Avery's / SV Mansion / SV Avery 前缀）才建壳。
-//       非庄园段（Manor Bed 是凯拉尔庄园）直达不再建壳 —— 原版以「$avery_mansion 对象存在」判定已进入庄园。
-V.avery_mansion = undefined; V.avery_tower = undefined;
-global.Story = { has: (n) => n === "Mansion Bed" || n === "Manor Bed", lookupWith: () => [] };
+// 14.1) v2.3.1 口径：只有真实庄园段（Mansion / Avery Mansion / SV Mansion 前缀）才建壳；
+//       Avery Date / Avery Hotel / Avery Office 等普通段只补 $daily.avery，绝不建 $avery_mansion。
+V.avery_mansion = undefined; V.avery_tower = undefined; V.avery_antiques = undefined; delete V.daily;
+global.Story = { has: (n) => n === "Mansion Bed" || n === "Manor Bed" || n === "Avery Date", lookupWith: () => [] };
 window.SugarCube = { Engine: { play: (n, h) => { playedBack = n + ":" + !!h; } } };
 api.teleportTo("Manor Bed");
 assert(V.avery_mansion === undefined && V.avery_tower === undefined, "14.1 非庄园段（Manor Bed）直达不建 avery_mansion 空壳（避免开局解锁庄园）");
+api.teleportTo("Avery Date");
+assert(V.avery_mansion === undefined && V.avery_tower === undefined && V.avery_antiques === undefined, "14.1 Avery Date 直达只补日常结构，不建庄园/塔/古董壳");
+assert(V.daily && V.daily.avery && V.daily.avery.talk && V.daily.avery.talk.chat === 0, "14.1 Avery Date 直达补 daily.avery.talk（防艾弗里段读崩）");
 api.teleportTo("Mansion Bed");
 assert(V.avery_mansion && V.avery_mansion.schedule === "home" && Array.isArray(V.avery_mansion.jobs) && V.avery_mansion.party_state === "waiting", "14.1 Mansion 前缀段直达才建 $avery_mansion 空壳（schedule/jobs/party_state）");
 assert(V.avery_mansion.mb_ce_shell === true, "14.1 CE 建的壳带 mb_ce_shell 标记（启动时据此撤壳，真档无标记永不被误删）");
@@ -1023,10 +1026,23 @@ V.avery_mansion = { schedule: "home", days: 3, folder: true, party_state: "done"
 V.avery_tower = { progress: 2 };
 assert(api.mbCEAveryLooksUnused(V.avery_mansion, V.avery_tower) === false, "14.8 有 days/folder 进度 + 塔进度 → 不认作壳");
 assert(api.mbCEPruneAveryShell() === false && V.avery_mansion.days === 3 && V.avery_tower.progress === 2, "14.8 真档保留（撤壳返回 false）");
-// 14.9) 段落归属判定（五个前缀）
-assert(api.mbCEIsAveryPassage("Mansion Bed") === true && api.mbCEIsAveryPassage("Avery") === true && api.mbCEIsAveryPassage("Avery's Room") === true, "14.9 Mansion / Avery / Avery's 前缀命中");
-assert(api.mbCEIsAveryPassage("SV Mansion") === true && api.mbCEIsAveryPassage("SV Avery Bath") === true, "14.9 SV Mansion / SV Avery 预览段命中");
+// 14.9) 段落归属判定：只有真实庄园段才建壳，Avery 约会/办公室等普通段不得命中
+assert(api.mbCEIsAveryPassage("Mansion Bed") === true && api.mbCEIsAveryPassage("Avery Mansion Antiques Fight Finish") === true && api.mbCEIsAveryPassage("SV Mansion") === true, "14.9 Mansion / Avery Mansion / SV Mansion 庄园段命中");
+assert(api.mbCEIsAveryPassage("Avery Date") === false && api.mbCEIsAveryPassage("Avery") === false && api.mbCEIsAveryPassage("Avery's Room") === false, "14.9 Avery 普通段不命中（约会 / 角色名 / 房间）");
 assert(api.mbCEIsAveryPassage("Manor Hall") === false && api.mbCEIsAveryPassage("Sydney Temple Corrupt") === false && api.mbCEIsAveryPassage("") === false, "14.9 非庄园段不命中（Manor / Sydney / 空串）");
+// 14.13) 玩家实测回归：首次艾弗里约会途中不得建 $avery_mansion（原版只凭对象存在就开庄园入口）
+delete V.avery_mansion; delete V.avery_tower; delete V.avery_antiques; delete V.daily;
+V.mbCE_queue = [];
+api.onPassageOverride({ name: "Avery Date" });
+assert(V.avery_mansion === undefined && V.avery_tower === undefined && V.avery_antiques === undefined, "14.13 Avery Date 不建庄园/塔/古董壳（不再把约会对象带去庄园）");
+assert(V.daily && V.daily.avery && V.daily.avery.talk && V.daily.avery.talk.chat === 0, "14.13 Avery Date 仍补 daily.avery 结构（防其它艾弗里段读崩）");
+api.onPassageOverride({ name: "Avery Hotel Morning" });
+assert(V.avery_mansion === undefined && V.avery_tower === undefined, "14.13 Avery Hotel 等普通段同样不建庄园壳");
+api.onPassageOverride({ name: "Avery Office Work" });
+assert(V.avery_mansion === undefined && V.daily.avery.talk.chat === 0, "14.13 Avery Office 只补日常结构、不建庄园");
+api.onPassageOverride({ name: "Mansion Bed" });
+assert(V.avery_mansion && V.avery_mansion.mb_ce_shell === true && V.avery_tower && V.avery_antiques, "14.13 Mansion 庄园段仍建完整兜底壳（含塔/古董）");
+delete V.avery_mansion; delete V.avery_tower; delete V.avery_antiques; delete V.daily; delete V.mbCE_queue;
 // 14.10) v2.1.11 回归自查：刚跑 avery_mansion_init 就离开的真档 —— mansion 结构字段全零，
 //        但 $avery_tower.effects 必有 "theft"（init pushUnique 实证），不得被当作壳撤掉
 V.avery_mansion = { version: 5, kitchen_stock: { normal: ["salt"], requested: [] }, schedule: "home", jobs: [], party_state: "waiting", days: 0, days_absent: 0, walk_cycle: 0, display_antiques: 0, food: "hamburger", food_last: "none", date_ready: false, date_seen: false, landry: 0, vault_progress: 0, kitchen_made: 0, recipe: [], attend: {} };

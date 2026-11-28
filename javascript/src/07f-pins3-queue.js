@@ -114,11 +114,14 @@
 				: { ok: true, created: 0, msg: "农场动物字段完整" };
 		} catch (e) { return { ok: false, created: 0, msg: "农场字段守卫异常" }; }
 	}
-	function ensureAveryMansion() {
+	/* v2.3.1：dailyOnly=true 只补 $daily.avery 结构，不建 $avery_mansion/$avery_tower/$avery_antiques。
+	   原版以「$avery_mansion 对象存在」判定已进入庄园；Avery Date / Avery Hotel 等普通段落也会读
+	   $daily.avery，但绝不能在约会途中建庄园壳，否则约会结束直接被带去庄园（玩家实机反馈）。 */
+	function ensureAveryMansion(dailyOnly) {
 		try {
 			var V = getV();
 			if (!V) { return; }
-			if (typeof V.avery_mansion !== "object" || V.avery_mansion === null) {
+			if (!dailyOnly && (typeof V.avery_mansion !== "object" || V.avery_mansion === null)) {
 				V.avery_mansion = {
 					version: 5,
 					pool: 0, kitchen: 0, lounge: 0, display: 0, bedroom: 0, bathroom: 0,
@@ -144,13 +147,13 @@
 					mb_ce_shell: true
 				};
 			}
-			if (typeof V.avery_tower !== "object" || V.avery_tower === null) {
+			if (!dailyOnly && (typeof V.avery_tower !== "object" || V.avery_tower === null)) {
 				V.avery_tower = { progress: 0, effects: [], stage: 0, intro: 0 };
 			}
 			/* v2.1.11：$avery_antiques 兜底 —— Mansion Display Loosen / Mansion Display Consider 直接读
 			   $avery_antiques.bolts / .exposed（无短路保护，原版 avery_antiques_init 全文实证），
 			   壳不补则直达这两段必 TypeError。 */
-			mbCEEnsureAveryAntiques();
+			if (!dailyOnly) { mbCEEnsureAveryAntiques(); }
 			/* daily.avery 结构兜底（v1.3.3 → v1.5.1 强化）：本体 0.5.5.5 后 $daily.avery 由艾弗里线入口建为 {}，
 			   talk/ask 子对象仅在 avery_mansion_init / 0.5.7.1 版本迁移时创建；直达、重放、固定触发或新档未开
 			   艾弗里线时进入 Mansion 系段落（Mansion Talk 调 avery_daily_talk 读 $daily.avery.talk.chat、
@@ -200,13 +203,22 @@
 			}
 		} catch (e) { /* 艾弗里线结构兜底整体失败（存档只读/被冻结）→ 不阻断直达与重放，由目标段落自身兜底 */ }
 	}
-	/* v2.1.10：目标段落是否属艾弗里庄园线 —— 只有这些段落才需要 $avery_mansion 兜底。
-	   原版把「$avery_mansion 对象存在」当作已进入庄园的判据，无差别建壳等于替玩家解锁庄园。 */
+	/* v2.1.10 / v2.3.1：目标段落是否属艾弗里庄园线 —— 只有真实庄园段才可建壳。
+	   原版把「$avery_mansion 对象存在」当作已进入庄园的判据；v2.1.10 曾用 "Avery" 前缀宽匹配，
+	   结果 Avery Date / Avery Hotel / Avery School Pickup 等普通段落也被建壳，首次约会后原版
+	   `<<if $avery_mansion>>` 分支直接把 PC 带去 Mansion Garage（玩家实机反馈）。 */
 	function mbCEIsAveryPassage(name) {
 		var n = String(name || "");
 		if (!n) { return false; }
-		if (n.indexOf("Mansion") === 0 || n.indexOf("Avery") === 0 || n.indexOf("Avery's") === 0) { return true; }
-		return n.indexOf("SV Mansion") === 0 || n.indexOf("SV Avery") === 0;
+		if (n.indexOf("Mansion") === 0 || n.indexOf("Avery Mansion") === 0) { return true; }
+		return n.indexOf("SV Mansion") === 0;
+	}
+	/* v2.3.1：这些段落会读 $daily.avery，只补日常结构，不建庄园壳。 */
+	function mbCEIsAveryAnyPassage(name) {
+		var n = String(name || "");
+		if (!n) { return false; }
+		if (mbCEIsAveryPassage(n)) { return true; }
+		return n.indexOf("Avery") === 0 || n.indexOf("Avery's") === 0 || n.indexOf("SV Avery") === 0;
 	}
 	/* v2.1.10：真档判据用到的「结构字段」表（任一为真即已进过庄园，CE 建的零进度壳不会有） */
 	var MB_CE_AVERY_REAL_FIELDS = ["days", "study_unlocked", "folder", "folder_gone", "date_seen", "vault_progress", "landry", "kitchen_made", "display_antiques"];
