@@ -3,8 +3,8 @@
   "note": "由 tools/gen_adapter_matrix.js 从声明自动生成，勿手改；改声明后重跑生成器。",
   "source": "javascript/src/04a-*.js（段序取自 manifest.json）",
   "adapterCount": 12,
-  "itemCount": 425,
-  "probeCount": 969,
+  "itemCount": 430,
+  "probeCount": 979,
   "items": [
     {
       "modId": "revelation-the-book-of-return",
@@ -7657,24 +7657,62 @@
       "index": 11,
       "key": "ds_trait_1",
       "varPath": "citylibrarybook_14_1_trait",
-      "kind": "boolean",
-      "type": "boolean",
-      "min": null,
-      "max": null,
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
       "levels": null,
       "probes": [
         {
-          "label": "true",
-          "write": true,
-          "expect": true
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
         },
         {
-          "label": "false",
-          "write": false,
-          "expect": false
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
         }
       ],
-      "sync": null
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_14_1",
+            "fn": false,
+            "value": 1,
+            "if": {
+              "min": 1
+            }
+          },
+          {
+            "path": "masochismSavedSims",
+            "fn": true,
+            "if": {
+              "min": 1
+            }
+          },
+          {
+            "path": "sadismSavedSims",
+            "fn": true,
+            "if": {
+              "min": 1
+            }
+          },
+          {
+            "path": "usedNotPraySims",
+            "fn": false,
+            "value": 1,
+            "if": {
+              "min": 1
+            }
+          },
+          {
+            "path": "uncomfortable_Sims_141",
+            "fn": false,
+            "value": 1
+          }
+        ]
+      }
     },
     {
       "modId": "dolsims",
@@ -7682,24 +7720,35 @@
       "index": 12,
       "key": "ds_trait_2",
       "varPath": "citylibrarybook_14_2_trait",
-      "kind": "boolean",
-      "type": "boolean",
-      "min": null,
-      "max": null,
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
       "levels": null,
       "probes": [
         {
-          "label": "true",
-          "write": true,
-          "expect": true
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
         },
         {
-          "label": "false",
-          "write": false,
-          "expect": false
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
         }
       ],
-      "sync": null
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_14_2",
+            "fn": false,
+            "value": 1,
+            "if": {
+              "min": 1
+            }
+          }
+        ]
+      }
     },
     {
       "modId": "dolsims",
@@ -7707,24 +7756,43 @@
       "index": 13,
       "key": "ds_trait_3",
       "varPath": "citylibrarybook_14_3_trait",
-      "kind": "boolean",
-      "type": "boolean",
-      "min": null,
-      "max": null,
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
       "levels": null,
       "probes": [
         {
-          "label": "true",
-          "write": true,
-          "expect": true
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
         },
         {
-          "label": "false",
-          "write": false,
-          "expect": false
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
         }
       ],
-      "sync": null
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_14_3",
+            "fn": false,
+            "value": 1,
+            "if": {
+              "min": 1
+            }
+          },
+          {
+            "path": "usedpraySims",
+            "fn": false,
+            "value": 1,
+            "if": {
+              "min": 1
+            }
+          }
+        ]
+      }
     },
     {
       "modId": "dolsims",
@@ -7732,24 +7800,35 @@
       "index": 14,
       "key": "ds_trait_4",
       "varPath": "citylibrarybook_14_4_trait",
-      "kind": "boolean",
-      "type": "boolean",
-      "min": null,
-      "max": null,
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
       "levels": null,
       "probes": [
         {
-          "label": "true",
-          "write": true,
-          "expect": true
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
         },
         {
-          "label": "false",
-          "write": false,
-          "expect": false
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
         }
       ],
-      "sync": null
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_14_4",
+            "fn": false,
+            "value": 1,
+            "if": {
+              "min": 1
+            }
+          }
+        ]
+      }
     },
     {
       "modId": "dolsims",
@@ -7757,24 +7836,47 @@
       "index": 15,
       "key": "ds_trait_5",
       "varPath": "citylibrarybook_14_5_trait",
-      "kind": "boolean",
-      "type": "boolean",
-      "min": null,
-      "max": null,
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
       "levels": null,
       "probes": [
         {
-          "label": "true",
-          "write": true,
-          "expect": true
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
         },
         {
-          "label": "false",
-          "write": false,
-          "expect": false
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
         }
       ],
-      "sync": null
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_14_5",
+            "fn": false,
+            "value": 1,
+            "if": {
+              "min": 1
+            }
+          },
+          {
+            "path": "willpowerSavedSims",
+            "fn": true,
+            "if": {
+              "min": 1
+            }
+          },
+          {
+            "path": "uncomfortable_Sims_145",
+            "fn": false,
+            "value": 1
+          }
+        ]
+      }
     },
     {
       "modId": "dolsims",
@@ -7782,21 +7884,21 @@
       "index": 16,
       "key": "ds_pray_used",
       "varPath": "usedpraySims",
-      "kind": "boolean",
-      "type": "boolean",
-      "min": null,
-      "max": null,
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
       "levels": null,
       "probes": [
         {
-          "label": "true",
-          "write": true,
-          "expect": true
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
         },
         {
-          "label": "false",
-          "write": false,
-          "expect": false
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
         }
       ],
       "sync": null
@@ -7807,24 +7909,204 @@
       "index": 17,
       "key": "ds_pray_not",
       "varPath": "usedNotPraySims",
-      "kind": "boolean",
-      "type": "boolean",
-      "min": null,
-      "max": null,
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
       "levels": null,
       "probes": [
         {
-          "label": "true",
-          "write": true,
-          "expect": true
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
         },
         {
-          "label": "false",
-          "write": false,
-          "expect": false
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
         }
       ],
       "sync": null
+    },
+    {
+      "modId": "dolsims",
+      "section": "abilities",
+      "index": 18,
+      "key": "ds_wdestiny",
+      "varPath": "WDestinytrait",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_11",
+            "fn": false,
+            "value": 1000,
+            "if": {
+              "min": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "modId": "dolsims",
+      "section": "abilities",
+      "index": 19,
+      "key": "ds_excombat",
+      "varPath": "EXCombattrait",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_12",
+            "fn": false,
+            "value": 1000,
+            "if": {
+              "min": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "modId": "dolsims",
+      "section": "abilities",
+      "index": 20,
+      "key": "ds_quantum",
+      "varPath": "quantumtrait",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_13",
+            "fn": false,
+            "value": 1000,
+            "if": {
+              "min": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "modId": "dolsims",
+      "section": "abilities",
+      "index": 21,
+      "key": "ds_hypnotrait",
+      "varPath": "hypnotraitsSims",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_16",
+            "fn": false,
+            "value": 1000,
+            "if": {
+              "min": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "modId": "dolsims",
+      "section": "abilities",
+      "index": 22,
+      "key": "ds_intercalate",
+      "varPath": "intercalatetrait",
+      "kind": "number",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "levels": null,
+      "probes": [
+        {
+          "label": "min(0)",
+          "write": 0,
+          "expect": 0
+        },
+        {
+          "label": "max(1)",
+          "write": 1,
+          "expect": 1
+        }
+      ],
+      "sync": {
+        "set": [
+          {
+            "path": "citylibrarybook_17",
+            "fn": false,
+            "value": 1000,
+            "if": {
+              "min": 1
+            }
+          }
+        ]
+      }
     },
     {
       "modId": "dolsims",

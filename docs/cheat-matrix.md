@@ -1,6 +1,6 @@
 # MapleBirchCE 作弊功能矩阵
 
-> 数据源：`tests/data/adapter_matrix.json`（12 适配器 / 425 条目 / 969 探针）+ `javascript/src/04a-*.js`（modId/modName）。
+> 数据源：`tests/data/adapter_matrix.json`（12 适配器 / 430 条目 / 979 探针）+ `javascript/src/04a-*.js`（modId/modName）。
 > 用途：改作弊功能、加适配器、排查「某某作弊在哪」时先查本表，再按「核心分片」定位源码。
 > 重跑：适配器声明变更后先 `node tools/gen_adapter_matrix.js`，再 `node tools/gen_cheat_matrix.js`。
 
@@ -34,7 +34,7 @@
 | `deadwood-reblooms` | 枯木逢春 · Deadwood Reblooms 2.5.8 | stages=13 / abilities=65 / values=62 | `RobinExpansion.shop_stage`、`RobinExpansion.balloon`、`RobinExpansion.asylum.status`、`RobinExpansion.doctor.stage` |
 | `dol-optimization` | 原版优化 Dol-Optimization v1.1.2.1 | stages=1 / abilities=4 / values=17 | `options.opt.UiBarToggle`、`options.opt.WornStacking`、`options.opt.WornStackingTraits`、`options.opt.WornStackingWarmth` |
 | `dolmod` | 人物附加与生活质量提升（DolMod-/MyFirstMod v0.1.990） | stages=1 / abilities=12 / values=18 | `adian_confession_state`、`adian_met`、`adian_romance`、`adian._inHospital` |
-| `dolsims` | DoLSims 0.8.1.7（类模拟人生大扩展） | stages=2 / abilities=18 / values=21 | `Library_Trouble`、`clearModSimsFuncDec_phase`、`MirrorHypnoSims_0`、`MirrorHypnoSims_1` |
+| `dolsims` | 图书馆扩展 · 兼容入口（0.8.1.7） | stages=2 / abilities=23 / values=21 | `Library_Trouble`、`clearModSimsFuncDec_phase`、`MirrorHypnoSims_0`、`MirrorHypnoSims_1` |
 | `dom_robin` | DomRobin 0.0.8（罗宾大型增强） | stages=1 / abilities=11 / values=2 | `liveStreamStage`、`robinFightTalked`、`robinFightTogether`、`robinPayBothTalked` |
 | `fertility-expansion` | FertilityExpansion 1.7.0（伊甸子女/生育扩展） | stages=1 / abilities=11 / values=2 | `eden.schemaVersion`、`eden.facility.owned`、`eden.facility.expanded`、`eden.facility.baileyIntroduced` |
 | `more-farm-upgrade` | 更多农场升级 More Farm Upgrade v1.0.8（农场 11 项新设施/资源/农夫） | abilities=16 / values=21 | `plots.farm.0.greenhouse`、`plots.farm.1.greenhouse`、`plots.farm.2.greenhouse`、`plots.farm.3.greenhouse` |

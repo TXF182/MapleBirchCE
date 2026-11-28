@@ -32,6 +32,8 @@
 				mbCEPruneAveryShell();
 		mbCEUiLoad(); /* v1.8.12 持久化：恢复上次页签/搜索词/折叠状态 */
 		try { mbCEResumeTimers(); mbCEYanlingCheatBoot(); } catch (eY0) {} /* v2.0.0.006 言灵开关 + v2.1.18 作弊无副作用豁免：注入即补齐（钩子不落档，读档后重装） */
+		/* v2.3.0 玩家的游戏：特质注册到基础 traits + 财神金钱钩子幂等补装（失败不阻断启动） */
+		try { mbCEPGRegisterTrait(); mbCEPGInstallMoneyHook(); } catch (ePG0) {}
 		mbCEHookErrors(); /* v1.8.12 错误收集器：window error + console.error 进面板 */
 		mbCEFrameworkGateOnce(); /* v2.1.2 框架版本闸门：注入即体检，结论挂 window.__mceFrameworkGate（01c-fwgate.js） */
 		if (document.body) {
@@ -386,15 +388,12 @@
 				mbCEUiCollapsed: mbCEUiCollapsed,
 				/* v2.0.23 四主题：setTheme 直设 / cycleTheme 循环（gold→starry→cyberpunk→jade，自动持久化）；showAnchorPrompt 供测试触发确认条 */
 				setTheme: setTheme, cycleTheme: cycleTheme, renderGlobal: renderGlobal,
-				getTheme: getTheme,
-				showAnchorPrompt: showAnchorPrompt,
-				hideAnchorPrompt: hideAnchorPrompt,
-				/* v1.8.12 功能12：适配器工作流审计 */
-				auditAdapters: auditAdapters
+				getTheme: getTheme, showAnchorPrompt: showAnchorPrompt, hideAnchorPrompt: hideAnchorPrompt,
+				auditAdapters: auditAdapters /* v1.8.12 功能12：适配器工作流审计 */
 			};
+			mbCEExportPlayerGame();
 		} catch (e) {}
 	}
 	mountApi(); mbCEExportLeaf(); mbCEExportYanlingQuick(); mbCEExportYanlingPosts(); /* 顶层挂表后即补齐枝叶 2 键 + 言灵补丁键 + 贴吧三键：init() 在无 document 环境下会提前 return，只有此处能兜底；三个导出函数均幂等 */
 	init();
 })();
-

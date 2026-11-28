@@ -612,9 +612,9 @@ const gbtn = function (label, exact) {
     return exact ? (b.textContent === label) : (b.textContent.indexOf(label) !== -1);
   })[0];
 };
-/* 排版优化：全局页按语义收进 5 个顶层可折叠组（外观与面板默认展开，其余 4 组默认收起） */
+/* 排版优化：全局页按语义收进 6 个顶层可折叠组（外观与面板、玩家的游戏默认展开，其余 4 组默认收起） */
 const gTopGroups = [].slice.call(gpane().children).filter(function (g) { return g.classList.contains("mce-group"); });
-assert(gTopGroups.length === 5, "全局页 5 个顶层语义组（外观 / 批量速成 / 防护 / 原版扩展 / 态度与回退），实际 " + gTopGroups.length);
+assert(gTopGroups.length === 6, "全局页 6 个顶层语义组（外观 / 玩家的游戏 / 批量速成 / 防护 / 原版扩展 / 态度与回退），实际 " + gTopGroups.length);
 assert(gTopGroups.filter(function (g) { var b = g.querySelector(".mce-group-b"); return b && b.getAttribute("data-collapsed") === "1"; }).length === 4, "全局页 4 个业务顶层组默认收起（仅外观与面板默认展开），实际收起 " + gTopGroups.filter(function (g) { var b = g.querySelector(".mce-group-b"); return b && b.getAttribute("data-collapsed") === "1"; }).length);
 /* 原版态度区（08b-attitude）：单项开关 → 全部解除 → 全部恢复 → 回退 */
 assert(gpane().textContent.indexOf("你对什么感到不安") !== -1, "全局页渲染原版态度区（$uncomfortable）");
@@ -1130,7 +1130,8 @@ V.WraithsReflection = 1;
 V.mbCE_wrote = {};
 api.renderModCheats();
 const modsTxt2 = document.querySelector('[data-pane="mods"]').textContent;
-assert(modsTxt2.indexOf("Dol-Optimization") !== -1 && modsTxt2.indexOf("幽灵的倒影") !== -1 && modsTxt2.indexOf("DoLSims") !== -1, "Mod作弊 页渲染三新适配器，实际 " + modsTxt2.slice(0, 300));
+assert(modsTxt2.indexOf("Dol-Optimization") !== -1 && modsTxt2.indexOf("幽灵的倒影") !== -1 && modsTxt2.indexOf("图书馆扩展") !== -1, "Mod作弊 页渲染三新适配器，实际 " + modsTxt2.slice(0, 300));
+assert(modsTxt2.indexOf("DoLSims") === -1 && modsTxt2.indexOf("模拟人生") === -1, "Mod作弊 页不露出旧扩展原名，实际 " + modsTxt2.slice(0, 300));
 /* ---------- 7f. v2.0.3 P2 适配器门控分支（04a-10 more-farm / 04a-13 fertility 的 detect 逐键短路） ---------- */
 const mfFarmBackup = V.farm;
 const mfFarmKeys = ["compost", "cultivator", "seeder", "harvester", "laboratory", "cold_store", "farmhouse", "tank", "basement", "construction_machinery", "field_greenhouse", "farmer_can_hire"];
@@ -2689,7 +2690,7 @@ setTimeout(function () {
     console.error("FAIL: 20 v2.0.7 新页面渲染异常: " + (e20 && e20.message ? e20.message : e20));
   }
   /* §21 v2.0.7 P5：窄屏（≤560px，2026-11-22 撤底部抽屉后由 520 对齐到 560）控件拥挤适配——
-     面板转全屏、行内 label 独占一行、按钮网格单列、确认条说明换行；同时守抽屉不得回潮 */
+     面板转全屏、行内 label 独占一行、按钮网格保持两列、确认条说明换行；同时守抽屉不得回潮 */
   try {
     const at21 = mceCss.indexOf("@media (max-width:560px)");
     assert(at21 !== -1, "21.1 CSS 含 ≤560px 媒体查询（窄屏分支已注入）");
@@ -2699,14 +2700,22 @@ setTimeout(function () {
       "21.1b 底部抽屉几何/动画已撤除（无 62vh、无抽屉 keyframes）");
     assert(seg21.indexOf(".mce-row-lbl,.mce-row-name{flex:1 1 100%;min-width:0}") !== -1,
       "21.2 窄屏下行标签独占一行（min-width:120px 不再把控件挤到换行）");
-    assert(seg21.indexOf(".mce-btn-grid{grid-template-columns:1fr}") !== -1,
-      "21.3 窄屏按钮网格改单列（两列挤压消失）");
+    assert(seg21.indexOf(".mce-btn-grid{grid-template-columns:1fr 1fr}") !== -1,
+      "21.3 窄屏按钮网格保持两列（长标签自动换行）");
     assert(seg21.indexOf("width:100vw") !== -1 && seg21.indexOf("border-radius:0") !== -1,
       "21.4 窄屏面板转全屏（100vw + 去圆角，96vw 边缘留白消失）");
     assert(seg21.indexOf(".mce-inp{width:84px}") !== -1 && seg21.indexOf(".mce-inp.mce-path{width:100%}") !== -1,
       "21.5 窄屏输入框收窄 / 路径框占满，与按钮同排不溢出");
     assert(seg21.indexOf(".mce-preview-lbl{flex:1 1 100%") !== -1,
       "21.6 窄屏确认条说明换行显示（不再 ellipsis 截断关键键名）");
+    const bw21 = mceCss.indexOf(".mce-bw-grid{grid-template-columns:1fr 1fr}");
+    assert(bw21 !== -1 && bw21 > at21,
+      "21.7 涂鸦区显式两列声明仍在窄屏媒体块之后（防止后续全局规则回退）");
+    assert(mceCss.indexOf(".mce-group-h > span:first-child{flex:none;white-space:nowrap}") !== -1,
+      "21.8 分组标题不再被副标题挤压换行");
+    assert(mceCss.indexOf(".mce-pg-entry-l{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 100%}") !== -1 &&
+      mceCss.indexOf(".mce-pg-entry-r{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1 1 100%;justify-content:space-between}") !== -1,
+      "21.9 全局页入口卡左右两栏各占整行（文案不再被压成竖排）");
   } catch (e21) {
     failures++;
     console.error("FAIL: 21 P5 窄屏适配断言异常: " + (e21 && e21.message ? e21.message : e21));

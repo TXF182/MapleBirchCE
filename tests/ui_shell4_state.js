@@ -190,7 +190,7 @@ let activeIdx = -1;
 tabBtns.forEach(function (b, i) {
   if (b.classList.contains("mce-active")) { activeIdx = i; }
 });
-assert(activeIdx === 4, "8.4 当前激活页签是 global（坏字段 tab 已恢复）");
+assert(activeIdx === 5, "8.4 当前激活页签是 global（坏字段 tab 已恢复；v2.3.0 首位新增玩家的游戏）");
 tabBtns.forEach(function (b, i) {
   assert(b.getAttribute("role") === "tab", "8.5[" + i + "] 页签 role=tab");
   const sel = b.getAttribute("aria-selected");
@@ -198,7 +198,7 @@ tabBtns.forEach(function (b, i) {
   assert(b.getAttribute("tabindex") === (i === activeIdx ? "0" : "-1"), "8.7[" + i + "] roving tabindex（激活 0 其余 -1）");
 });
 const paneEls = root.querySelectorAll(".mce-pane");
-assert(paneEls.length === 8, "8.8 八个 pane（v2.2.8 新增日历页）");
+assert(paneEls.length === 9, "8.8 九个 pane（v2.3.0 新增玩家的游戏页）");
 assert(paneEls[0].getAttribute("role") === "tabpanel", "8.9 pane role=tabpanel");
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
 let act = tabs.querySelector(".mce-active");
@@ -206,14 +206,14 @@ assert(act && act.getAttribute("data-tab") === "mods", "8.10 → 键移到下一
 assert(tabs.querySelector("button[data-tab=\"mods\"]").getAttribute("tabindex") === "0", "8.11 新激活页签 tabindex=0");
 assert(tabs.querySelector("button[data-tab=\"global\"]").getAttribute("tabindex") === "-1", "8.12 旧激活页签回退 -1");
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Home", bubbles: true }));
-assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "char", "8.13 Home 回第一档 char");
+assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "player", "8.13 Home 回第一档 player");
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
 assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "calendar", "8.14 ← 从 char 回卷到末档 calendar（v2.2.8 日历页在最末）");
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "End", bubbles: true }));
 assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "calendar", "8.15 End 到末档");
 api.mbCEUiSave({ tab: "global" });
 tabs.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Home", bubbles: true }));
-assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "char", "8.16 再次 Home（roving 持续可用）");
+assert(tabs.querySelector(".mce-active").getAttribute("data-tab") === "player", "8.16 再次 Home（roving 持续可用）");
 
 section("10. 宿主 token 快照协议 + 手动主题优先（先于 S9：picker 点击即 manual 语义）");
 window.DoLGameUI = { ui: { getTheme: function () { return { tokens: { ocean: "--dgu-accent", card: "--dgu-card", mist: "--dgu-secondary", radius: "--dgu-radius" } }; } } };

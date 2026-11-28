@@ -16,7 +16,8 @@
 		[
 			mceRenderThemePicker, mceRenderUiOpts, mcRenderFabSettings
 		].forEach(function (f) { f(gApp); });
-
+		var gPlayer = mceNewGroup(pane, "玩家的游戏", "62 项纯增益 · 每项独立开关", false);
+		mbCEPlayerGameRenderEntry(gPlayer);
 		var gBatch = mceNewGroup(pane, "批量与速成", "①~⑦ 批量 · 收集 · 时间 · 誓言 · 战斗 · 维护 · 腐化", true);
 		[
 			mcRenderBatchSec, mcRenderCollectSec, mcRenderTimeSec, mcRenderVowTraitSec, mcRenderCombatSec,

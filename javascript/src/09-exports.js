@@ -274,7 +274,7 @@
 		header.appendChild(closeBtn);
 
 		var tabs = el("div", "mce-tabs");
-		var names = [["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"], ["yanling", "言灵"], ["calendar", "日历"]];
+		var names = [["player", "玩家的游戏"], ["char", "角色"], ["stage", "阶段"], ["scenes", "剧情"], ["places", "场景"], ["global", "全局"], ["mods", "Mod作弊"], ["yanling", "言灵"], ["calendar", "日历"]];
 		names.forEach(function (pair) {
 			var b = el("button", pair[0] === mbCEUiState.tab ? "mce-active" : "", pair[1]);
 			b.type = "button";
@@ -283,7 +283,7 @@
 		});
 
 		var body = el("div", "mce-body");
-		var panes = [["char", "mce-pane mce-active"], ["stage", "mce-pane"], ["scenes", "mce-pane"],
+		var panes = [["player", "mce-pane"], ["char", "mce-pane mce-active"], ["stage", "mce-pane"], ["scenes", "mce-pane"],
 			["places", "mce-pane"], ["global", "mce-pane"], ["mods", "mce-pane"], ["yanling", "mce-pane"], ["calendar", "mce-pane"]];
 		panes.forEach(function (pair) {
 			var p = el("div", pair[0] === mbCEUiState.tab ? "mce-pane mce-active" : "mce-pane");

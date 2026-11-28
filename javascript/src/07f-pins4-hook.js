@@ -35,6 +35,8 @@ function mbCEOnPassageInitTicks(title) {
 	try { mbCEFarmWorkGuard(); } catch (e7) {}
 	/* v2.2.7 贝利扣押拦截：原版脚本可能晚于 CE 注入，逐回合幂等补装（开关关时只保存原引用、不覆盖） */
 	try { mbCEBaileySync(); } catch (e8) {}
+	/* v2.3.0 玩家的游戏：已开启能力逐段复写 + 财神金钱钩子幂等补装（纯增益，不依赖外部模组） */
+	try { mbCEPGTick(); } catch (e9) {}
 }
 function mbCEOnPassageInit(title) {
 	try {

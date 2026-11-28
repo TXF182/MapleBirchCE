@@ -1053,6 +1053,26 @@
         "varPath": "usedNotPraySims"
       },
       {
+        "key": "ds_wdestiny",
+        "varPath": "WDestinytrait"
+      },
+      {
+        "key": "ds_excombat",
+        "varPath": "EXCombattrait"
+      },
+      {
+        "key": "ds_quantum",
+        "varPath": "quantumtrait"
+      },
+      {
+        "key": "ds_hypnotrait",
+        "varPath": "hypnotraitsSims"
+      },
+      {
+        "key": "ds_intercalate",
+        "varPath": "intercalatetrait"
+      },
+      {
         "key": "ds_sin",
         "varPath": "sinSims"
       },
@@ -1733,7 +1753,7 @@
   },
   "totals": {
     "adapters": 12,
-    "entries": 425,
+    "entries": 430,
     "keysWithoutVarPath": 1
   }
 }

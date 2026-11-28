@@ -225,8 +225,8 @@
 		".mce-sec-title{display:flex;align-items:center;gap:6px;color:var(--mce-txt-strong);font-weight:700;font-size:var(--mce-fs-base);border-bottom:1px solid var(--mce-border-quiet);padding:2px 0 5px;margin:8px 0 6px}" +
 		".mce-sec-n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;border-radius:4px;background:var(--mce-accent);color:var(--mce-txt-on-accent);font-size:var(--mce-fs-sm);font-weight:700;padding:0 4px;flex:none}" +
 		".mce-group{margin:8px 0 4px;padding:6px 8px 8px;background:var(--mce-bg-block);border:1px solid var(--mce-border-dim);border-radius:var(--mce-radius);contain:content}" +
-		".mce-group-h{display:flex;align-items:baseline;gap:6px;color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-btn);margin-bottom:2px}" +
-		".mce-group-n{color:var(--mce-gold-soft);font-size:var(--mce-fs-sm);font-weight:400;opacity:.85}" +
+		".mce-group-h{display:flex;align-items:baseline;gap:6px;color:var(--mce-accent);font-weight:700;font-size:var(--mce-fs-btn);margin-bottom:2px}" + ".mce-group-h > span:first-child{flex:none;white-space:nowrap}" +
+		".mce-group-n{color:var(--mce-gold-soft);font-size:var(--mce-fs-sm);font-weight:400;opacity:.85;flex:1 1 auto;min-width:0}" +
 		".mce-group-arrow{margin-left:auto;color:var(--mce-accent);font-size:var(--mce-fs-sm);line-height:1;padding-left:6px}" +
 		".mce-group-b[data-collapsed=\"1\"]{display:none}" +
 		".mce-group-b[data-collapsed=\"0\"]{animation:mce-fade-in .2s ease-out}" +
@@ -367,7 +367,7 @@
 		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go{background:var(--mce-accent);color:var(--mce-txt-on-accent);border-color:var(--mce-accent-dark)}" +
 		".mce-anchor-prompt.mce-theme-starry .mce-anchor-go:hover{background:var(--mce-accent-hover)}" +
 		/* v2.0.7 P5：窄屏（≤560px，原 520——2026-11-22 撤底部抽屉后与旧抽屉门槛对齐，避免 521-560 落回 430px 侧栏）
-		   控件拥挤——面板转全屏、行内 label 独占一行、按钮网格单列、预览条说明换行，避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位 */
+		   控件拥挤——面板转全屏、行内 label 独占一行、按钮网格保持两列（长标签自动换行）、预览条说明换行，避免 84-90px 输入框 + 两个按钮挤在同一行而溢出错位 */
 		"@media (max-width:560px){" +
 		"#mce-root{top:0;right:0;bottom:0;left:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none}" +
 		".mce-body{padding:8px}" +
@@ -377,7 +377,7 @@
 		".mce-inp{width:84px}" +
 		".mce-search-inp{width:100%}" +
 		".mce-inp.mce-path{width:100%}" +
-		".mce-btn-grid{grid-template-columns:1fr}" +
+		".mce-btn-grid{grid-template-columns:1fr 1fr}" +
 		".mce-cards{grid-template-columns:1fr}" +
 		".mce-preview-bar{gap:6px}" +
 		".mce-preview-lbl{flex:1 1 100%;white-space:normal;overflow:visible}" +

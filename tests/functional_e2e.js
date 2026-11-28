@@ -173,7 +173,7 @@ mods.forEach(function (m) {
   assert(!!m.modId && Array.isArray(m.stages) && Array.isArray(m.abilities) && Array.isArray(m.values), "B. " + m.modId + " 声明结构完整（stages/abilities/values 数组）");
 });
 const modsTxt = document.querySelector('[data-pane="mods"]').textContent;
-["枯木逢春", "Dol-Optimization", "幽灵的倒影", "DoLSims", "归途", "More Love Interests", "DomRobin", "SmartPhone", "Cattery", "人物附加与生活质量提升"].forEach(function (kw) {
+["枯木逢春", "Dol-Optimization", "幽灵的倒影", "图书馆扩展", "归途", "More Love Interests", "DomRobin", "SmartPhone", "Cattery", "人物附加与生活质量提升"].forEach(function (kw) {
   assert(modsTxt.indexOf(kw) !== -1, "B. Mod作弊 主容器含 " + kw + " 入口，实际 " + modsTxt.slice(0, 200));
 });
 

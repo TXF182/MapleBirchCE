@@ -205,7 +205,10 @@ const TESTS = [
   "tests/pure_mode.js",
   /* v2.2.8 事件日历（07x）：14/7/30 天窗口、租金到期与逾期、扣押 +7/+8、假期月标注、
      passTime 探测与跳日透传、无时间戳降级提示、renderCalendar 真实行数。 */
-  "tests/event_calendar.js"
+  "tests/event_calendar.js",
+  /* v2.3.0 玩家的游戏（07y）：62 项注册/唯一 id/7 分组、默认状态、逐项与子开关、全开全关恢复默认、
+     四套预设、特质注册、财神 ×4/×0.5/×16、tick 全属性/技能/状态/战斗/三形/每日成长、真实页面 62 卡。 */
+  "tests/player_game_state.js"
 ];
 
 /* 读原版 64 MB HTML 的测试：smoke_dom.js / integration_gender.js / pins_state_machine.js。

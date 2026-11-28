@@ -3,6 +3,24 @@
    排版复用 07m-vanilla-econ-view.js 的 Ui* 助手（同一套 token，不另起风格）。
    拆段原因：结构门禁 S1 单段 400 行；本段只放涂鸦视图，主渲染段保持原样。 */
 
+	/* 涂鸦区按钮只有 2~7 字，显式保留两列（与全局窄屏两列规则一致，防止后续改全局时回退）。 */
+	MB_CSS += ".mce-bw-grid{grid-template-columns:1fr 1fr}";
+
+	function mbCEVanillaEconBwGrid(parent) {
+		var g = mceBtnGrid(parent);
+		if (g && g.classList) { g.classList.add("mce-bw-grid"); }
+		return g;
+	}
+	/* 重绘前记滚动位：清空瞬间 .mce-body 高度归零会被钳到 0（切分类跳回顶部）。
+	   只在目标 pane 激活时记位——非激活页渲染不得动共享滚动容器（perf 1.4）。 */
+	function mbCEVanillaEconBwScroll(body) {
+		try {
+			var pane = body.closest ? body.closest(".mce-pane") : null;
+			if (pane && !pane.classList.contains("mce-active")) { return { el: null, top: 0 }; }
+			var bodyEl = body.closest ? body.closest(".mce-body") : null;
+			return { el: bodyEl, top: bodyEl ? bodyEl.scrollTop : 0 };
+		} catch (e) { return { el: null, top: 0 }; }
+	}
 	function mbCEVanillaEconBwPartList(skin) {
 		var parts = Object.keys(skin).filter(function (k) { return skin[k] && typeof skin[k] === "object"; });
 		return parts.length ? parts : ["forehead"];
@@ -24,7 +42,7 @@
 		return g ? g.items : [];
 	}
 	function mbCEVanillaEconBwCatGrid(body, ui, redraw) {
-		var g = mceBtnGrid(body);
+		var g = mbCEVanillaEconBwGrid(body);
 		mbCEVanillaEconBwMenu().forEach(function (x) {
 			mbCEVanillaEconUiBtn(g, x.zh, "原版菜单分类：" + x.zh + "（" + x.items.length + " 条）", function () {
 				ui.cat = x.grp;
@@ -34,7 +52,7 @@
 		});
 	}
 	function mbCEVanillaEconBwSpecialEntry(body, ui, redraw) {
-		var g = mceBtnGrid(body);
+		var g = mbCEVanillaEconBwGrid(body);
 		mbCEVanillaEconUiBtn(g, "特殊涂鸦", "镜子菜单未收录的 NPC / 剧情专属涂鸦，按写入来源分组", function () {
 			ui.special = true;
 			redraw();
@@ -48,7 +66,7 @@
 			body.appendChild(el("div", MCE_CLS.hint, "原版涂鸦数据缺失或为空，暂无可用的特殊涂鸦。"));
 			return;
 		}
-		var sg = mceBtnGrid(body);
+		var sg = mbCEVanillaEconBwGrid(body);
 		groups.forEach(function (x) {
 			mbCEVanillaEconUiBtn(sg, x.zh, x.zh + " 组（" + x.items.length + " 条）", function () {
 				ui.sp = x.grp;
@@ -66,14 +84,14 @@
 			"原版可见部位（含该存档已有的皮肤键）");
 		partSel.value = ui.part;
 		partSel.addEventListener("change", function () { ui.part = partSel.value; redraw(); });
-		var g = mceBtnGrid(body);
+		var g = mbCEVanillaEconBwGrid(body);
 		mbCEVanillaEconUiBtn(g, "写入涂鸦", "把所选条目复制成原版对象写到所选部位（判为涂鸦，可回退）", function () {
 			if (!sel.value) { setStatus("该分组没有可写条目", MCE_CLS.err); return; }
 			mbCEVanillaEconUiRun(mbCEVanillaEconBwWrite(ui.part, sel.value), redraw);
 		});
 	}
 	function mbCEVanillaEconBwClearRow(body, ui, redraw, V) {
-		var g = mceBtnGrid(body);
+		var g = mbCEVanillaEconBwGrid(body);
 		mbCEVanillaEconUiBtn(g, "清除该部位", "整部位重置（等价原版 bodywriting_clear，涂鸦与纹身都清）", function () {
 			mbCEVanillaEconUiRun(mbCEVanillaEconBwClear(ui.part), redraw);
 		});
@@ -99,11 +117,13 @@
 		var body = mbCEVanillaEconUiBody(sec, "身体涂鸦", "9 类原版菜单 · 特殊涂鸦 · 悉尼十六字真言");
 		var ui = { cat: "General", special: false, sp: "Sydney", part: "forehead" };
 		var redraw = function () {
+			var sc = mbCEVanillaEconBwScroll(body);
 			mbCEVanillaEconUiClear(body);
 			var V = getV();
 			var skin = V && V.skin;
 			if (!skin || typeof skin !== "object") {
 				body.appendChild(el("div", MCE_CLS.hint, "该存档没有皮肤数据，进游戏刷新一次再回来。"));
+				mceRestoreScroll(sc.el, sc.top);
 				return;
 			}
 			var parts = mbCEVanillaEconBwPartList(skin);
@@ -132,6 +152,7 @@
 				["bodywriting-all", "回退全部涂写"],
 				["bodywriting-images", "回退图像开关"]
 			]);
+			mceRestoreScroll(sc.el, sc.top);
 		};
 		redraw();
 	}

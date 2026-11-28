@@ -168,9 +168,20 @@ try {
 
   /* 面板空状态与状态文案：空 skin / 纹身 / 无 writing 的图形 */
   V.skin = {};
+  const scrollerA = document.createElement("div");
+  scrollerA.className = "mce-body";
+  Object.defineProperty(scrollerA, "scrollHeight", { get: function () { return 2000; } });
+  document.body.appendChild(scrollerA);
   const paneA = document.createElement("div");
+  scrollerA.appendChild(paneA);
   api.renderVanillaEcon(paneA);
   assert(paneA.textContent.indexOf("没有皮肤数据") === -1 && paneA.textContent.indexOf("身体涂鸦") !== -1, "空 skin → 涂鸦区块仍渲染（部位回退额头）");
+  const bwGrids = paneA.querySelectorAll(".mce-bw-grid");
+  assert(bwGrids.length === 4, "涂鸦区四组按钮都带两列网格类（分类 / 特殊入口 / 写入 / 清除）");
+  assert(bwGrids[0].querySelectorAll(".mce-btn").length === 9, "分类网格 9 个按钮（两列 5 行）");
+  scrollerA.scrollTop = 120;
+  bwGrids[0].querySelectorAll(".mce-btn")[1].dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert(scrollerA.scrollTop === 120, "切换分类重绘后滚动位置保持（不跳回顶部）");
   V.skin = { forehead: { pen: "tattoo", writing: "★" }, chest: { pen: "pen", type: "object" } };
   const paneB = document.createElement("div");
   api.renderVanillaEcon(paneB);

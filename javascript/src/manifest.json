@@ -460,6 +460,36 @@
       "note": "v2.2.8 事件日历页签：未来 14 天逐日列出原版时间敏感事件（租金 $rentday/$renttime、贝利扣押 +7 赎回/+8 变卖、学校假期 4/7/8/12 月），提供原版 passTime 跳日与 07m 租金锁定入口；只读不写档"
     },
     {
+      "file": "07y-player-game-data1.js",
+      "layer": "ui",
+      "note": "v2.3.0 玩家的游戏 · 数据层一：7 分组 + 22 项（书籍/镜子/武器），每项独立主开关 + 子开关 + 声明式效果操作；零 DoLSims 依赖"
+    },
+    {
+      "file": "07y-player-game-data2.js",
+      "layer": "ui",
+      "note": "v2.3.0 玩家的游戏 · 数据层二：系统 9 + 财神 1 + 催眠 15（三分支×五档）+ 新生特权 15；技能子开关由 PANEL_QUICK_GROUPS 动态生成"
+    },
+    {
+      "file": "07y-player-game-core.js",
+      "layer": "ui",
+      "note": "v2.3.0 玩家的游戏 · 引擎：V.mbCE_playerGame 存档状态、62 项开关/子开关、全开全关恢复默认、四套预设、财神 statChange.money 包装、战斗/状态 tick、基础 traits 注册"
+    },
+    {
+      "file": "07y-player-game-hooks.js",
+      "layer": "ui",
+      "note": "v2.3.0 玩家的游戏 · 真实钩子与可逆快照：statChange 数值免疫 / Time.pass 免耗时 / 地图全开 / 犯罪清零 / 喷雾无限；关闭时按路径引用计数还原，不误改其它已开项"
+    },
+    {
+      "file": "07y-player-game-ui.js",
+      "layer": "ui",
+      "note": "v2.3.0 玩家的游戏 · 页面：顶层 player 页 hero + 工具条 + 搜索 + 收藏 + 七组 62 卡 + 子开关折叠 + 全局页入口卡"
+    },
+    {
+      "file": "07y-player-game-art.js",
+      "layer": "ui",
+      "note": "v2.3.0 玩家的游戏 · 视觉：黑金/像素质感 CSS（沿用 CE 主题 token），横幅 MB_CE_PG_ART + 7 分组图标雪碧图 MB_CE_PG_ICONS 均为 data URI（空时渐变/字形兜底）"
+    },
+    {
       "file": "08-npc-traits.js",
       "layer": "ui"
     },
@@ -512,6 +542,11 @@
       "file": "09-exports5-yanling-posts.js",
       "layer": "export",
       "note": "2026-11-23 贴吧 87/90/92 楼 3 键导出（项圈锁 / 绝望轮回全结局 / 清除好奇；09-exports2 399 行触门禁，拆段后 init 与顶层各调一次）"
+    },
+    {
+      "file": "09-exports6-player.js",
+      "layer": "export",
+      "note": "v2.3.0 玩家的游戏 19 键导出（09-exports2 再次触 400 行门禁后拆段；mountApi 赋值后调用，幂等）"
     },
     {
       "file": "09-exports2.js",

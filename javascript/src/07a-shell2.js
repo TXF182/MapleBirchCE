@@ -22,6 +22,7 @@
 		/* 页签 → 渲染器分发表（v2.2.8 由 8 条 if 链改为查表：加页签只加一项，不再把 switchOuterTab 的
 		   圈复杂度往上顶；函数引用在调用时求值，届时所有段都已加载） */
 		var renders = {
+			player: renderPlayerGame,
 			char: renderCards,
 			stage: renderStagePane,
 			scenes: renderScenes,
